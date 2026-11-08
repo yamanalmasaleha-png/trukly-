@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS notification_settings (user_id TEXT PRIMARY KEY, nearby_enabled BOOLEAN NOT NULL DEFAULT true, radius_miles INTEGER NOT NULL DEFAULT 3 CHECK (radius_miles BETWEEN 1 AND 30), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())

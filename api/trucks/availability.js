@@ -1,0 +1,2 @@
+import { db } from "hatchable";
+export const access = "public";export const methods=["GET"];export default async function(req,res){const id=String(req.query.truck_id||""),date=String(req.query.date||"");if(!id||!/^\d{4}-\d{2}-\d{2}$/.test(date))return res.status(400).json({error:"truck_id and ISO date are required"});const{rows}=await db.query("SELECT service_date,opens_at,closes_at,location,status FROM owner_schedule WHERE truck_id=$1 AND service_date=$2",[id,date]);res.json({truck_id:id,date,schedule:rows[0]||null,requestable:!rows[0]||rows[0].status!=="unavailable"})}

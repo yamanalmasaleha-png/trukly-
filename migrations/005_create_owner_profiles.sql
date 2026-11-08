@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS owner_profiles (truck_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, description TEXT, cuisine TEXT, accepting_bookings BOOLEAN NOT NULL DEFAULT true, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())

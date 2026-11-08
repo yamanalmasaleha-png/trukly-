@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS favorites (user_id TEXT NOT NULL, truck_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, truck_id))

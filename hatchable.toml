@@ -1,0 +1,12 @@
+name = "Truckly"
+[auth]
+enabled = true
+providers = ["email"]
+
+[db.tables.favorites]
+read = "own"
+write = "own"
+
+[db.tables.notification_settings]
+read = "own"
+write = "own"

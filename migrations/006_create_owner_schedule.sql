@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS owner_schedule (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), truck_id TEXT NOT NULL, service_date DATE NOT NULL, opens_at TIME, closes_at TIME, location TEXT, status TEXT NOT NULL DEFAULT 'scheduled', UNIQUE (truck_id, service_date))

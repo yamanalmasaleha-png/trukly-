@@ -1,0 +1,2 @@
+import { db } from "hatchable";
+export const access="user";export const methods=["GET"];export default async function(req,res){const{rows}=await db.query("SELECT id,truck_id,truck_name,event_type,event_date,guest_count,location,package_id,package_name,package_price,status,created_at FROM bookings WHERE requester=$1 ORDER BY event_date DESC LIMIT 50",[req.user.email]);res.json({bookings:rows})}

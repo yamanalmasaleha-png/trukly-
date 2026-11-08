@@ -1,0 +1,2 @@
+import { db } from "hatchable";
+export const access="user";export const methods=["GET"];export default async function(req,res){const{rows}=await db.query("SELECT truck_id,created_at FROM favorites WHERE user_id=$1 ORDER BY created_at DESC",[req.user.id]);res.json({favorites:rows})}

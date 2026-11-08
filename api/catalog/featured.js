@@ -1,0 +1,1 @@
+export const access="public";export const methods=["GET"];export default async function(req,res){res.json({featured_ids:["ross","mitote","fruta","elroys-pet-1","block"],updated_for:"Sonoma County corridor"})}

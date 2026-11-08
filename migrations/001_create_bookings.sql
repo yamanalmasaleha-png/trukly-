@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS bookings (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), truck_id TEXT, truck_name TEXT NOT NULL, event_type TEXT NOT NULL, event_date DATE NOT NULL, guest_count INTEGER NOT NULL CHECK (guest_count > 0), location TEXT NOT NULL, note TEXT, requester TEXT, status TEXT NOT NULL DEFAULT 'pending', created_at TIMESTAMPTZ NOT NULL DEFAULT now())

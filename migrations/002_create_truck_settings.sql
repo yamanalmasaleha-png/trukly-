@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS truck_settings (truck_id TEXT PRIMARY KEY, location TEXT NOT NULL, is_open BOOLEAN NOT NULL DEFAULT true, opens_at TIME, closes_at TIME, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())

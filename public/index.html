@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ff6b5f"><meta name="description" content="Find food trucks open now in Santa Rosa, California."><title>Truckly Santa Rosa — food trucks near you</title>
+  <link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/theme.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <button class="brand" onclick="showScreen('owner')" aria-label="Truckly owner mode"><span class="brand-mark">T</span><span>truckly</span></button>
+    <button class="location-pill" onclick="locateMe()"><span>⌖</span><span id="locationLabel">Sonoma County</span><b>⌄</b></button>
+    <div class="header-actions">
+      <button class="home-button" onclick="showScreen('discover')" aria-label="Home" title="Home"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+      <details class="profile-menu"><summary class="avatar" aria-label="Profile" title="Profile">JM</summary><div class="profile-dropdown"><strong>Your profile</strong><button onclick="showScreen('favorites');this.closest('details').open=false">Saved places</button><button onclick="showScreen('bookings');this.closest('details').open=false">Your bookings</button></div></details>
+    </div>
+  </header>
+
+  <main id="discoverScreen" class="screen active">
+    <section class="map-wrap">
+      <div id="map"></div>
+      <div class="mode-switch" role="group" aria-label="Choose map or list view"><button id="mapMode" aria-pressed="true" class="active" onclick="setMode('map')">Map</button><button id="listMode" aria-pressed="false" onclick="setMode('list')">List</button></div>
+      <div class="discovery-toolbar"><div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search food trucks" placeholder="Tacos, bao, ice cream…" oninput="applyFilters()"></label><button class="round-btn" onclick="locateMe()" aria-label="Find my location">⌖</button></div>
+      <div class="filters" id="filters">
+        <button class="chip active" data-cuisine="All">🍴 All</button><button class="chip" data-cuisine="Mexican">🌮 Mexican</button><button class="chip" data-cuisine="Burgers">🍔 Smash burgers</button><button class="chip" data-cuisine="Hot Dogs">🌭 Hot dogs</button><button class="chip" data-cuisine="Global">🥟 Global</button><button class="chip" data-cuisine="Sweets">🍦 Sweets</button><button class="chip" data-cuisine="Markets">🧺 Market vendors</button>
+      </div>
+      <div class="map-actions"><button class="map-chip" id="openNow" onclick="toggleOpen()">Open now</button><button class="map-chip" onclick="openDistance()"><span id="distanceText">30 mi</span> radius</button></div>
+      <div class="nearby-count" id="nearbyCount" role="status" aria-live="polite">Loading places…</div>
+      </div><aside class="truck-sheet" id="truckSheet">
+        <div class="sheet-title"><div><small>SONOMA COUNTY</small><h1>Nearby food trucks</h1></div></div>
+        <div id="truckCards" class="truck-cards"></div>
+      </aside>
+    </section>
+  </main>
+
+  <main id="favoritesScreen" class="screen page-screen">
+    <div class="page-head"><div><small>SAVED SPOTS</small><h1>Your favorites</h1><p>We’ll give you a nudge when they roll nearby.</p></div><span class="big-icon">♡</span></div>
+    <div id="favoriteGrid" class="favorite-grid"></div>
+  </main>
+
+  <main id="bookingsScreen" class="screen page-screen">
+    <div class="page-head"><div><small>GOOD TIMES, CATERED</small><h1>Your bookings</h1><p>Requests and upcoming food truck events.</p></div><span class="big-icon">✦</span></div>
+    <div id="bookingList" class="booking-list"></div>
+  </main>
+
+  <main id="ownerScreen" class="screen page-screen owner-page">
+    <div class="owner-hero"><button class="back-link" onclick="showScreen('discover')">← Back to map</button><div class="owner-brand"><span class="owner-logo">🌮</span><div><small>OWNER MODE</small><h1>Your Food Truck</h1><p>Keep Santa Rosa regulars in the loop.</p></div></div><span class="status-pill">● Taking orders</span></div>
+    <div class="owner-stats"><div><b>1.2k</b><span>views this week</span></div><div><b>4.9</b><span>guest rating</span></div><div><b>7</b><span>new requests</span></div></div>
+    <section class="owner-grid">
+      <article class="owner-card location-card"><div class="card-label">CURRENT LOCATION</div><h2>Where are you parked?</h2><div class="mini-map"><span class="pulse-pin">🌮</span></div><label>Location note<input id="ownerLocation" value="Ross Street, Downtown Santa Rosa"></label><button class="primary" onclick="updateOwnerLocation()">Update live location</button></article>
+      <article class="owner-card"><div class="card-label">TODAY'S HOURS</div><h2>Open for business</h2><div class="hours-row"><span>Tuesday</span><input type="time" value="11:00"><span>to</span><input type="time" value="20:00"></div><label class="switch-row"><span><b>Show me as open</b><small>Visible on the live map</small></span><input type="checkbox" checked onchange="toast('Open status updated')"></label><button class="secondary" onclick="toast('Schedule saved')">Save schedule</button></article>
+      <article class="owner-card photo-manager"><div class="card-label">MENU PHOTOS</div><h2>Show what you serve</h2><p class="meta">Upload real food and truck photos. These replace the icon artwork on your listing.</p><div class="owner-photo-grid" id="ownerPhotoGrid"><label class="upload-tile">＋<small>Add photos</small><input type="file" accept="image/*" multiple onchange="previewOwnerPhotos(event)"></label><div class="owner-photo sample-one">🌮</div><div class="owner-photo sample-two">🚚</div></div></article>
+      <article class="owner-card owner-actions"><div class="card-label">QUICK ACTIONS</div><h2>Run today’s service</h2><button class="owner-action" onclick="toast('Menu editor opened')"><span>☷</span><b>Edit menu & prices</b><small>Keep ordering details current</small></button><button class="owner-action" onclick="toast('Followers notified')"><span>◉</span><b>Notify followers</b><small>Share your live location</small></button><button class="owner-action" onclick="openBooking()"><span>✦</span><b>Preview packages</b><small>See the customer request flow</small></button></article>
+      <article class="owner-card requests-card"><div class="card-label">BOOKING REQUESTS</div><h2>Fresh opportunities <span class="count-badge" id="ownerRequestCount">3</span></h2><div id="ownerRequests"></div></article>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="active" data-screen="discover" onclick="showScreen('discover')"><span aria-hidden="true">🧭</span><small>Discover</small></button>
+    <button data-screen="favorites" onclick="showScreen('favorites')"><span aria-hidden="true">💛</span><small>Saved</small></button>
+    <button class="book-nav" onclick="openBooking()"><span aria-hidden="true">🎉</span><small>Book a truck</small></button>
+    <button data-screen="bookings" onclick="showScreen('bookings')"><span aria-hidden="true">🗓️</span><small>Bookings</small></button>
+    <button class="surprise-nav" onclick="surpriseMe()"><span aria-hidden="true">🎲</span><small>Surprise me</small></button>
+    </nav>
+</div>
+
+<div class="modal-backdrop" id="detailModal" onclick="if(event.target===this)closeModal()"><div class="detail-modal" id="detailContent"></div></div>
+<div class="modal-backdrop" id="bookingModal" onclick="if(event.target===this)closeBooking()"><form class="booking-modal" onsubmit="submitBooking(event)">
+  <button type="button" class="modal-close" onclick="closeBooking()">×</button><small>BRING THE FLAVOR TO YOU</small><h2>Book a food truck</h2><p id="bookingTruckLabel">Tell us about your event. The truck will confirm availability.</p>
+  <input type="hidden" id="bookingTruck"><fieldset class="package-picker"><legend>Choose your package</legend>
+  <label class="package-option"><input type="radio" name="bookingPackage" value="dropin" data-price="750" checked><span><b>Neighborhood Drop-in</b><small>Up to 50 guests · 2 hours</small></span><strong>$750</strong></label>
+  <label class="package-option popular"><em>MOST POPULAR</em><input type="radio" name="bookingPackage" value="party" data-price="1500"><span><b>Party Favorite</b><small>Up to 100 guests · 3 hours</small></span><strong>$1,500</strong></label>
+  <label class="package-option"><input type="radio" name="bookingPackage" value="festival" data-price="2900"><span><b>Full Festival</b><small>Up to 250 guests · 5 hours</small></span><strong>$2,900</strong></label>
+</fieldset><label>Event type<select id="eventType"><option>Birthday party</option><option>Office lunch</option><option>Wedding</option><option>Community event</option><option>Just come to my block</option></select></label>
+  <div class="form-row"><label>Date<input id="eventDate" type="date" required></label><label>Guests<input id="guestCount" type="number" min="10" value="50" required></label></div>
+  <label>Location<input id="eventLocation" placeholder="Address or neighborhood" required></label><label>Anything else?<textarea id="eventNote" placeholder="Dietary needs, timing, setup details…"></textarea></label>
+  <button class="primary" type="submit">Send request <span>→</span></button><p class="form-note">No payment yet. You’ll confirm details with the owner first.</p>
+</form></div>
+<div class="modal-backdrop" id="distanceModal" onclick="if(event.target===this)this.classList.remove('show')"><div class="distance-modal"><small>DISTANCE</small><h2>How far would you roam?</h2><input id="distanceRange" type="range" min="1" max="30" value="30" oninput="setDistance(this.value)"><div class="range-labels"><span>1 mi</span><b id="rangeValue">30 miles</b><span>30 mi</span></div><button class="primary" onclick="document.getElementById('distanceModal').classList.remove('show');applyFilters()">Show trucks</button></div></div>
+<div id="toast" class="toast" role="status"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app.js"></script>
+</body></html>

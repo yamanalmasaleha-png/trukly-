@@ -1,0 +1,2 @@
+import { db } from "hatchable";
+export const access="admin";export const methods=["GET"];export default async function(req,res){const status=String(req.query.status||"");const{rows}=status?await db.query("SELECT * FROM bookings WHERE status=$1 ORDER BY event_date",[status]):await db.query("SELECT * FROM bookings ORDER BY event_date DESC LIMIT 100");res.json({bookings:rows})}

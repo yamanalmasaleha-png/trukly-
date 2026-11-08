@@ -1,0 +1,1 @@
+export const access="public";export const methods=["GET"];export default async function(req,res){res.json({cities:[{name:"Santa Rosa",center:[38.4405,-122.7144]},{name:"Rohnert Park",center:[38.3396,-122.7011]},{name:"Cotati",center:[38.3269,-122.7072]},{name:"Petaluma",center:[38.2324,-122.6367]},{name:"Sonoma",center:[38.2919,-122.458]}]})}
