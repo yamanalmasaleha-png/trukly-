@@ -5,6 +5,12 @@
 (function () {
   "use strict";
   var PICKS = Object.freeze({
+    "iniguez": {heading:"Top-liked menu item",title:"Tacos",icon:"🌮",note:"Uber Eats lists tacos as the #1 most liked item for the Mission Boulevard location. Platform rating is not an independently audited sales ranking.",source:"https://guava.failover.uber.com/store/tacos-los-iniguez-mission-blvd/AI7JR89vUeCeAMyoM-KgmQ"},
+    "elenita": {heading:"Customer favorite",title:"Tacos al Pastor",icon:"🌮",note:"Listed among customer favorites by Restaurantji, not labeled the owner's official bestseller.",source:"https://www.restaurantji.com/ca/santa-rosa/delicias-elenita-/"},
+    "momo": {heading:"Featured delivery item",title:"Stix MoMo · fried dumplings",icon:"🥟",note:"Featured on Momo Man's DoorDash menu; menu or service availability may change.",source:"https://www.doordash.com/store/momo-man-petaluma-32786989/"},
+    "dogaday": {heading:"Featured menu item",title:"Giant Dog · quarter-pound",icon:"🌭",note:"Shown among A Dog A Day's featured delivery items, not a verified overall bestseller.",source:"https://www.doordash.com/store/a-dog-a-day-hotdogs-%26-more-santa-rosa-926436/"},
+    "api-hot": {heading:"Known food specialty",title:"Mexican-spiced hot chicken",icon:"🍗",note:"NorCal Food Truck Association describes Nashville hot chicken with Mexican dried chilies; no ranked dish is claimed.",source:"https://www.norcalfoodtrucks.org/the-trucks/api-hot-chicken"},
+    "magos": {heading:"Previously reviewed dish",title:"Birria-loaded fries",icon:"🍟",note:"Eater described birria fries in 2023 at the former Mitote location; confirm the current menu and vendor location.",source:"https://sf.eater.com/2023/6/5/23746661/mitote-food-truck-park-santa-rosa"},
     "elroys": {heading:"Food-truck menu",title:"Mexican street eats",note:"The operator publishes a distinct food-truck menu. Confirm items at 1569 Sebastopol Road.",source:"https://elroys.com/locations/"},
     "elroys-pet-1": {heading:"Food-truck menu",title:"El Roy's street eats",note:"The operator confirms the Downtown Petaluma truck at 401 E Washington St. Best sellers not ranked.",source:"https://elroys.com/locations/"},
     "elroys-pet-2": {heading:"Food-truck menu",title:"El Roy's street eats",note:"The operator confirms the Fairgrounds truck at 175 Fairgrounds Dr. Best sellers not ranked.",source:"https://elroys.com/locations/"},
@@ -35,7 +41,7 @@
     if (!t) return "";
     var pick=getPick(t);
     var category=esc(t.kind || t.cuisine || "Local food");
-    var represent=esc(t.emoji || "🍽️");
+    var represent=esc(pick && pick.icon || t.emoji || "🍽️");
     var heading=pick ? pick.heading : "Dish and photo research pending";
     var label=pick ? pick.title : category + " to explore";
     var sub=pick ? pick.note : "Illustrative icon only. We have not confirmed this vendor's best dish or permission to display a vendor-specific food photo.";
