@@ -2,40 +2,207 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#ff6b5f"><meta name="description" content="Find food trucks open now in Santa Rosa, California."><title>Truckly Santa Rosa — food trucks near you</title>
+  <meta name="theme-color" content="#214b3b"><meta name="description" content="Find your next good food spot in Sonoma County. Explore food trucks, market vendors, and neighborhood flavors with Truckly."><title>Truckly — Good food. Word gets around.</title>
   <link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/theme.css">
+  <link rel="stylesheet" href="/neighborhood.css">
+<link rel="stylesheet" href="/pager.css">
+<link rel="stylesheet" href="/pager-experience.css">
+<link rel="stylesheet" href="/smart.css">
+<link rel="stylesheet" href="/characters.css">
+<link rel="stylesheet" href="/coffee-club.css">
+<link rel="stylesheet" href="/local-guides.css">
+<link rel="stylesheet" href="/guide-passport.css">
+<link rel="stylesheet" href="/layout-polish.css">
+<link rel="stylesheet" href="/community.css">
+<link rel="stylesheet" href="/street-whispers.css">
+<link rel="stylesheet" href="/mobile-scroll-fix.css">
+<link rel="stylesheet" href="/color-calm.css">
 </head>
 <body>
 <div id="app">
   <header class="topbar">
     <button class="brand" onclick="showScreen('owner')" aria-label="Truckly owner mode"><span class="brand-mark">T</span><span>truckly</span></button>
     <button class="location-pill" onclick="locateMe()"><span>⌖</span><span id="locationLabel">Sonoma County</span><b>⌄</b></button>
-    <div class="header-actions">
+    <div class="header-actions"><button class="guides-launch" onclick="openLocalGuides()" aria-label="Local guides"><span data-doodle="paper" aria-hidden="true"></span><span class="guides-label">Local guides</span></button><button class="pager-launch" onclick="openPager()" aria-label="Food pager"><span aria-hidden="true">🍽️</span><span class="pager-launch-label">Food pager</span></button>
       <button class="home-button" onclick="showScreen('discover')" aria-label="Home" title="Home"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
-      <details class="profile-menu"><summary class="avatar" aria-label="Profile" title="Profile">JM</summary><div class="profile-dropdown"><strong>Your profile</strong><button onclick="showScreen('favorites');this.closest('details').open=false">Saved places</button><button onclick="showScreen('bookings');this.closest('details').open=false">Your bookings</button></div></details>
+      <details class="profile-menu"><summary class="avatar" aria-label="Profile" title="Profile">JM</summary><div class="profile-dropdown"><strong>Your profile</strong><button onclick="showScreen('favorites');this.closest('details').open=false">Saved places</button><button onclick="showScreen('bookings');this.closest('details').open=false">Your bookings</button><button onclick="this.closest('details').open=false;openCommunity()">Local community</button></div></details>
     </div>
   </header>
 
-  <main id="discoverScreen" class="screen active">
+  <main id="discoverScreen" class="screen active list-mode">
     <section class="map-wrap">
       <div id="map"></div>
-      <div class="mode-switch" role="group" aria-label="Choose map or list view"><button id="mapMode" aria-pressed="true" class="active" onclick="setMode('map')">Map</button><button id="listMode" aria-pressed="false" onclick="setMode('list')">List</button></div>
-      <div class="discovery-toolbar"><div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search food trucks" placeholder="Tacos, bao, ice cream…" oninput="applyFilters()"></label><button class="round-btn" onclick="locateMe()" aria-label="Find my location">⌖</button></div>
+      <div class="mode-switch" role="group" aria-label="Choose map or list view"><button id="mapMode" aria-pressed="false" onclick="setMode('map')">Map</button><button id="listMode" class="active" aria-pressed="true" onclick="setMode('list')">List</button></div>
+      <div class="discovery-toolbar"><div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search local food spots" placeholder="Find your next “you have to try this”…" oninput="applyFilters()"></label><button class="round-btn" onclick="locateMe()" aria-label="Find my location">⌖</button></div>
       <div class="filters" id="filters">
-        <button class="chip active" data-cuisine="All">🍴 All</button><button class="chip" data-cuisine="Mexican">🌮 Mexican</button><button class="chip" data-cuisine="Burgers">🍔 Smash burgers</button><button class="chip" data-cuisine="Hot Dogs">🌭 Hot dogs</button><button class="chip" data-cuisine="Global">🥟 Global</button><button class="chip" data-cuisine="Sweets">🍦 Sweets</button><button class="chip" data-cuisine="Markets">🧺 Market vendors</button>
+        <button class="chip active" data-cuisine="All">🍴 All</button><button class="chip" data-cuisine="Mexican">🌮 Mexican</button><button class="chip" data-cuisine="Burgers">🍔 Smash burgers</button><button class="chip" data-cuisine="Hot Dogs">🌭 Hot dogs</button><button class="chip" data-cuisine="Global">🥟 Global</button><button class="chip" data-cuisine="Sweets">🍦 Sweets</button><button class="chip" data-cuisine="Coffee">☕ Coffee</button><button class="chip" data-cuisine="Markets">🧺 Market vendors</button>
       </div>
-      <div class="map-actions"><button class="map-chip" id="openNow" onclick="toggleOpen()">Open now</button><button class="map-chip" onclick="openDistance()"><span id="distanceText">30 mi</span> radius</button></div>
+      <details class="extra-filters" id="extraFilters"><summary aria-label="More discovery filters">☷ <span>Filters</span></summary><div class="map-actions"><button class="map-chip" id="openNow" onclick="toggleOpen()">Open now</button><button class="map-chip" onclick="openDistance()"><span id="distanceText">30 mi</span> radius</button></div></details>
       <div class="nearby-count" id="nearbyCount" role="status" aria-live="polite">Loading places…</div>
       </div><aside class="truck-sheet" id="truckSheet">
-        <div class="sheet-title"><div><small>SONOMA COUNTY</small><h1>Nearby food trucks</h1></div></div>
-        <div id="truckCards" class="truck-cards"></div>
+        <section class="neighborhood-intro" aria-labelledby="neighborhoodHeading">
+          <div class="intro-copy"><span class="edition-label">THE SONOMA COUNTY FOOD FINDER</span><h1 id="neighborhoodHeading">Good food.<br><span class="brand-pop">Word</span> gets around.</h1><p>Find the spot. Know the story. Bring your appetite.</p><button class="local-surprise" onclick="surpriseMe()"><span aria-hidden="true">🎲</span> Put me onto a good spot <span aria-hidden="true">↗</span></button></div>
+          <div class="character-hero" aria-label="Truckly flavor crew"><span class="character-bubble" id="characterHeroSlogan">Small truck. Big flavor energy.</span><div data-truck-character="taco"></div><span class="character-name">Meet Tito · your flavor scout</span></div>
+        </section>
+        <aside class="community-entry" aria-label="Truckly Local Community"><div><h3>💬 Your neighbors know the good spots.</h3><p>Explore honest reviews, share local tips, and ask the community what to try next.</p></div><button type="button" onclick="openCommunity()">Explore Community →</button></aside>
+        <section class="explore-kinds" aria-label="Explore by kind">
+<button data-kind="All" class="active" aria-pressed="true" onclick="chooseKind('All')"><span>✳</span><b>All spots</b><small>Follow your appetite</small></button>
+<button data-kind="Pop-ups" aria-pressed="false" onclick="chooseKind('Pop-ups')"><span>🎪</span><b>Pop-ups</b><small>Catch the next stop</small></button>
+<button data-kind="Markets" aria-pressed="false" onclick="chooseKind('Markets')"><span>🧺</span><b>Markets</b><small>Make a morning of it</small></button>
+<button data-kind="Food Trucks" aria-pressed="false" onclick="chooseKind('Food Trucks')"><span>🚚</span><b>Food trucks</b><small>Big flavor on wheels</small></button>
+<button data-kind="Coffee" aria-pressed="false" onclick="chooseKind('Coffee')"><span data-doodle="coffee" aria-hidden="true"></span><b>Coffee</b><small>Your local caffeine detour</small></button>
+<button data-kind="Farm Stands" aria-pressed="false" onclick="chooseKind('Farm Stands')"><span>🥕</span><b>Farm stands</b><small>Straight from the grower</small></button>
+</section><p class="directory-note">New farm stands, markets & rotating trucks added. Check each source for current hours. “Open now” shows listings with an available open status.</p><div class="sheet-title"><div><small>YOUR NEXT GOOD FIND</small><h2 id="resultsHeading">Around the neighborhood</h2></div><span class="handwritten">come hungry ↘</span></div>
+        <div class="flavor-guide" id="flavorGuide" role="status"><span class="guide-truck" data-truck-character="taco" aria-hidden="true"></span><p id="flavorGuideText">Good food is closer than you think. Follow your appetite.</p></div><div id="truckCards" class="truck-cards"></div>
+<details class="discover-extras" id="discoverExtras"><summary><span aria-hidden="true">✳</span><span class="discover-extras-label"><strong>More local inspiration</strong><small>Food stories, coffee finds & flavor trails</small></span><span class="discover-extras-caret" aria-hidden="true">⌄</span></summary><div class="discover-extras-content">
+<div class="neighborhood-ribbon"><span>✳ Follow the flavor</span><span>Trucks, stalls & neighborhood spots</span><span>Save a spot. Bring a friend.</span></div>
+        <section class="flavor-crew" aria-label="Meet the flavor crew">
+<div class="crew-intro"><small>A FEW FRIENDS WITH GOOD TASTE</small><h2>Follow the flavor crew.</h2><p>Pick a pal. Find your next delicious detour.</p></div>
+<button class="crew-pal crew-farm" onclick="chooseKind('Farm Stands')"><span class="crew-art" data-truck-character="farm" aria-hidden="true"></span><span class="crew-copy"><b>Sprout</b><span>Rooting for your next good find.</span><small>Explore farm stands ↗</small></span></button>
+<button class="crew-pal crew-sweet" onclick="chooseKind('All');chooseCuisine('Sweets');setMode('list');document.getElementById('resultsHeading').scrollIntoView({block:'start',behavior:'smooth'})"><span class="crew-art" data-truck-character="sweet" aria-hidden="true"></span><span class="crew-copy"><b>Scoop</b><span>Take the dessert detour.</span><small>Find something sweet ↗</small></span></button>
+<button class="crew-pal crew-coffee" onclick="chooseKind('Coffee')"><span class="crew-art" data-truck-character="coffee" aria-hidden="true"></span><span class="crew-copy"><b>Brew</b><span>Espresso yourself. Take the local route.</span><small>Find your coffee corner ↗</small></span></button>
+</section>
+<section class="coffee-corner" aria-labelledby="coffeeHeading"><div class="coffee-corner-copy"><span class="paper-kicker"><span data-doodle="coffee" aria-hidden="true"></span> THE COFFEE CORNER</span><h2 id="coffeeHeading">A little buzz.<br>A lot of local character.</h2><p>For the cup you turn the car around for. Meet the cafés, roasters, and market pours giving your morning its own story.</p><button class="primary" onclick="chooseKind('Coffee')">Explore coffee spots ↗</button></div><div class="coffee-mini-grid"><button onclick="openDetail('coffee-crooks')"><span data-doodle="coffee" aria-hidden="true"></span><b>Crooks Coffee</b><span>Dessert energy. Espresso intentions.</span><small>Crème brûlée latte on the menu · Santa Rosa</small></button><button onclick="openDetail('coffee-retrograde')"><span data-doodle="spark" aria-hidden="true"></span><b>Retrograde</b><span>Your morning, freshly roasted.</span><small>In-house roasting · Sebastopol</small></button></div></section>
+<section class="street-paper" aria-labelledby="streetHeading"><div class="street-paper-head"><span data-doodle="paper" aria-hidden="true"></span><div><small>THE TRUCKLY TOWN CRIER</small><h2 id="streetHeading">Word on the street.</h2></div><span class="paper-edition">FLAVOR EDITION<br>EXTRA! EXTRA!</span></div><p class="paper-intro">Playful headlines. Real reasons to explore. These are Truckly’s editorial notes, with links to the businesses behind the stories.</p><div class="street-stories">
+<article><small>THE COFFEE FILES</small><h3>The latte came dressed for dessert.</h3><p>Crooks lists a crème brûlée latte alongside Mexican mocha and café con miele. The tough part is picking your cup.</p><button onclick="openDetail('coffee-crooks')">Meet Crooks Coffee ↗</button><a href="https://shadyraveninc.com/menu" target="_blank" rel="noopener">Menu source</a></article>
+<article><small>LOCAL ROOTS</small><h3>Same town. A whole coffee origin story.</h3><p>Avid began as Acre Coffee in Petaluma in 2011. The name changed in 2021; its Sonoma County roots are part of the story.</p><button onclick="openDetail('coffee-avid-petaluma')">Explore Avid’s first café ↗</button><a href="https://avidcoffee.com/pages/learn" target="_blank" rel="noopener">Business story</a></article>
+<article><small>THE DELICIOUS DETOUR</small><h3>Breaking: the grocery run found a barn.</h3><p>Oak Hill Farm’s Red Barn Store brings seasonal produce and regional pantry goods into a century-old barn. Bring your curiosity. Maybe a tote.</p><button onclick="openDetail('farm-oakhill')">Take the farm-stand detour ↗</button><a href="https://www.oakhillfarm.net/the-red-barn-store" target="_blank" rel="noopener">Farm source</a></article>
+</div></section>
+<section class="smart-invite" aria-labelledby="smartInvite"><div><small>LET YOUR APPETITE LEAD</small><h2 id="smartInvite">Less searching. More <span class="brand-pop">savoring.</span></h2><p>Follow a craving, plan a food trail, and pass the good word along.</p></div><div class="smart-invite-actions"><button class="primary" onclick="openSmart('finder')">✨ Find my flavor</button><button class="secondary" onclick="openSmart('trail')">🗺️ Build a food trail</button></div></section>
+</div></details>
       </aside>
     </section>
   </main>
 
-  <main id="favoritesScreen" class="screen page-screen">
-    <div class="page-head"><div><small>SAVED SPOTS</small><h1>Your favorites</h1><p>We’ll give you a nudge when they roll nearby.</p></div><span class="big-icon">♡</span></div>
+  <main id="communityScreen" class="screen page-screen">
+  <section class="community-head">
+    <div><small>THE SONOMA COUNTY FOOD CIRCLE</small><h1>Spill the <span class="brand-pop">beans.</span><br>Find your people.</h1><p>Local tips, honest reviews, and bites worth talking about.</p></div>
+    <div class="community-head-actions">
+      <button type="button" class="community-new" onclick="communityStartPost('review')">✎ Write a review</button>
+      <button type="button" onclick="communityToggleMy()">My contributions</button>
+    </div>
+  </section>
+  <p id="communitySuccess" class="community-success" role="status" hidden></p>
+  <section class="community-ideas" aria-label="Ways to contribute">
+    <span class="community-section-label">HAVE SOMETHING TO SHARE?</span>
+    <h2>What’s good around here?</h2>
+    <div class="community-shortcuts">
+      <button type="button" onclick="communityStartPost('review')"><span aria-hidden="true">⭐</span><strong>Review a food spot</strong><small>Rate a place you visited and tell others what stood out.</small></button>
+      <button type="button" onclick="communityStartPost('tip')"><span aria-hidden="true">💡</span><strong>Share a local tip</strong><small>Pass along a hidden gem, ordering tip, or a local favorite.</small></button>
+      <button type="button" onclick="communityStartPost('question')"><span aria-hidden="true">💬</span><strong>Ask the locals</strong><small>Start a conversation about a food truck or neighborhood spot.</small></button>
+    </div>
+    <details class="community-extra-ideas"><summary>✳ More conversation starters <span aria-hidden="true">⌄</span></summary>
+
+    <div class="community-explore" aria-label="Community conversation starters">
+      <button type="button" onclick="communityStartPost('tip','A hidden gem worth finding')">📍 Hidden gems</button>
+      <button type="button" onclick="communityStartPost('review','My favorite bite here')">🌮 Favorite bites</button>
+      <button type="button" onclick="communityStartPost('tip','A great budget-friendly order')">💸 Budget finds</button>
+      <button type="button" onclick="communityStartPost('tip','My local coffee tip')">☕ Coffee discoveries</button>
+      <button type="button" onclick="communityStartPost('tip','Weekend market finds')">🧺 Weekend markets</button>
+      <button type="button" onclick="communityStartPost('question','What should I try at this spot?')">❓ What to order?</button>
+    </div>
+</details>
+  </section>
+  <section class="street-section" aria-labelledby="streetSectionTitle">
+  <div class="street-intro">
+    <div><span class="street-kicker">🕵️ THE TRUCKLY WHISPER FILES · LOCAL FOOD ONLY</span><h2 id="streetSectionTitle">Word on the street.</h2><p>Little-known food details, a mystery pick, and playful clues from around Sonoma County. Our published finds have source links; community whispers are unconfirmed until checked.</p></div>
+    <div class="street-stamp" aria-hidden="true">TOP SECRET<br>(NOT REALLY) ✳</div>
+  </div>
+  <div class="street-games">
+    <article class="street-game" id="streetQuiz" aria-label="Guess the food spot game">
+      <span class="street-card-kicker">🕵️ GUESS THE LOCAL SPOT</span><p>Loading your first clue…</p>
+    </article>
+    <div class="street-side-games">
+      <article class="street-game street-game-short street-mystery"><span class="street-card-kicker">🎲 LET FATE PICK</span><h3>Secret spot roulette</h3><p>No fake hype. One local discovery pulled from our published clue list.</p><button type="button" onclick="streetMysteryPick()">Reveal a local spot →</button><div id="streetMysteryResult" hidden role="status" aria-live="polite"></div></article>
+      <article class="street-game street-game-short street-mission"><span class="street-card-kicker">🏅 YOUR NEXT SIDE QUEST</span><h3>Little food missions</h3><p>Try a small local adventure — no leaderboard, no pressure.</p><button type="button" onclick="streetNextMission()">Give me a mission →</button><div id="streetMissionResult" hidden role="status" aria-live="polite"></div></article>
+    </div>
+  </div>
+  <div class="street-section-foot"><div><span class="street-kicker">THE VERIFIED FOOD FILES</span><h3>Clues worth following.</h3><p>Published menu details and stories, with sources linked for checking.</p></div><button type="button" onclick="streetOpenWhisper()">📣 Drop a food whisper</button></div>
+  <div id="streetFiles" class="street-file-row" aria-label="Sourced local food clues"></div>
+  <p class="street-disclaimer">Food whispers are speculation or personal tips, not confirmed specials or announcements. Don't share private-person rumors or unverified accusations. Check menus, hours, and pop-up dates directly with businesses before making plans.</p>
+</section>
+  <section id="communityCompose" class="community-compose" aria-label="Submit community contribution" hidden>
+    <div class="community-compose-head"><h2>Share your local find</h2><button type="button" onclick="communityClosePost()" aria-label="Close contribution form">×</button></div>
+    <p class="community-note">Only share a place you know. Your post is held for review before it appears publicly.</p>
+    <form id="communityPostForm" onsubmit="communitySubmitPost(event)">
+      <div class="community-form-row">
+        <label>Post type<select id="communityKind" onchange="communityKindChange()" required><option value="review">Review</option><option value="tip">Local tip</option><option value="question">Question</option><option value="whisper">Street whisper (unverified)</option></select></label>
+        <label>Display name<input id="communityNickname" maxlength="28" placeholder="Local food fan"></label>
+      </div>
+      <label>Local food spot<select id="communityPlace" required><option value="">Choose a local place</option></select></label>
+      <label id="communityRatingRow">Your rating<select id="communityRating" required><option value="">Choose stars</option><option value="5">★★★★★ 5 — Loved it</option><option value="4">★★★★☆ 4 — Great</option><option value="3">★★★☆☆ 3 — Good</option><option value="2">★★☆☆☆ 2 — Could improve</option><option value="1">★☆☆☆☆ 1 — Disappointing</option></select></label>
+      <label>Title<input id="communityTitle" minlength="5" maxlength="90" required placeholder="What should neighbors know?"></label>
+      <label>Your experience or question<textarea id="communityBody" minlength="20" maxlength="700" required placeholder="Share something helpful and specific about this food spot."></textarea></label>
+      <p class="community-note">Keep whispers about food, menus, and public pop-up clues — not people or accusations. Whispers are labeled unverified and held for approval. Be respectful and truthful; no personal information or promotional spam.</p>
+      <button type="submit" id="communitySubmit" class="primary">Submit review for approval</button><p id="communityActionMessage" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <section id="communityMyPosts" class="community-my-posts" aria-label="My community submissions" hidden></section>
+  <section class="community-feed-area">
+    <div class="community-feed-head"><div><span class="community-section-label">FROM LOCAL FOOD LOVERS</span><h2>Neighborhood conversations</h2></div><span id="communityCount" class="community-count" role="status">Loading posts…</span></div>
+    <div class="community-filters" role="group" aria-label="Filter community posts">
+      <button type="button" class="active" aria-pressed="true" data-community-filter="all" onclick="communitySetFilter('all')">All</button>
+      <button type="button" aria-pressed="false" data-community-filter="review" onclick="communitySetFilter('review')">Reviews</button>
+      <button type="button" aria-pressed="false" data-community-filter="tip" onclick="communitySetFilter('tip')">Tips</button>
+      <button type="button" aria-pressed="false" data-community-filter="question" onclick="communitySetFilter('question')">Questions</button><button type="button" aria-pressed="false" data-community-filter="whisper" onclick="communitySetFilter('whisper')">🕵️ Whispers</button>
+      <select id="communityTownFilter" aria-label="Filter by town" onchange="communityState.town=this.value;communityRender()"><option value="all">All towns</option></select>
+      <select id="communitySort" aria-label="Sort community posts" onchange="communityState.sort=this.value;communityRender()"><option value="recent">Newest</option><option value="top">Top rated</option></select>
+      <input id="communitySearch" aria-label="Search community posts" placeholder="Search local stories…" oninput="communityState.search=this.value.toLowerCase().trim();communityRender()">
+    </div>
+    <div id="communityFeed" class="community-feed" aria-live="polite"><div class="community-empty">Loading local conversations…</div></div>
+  </section>
+  <div class="community-footer-links">
+    <button type="button" onclick="openLocalGuides('passport')">🏅 My Food Passport</button>
+    <button type="button" onclick="openLocalGuides('stories')">📖 Read local food stories</button>
+    <button type="button" onclick="showScreen('discover')">🧭 Discover food spots</button>
+  </div>
+  <p class="community-ethics">Community beta: only approved submissions are public. No sample reviews or made-up reviewer activity. Posts and star ratings reflect contributors’ opinions; they are not independently verified. Please check businesses’ own listings for current menus and hours.</p>
+</main>
+
+<main id="guidesScreen" class="screen page-screen">
+<section class="guides-hero"><div><small>THE TRUCKLY LOCAL CLUB</small><h1>Collect <span class="brand-pop">bites.</span><br>Earn stories.</h1><p>Find it. Try it. Stamp it. Your town is the adventure.</p></div><div class="guides-sticker"><span data-doodle="paper" aria-hidden="true"></span><b>GOOD FINDS<br>LIVE HERE</b><span>Curiosity encouraged.</span></div></section>
+<div class="guides-tabs" role="group" aria-label="Local guides views"><button data-guide-tab="passport" onclick="showGuidesTab('passport')">🏅 Passport</button><button data-guide-tab="stories" onclick="showGuidesTab('stories')">📖 Stories</button><button data-guide-tab="photos" onclick="showGuidesTab('photos')">📷 Photos</button></div>
+<aside class="community-entry" aria-label="Local Community"><div><h3>💬 Meet the local food community</h3><p>Read reviews, swap neighborhood tips, or ask other food lovers for recommendations.</p></div><button type="button" onclick="openCommunity()">Explore Community →</button></aside>
+<section id="guidePassportSection" aria-label="Local Guides achievements and food passport"><div id="guidePassport"></div></section>
+<div id="guideStories"><p class="guide-source-note">Truckly’s editorial field notes, based on the linked sources. Photos show the venue or craft named in each caption.</p><div id="guideStoryGrid" class="guide-story-grid"></div></div>
+<div id="guidePhotoSection" hidden><section class="guide-photo-intro"><div><small>YOUR PERSONAL TASTING NOTEBOOK</small><h2>That bite deserves a memory.</h2><p>Add a dish photo and the detail that made it special. Your photos and captions are stored only in this browser on this device. They are not uploaded or shared, and clearing browser data removes them.</p></div><span data-truck-character="sweet" aria-hidden="true"></span></section>
+<form class="guide-photo-form" onsubmit="saveDishPhoto(event)"><div class="form-row"><label>Vendor or place<select id="dishPhotoVendor" required></select></label><label>Dish or memorable detail<input id="dishPhotoCaption" required maxlength="160" placeholder="The smoky salsa. The perfect crema."></label></div><label>Your photo · JPEG, PNG, or WebP · up to 5 MB<input id="dishPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" required></label><button id="dishPhotoSave" class="primary">Save to my photo notebook</button><p class="smart-note">Up to 12 photos on this device. Choose photos you took or have permission to use.</p></form><p id="dishPhotoMessage" role="status"></p><div id="dishPhotoGrid" class="dish-photo-grid"></div></div>
+</main>
+<main id="smartScreen" class="screen page-screen"><div class="page-head"><div><small>THE LOCAL FLAVOR LAB</small><h1>Good finds start here.</h1><p>A little inspiration for your next food adventure.</p></div></div><div class="smart-tabs" role="group" aria-label="Discovery tools"><button onclick="openSmart('finder')" data-smart-tab="finder">✨ Flavor finder</button><button onclick="openSmart('trail')" data-smart-tab="trail">🗺️ Food trail</button><button onclick="openSmart('marketing')" data-smart-tab="marketing">📣 Marketing kit</button></div><div id="smartBody"></div><p id="smartMessage" role="status"></p></main>
+<main id="pagerScreen" class="screen page-screen">
+<div class="page-head"><div><small>YOUR POCKET PICKUP PAGER</small><h1>A little patience.<br>A lot of flavor.</h1><p>Your food’s journey from the kitchen to your hands.</p></div><span class="big-icon" aria-hidden="true">🍽️</span></div>
+<section class="pager-layout">
+  <div class="pager-join">
+    <div class="pager-example-hero">
+      <span class="pager-demo-eyebrow">🎮 INTERACTIVE PICKUP DEMO</span>
+      <h2>You're up, chef.</h2>
+      <p>Ever wondered what happens after you order? Try a pretend pickup, from sizzling to ready.</p>
+      <div class="pager-demo-meal"><span aria-hidden="true">🍔</span><div><strong>2 smash burgers + fries</strong><small>Sample kitchen · Ticket #24</small></div></div>
+      <button class="pager-try-button" type="button" onclick="startPagerDemo()">🍳 Start the sample order <span aria-hidden="true">→</span></button>
+      <p class="pager-demo-disclaimer">No payment, real order, or staff account needed. Just a fun preview.</p>
+      <div class="pager-mini-steps" aria-label="Try the example in three easy steps"><span>① Start</span><span>② Be the kitchen</span><span>③ Hear the bell 🔔</span></div>
+    </div>
+    <details class="pager-real-entry" id="pagerRealEntry">
+      <summary>🔗 I already have a real pickup link</summary>
+      <p>Paste the private link or full code your food truck gave you.</p>
+      <form onsubmit="joinPager(event)"><label>Private link or code<input id="pagerCode" autocomplete="off" spellcheck="false" required placeholder="Paste your pickup link or code"></label><button class="primary">Track my food →</button></form>
+      <p class="meta">Real order updates are checked about every eight seconds while this page is open. Ready sound is optional.</p>
+    </details>
+    <p id="pagerMessage" role="status" aria-live="polite"></p>
+  </div>
+  <div id="pagerDisplay" class="food-pager pager-idle" aria-live="polite" aria-atomic="true">
+    <span class="pager-stamp">YOUR MINI PICKUP ADVENTURE</span>
+    <div class="pager-food" aria-hidden="true">🍟</div>
+    <h2>Food is better when it's worth the wait.</h2>
+    <p>Tap <strong>Start the sample order</strong> to watch a pretend order go from grill to pickup.</p>
+    <span class="pager-idle-note">Your virtual ticket is ready to play.</span>
+  </div>
+</section>
+<div id="pagerDisplay" class="food-pager" aria-live="polite"><span class="pager-stamp">GOOD THINGS TAKE A MINUTE</span><div class="pager-food" aria-hidden="true">🥘</div><h2>Your next delicious moment.</h2><p>Join your pager to see what’s cooking.</p></div></section>
+</main>
+<main id="favoritesScreen" class="screen page-screen">
+    <div class="page-head"><div><small>SAVED SPOTS</small><h1>Your little black book</h1><p>Good spots worth keeping close. Bring a friend next time.</p></div><span class="big-icon">♡</span></div>
     <div id="favoriteGrid" class="favorite-grid"></div>
   </main>
 
@@ -47,7 +214,9 @@
   <main id="ownerScreen" class="screen page-screen owner-page">
     <div class="owner-hero"><button class="back-link" onclick="showScreen('discover')">← Back to map</button><div class="owner-brand"><span class="owner-logo">🌮</span><div><small>OWNER MODE</small><h1>Your Food Truck</h1><p>Keep Santa Rosa regulars in the loop.</p></div></div><span class="status-pill">● Taking orders</span></div>
     <div class="owner-stats"><div><b>1.2k</b><span>views this week</span></div><div><b>4.9</b><span>guest rating</span></div><div><b>7</b><span>new requests</span></div></div>
-    <section class="owner-grid">
+    <section class="owner-grid"><article class="owner-card requests-card"><div class="card-label">SPREAD THE GOOD WORD</div><h2>Make some delicious noise.</h2><p>Create a caption, direct listing link, and promo card to download. Pick the listing you manage and review the details before posting.</p><button class="secondary" onclick="openSmart('marketing')">📣 Open marketing kit</button></article>
+<article class="owner-card requests-card pager-owner"><div class="card-label">DIGITAL PICKUP PAGER</div><h2>Ring the dinner bell.</h2><p>Create a private pickup link, then move each ticket from cooking to ready. This queue is managed by the Truckly project owner.</p><div class="pager-owner-demo"><button type="button" class="secondary" onclick="openPager();startPagerDemo()">🎮 Try the customer demo</button><button type="button" class="secondary" onclick="loadKitchen()">Open real kitchen queue</button></div><div id="kitchenPanel" hidden><form id="pagerCreateForm" onsubmit="createPager(event)"><div class="form-row"><label>Vendor name<input id="pagerVendor" required maxlength="80" placeholder="Your truck or stall"></label><label>Pickup number<input id="pagerTicket" required maxlength="40" placeholder="e.g. 24"></label></div><button class="primary" id="pagerCreateButton">Create pickup pager</button></form><p id="kitchenMessage" role="status"></p><div id="kitchenQueue"></div><button class="detail-link" onclick="loadKitchen()">Refresh queue ↻</button></div></article>
+      <article class="owner-card requests-card"><div class="card-label">LOCAL COMMUNITY</div><h2>Keep the conversation useful.</h2><p>Review community submissions before they become public. Only project admins can approve or reject posts.</p><button class="secondary" type="button" onclick="communityOpenModeration()">Open moderation queue</button><div id="communityModeration" hidden aria-label="Community moderation queue"></div></article>
       <article class="owner-card location-card"><div class="card-label">CURRENT LOCATION</div><h2>Where are you parked?</h2><div class="mini-map"><span class="pulse-pin">🌮</span></div><label>Location note<input id="ownerLocation" value="Ross Street, Downtown Santa Rosa"></label><button class="primary" onclick="updateOwnerLocation()">Update live location</button></article>
       <article class="owner-card"><div class="card-label">TODAY'S HOURS</div><h2>Open for business</h2><div class="hours-row"><span>Tuesday</span><input type="time" value="11:00"><span>to</span><input type="time" value="20:00"></div><label class="switch-row"><span><b>Show me as open</b><small>Visible on the live map</small></span><input type="checkbox" checked onchange="toast('Open status updated')"></label><button class="secondary" onclick="toast('Schedule saved')">Save schedule</button></article>
       <article class="owner-card photo-manager"><div class="card-label">MENU PHOTOS</div><h2>Show what you serve</h2><p class="meta">Upload real food and truck photos. These replace the icon artwork on your listing.</p><div class="owner-photo-grid" id="ownerPhotoGrid"><label class="upload-tile">＋<small>Add photos</small><input type="file" accept="image/*" multiple onchange="previewOwnerPhotos(event)"></label><div class="owner-photo sample-one">🌮</div><div class="owner-photo sample-two">🚚</div></div></article>
@@ -59,9 +228,10 @@
   <nav class="bottom-nav" aria-label="Main navigation">
     <button class="active" data-screen="discover" onclick="showScreen('discover')"><span aria-hidden="true">🧭</span><small>Discover</small></button>
     <button data-screen="favorites" onclick="showScreen('favorites')"><span aria-hidden="true">💛</span><small>Saved</small></button>
-    <button class="book-nav" onclick="openBooking()"><span aria-hidden="true">🎉</span><small>Book a truck</small></button>
+    <button class="book-nav" onclick="openBooking()" aria-label="Book a truck for an event"><span aria-hidden="true">🎉</span><small>Book</small></button>
+    <button class="guide-nav" data-screen="guides" onclick="openLocalGuides('passport')" aria-label="Open Local Guides and achievements"><span aria-hidden="true">🏅</span><small>Guides</small></button>
     <button data-screen="bookings" onclick="showScreen('bookings')"><span aria-hidden="true">🗓️</span><small>Bookings</small></button>
-    <button class="surprise-nav" onclick="surpriseMe()"><span aria-hidden="true">🎲</span><small>Surprise me</small></button>
+    <button class="surprise-nav" onclick="surpriseMe()" aria-label="Surprise me with a local food spot"><span aria-hidden="true">🎲</span><small>Surprise</small></button>
     </nav>
 </div>
 
@@ -79,5 +249,5 @@
 </form></div>
 <div class="modal-backdrop" id="distanceModal" onclick="if(event.target===this)this.classList.remove('show')"><div class="distance-modal"><small>DISTANCE</small><h2>How far would you roam?</h2><input id="distanceRange" type="range" min="1" max="30" value="30" oninput="setDistance(this.value)"><div class="range-labels"><span>1 mi</span><b id="rangeValue">30 miles</b><span>30 mi</span></div><button class="primary" onclick="document.getElementById('distanceModal').classList.remove('show');applyFilters()">Show trucks</button></div></div>
 <div id="toast" class="toast" role="status"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app.js"></script><script src="/listing-highlights.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app.js"></script><script src="/pager.js"></script><script src="/smart.js"></script><script src="/characters.js"></script><script src="/coffee-club.js"></script><script src="/local-guides.js"></script><script src="/guide-passport.js"></script><script src="/community.js"></script><script src="/street-whispers.js"></script>
 </body></html>
