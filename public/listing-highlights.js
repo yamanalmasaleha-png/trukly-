@@ -25,6 +25,7 @@
   function removeGenericStockPhoto(t) {
     if (!t) return;
     if (t.verification_status !== "business_confirmed") t.verified = false;
+    if (t.photo_rights_verified !== true) t.photo = null;
     if (typeof t.photo === "string" && /^https:\/\/images\.unsplash\.com\//i.test(t.photo)) {
       t.photo = null; // generic stock ≠ a business's actual dish or venue
     }
