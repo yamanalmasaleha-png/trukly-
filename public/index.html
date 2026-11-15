@@ -79,5 +79,5 @@
 </form></div>
 <div class="modal-backdrop" id="distanceModal" onclick="if(event.target===this)this.classList.remove('show')"><div class="distance-modal"><small>DISTANCE</small><h2>How far would you roam?</h2><input id="distanceRange" type="range" min="1" max="30" value="30" oninput="setDistance(this.value)"><div class="range-labels"><span>1 mi</span><b id="rangeValue">30 miles</b><span>30 mi</span></div><button class="primary" onclick="document.getElementById('distanceModal').classList.remove('show');applyFilters()">Show trucks</button></div></div>
 <div id="toast" class="toast" role="status"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="/app.js"></script><script src="/listing-highlights.js"></script>
 </body></html>
