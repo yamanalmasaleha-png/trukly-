@@ -185,3 +185,29 @@ Mitote Food Park moved from 665 Sebastopol Rd to 100 Sebastopol Rd, Santa Rosa, 
 ## Handoff
 
 New script: public/listing-highlights.js. It displays the sourced highlights and honest pending states without claiming invented best dishes. GitHub source is older (v64) than active Hatchable v77. Rebase/reconcile the live source before deploying, and test on a safe clone/preview. Other admin reviewer GitHub handle has not been confirmed; do not invent an @mention.
+
+## Additional sourced spotlights (added in this review)
+
+These are scoped claims, NOT confirmation of a vendor's most sold dish or image-use rights.
+
+| Listing | Highlight | Exact evidence category | Source |
+|---|---|---|---|
+| `iniguez` | Tacos | #1 most liked item on the Mission Boulevard Uber Eats menu | https://guava.failover.uber.com/store/tacos-los-iniguez-mission-blvd/AI7JR89vUeCeAMyoM-KgmQ |
+| `elenita` | Tacos al pastor | User/customer favorite cited by Restaurantji, not owner-assigned bestseller | https://www.restaurantji.com/ca/santa-rosa/delicias-elenita-/ |
+| `momo` | Stix MoMo (fried) | DoorDash featured item, current availability to confirm | https://www.doordash.com/store/momo-man-petaluma-32786989/ |
+| `dogaday` | Giant Dog (quarter-pound) | DoorDash featured item, availability to confirm | https://www.doordash.com/store/a-dog-a-day-hotdogs-%26-more-santa-rosa-926436/ |
+| `api-hot` | Mexican-spiced Nashville hot chicken | Vendor specialty described by NorCal Food Truck Association | https://www.norcalfoodtrucks.org/the-trucks/api-hot-chicken |
+| `magos` | Birria-loaded fries | Eater reporting from 2023 at former Mitote location; not a current-menu claim | https://sf.eater.com/2023/6/5/23746661/mitote-food-truck-park-santa-rosa |
+| `holy-chile` | BBQ-meat tacos and melts | Operator's concept description; its online menu has placeholder entries | https://holychilemole.com/ |
+| `coffee-crooks` | Crème brûlée latte | Business calls it a signature drink | https://shadyraveninc.com/menu |
+| `elroys` | Mexican street eats | Operator's food-truck menu and location directory; NOT a claimed bestseller | https://elroys.com/locations/ |
+
+**Address corrections:** The operator's current listing places El Roy's Sebastopol Road truck at **1569 Sebastopol Rd** and its two Petaluma trucks at **401 E Washington St** and **175 Fairgrounds Dr**. Source: https://elroys.com/locations/ . The former **760 Sebastopol Rd** value in Truckly was not supported for this named location. Mitote's venue moved to **100 Sebastopol Rd**; other individual vendor locations are NOT automatically updated unless corroborated.
+
+## Regression QA and deployment safety
+
+- Test source: `tests/listing-verification.cjs`. Run locally from repository root with `node tests/listing-verification.cjs` (requires Node). It checks the 47-record primary API baseline, correct address labels, category corrections, safe photo defaults, source code syntax and that the spotlight file loads in HTML.
+- Manual mobile checks **still required**: iPhone-size List and Map, open-now empty state, favorites, local cache fallback, each detail modal, missing photo, slow network and screen-reader text.
+- Image usage rights remain unresolved: **zero new third-party venue or dish photographs have been included**. The illustrations are visual fallback only.
+- This is a **GitHub v64-based review branch** with learnings from live Hatchable **v77**. It is not a production-ready export of v77. Reconcile different code paths and new v77 features before merge/deploy. Do not overwrite the original live project or claim the app was updated in production.
+- The second GitHub administrator's username is not established from the available tools. Add the verified account as reviewer manually once confirmed; do not tag an unknown person.
