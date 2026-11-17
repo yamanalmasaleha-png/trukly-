@@ -885,6 +885,27 @@ const ACTORS = {
     assert.equal(personalizedCoords.headers.etag, undefined, 'personalized coordinate response omits public ETag');
     assert.equal(personalizedCoords.headers['cache-control'], 'private, no-store, max-age=0');
 
+    // Coordinate-dependent `/api/trucks/nearby` also enforces `private, no-store` and strict coordinate validation (DEF-01)
+    const nearbyValid = await callApi('trucks/nearby.js', {
+      query: { lat: '38.4404', lng: '-122.7141' }
+    });
+    assert.equal(nearbyValid.status, 200);
+    assert.equal(nearbyValid.headers['cache-control'], 'private, no-store, max-age=0');
+    assert.equal(nearbyValid.body.nearest_hubs[0].city, 'Santa Rosa');
+
+    for (const badCoords of [
+      {},
+      { lat: '', lng: '' },
+      { lat: '   ', lng: '   ' },
+      { lat: '38.44', lng: '' },
+      { lat: '95', lng: '-122.7' },
+      { lat: '38.44', lng: '-190' }
+    ]) {
+      const badNearby = await callApi('trucks/nearby.js', { query: badCoords });
+      assert.equal(badNearby.status, 400, `nearby rejected malformed coords ${JSON.stringify(badCoords)}`);
+      assert.equal(badNearby.headers['cache-control'], 'private, no-store, max-age=0');
+    }
+
     // 8d. Text-only & temporary-schedule location pin consistency (no stale default coordinates on new pop-up text!)
     await callApi('owner/location.js', {
       method: 'POST',

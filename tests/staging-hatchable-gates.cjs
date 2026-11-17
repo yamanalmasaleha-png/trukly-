@@ -154,20 +154,28 @@ async function runStagingSuite(cfg) {
       '/api/authz',
       '/scripts/dev-server.cjs',
       '/scripts/seed-sql-reader.cjs',
-      '/scripts/run-pager-worker.cjs'
+      '/scripts/run-pager-worker.cjs',
+      '/__debug/state',
+      '/__debug/reset'
     ];
     const helperChecks = await Promise.all(forbiddenHelperPaths.map(p => reqJson(p)));
     const exposedHelper = forbiddenHelperPaths.find((_, i) => ![404, 403].includes(helperChecks[i].status));
+    const g1Nearby = await reqJson('/api/trucks/nearby?lat=38.4405&lng=-122.7144');
+    const g1NearbyBlank = await reqJson('/api/trucks/nearby?lat=&lng=');
 
     assert.equal(g1Avail.status, 200, `Expected 200 on availability, got ${g1Avail.status}`);
+    assert(String(g1Avail.headers?.['cache-control'] || '').includes('no-store'), 'Availability missing no-store header');
     assert.equal(typeof g1Avail.json?.requestable, 'boolean', 'Availability JSON missing boolean requestable');
     assert.equal(g1OwnerAnon.status, 401, `Expected 401 on anonymous /api/owner/stats, got ${g1OwnerAnon.status}`);
     assert.equal(g1BookAnon.status, 401, `Expected 401 on anonymous /api/bookings/create, got ${g1BookAnon.status}`);
-    assert.equal(exposedHelper, undefined, `Helper file unexpectedly exposed at ${exposedHelper}`);
+    assert.equal(g1Nearby.status, 200, 'Expected 200 on valid /api/trucks/nearby');
+    assert(String(g1Nearby.headers?.['cache-control'] || '').includes('no-store'), '/api/trucks/nearby missing private no-store');
+    assert.equal(g1NearbyBlank.status, 400, 'Expected 400 on blank /api/trucks/nearby?lat=&lng=');
+    assert.equal(exposedHelper, undefined, `Helper/debug path unexpectedly exposed at ${exposedHelper}`);
 
     gates.G1_runtime_compatibility = {
       status: 'PASS',
-      detail: 'Deployed routes import lib/*.js and node:crypto cleanly; 8 helper/script paths confirmed unexposed (404).'
+      detail: 'Deployed routes import lib/*.js and node:crypto cleanly; 15 helper/script/debug paths confirmed unexposed (404); no-store verified.'
     };
 
     // ========================================================================
@@ -265,6 +273,22 @@ async function runStagingSuite(cfg) {
       throw new Error('STAGING_PROBE_TOKEN is required so staging environment identity is fail-closed before write gates run.');
     }
     if (cfg.probeToken) {
+      // Narrow probe auth check: missing token -> 404; non-admin persona with valid token -> 403
+      const probeNoToken = await reqJson('/api/_staging_gate_probe', {
+        method: 'POST',
+        cookie: cfg.cookies.platformAdmin,
+        body: {}
+      });
+      assert.equal(probeNoToken.status, 404, 'Staging probe must return 404 when x-staging-probe-token is omitted');
+
+      const probeNonAdmin = await reqJson('/api/_staging_gate_probe', {
+        method: 'POST',
+        cookie: cfg.cookies.moderator,
+        headers: { 'x-staging-probe-token': cfg.probeToken },
+        body: {}
+      });
+      assert.equal(probeNonAdmin.status, 403, 'Staging probe must deny non-platform_admin personas with 403');
+
       const probeRes = await reqJson('/api/_staging_gate_probe', {
         method: 'POST',
         cookie: cfg.cookies.platformAdmin,
@@ -278,14 +302,21 @@ async function runStagingSuite(cfg) {
       }
       assert.equal(probeRes.json.environment_identity?.is_staging_confirmed, true, 'Server probe did not confirm TRUCKLY_ENV=staging');
       assert.equal(probeRes.json.environment_identity?.is_production_project, false, 'Server probe detected forbidden production project ID');
+      assert.equal(probeRes.json.gate1_crypto_self_test?.ok, true, 'Web Push RFC 8291/8292 crypto self-test failed in runtime');
       if (probeRes.status === 200 && probeRes.json) {
         probeData = probeRes.json;
         const g2 = probeData.gate2_transactions;
         assert.equal(g2.same_pid, true, 'Transaction statements did not execute on a single pg_backend_pid()');
         assert.equal(g2.same_xid, true, 'Transaction statements did not share txid_current()');
         assert.equal(g2.in_tx_uid_matches, true, 'In-transaction SET LOCAL app.user_id did not hold');
+        assert.equal(g2.in_tx_pager_internal_matches, true, 'In-transaction SET LOCAL app.pager_internal did not hold');
         assert.equal(g2.rollback_caught, true, 'Intentional mid-transaction failure was not caught');
         assert.equal(g2.persisted_after_rollback, 0, 'Failed multi-statement transaction leaked persisted audit row');
+
+        const g3Probe = probeData.gate3_guc_isolation;
+        assert.equal(g3Probe.leaked_user_id, '', 'app.user_id GUC leaked outside transaction');
+        assert.equal(g3Probe.leaked_can_moderate, '', 'app.can_moderate GUC leaked outside transaction');
+        assert.equal(g3Probe.leaked_pager_internal, '', 'app.pager_internal GUC leaked outside transaction');
 
         gates.G2_transactions = {
           status: 'PASS',
@@ -297,11 +328,15 @@ async function runStagingSuite(cfg) {
         assert.equal(g5.has_bypassrls, false, 'Runtime DB role must not have BYPASSRLS');
         assert.equal(g5.rls_enabled, true, 'community_reviews relrowsecurity must be true');
         assert.equal(g5.rls_forced, true, 'community_reviews relforcerowsecurity must be true');
+        assert.equal(g5.all_notif_tables_rls_forced, true, 'All 4 pager_notification_* tables must enforce FORCE RLS');
         assert.equal(g5.unapproved_visible_without_guc, 0, 'Unapproved community rows visible without GUC');
+        assert.equal(g5.notif_subs_visible_without_guc, 0, 'Notification subscriptions visible without GUC');
+        assert.equal(g5.notif_events_visible_without_guc, 0, 'Notification events visible without GUC');
+        assert.equal(g5.notif_deliveries_visible_without_guc, 0, 'Notification deliveries visible without GUC');
 
         gates.G5_database_security_role = {
           status: 'PASS',
-          detail: `Role "${g5.db_current_user}" verified NOSUPERUSER, NOBYPASSRLS, FORCE RLS active, 0 unapproved rows visible.`
+          detail: `Role "${g5.db_current_user}" verified NOSUPERUSER, NOBYPASSRLS, FORCE RLS active on community_reviews + 4 pager_notification_* tables, 0 private rows visible.`
         };
       } else {
         gates.G2_transactions = {
@@ -367,6 +402,18 @@ async function runStagingSuite(cfg) {
       (await reqJson('/api/community/moderate', { cookie: cfg.cookies.vendorAStaff })).status,
       403
     );
+    // Moderator does NOT imply platform administration or vendor ownership
+    assert.equal(
+      (await reqJson('/api/pager/telemetry', { cookie: cfg.cookies.moderator })).status,
+      403,
+      'Moderator must not access platform_admin telemetry'
+    );
+    assert.equal(
+      (await reqJson('/api/owner/profile?truck_id=iniguez', { cookie: cfg.cookies.moderator })).status,
+      403,
+      'Moderator must not access vendor owner profile'
+    );
+    assert(String(vaStats.headers?.['cache-control'] || '').includes('no-store'), '/api/owner/stats missing no-store');
 
     // ========================================================================
     // E2E-1 & E2E-3: Bookings Validation, Ownership, Idempotency & YYYY-MM-DD Dates
@@ -602,17 +649,23 @@ async function runStagingSuite(cfg) {
           detail: 'Concurrent HTTP burst passed with 0 cross-identity leaks, but runtime probe (/_staging_gate_probe) is required to prove connection-level GUC reset on ROLLBACK.'
         };
 
-    // Gate 6: Direct Table Gateway Probes (while Post A & Post B are pending/rejected)
-    const gatewayCandidatePaths = [
-      '/api/db/community_reviews',
-      '/_db/community_reviews',
-      '/__hatchable/db/community_reviews',
-      '/rest/v1/community_reviews',
-      '/db/community_reviews'
+    // Gate 6: Direct Table Gateway Probes across community_reviews AND all 4 notification tables
+    const protectedTables = [
+      'community_reviews',
+      'pager_notification_subscriptions',
+      'pager_notification_events',
+      'pager_notification_deliveries',
+      'pager_rate_limits'
     ];
-    for (const gwPath of gatewayCandidatePaths) {
-      const anonGw = await reqJson(gwPath);
-      assert(![200, 201].includes(anonGw.status), `Direct table read unexpectedly succeeded at ${gwPath}`);
+    for (const tbl of protectedTables) {
+      for (const prefix of ['/api/db/', '/_db/', '/__hatchable/db/', '/rest/v1/', '/db/']) {
+        const gwPath = prefix + tbl;
+        const anonGw = await reqJson(gwPath);
+        assert(![200, 201].includes(anonGw.status), `Direct table read unexpectedly succeeded at ${gwPath}`);
+      }
+    }
+    for (const prefix of ['/api/db/', '/_db/', '/__hatchable/db/', '/rest/v1/', '/db/']) {
+      const gwPath = prefix + 'community_reviews';
       const authorPatchGw = await reqJson(gwPath, {
         method: 'PATCH',
         cookie: cfg.cookies.customerA,
@@ -666,7 +719,7 @@ async function runStagingSuite(cfg) {
     };
 
     // ========================================================================
-    // GATE 8 & GATE 9: Owner Publishing Observed by Customer + Cache ETag / Outbox RLS
+    // GATE 8: Owner Publishing (Profile, Schedule, GPS & Text-Only Location) Observed by Customer
     // ========================================================================
     const prePubList = await reqJson('/api/trucks');
     assert(prePubList.headers?.etag, 'Expected ETag header on /api/trucks');
@@ -674,6 +727,44 @@ async function runStagingSuite(cfg) {
       headers: { 'If-None-Match': prePubList.headers.etag }
     });
     assert.equal(cond304.status, 304, 'Expected 304 Not Modified on matching ETag before mutation');
+
+    // Self-elevation attempt by Vendor A owner must fail with 403
+    const selfElevRes = await reqJson('/api/owner/profile', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorAOwner,
+      body: { truck_id: 'iniguez', display_name: 'Tacos Iñiguez', verified: true }
+    });
+    assert.equal(selfElevRes.status, 403, 'Owner self-elevation attempt must return 403');
+
+    // Publish profile + schedule + GPS location
+    const stgProfDesc = `${tag} Fresh handmade tortillas & birria`;
+    const pubProfRes = await reqJson('/api/owner/profile', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorAOwner,
+      body: {
+        truck_id: 'iniguez',
+        display_name: 'Tacos Iñiguez',
+        description: stgProfDesc,
+        cuisine: 'Mexican',
+        accepting_bookings: true
+      }
+    });
+    assert.equal(pubProfRes.status, 200);
+
+    const pubSchedDate = futurePacificISO(5);
+    const pubSchedRes = await reqJson('/api/owner/schedule', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorAOwner,
+      body: {
+        truck_id: 'iniguez',
+        service_date: pubSchedDate,
+        opens_at: '11:00',
+        closes_at: '19:30',
+        location: `${tag} Courthouse Pop-Up`,
+        status: 'scheduled'
+      }
+    });
+    assert.equal(pubSchedRes.status, 200);
 
     const stgLocText = `${tag} Courthouse Square Live Test`;
     const pubLocRes = await reqJson('/api/owner/location', {
@@ -690,30 +781,117 @@ async function runStagingSuite(cfg) {
     });
     assert.equal(pubLocRes.status, 200);
 
-    // Separate customer session with prior ETag MUST receive 200 (not stale 304!) and see published location
+    // Separate customer session with prior ETag MUST receive 200 (not stale 304!) and see published updates
     const custAfterPub = await reqJson('/api/trucks', {
       cookie: cfg.cookies.customerA,
       headers: { 'If-None-Match': prePubList.headers.etag }
     });
-    assert.equal(custAfterPub.status, 200, 'Stale ETag returned 304 after owner location publish');
+    assert.equal(custAfterPub.status, 200, 'Stale ETag returned 304 after owner publish');
     const iniguezObserved = custAfterPub.json?.trucks?.find(t => t.id === 'iniguez');
+    assert.equal(iniguezObserved?.blurb, stgProfDesc);
     assert.equal(iniguezObserved?.location, stgLocText);
     assert.equal(iniguezObserved?.location_accuracy, 'owner_reported_coords');
     assert.equal(iniguezObserved?.verified, false);
 
+    // Text-only location publish clears inappropriate curated coordinates (`lat === null && lng === null`)
+    const stgTextOnlyLoc = `${tag} Petaluma Fairgrounds Pop-Up`;
+    const textOnlyLocRes = await reqJson('/api/owner/location', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorAOwner,
+      body: {
+        truck_id: 'iniguez',
+        location: stgTextOnlyLoc,
+        ttl_minutes: 60,
+        is_open: true
+      }
+    });
+    assert.equal(textOnlyLocRes.status, 200);
+    const custDetailTextOnly = await reqJson('/api/trucks/iniguez?fresh=1', { cookie: cfg.cookies.customerA });
+    assert.equal(custDetailTextOnly.json?.location, stgTextOnlyLoc);
+    assert.equal(custDetailTextOnly.json?.location_accuracy, 'owner_text_only');
+    assert.equal(custDetailTextOnly.json?.lat, null, 'Text-only live location must clear lat');
+    assert.equal(custDetailTextOnly.json?.lng, null, 'Text-only live location must clear lng');
+
     const custCoordsCheck = await reqJson('/api/trucks?lat=38.4404&lng=-122.7141');
     assert(String(custCoordsCheck.headers?.['cache-control'] || '').includes('private'), 'Coordinate query must be private/no-store');
-
-    assert.equal(probeData.gate5_db_role?.notif_rls_forced, true, 'pager_notification_subscriptions FORCE RLS missing');
-    assert.equal(probeData.gate5_db_role?.notif_subs_visible_without_guc, 0, 'pager_notification_subscriptions leaked rows without GUC');
+    assert(String(custCoordsCheck.headers?.['cache-control'] || '').includes('no-store'), 'Coordinate query must include no-store');
 
     gates.G8_owner_publishing_to_customer = {
       status: 'PASS',
-      detail: 'Vendor A owner published live GPS location; separate customer session immediately observed update with verified=false.'
+      detail: 'Vendor A published profile, schedule, GPS & text-only location; Customer A observed updates, text-only cleared pins, self-elevation 403, coordinate queries private/no-store.'
     };
+
+    // ========================================================================
+    // GATE 9: Notification Runtime, Capability/CSRF/SSRF Guards, Ready Outbox & Telemetry/Worker Controls
+    // ========================================================================
+    const pubSubConfig = await reqJson('/api/pager/subscriptions');
+    assert.equal(pubSubConfig.status, 200);
+    assert(String(pubSubConfig.headers?.['cache-control'] || '').includes('no-store'), 'pager/subscriptions missing no-store');
+
+    // Missing X-Truckly-Client CSRF header -> 403
+    const csrfMissingSub = await reqJson('/api/pager/subscriptions', {
+      method: 'POST',
+      body: { code: createdPagerId }
+    });
+    assert.equal(csrfMissingSub.status, 403, 'Missing X-Truckly-Client on POST /api/pager/subscriptions must return 403');
+
+    // Cross-origin Origin header -> 403
+    const csrfCrossOriginSub = await reqJson('/api/pager/subscriptions', {
+      method: 'POST',
+      headers: {
+        'X-Truckly-Client': 'web-pager-v1',
+        Origin: 'https://evil-attacker.invalid',
+        Host: new URL(baseOrigin).host
+      },
+      body: { code: createdPagerId }
+    });
+    assert.equal(csrfCrossOriginSub.status, 403, 'Cross-origin POST /api/pager/subscriptions must return 403');
+
+    // Atomic `pager.ready` outbox transition on disposable staging pager
+    const pagerReadyTransition = await reqJson('/api/pager/update', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorBOwner,
+      body: { id: createdPagerId, status: 'ready' }
+    });
+    assert.equal(pagerReadyTransition.status, 200, 'Staff/owner ready transition failed');
+    assert.equal(pagerReadyTransition.json?.notification?.event_created, true, 'Ready transition did not create outbox event');
+
+    // Private telemetry RBAC (`vendorAOwner` -> 403, `platformAdmin` -> 200 with zero private leaks)
+    assert.equal(
+      (await reqJson('/api/pager/telemetry', { cookie: cfg.cookies.vendorAOwner })).status,
+      403,
+      'Vendor owner must not access platform_admin telemetry'
+    );
+    const adminTelemetry = await reqJson('/api/pager/telemetry', { cookie: cfg.cookies.platformAdmin });
+    assert.equal(adminTelemetry.status, 200);
+    assert(String(adminTelemetry.headers?.['cache-control'] || '').includes('no-store'), 'telemetry missing no-store');
+    assert.equal(adminTelemetry.json?.controls?.config_valid, true, 'Notification runtime config reported invalid on staging');
+    assert(!JSON.stringify(adminTelemetry.json).includes(createdPagerId), 'Telemetry leaked raw private pager UUID');
+
+    // Worker endpoint secret guard (`401` on wrong/missing secret when configured, or `503 WORKER_NOT_CONFIGURED` before secret provisioning)
+    const unauthWorker = await reqJson('/api/pager/worker', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer invalid_wrong_worker_secret_token_0000' },
+      body: { batch_size: 1, cleanup: false }
+    });
+    if (cfg.workerSecret) {
+      assert.equal(unauthWorker.status, 401, 'Worker must reject wrong secret with 401');
+      const authWorker = await reqJson('/api/pager/worker', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${cfg.workerSecret}` },
+        body: { batch_size: 2, cleanup: false }
+      });
+      assert.equal(authWorker.status, 200, 'Authenticated worker tick failed');
+      assert(String(authWorker.headers?.['cache-control'] || '').includes('no-store'));
+    } else {
+      assert([401, 503].includes(unauthWorker.status), `Unexpected unauthenticated worker status ${unauthWorker.status}`);
+    }
+
+    assert.equal(probeData.gate5_db_role?.all_notif_tables_rls_forced, true, 'All 4 pager_notification_* tables must enforce FORCE RLS');
+
     gates.G9_cache_refresh_and_outbox_rls = {
       status: 'PASS',
-      detail: 'ETag 304 before mutation, immediate 200 cache invalidation on owner publish, private no-store on coordinate queries, and FORCE RLS on notification tables.'
+      detail: 'Verified CSRF 403s, atomic pager.ready outbox event, redacted admin-only telemetry, worker secret auth, ETag refresh, and FORCE RLS across all 4 notification tables.'
     };
 
     // Optional E2E-5 hook when caller provides a write-pause toggle callback (used in pre-flight or MCP wrapper)
@@ -868,7 +1046,9 @@ export async function resolve(specifier, context, nextResolve) {
     await appPool.query(rawSeedSql);
 
     const probeSecret = 'stg_probe_secret_' + crypto.randomBytes(12).toString('hex');
+    const workerSecret = 'stg_worker_secret_' + crypto.randomBytes(12).toString('hex');
     process.env.TRUCKLY_STAGING_PROBE_TOKEN = probeSecret;
+    process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET = workerSecret;
     process.env.TRUCKLY_ENV = 'staging';
     process.env.HATCHABLE_PROJECT_ID = 'proj_stg_local_preflight';
     const probeMod = await import(pathToFileURL(path.join(ROOT, 'scripts', 'staging-runtime-probe.template.js')).href);
@@ -959,6 +1139,7 @@ export async function resolve(specifier, context, nextResolve) {
     const report = await runStagingSuite({
       baseUrl: `http://127.0.0.1:${port}`,
       probeToken: probeSecret,
+      workerSecret,
       cookies: {
         customerA: 'hatch_stg_sess=tok_cust_a',
         customerB: 'hatch_stg_sess=tok_cust_b',
@@ -1005,6 +1186,7 @@ export async function resolve(specifier, context, nextResolve) {
     console.log('PASS: Production URL/env fail-closed blocks, staging-seed.sql, staging-runtime-probe, G1..G9, E2E1..E2E6, and staging-cleanup.sql verified.');
   } finally {
     delete process.env.TRUCKLY_STAGING_PROBE_TOKEN;
+    delete process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET;
     delete process.env.TRUCKLY_ENV;
     delete process.env.HATCHABLE_PROJECT_ID;
     if (httpServer) await new Promise(r => httpServer.close(r));
@@ -1052,6 +1234,7 @@ export async function resolve(specifier, context, nextResolve) {
   const report = await runStagingSuite({
     baseUrl: stagingUrl,
     probeToken: (process.env.STAGING_PROBE_TOKEN || '').trim(),
+    workerSecret: (process.env.STAGING_WORKER_SECRET || '').trim(),
     cookies: {
       customerA: process.env.STAGING_COOKIE_CUSTOMER_A || '',
       customerB: process.env.STAGING_COOKIE_CUSTOMER_B || '',

@@ -27,9 +27,12 @@ Inspection of the current workspace confirmed:
 3. Sync `hatchable.toml`, `lib/*.js`, `api/**/*.js` (**30** route files), and `public/**`. (**Never** upload `scripts/dev-server.cjs`, `scripts/seed-sql-reader.cjs`, `scripts/run-pager-worker.cjs`, or `tests/`.)
 4. Set staging environment variables (redeploy staging whenever changing environment variables):
    - `TRUCKLY_ENV=staging`
-   - `TRUCKLY_PUSH_PROVIDER_MODE=disabled` (keep push delivery disabled during initial gate run; switch to `webpush` with staging VAPID keys and `TRUCKLY_NOTIFICATION_WORKER_SECRET` only for designated physical-device push testing — never enable `fake` or `loopback_test` on hosted environments)
+   - `TRUCKLY_RELEASE_SHA=<exact-candidate-40-char-sha>`
+   - `TRUCKLY_PUSH_PROVIDER_MODE=disabled` (keep push delivery disabled during initial gate run; switch to `webpush` with staging VAPID keys only for designated physical-device push testing — never enable `fake` or `loopback_test` on hosted environments)
+   - `TRUCKLY_NOTIFICATION_WORKER_SECRET=<random-24+-char-secret>`
    - `TRUCKLY_STAGING_PROBE_TOKEN=<random-24+-char-secret>`
-5. Temporarily upload [`scripts/staging-runtime-probe.template.js`](../scripts/staging-runtime-probe.template.js) as **`api/_staging_gate_probe.js` on the staging project only**, deploy staging, and record the staging release SHA / ID.
+5. Temporarily upload [`scripts/staging-runtime-probe.template.js`](../scripts/staging-runtime-probe.template.js) as **`api/_staging_gate_probe.js` on the staging project only**, deploy staging, and record both the platform deployment ID and `TRUCKLY_RELEASE_SHA`.
+   - **Temporary Route Count Note:** While `api/_staging_gate_probe.js` is deployed during Steps 1–3, the staging deployment contains **31 route files** (`30` permanent routes + `1` ephemeral `_staging_gate_probe`). Do **not** commit `api/_staging_gate_probe.js` to Git; in Step 4 it is deleted so the final staging deployment returns to the exact **30 permanent routes**.
 
 ### Step 2 — Sign In 7 Disposable Staging Personas & Seed RBAC Roles
 1. Sign in the 7 disposable staging test accounts via `/login.html` and record their `user.id` values and session cookies in a local operator `.env.staging` file (outside git).
@@ -44,15 +47,15 @@ node --env-file=.env.staging tests/staging-hatchable-gates.cjs --require-live
 ```
 
 This verifies:
-- **G1:** Shared `lib/*.js` & `node:crypto` runtime compatibility; helper/script paths unexposed (`404`).
+- **G1:** Shared `lib/*.js`, `node:crypto`, and RFC 8291/8292 Web Push encryption/signing inside the runtime; 15 helper/script/debug paths (`/__debug/*`) confirmed unexposed (`404`); narrow probe auth (`404` without token, `403` non-admin); `private, no-store` on private and coordinate-dependent routes.
 - **G2:** Single-connection transaction pinning (`pg_backend_pid()`, `txid_current()`) and full multi-statement rollback.
-- **G3:** Zero leakage of transaction-local `app.user_id` and `app.can_moderate` GUCs after commit or rollback.
-- **G4:** Hosted authentication & 7-persona RBAC matrix (cross-vendor denials, staff vs owner restrictions, debug-header immunity).
-- **G5:** Effective DB connection role (`NOSUPERUSER`, `NOBYPASSRLS`) and `FORCE ROW LEVEL SECURITY` on `community_reviews` and `pager_notification_subscriptions`.
-- **G6:** Direct table gateway de-exposure (`403`/`404`) and private field omission on `/api/community/list`.
-- **G7:** Migration `014` & unified 59-place Sonoma County catalog parity across list, detail, search, and featured routes (`estrella` quarantined `404`).
-- **G8:** Authorized Vendor A owner live location publish immediately observed by separate Customer A session (`verified` stays `false`).
-- **G9:** Conditional `ETag` (`304` before publish, immediate `200` invalidation after publish, `private, no-store` on coordinate queries).
+- **G3:** Zero leakage of transaction-local `app.user_id`, `app.can_moderate`, and `app.pager_internal` GUCs after commit, rollback, and concurrent interleaved requests.
+- **G4:** Hosted authentication & 7-persona RBAC matrix (cross-vendor denials, staff vs owner restrictions, moderator ≠ platform_admin, debug-header immunity).
+- **G5:** Effective DB connection role (`NOSUPERUSER`, `NOBYPASSRLS`) and `FORCE ROW LEVEL SECURITY` across `community_reviews` and all four `pager_notification_*` tables (`0` private rows visible without GUC).
+- **G6:** Direct table gateway de-exposure (`403`/`404`) across `community_reviews` and all four notification tables, plus private field omission on `/api/community/list`.
+- **G7:** Migrations `001`–`016` & unified 59-place Sonoma County catalog parity across list, detail, search, and featured routes (`estrella` quarantined `404`).
+- **G8:** Authorized Vendor A owner profile, schedule, GPS, and text-only location publishing observed by Customer A (`lat/lng = null` on text-only location, `verified` stays `false`, coordinate responses `private, no-store`).
+- **G9:** Notification runtime & controls: capability/CSRF `403`s, atomic `pager.ready` outbox event creation, redacted `platform_admin`-only telemetry (`release_sha`, `config_valid`), `POST /api/pager/worker` secret auth, conditional `ETag` invalidation, and notification table RLS.
 - **E2E1–E2E6:** Pacific booking validation/idempotency, concurrent pager creation idempotency, `YYYY-MM-DD` date contract, moderator separation, write-pause controls, and isolated customer pager demo (`0` writes).
 
 ### Step 4 — Remove Ephemeral Probe & Verify Post-Cleanup Behavior

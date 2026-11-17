@@ -27,8 +27,13 @@ DELETE FROM bookings
 WHERE location LIKE '[STG-E2E-%]%'
    OR idempotency_key LIKE 'stg-e2e-%';
 
+-- Cascades automatically to pager_notification_subscriptions, pager_notification_events,
+-- and pager_notification_deliveries for disposable `STG-%` test pagers.
 DELETE FROM pickup_pagers
 WHERE ticket LIKE 'STG-%';
+
+DELETE FROM pager_rate_limits
+WHERE window_start < now() + interval '1 day';
 
 DELETE FROM truck_settings
 WHERE location LIKE '[STG-E2E-%]%';
@@ -45,6 +50,12 @@ WHERE truck_id = 'iniguez';
 
 DELETE FROM audit_logs
 WHERE action LIKE 'staging.%'
-   OR (metadata ->> 'ticket') LIKE 'STG-%';
+   OR (metadata ->> 'ticket') LIKE 'STG-%'
+   OR target_id LIKE 'stg-rb-%';
+
+-- Optional full RBAC persona teardown (uncomment if retiring disposable staging test accounts):
+-- SELECT set_config('app.is_platform_admin', 'true', true);
+-- DELETE FROM vendor_memberships WHERE user_id IN ('<STG_USER_ID_VENDOR_A_OWNER>', '<STG_USER_ID_VENDOR_A_STAFF>', '<STG_USER_ID_VENDOR_B_OWNER>');
+-- DELETE FROM platform_roles WHERE user_id IN ('<STG_USER_ID_MODERATOR>', '<STG_USER_ID_PLATFORM_ADMIN>');
 
 COMMIT;
