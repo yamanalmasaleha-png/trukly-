@@ -20,6 +20,7 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── P1_UNIFIED_DISCOVERY_ARCHITECTURE.md # Unified 59-place PostgreSQL read model, location/schedule precedence & cache contract
 │   ├── PAGER_NOTIFICATIONS_RUNBOOK.md # Durable pager push outbox, RFC 8291/8292 Web Push, native contract & incident runbook
 │   ├── PHOTO_MENU_VERIFICATION.md    # Vendor address, menu spotlight & photo-rights audit
+│   ├── RELEASE_VERIFICATION_REPORT.md # Executed staging, local PostgreSQL, browser & physical-device evidence report
 │   └── V77_PAGER_SOURCE_REVIEW.md    # Reconciled v77 & pager UX review notes
 ├── hatchable.toml                    # Hatchable auth & table permission config (community_reviews & pager outbox restricted to API)
 ├── lib/                              # Shared backend helpers (outside api/ so Hatchable does not expose as routes)
