@@ -246,10 +246,13 @@ function futurePacificDate(daysAhead = 12) {
   const appPass = 'app_pw_' + crypto.randomBytes(8).toString('hex');
   const cleanDbName = 'truckly_clean_' + crypto.randomBytes(3).toString('hex');
   const legacyDbName = 'truckly_legacy_' + crypto.randomBytes(3).toString('hex');
+  const rollbackDbName = 'truckly_rollback_' + crypto.randomBytes(3).toString('hex');
 
   const adminPool = new Pool({ connectionString: pgServer.adminUrl, max: 4 });
   let cleanPool = null;
   let legacyPool = null;
+  let rollbackPool = null;
+  let singleConnPool = null;
 
   try {
     const verRes = await adminPool.query('SELECT version()');
@@ -400,7 +403,7 @@ function futurePacificDate(daysAhead = 12) {
     });
     assert.equal(adminTouchUnmappedPager.status, 200, 'platform_admin retains intentional access to legacy unmapped records');
 
-    console.log('PASS [1/4]: Legacy database fixture migration, quarantine, and admin-only legacy isolation');
+    console.log('PASS [1/6]: Legacy database fixture migration, quarantine, and admin-only legacy isolation');
 
     // =========================================================================
     // PART 2: Clean Database Setup & P0-A Vendor Authorization & Audit Redaction
@@ -614,7 +617,7 @@ function futurePacificDate(daysAhead = 12) {
     assert.equal(adminGlobalStats.body.total_requests, 2, 'platform_admin sees global booking count');
     assert.equal((await callApi('owner/profile.js', { method: 'POST', user: ACTORS.padmin, body: { display_name: 'Missing Target' } })).status, 400, 'platform_admin must specify explicit vendor target on writes');
 
-    console.log('PASS [2/4]: P0-A vendor scoping, owner vs staff RBAC, debug-header immunity, and self-grant blocks');
+    console.log('PASS [2/6]: P0-A vendor scoping, owner vs staff RBAC, debug-header immunity, and self-grant blocks');
 
     // =========================================================================
     // PART 3: P0-B Booking Integrity, Pacific Boundaries, Idempotency & Races
@@ -882,7 +885,7 @@ function futurePacificDate(daysAhead = 12) {
     const afterFailCount = (await cleanPool.query('SELECT count(*)::int AS c FROM bookings')).rows[0].c;
     assert.equal(afterFailCount, beforeFailCount, 'zero partial bookings written when DB availability check fails');
 
-    console.log('PASS [3/4]: P0-B Pacific calendar boundaries, server package resolution, idempotency, row-locked races, and fail-closed DB errors');
+    console.log('PASS [3/6]: P0-B Pacific calendar boundaries, server package resolution, idempotency, row-locked races, and fail-closed DB errors');
 
     // =========================================================================
     // PART 4: P0-C Community Privacy, Forced RLS, Direct Table Checks & Audit Redaction
@@ -1072,9 +1075,514 @@ function futurePacificDate(daysAhead = 12) {
     assert(!serializedAudit.includes(pagerReqKeyB), 'pager request_key is never written to audit_logs');
     assert(!serializedAudit.includes('PRIVATE_DIETARY_NOTE_DO_NOT_LOG'), 'private booking notes are never written to audit_logs');
 
-    console.log('PASS [4/4]: P0-C community privacy, FORCE ROW LEVEL SECURITY, moderator separation, and redacted audit logging');
+    console.log('PASS [4/6]: P0-C community privacy, FORCE ROW LEVEL SECURITY, moderator separation, and redacted audit logging');
+
+    // =========================================================================
+    // PART 5: Follow-up Review Regressions — Date Serialization, Concurrent
+    //         Pager Idempotency, Runtime Role Tightening & GUC Non-Leakage
+    // =========================================================================
+
+    // 5a. Date-only Contract & Serialization (String vs JS Date, Dec 20 2026, Replay, Timezone Offsets)
+    const datesMod = await import(pathToFileURL(path.join(ROOT, 'lib', 'dates.js')).href);
+    const createMod = await getRoute('bookings/create.js');
+    const authzMod = await import(pathToFileURL(path.join(ROOT, 'lib', 'authz.js')).href);
+
+    // Exact Dec 20, 2026 regression check (previously String(new Date(2026, 11, 20)).slice(0, 10) -> "Sun Dec 20")
+    const localDec20 = new Date(2026, 11, 20);
+    const utcDec20 = new Date('2026-12-20');
+    assert.equal(datesMod.normalizeCalendarDate('2026-12-20'), '2026-12-20');
+    assert.equal(datesMod.normalizeCalendarDate(localDec20), '2026-12-20', 'local-midnight JS Date formats to YYYY-MM-DD (never "Sun Dec 20")');
+    assert.equal(datesMod.normalizeCalendarDate(utcDec20), '2026-12-20', 'UTC-midnight JS Date formats to YYYY-MM-DD without PST day-shift');
+    assert.throws(
+      () => datesMod.normalizeCalendarDate(new Date('2026-12-20T15:45:00Z')),
+      TypeError,
+      'non-midnight timestamp Date rejected rather than guessed'
+    );
+
+    // FormatBookingResponse with both Date and string adapter values
+    const baseSampleRow = {
+      id: '00000000-0000-4000-8000-000000000099',
+      truck_id: 'iniguez',
+      truck_name: 'Tacos Iñiguez',
+      event_type: 'Holiday party',
+      guest_count: 40,
+      location: 'Santa Rosa',
+      package_id: 'dropin',
+      package_name: 'Neighborhood Drop-in',
+      package_price: 750,
+      status: 'pending',
+      created_at: '2026-11-16T20:00:00Z'
+    };
+    assert.equal(createMod.formatBookingResponse({ ...baseSampleRow, event_date: localDec20 }, false).event_date, '2026-12-20');
+    assert.equal(createMod.formatBookingResponse({ ...baseSampleRow, event_date: utcDec20 }, true).event_date, '2026-12-20');
+    assert.equal(createMod.formatBookingResponse({ ...baseSampleRow, event_date: '2026-12-20' }, false).event_date, '2026-12-20');
+
+    // Verify positive & negative host timezone boundaries (`TZ=Asia/Tokyo` UTC+9 and `TZ=America/Los_Angeles` UTC-8)
+    for (const tz of ['Asia/Tokyo', 'America/Los_Angeles', 'UTC']) {
+      const tzOut = execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `import { normalizeCalendarDate } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'lib', 'dates.js')).href)};
+           const a = normalizeCalendarDate(new Date(2026, 11, 20));
+           const b = normalizeCalendarDate(new Date('2026-12-20'));
+           const c = normalizeCalendarDate('2026-12-20');
+           process.stdout.write(JSON.stringify([a, b, c]));`
+        ],
+        { env: { ...process.env, TZ: tz }, encoding: 'utf8', windowsHide: true }
+      );
+      assert.deepEqual(JSON.parse(tzOut), ['2026-12-20', '2026-12-20', '2026-12-20'], `Date normalization invariant holds under TZ=${tz}`);
+    }
+
+    // End-to-end PostgreSQL creation + idempotent replay + list + owner views + schedule + audit metadata for 2026-12-20
+    const dec20Now = new Date('2026-11-16T12:00:00-08:00');
+    const dec20IdemKey = 'idem-dec20-' + crypto.randomUUID();
+    const dec20Create = await callApi('bookings/create.js', {
+      method: 'POST',
+      user: ACTORS.custA,
+      _now: dec20Now,
+      headers: { 'Idempotency-Key': dec20IdemKey },
+      body: {
+        truck_id: 'mitote',
+        package_id: 'dropin',
+        event_type: 'Winter gathering',
+        event_date: '2026-12-20',
+        guest_count: 30,
+        location: '100 Sebastopol Rd, Santa Rosa'
+      }
+    });
+    assert.equal(dec20Create.status, 201);
+    assert.equal(dec20Create.body.event_date, '2026-12-20', 'created booking event_date is strict YYYY-MM-DD');
+
+    const dec20Replay = await callApi('bookings/create.js', {
+      method: 'POST',
+      user: ACTORS.custA,
+      _now: dec20Now,
+      headers: { 'Idempotency-Key': dec20IdemKey },
+      body: {
+        truck_id: 'mitote',
+        package_id: 'dropin',
+        event_type: 'Winter gathering',
+        event_date: '2026-12-20',
+        guest_count: 30,
+        location: '100 Sebastopol Rd, Santa Rosa'
+      }
+    });
+    assert.equal(dec20Replay.status, 200);
+    assert.equal(dec20Replay.body.idempotent_replay, true);
+    assert.equal(dec20Replay.body.event_date, '2026-12-20', 'idempotent replay event_date is strict YYYY-MM-DD');
+
+    // Adapter wrapper returning raw JavaScript Date objects for event_date / service_date
+    const dateObjectAdapter = {
+      async query(sql, params) {
+        const res = await cleanPool.query(sql, params);
+        return {
+          ...res,
+          rows: res.rows.map(r => {
+            const copy = { ...r };
+            if (typeof copy.event_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(copy.event_date)) {
+              const [y, m, d] = copy.event_date.split('-').map(Number);
+              copy.event_date = new Date(y, m - 1, d);
+            }
+            if (typeof copy.service_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(copy.service_date)) {
+              const [y, m, d] = copy.service_date.split('-').map(Number);
+              copy.service_date = new Date(y, m - 1, d);
+            }
+            return copy;
+          })
+        };
+      },
+      async connect() {
+        const c = await cleanPool.connect();
+        return {
+          async query(sql, params) {
+            const res = await c.query(sql, params);
+            return {
+              ...res,
+              rows: (res.rows || []).map(r => {
+                const copy = { ...r };
+                if (typeof copy.event_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(copy.event_date)) {
+                  const [y, m, d] = copy.event_date.split('-').map(Number);
+                  copy.event_date = new Date(y, m - 1, d);
+                }
+                if (typeof copy.service_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(copy.service_date)) {
+                  const [y, m, d] = copy.service_date.split('-').map(Number);
+                  copy.service_date = new Date(y, m - 1, d);
+                }
+                return copy;
+              })
+            };
+          },
+          release() {
+            c.release();
+          }
+        };
+      }
+    };
+
+    const dec20DateAdapterReplay = await callApi('bookings/create.js', {
+      method: 'POST',
+      user: ACTORS.custA,
+      _now: dec20Now,
+      dbOverride: dateObjectAdapter,
+      headers: { 'Idempotency-Key': dec20IdemKey },
+      body: {
+        truck_id: 'mitote',
+        package_id: 'dropin',
+        event_type: 'Winter gathering',
+        event_date: '2026-12-20',
+        guest_count: 30,
+        location: '100 Sebastopol Rd, Santa Rosa'
+      }
+    });
+    assert.equal(dec20DateAdapterReplay.status, 200);
+    assert.equal(dec20DateAdapterReplay.body.event_date, '2026-12-20', 'Date-returning DB adapter still serializes YYYY-MM-DD');
+
+    const custListDates = await callApi('bookings/list.js', { method: 'GET', user: ACTORS.custA, dbOverride: dateObjectAdapter });
+    assert(custListDates.body.bookings.every(b => /^\d{4}-\d{2}-\d{2}$/.test(b.event_date)), 'bookings/list returns strict YYYY-MM-DD');
+
+    const ownerPendingDates = await callApi('owner/requests.js', { method: 'GET', user: ACTORS.vbOwner, dbOverride: dateObjectAdapter });
+    assert(ownerPendingDates.body.requests.every(b => /^\d{4}-\d{2}-\d{2}$/.test(b.event_date)), 'owner/requests GET returns strict YYYY-MM-DD');
+
+    const acceptDec20 = await callApi('owner/requests.js', {
+      method: 'POST',
+      user: ACTORS.vbOwner,
+      dbOverride: dateObjectAdapter,
+      body: { id: dec20Create.body.id, status: 'accepted' }
+    });
+    assert.equal(acceptDec20.status, 200);
+    const dec20Audit = await cleanPool.query(
+      "SELECT metadata FROM audit_logs WHERE target_type = 'booking' AND target_id = $1",
+      [dec20Create.body.id]
+    );
+    assert.equal(dec20Audit.rows[0].metadata.event_date, '2026-12-20', 'audit_logs booking event_date is strict YYYY-MM-DD');
+
+    const ownerAllDates = await callApi('owner/bookings.js', { method: 'GET', user: ACTORS.vbOwner, dbOverride: dateObjectAdapter });
+    assert(ownerAllDates.body.bookings.every(b => /^\d{4}-\d{2}-\d{2}$/.test(b.event_date)), 'owner/bookings returns strict YYYY-MM-DD');
+
+    const schedDec20 = await callApi('owner/schedule.js', {
+      method: 'POST',
+      user: ACTORS.vbOwner,
+      dbOverride: dateObjectAdapter,
+      body: { truck_id: 'mitote', service_date: futurePacificDate(40), opens_at: '11:00', closes_at: '19:00', status: 'scheduled' }
+    });
+    assert.equal(schedDec20.status, 200);
+    assert.match(schedDec20.body.service_date, /^\d{4}-\d{2}-\d{2}$/, 'owner/schedule POST returns strict YYYY-MM-DD');
+    const schedListDates = await callApi('owner/schedule.js', { method: 'GET', user: ACTORS.vbOwner, dbOverride: dateObjectAdapter });
+    assert(schedListDates.body.schedule.every(s => /^\d{4}-\d{2}-\d{2}$/.test(s.service_date)), 'owner/schedule GET returns strict YYYY-MM-DD');
+    const availDates = await callApi('trucks/availability.js', {
+      method: 'GET',
+      dbOverride: dateObjectAdapter,
+      query: { truck_id: 'mitote', date: schedDec20.body.service_date }
+    });
+    assert.equal(availDates.body.schedule.service_date, schedDec20.body.service_date, 'availability schedule.service_date is strict YYYY-MM-DD');
+
+    // 5b. Concurrent Pager Creation Idempotency & Cross-Vendor Non-Disclosure
+    const concurrentPagerKey = crypto.randomUUID();
+    const concurrentPagerCalls = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        callApi('pager/staff.js', {
+          method: 'POST',
+          user: ACTORS.vaOwner,
+          body: { vendor_id: 'iniguez', ticket: '88', request_key: concurrentPagerKey }
+        })
+      )
+    );
+    assert(concurrentPagerCalls.every(r => r.status === 201 || r.status === 200), 'no concurrent pager creation failed with 503');
+    assert.equal(concurrentPagerCalls.filter(r => r.status === 201).length, 1, 'exactly 1 concurrent pager request returned 201');
+    assert.equal(
+      concurrentPagerCalls.filter(r => r.status === 200 && r.body.idempotent_replay === true).length,
+      4,
+      'remaining 4 concurrent pager requests returned 200 idempotent replay'
+    );
+    const pagerIdsSet = new Set(concurrentPagerCalls.map(r => r.body.pager.id));
+    assert.equal(pagerIdsSet.size, 1, 'all 5 concurrent calls returned the identical pager ticket UUID');
+    const canonicalPagerId = concurrentPagerCalls[0].body.pager.id;
+
+    const persistedPagerRows = await cleanPool.query(
+      'SELECT id, vendor_id, ticket FROM pickup_pagers WHERE request_key = $1',
+      [concurrentPagerKey]
+    );
+    assert.equal(persistedPagerRows.rows.length, 1, 'strictly 1 pager ticket persisted in PostgreSQL');
+
+    const pagerAuditRows = await cleanPool.query(
+      "SELECT * FROM audit_logs WHERE action = 'pager.create' AND target_id = $1",
+      [authzMod.redactPagerTargetId(canonicalPagerId)]
+    );
+    assert.equal(pagerAuditRows.rows.length, 1, 'strictly 1 pager.create audit event recorded across 5 concurrent retries');
+
+    // Same-vendor conflicting ticket parameter on existing request_key -> 409
+    const sameVendorMismatch = await callApi('pager/staff.js', {
+      method: 'POST',
+      user: ACTORS.vaOwner,
+      body: { vendor_id: 'iniguez', ticket: '99-DIFFERENT', request_key: concurrentPagerKey }
+    });
+    assert.equal(sameVendorMismatch.status, 409, 'reused request_key with mismatched ticket returns 409');
+    assert.equal('pager' in sameVendorMismatch.body, false);
+
+    // Simultaneous cross-vendor race with identical request_key -> 1 wins (201), other gets controlled 409 without leaking winner's pager!
+    const crossVendorKey = crypto.randomUUID();
+    const [crossA, crossB] = await Promise.all([
+      callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.vaOwner,
+        body: { vendor_id: 'iniguez', ticket: '51', request_key: crossVendorKey }
+      }),
+      callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.vbOwner,
+        body: { vendor_id: 'mitote', ticket: '51', request_key: crossVendorKey }
+      })
+    ]);
+    const crossWinner = crossA.status === 201 ? crossA : crossB;
+    const crossLoser = crossA.status === 201 ? crossB : crossA;
+    assert.equal(crossWinner.status, 201, 'one vendor wins the cross-vendor request_key race');
+    assert.equal(crossLoser.status, 409, 'other vendor receives controlled 409 conflict');
+    assert.equal('pager' in crossLoser.body, false, '409 response omits pager object');
+    assert(!JSON.stringify(crossLoser.body).includes(crossWinner.body.pager.id), 'other vendor private pager UUID never leaked on conflict');
+    assert.equal(
+      (await cleanPool.query('SELECT count(*)::int AS c FROM pickup_pagers WHERE request_key = $1', [crossVendorKey])).rows[0].c,
+      1,
+      'only 1 pager persisted in cross-vendor key race'
+    );
+    assert.equal(
+      (
+        await cleanPool.query("SELECT count(*)::int AS c FROM audit_logs WHERE action = 'pager.create' AND target_id = $1", [
+          authzMod.redactPagerTargetId(crossWinner.body.pager.id)
+        ])
+      ).rows[0].c,
+      1,
+      'only 1 pager.create audit log written in cross-vendor key race'
+    );
+
+    // 5c. Unverified runtime user.role/is_admin fields do NOT grant platform_admin
+    const unverifiedRoleClaim = await callApi('owner/stats.js', {
+      method: 'GET',
+      user: { id: ACTORS.custA.id, email: ACTORS.custA.email, role: 'admin', is_admin: true }
+    });
+    assert.equal(unverifiedRoleClaim.status, 403, 'runtime user.role/is_admin fields do not grant platform_admin without platform_roles/env');
+
+    // 5d. Single-Connection Pool (`max: 1`) Transaction-Local GUC Non-Leakage Proof
+    singleConnPool = new Pool({
+      connectionString: buildDbUrl(pgServer.adminUrl, { user: appRole, password: appPass, database: cleanDbName }),
+      max: 1
+    });
+    const pidBefore = (await singleConnPool.query('SELECT pg_backend_pid() AS pid')).rows[0].pid;
+
+    // Run moderator GET (sets app.can_moderate = 'true' and app.user_id via set_config(..., true) and COMMITs)
+    const modOnSingleConn = await callApi('community/moderate.js', {
+      method: 'GET',
+      user: ACTORS.mod,
+      dbOverride: singleConnPool
+    });
+    assert.equal(modOnSingleConn.status, 200);
+
+    // Also run a transaction on the same single connection that sets both GUCs and ROLLBACKs
+    const c1 = await singleConnPool.connect();
+    try {
+      await c1.query('BEGIN');
+      await c1.query("SELECT set_config('app.can_moderate', 'true', true), set_config('app.user_id', $1, true)", [ACTORS.padmin.id]);
+      await c1.query('ROLLBACK');
+    } finally {
+      c1.release();
+    }
+
+    // Immediately inspect the exact same backend connection without setting GUCs
+    const afterCheck = await singleConnPool.query(
+      "SELECT pg_backend_pid() AS pid, COALESCE(current_setting('app.can_moderate', true), '') AS mod, COALESCE(current_setting('app.user_id', true), '') AS uid"
+    );
+    assert.equal(afterCheck.rows[0].pid, pidBefore, 'verified reuse of the exact same physical PostgreSQL connection');
+    assert.equal(afterCheck.rows[0].mod, '', 'app.can_moderate did not leak to subsequent pooled request');
+    assert.equal(afterCheck.rows[0].uid, '', 'app.user_id did not leak to subsequent pooled request');
+    const rlsCheckOnReusedConn = await singleConnPool.query('SELECT id, status FROM community_reviews');
+    assert(rlsCheckOnReusedConn.rows.every(r => r.status === 'approved'), 'FORCE RLS still hides unpublished posts on reused connection');
+
+    console.log('PASS [5/6]: Date-only YYYY-MM-DD contract across timezones/adapters, concurrent pager idempotency, and single-connection GUC non-leakage');
+
+    // =========================================================================
+    // PART 6: Two-Tier Rollback Verification (Tier 1 Write Hold + Tier 2 Actual
+    //         `8bbbbe3` Legacy Handlers Executed Against Rolled-Back Schema)
+    // =========================================================================
+
+    // Tier 1: Security-preserving write pause (`TRUCKLY_PAUSE_WRITES`)
+    process.env.TRUCKLY_PAUSE_WRITES = 'bookings,community';
+    try {
+      assert.equal(
+        (await callApi('bookings/create.js', { method: 'POST', user: ACTORS.custA, body: {} })).status,
+        503,
+        'paused bookings write returns 503'
+      );
+      assert.equal(
+        (await callApi('community/post.js', { method: 'POST', user: ACTORS.custA, body: {} })).status,
+        503,
+        'paused community write returns 503'
+      );
+      assert.equal(
+        (await callApi('community/moderate.js', { method: 'POST', user: ACTORS.mod, body: { id: postAId, status: 'approved' } })).status,
+        503,
+        'paused community moderation write returns 503'
+      );
+      // Reads & RLS stay 100% active during Tier 1 write pause
+      const listDuringPause = await callApi('community/list.js', { method: 'GET' });
+      assert.equal(listDuringPause.status, 200);
+      assert.equal(listDuringPause.body.posts.length, 1);
+    } finally {
+      delete process.env.TRUCKLY_PAUSE_WRITES;
+    }
+
+    // Tier 2: Empirical test of `scripts/rollback-legacy-8bbbbe3-compat.sql` using actual `8bbbbe3` handlers!
+    await adminPool.query(`CREATE DATABASE ${rollbackDbName} OWNER ${appRole}`);
+    rollbackPool = new Pool({
+      connectionString: buildDbUrl(pgServer.adminUrl, { user: appRole, password: appPass, database: rollbackDbName }),
+      max: 4
+    });
+
+    // Apply full 001..013 hardened schema and insert post-hardening rows first
+    await applyMigrations(rollbackPool, listMigrationFiles(999));
+    await rollbackPool.query(
+      `INSERT INTO bookings (
+         truck_id, truck_name, event_type, event_date, guest_count, location,
+         requester, requester_user_id, requester_email, package_id, package_name, package_price, status
+       ) VALUES ('mitote', 'Mitote Food Park', 'Office lunch', $1, 40, 'Santa Rosa', 'a@b.test', 'usr_1', 'a@b.test', 'dropin', 'Neighborhood Drop-in', 750, 'pending')`,
+      [futurePacificDate(14)]
+    );
+
+    // Apply the documented Tier 2 compatibility rollback SQL
+    const rollbackSql = fs.readFileSync(path.join(ROOT, 'scripts', 'rollback-legacy-8bbbbe3-compat.sql'), 'utf8');
+    await rollbackPool.query(rollbackSql);
+
+    // Load the ACTUAL pre-hardening `8bbbbe3` route modules from git history and invoke them against `rollbackPool`!
+    async function loadLegacy8bbbbe3Handler(relApiPath) {
+      const legacySource = execFileSync('git', ['show', `8bbbbe3:api/${relApiPath}`], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        windowsHide: true
+      });
+      const dataUrl =
+        'data:text/javascript;base64,' +
+        Buffer.from(`${legacySource}\n//# sourceURL=legacy-8bbbbe3-${relApiPath}`, 'utf8').toString('base64');
+      const mod = await import(dataUrl);
+      return async ({ method = 'GET', user = null, query = {}, params = {}, body = {} } = {}) => {
+        let code = 200;
+        let out = undefined;
+        const req = { method, query, params, body, headers: {}, ...(user ? { user } : {}) };
+        const res = {
+          setHeader() {},
+          status(c) {
+            code = c;
+            return this;
+          },
+          json(p) {
+            out = p;
+            return this;
+          }
+        };
+        await als.run({ db: rollbackPool, authUser: user }, () => mod.default(req, res));
+        return { status: code, body: out };
+      };
+    }
+
+    const legCommPost = await loadLegacy8bbbbe3Handler('community/post.js');
+    const legCommMine = await loadLegacy8bbbbe3Handler('community/mine.js');
+    const legCommMod = await loadLegacy8bbbbe3Handler('community/moderate.js');
+    const legCommList = await loadLegacy8bbbbe3Handler('community/list.js');
+    const legBookCreate = await loadLegacy8bbbbe3Handler('bookings/create.js');
+    const legBookList = await loadLegacy8bbbbe3Handler('bookings/list.js');
+    const legOwnerReq = await loadLegacy8bbbbe3Handler('owner/requests.js');
+    const legOwnerProf = await loadLegacy8bbbbe3Handler('owner/profile.js');
+    const legOwnerLoc = await loadLegacy8bbbbe3Handler('owner/location.js');
+    const legOwnerSched = await loadLegacy8bbbbe3Handler('owner/schedule.js');
+    const legPagerStaff = await loadLegacy8bbbbe3Handler('pager/staff.js');
+    const legPagerUpdate = await loadLegacy8bbbbe3Handler('pager/update.js');
+
+    // 1. Legacy community post -> mine -> moderate (sets status + moderated_at WITHOUT moderated_by!) -> public list
+    const legSub = await legCommPost({
+      method: 'POST',
+      user: { id: 'usr_leg_author', email: 'leg@sonoma.test' },
+      body: {
+        kind: 'review',
+        place_id: 'mitote',
+        place_name: 'Mitote Food Park',
+        town: 'Santa Rosa',
+        nickname: 'Legacy Reviewer',
+        title: 'Rollback test review',
+        body: 'Testing the actual 8bbbbe3 community handlers against rolled-back schema.',
+        rating: 5
+      }
+    });
+    assert.equal(legSub.status, 201, '8bbbbe3 community/post succeeds after rollback SQL');
+
+    const legMine = await legCommMine({ method: 'GET', user: { id: 'usr_leg_author' } });
+    assert.equal(legMine.status, 200);
+    assert.equal(legMine.body.submissions.length, 1, '8bbbbe3 community/mine reads submission without GUC');
+
+    const legQueue = await legCommMod({ method: 'GET' });
+    assert.equal(legQueue.status, 200);
+    assert.equal(legQueue.body.pending.length, 1, '8bbbbe3 community/moderate GET sees pending queue without GUC');
+
+    const legApprove = await legCommMod({
+      method: 'POST',
+      body: { id: legSub.body.submission.id, status: 'approved' }
+    });
+    assert.equal(legApprove.status, 200, '8bbbbe3 community/moderate POST succeeds without moderated_by');
+
+    const legPub = await legCommList({ method: 'GET' });
+    assert.equal(legPub.status, 200);
+    assert.equal(legPub.body.posts.length, 1, 'approved post appears in 8bbbbe3 community/list');
+
+    // 2. Legacy bookings/create (anonymous + null truck_id + No requester_user_id) & owner/requests accept
+    const legAnonBook = await legBookCreate({
+      method: 'POST',
+      user: { email: 'legacy-buyer@sonoma.test' },
+      body: {
+        truck_id: null,
+        truck_name: 'Best available match',
+        package_id: 'party',
+        event_type: 'Birthday',
+        event_date: futurePacificDate(18),
+        guest_count: 60,
+        location: 'Santa Rosa'
+      }
+    });
+    assert.equal(legAnonBook.status, 201, '8bbbbe3 bookings/create succeeds without requester_user_id or truck_id');
+    const legBuyerList = await legBookList({ method: 'GET', user: { email: 'legacy-buyer@sonoma.test' } });
+    assert.equal(legBuyerList.body.bookings.length, 1);
+    const legAcceptBook = await legOwnerReq({
+      method: 'POST',
+      body: { id: legAnonBook.body.id, status: 'accepted' }
+    });
+    assert.equal(legAcceptBook.status, 200, '8bbbbe3 owner/requests POST accept succeeds');
+
+    // 3. Legacy pager/staff (NULL vendor_id) & pager/update
+    const legPager = await legPagerStaff({
+      method: 'POST',
+      body: { vendor: 'Mitote Stand', ticket: '12', request_key: crypto.randomUUID() }
+    });
+    assert.equal(legPager.status, 201, '8bbbbe3 pager/staff POST succeeds without vendor_id');
+    const legPagerUpd = await legPagerUpdate({
+      method: 'POST',
+      body: { id: legPager.body.pager.id, status: 'ready' }
+    });
+    assert.equal(legPagerUpd.status, 200, '8bbbbe3 pager/update POST succeeds');
+
+    // 4. Legacy owner profile/location/schedule with default 'owner-truck'
+    assert.equal((await legOwnerProf({ method: 'POST', body: { display_name: 'Legacy Owner Truck' } })).status, 200);
+    assert.equal((await legOwnerLoc({ method: 'POST', body: { location: 'Ross Street' } })).status, 200);
+    assert.equal(
+      (await legOwnerSched({ method: 'POST', body: { truck_id: 'owner-truck', service_date: futurePacificDate(10), status: 'scheduled' } })).status,
+      200
+    );
+
+    // Confirm pre-rollback rows were preserved non-destructively
+    assert.equal((await rollbackPool.query('SELECT count(*)::int AS c FROM vendors')).rows[0].c, 59);
+    assert.equal((await rollbackPool.query('SELECT count(*)::int AS c FROM bookings')).rows[0].c, 2);
+
+    console.log('PASS [6/6]: Two-tier rollback verified (Tier 1 write pause + Tier 2 actual 8bbbbe3 handlers on rolled-back PostgreSQL)');
     console.log('ALL REAL-POSTGRESQL BACKEND HARDENING INTEGRATION TESTS PASSED.');
   } finally {
+    if (singleConnPool) await singleConnPool.end().catch(() => {});
+    if (rollbackPool) await rollbackPool.end().catch(() => {});
     if (cleanPool) await cleanPool.end().catch(() => {});
     if (legacyPool) await legacyPool.end().catch(() => {});
     await adminPool.end().catch(() => {});

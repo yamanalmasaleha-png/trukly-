@@ -3,7 +3,8 @@ import {
   UUID_RE,
   loadAccessContext,
   recordAuditLog,
-  redactPagerTargetId
+  redactPagerTargetId,
+  isWritePaused
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -14,6 +15,10 @@ const ALLOWED_PAGER_STATUSES = new Set(["cooking", "almost", "ready", "collected
 
 export default async function(req, res) {
   res.setHeader("Cache-Control", "no-store");
+
+  if (isWritePaused("pagers")) {
+    return res.status(503).json({ error: "Pickup pager updates are temporarily paused for maintenance." });
+  }
 
   try {
     const ctx = await loadAccessContext(req, auth, db);

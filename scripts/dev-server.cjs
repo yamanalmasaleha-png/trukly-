@@ -229,7 +229,7 @@ const mockDb = {
       };
     }
 
-    if (/SELECT id, truck_id, event_date, status FROM bookings WHERE id = \$1/i.test(s)) {
+    if (/SELECT id, truck_id, (?:to_char\(event_date, 'YYYY-MM-DD'\) AS )?event_date, status FROM bookings WHERE id = \$1/i.test(s)) {
       const row = store.bookings.find(b => b.id === params[0]);
       return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
     }
@@ -383,6 +383,10 @@ const mockDb = {
       return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
     }
     if (/^INSERT INTO pickup_pagers/i.test(s)) {
+      const existing = store.pickup_pagers.find(p => p.request_key === params[3]);
+      if (existing) {
+        return { rows: [], rowCount: 0 };
+      }
       const now = Date.now();
       const row = {
         id: crypto.randomUUID(),

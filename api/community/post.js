@@ -1,5 +1,5 @@
 import { db, auth } from "hatchable";
-import { resolveIdentity } from "../../lib/authz.js";
+import { resolveIdentity, isWritePaused } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -8,6 +8,10 @@ export const methods = ["POST"];
 const ALLOWED_KINDS = new Set(["review", "tip", "question", "whisper"]);
 
 export default async function(req, res) {
+  if (isWritePaused("community")) {
+    return res.status(503).json({ error: "Community submissions are temporarily paused for maintenance." });
+  }
+
   const user = await resolveIdentity(req, auth);
   if (!user) {
     return res.status(401).json({ error: "Sign in to contribute to the community." });

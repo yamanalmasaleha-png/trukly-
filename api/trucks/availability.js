@@ -1,5 +1,5 @@
 import { db } from "hatchable";
-import { isValidCalendarDate, validateFuturePacificDate } from "../../lib/dates.js";
+import { isValidCalendarDate, validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 
 export const access = "public";
 export const methods = ["GET"];
@@ -52,10 +52,14 @@ export default async function(req, res) {
     }
 
     const { rows: schedRows } = await db.query(
-      "SELECT service_date, opens_at, closes_at, location, status FROM owner_schedule WHERE truck_id = $1 AND service_date = $2",
+      `SELECT to_char(service_date, 'YYYY-MM-DD') AS service_date, opens_at, closes_at, location, status
+       FROM owner_schedule
+       WHERE truck_id = $1 AND service_date = $2`,
       [id, date]
     );
-    const schedule = schedRows[0] || null;
+    const schedule = schedRows[0]
+      ? { ...schedRows[0], service_date: normalizeCalendarDate(schedRows[0].service_date) }
+      : null;
 
     if (!vendor.accepting_bookings) {
       return res.json({

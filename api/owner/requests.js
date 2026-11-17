@@ -1,5 +1,13 @@
 import { db, auth } from "hatchable";
-import { UUID_RE, loadAccessContext, authorizeVendorScope, authorizeVendorTarget, recordAuditLog } from "../../lib/authz.js";
+import {
+  UUID_RE,
+  loadAccessContext,
+  authorizeVendorScope,
+  authorizeVendorTarget,
+  recordAuditLog,
+  isWritePaused
+} from "../../lib/authz.js";
+import { normalizeCalendarDate } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -13,6 +21,10 @@ export default async function(req, res) {
     }
 
     if (req.method === "POST") {
+      if (isWritePaused("owner") || isWritePaused("bookings")) {
+        return res.status(503).json({ error: "Booking status updates are temporarily paused for maintenance." });
+      }
+
       if (!ctx.isPlatformAdmin && ctx.memberships.size === 0) {
         return res.status(403).json({ error: "Vendor owner permission is required." });
       }
@@ -27,13 +39,14 @@ export default async function(req, res) {
 
       const outcome = await withTransaction(db, async tx => {
         const { rows: locked } = await tx.query(
-          "SELECT id, truck_id, event_date, status FROM bookings WHERE id = $1 FOR UPDATE",
+          "SELECT id, truck_id, to_char(event_date, 'YYYY-MM-DD') AS event_date, status FROM bookings WHERE id = $1 FOR UPDATE",
           [cleanId]
         );
         if (!locked.length) {
           return { status: 404, body: { error: "Booking request not found." } };
         }
         const booking = locked[0];
+        const canonicalEventDate = normalizeCalendarDate(booking.event_date);
 
         let actorRole = "platform_admin";
         if (!ctx.isPlatformAdmin) {
@@ -57,7 +70,7 @@ export default async function(req, res) {
         if (targetStatus === "accepted" && booking.truck_id) {
           const { rows: schedRows } = await tx.query(
             "SELECT status FROM owner_schedule WHERE truck_id = $1 AND service_date = $2 FOR SHARE",
-            [booking.truck_id, booking.event_date]
+            [booking.truck_id, canonicalEventDate]
           );
           if (schedRows[0]?.status === "unavailable") {
             return {
@@ -85,7 +98,7 @@ export default async function(req, res) {
           metadata: {
             from_status: "pending",
             to_status: targetStatus,
-            event_date: String(booking.event_date).slice(0, 10)
+            event_date: canonicalEventDate
           }
         });
 
@@ -99,7 +112,9 @@ export default async function(req, res) {
     if (!scope.ok) return res.status(scope.status).json({ error: scope.error });
 
     const selectCols = `
-      id, truck_id, truck_name, event_type, event_date, guest_count, location,
+      id, truck_id, truck_name, event_type,
+      to_char(event_date, 'YYYY-MM-DD') AS event_date,
+      guest_count, location,
       COALESCE(requester_email, requester) AS requester,
       package_id, package_name, package_price, status, created_at
     `;
@@ -113,7 +128,12 @@ export default async function(req, res) {
           [scope.vendorIds]
         );
 
-    return res.json({ requests: rows });
+    return res.json({
+      requests: rows.map(r => ({
+        ...r,
+        event_date: r.event_date == null ? null : normalizeCalendarDate(r.event_date)
+      }))
+    });
   } catch {
     return res.status(503).json({ error: "Owner booking requests are temporarily unavailable." });
   }

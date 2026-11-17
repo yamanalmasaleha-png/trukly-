@@ -1,5 +1,5 @@
 import { db, auth } from "hatchable";
-import { loadAccessContext, authorizeVendorTarget, recordAuditLog } from "../../lib/authz.js";
+import { loadAccessContext, authorizeVendorTarget, recordAuditLog, isWritePaused } from "../../lib/authz.js";
 import { isValidTimeValue } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -11,6 +11,10 @@ export default async function(req, res) {
     const ctx = await loadAccessContext(req, auth, db);
 
     if (req.method === "POST") {
+      if (isWritePaused("owner")) {
+        return res.status(503).json({ error: "Owner location updates are temporarily paused for maintenance." });
+      }
+
       const b = req.body && typeof req.body === "object" ? req.body : {};
       const authz = await authorizeVendorTarget(ctx, b.truck_id || req.query?.truck_id, "staff", db);
       if (!authz.ok) return res.status(authz.status).json({ error: authz.error });

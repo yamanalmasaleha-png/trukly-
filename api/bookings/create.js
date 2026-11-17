@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import { db, auth } from "hatchable";
 import { BOOKING_PACKAGES } from "../../lib/catalog.js";
-import { resolveIdentity } from "../../lib/authz.js";
-import { validateFuturePacificDate } from "../../lib/dates.js";
+import { resolveIdentity, isWritePaused } from "../../lib/authz.js";
+import { validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -46,13 +46,13 @@ function computeBookingHash(payload) {
     .digest("hex");
 }
 
-function formatBookingResponse(row, replay = false) {
+export function formatBookingResponse(row, replay = false) {
   const out = {
     id: row.id,
     truck_id: row.truck_id,
     truck_name: row.truck_name,
     event_type: row.event_type,
-    event_date: String(row.event_date).slice(0, 10),
+    event_date: normalizeCalendarDate(row.event_date),
     guest_count: row.guest_count,
     location: row.location,
     package_id: row.package_id,
@@ -66,6 +66,10 @@ function formatBookingResponse(row, replay = false) {
 }
 
 export default async function(req, res) {
+  if (isWritePaused("bookings")) {
+    return res.status(503).json({ error: "New event booking inquiries are temporarily paused for maintenance." });
+  }
+
   const user = await resolveIdentity(req, auth);
   if (!user) {
     return res.status(401).json({ error: "Sign in to submit an event booking request." });
@@ -137,7 +141,9 @@ export default async function(req, res) {
     const outcome = await withTransaction(db, async tx => {
       if (idempotencyKey) {
         const { rows: prevRows } = await tx.query(
-          `SELECT id, truck_id, truck_name, event_type, event_date, guest_count, location,
+          `SELECT id, truck_id, truck_name, event_type,
+                  to_char(event_date, 'YYYY-MM-DD') AS event_date,
+                  guest_count, location,
                   package_id, package_name, package_price, status, created_at, request_hash
            FROM bookings
            WHERE requester_user_id = $1 AND idempotency_key = $2
@@ -183,6 +189,7 @@ export default async function(req, res) {
         canonical_name: lockedProfile[0]?.display_name || vendorRows[0].canonical_name,
         accepting_bookings: lockedProfile.length ? lockedProfile[0].accepting_bookings !== false : vendorRows[0].accepting_bookings
       };
+
       if (!vendor.is_active || !vendor.event_bookable) {
         return { status: 400, body: { error: "Selected listing is not eligible for event bookings." } };
       }
@@ -212,7 +219,9 @@ export default async function(req, res) {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $8, $10, $11, $12, $13, $14)
            ON CONFLICT (requester_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL
            DO NOTHING
-           RETURNING id, truck_id, truck_name, event_type, event_date, guest_count, location,
+           RETURNING id, truck_id, truck_name, event_type,
+                     to_char(event_date, 'YYYY-MM-DD') AS event_date,
+                     guest_count, location,
                      package_id, package_name, package_price, status, created_at`,
           [
             truckId,
@@ -234,7 +243,9 @@ export default async function(req, res) {
 
         if (!inserted.length) {
           const { rows: raced } = await tx.query(
-            `SELECT id, truck_id, truck_name, event_type, event_date, guest_count, location,
+            `SELECT id, truck_id, truck_name, event_type,
+                    to_char(event_date, 'YYYY-MM-DD') AS event_date,
+                    guest_count, location,
                     package_id, package_name, package_price, status, created_at, request_hash
              FROM bookings
              WHERE requester_user_id = $1 AND idempotency_key = $2`,
@@ -263,7 +274,9 @@ export default async function(req, res) {
            idempotency_key, request_hash
          )
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $8, $10, $11, $12, NULL, $13)
-         RETURNING id, truck_id, truck_name, event_type, event_date, guest_count, location,
+         RETURNING id, truck_id, truck_name, event_type,
+                   to_char(event_date, 'YYYY-MM-DD') AS event_date,
+                   guest_count, location,
                    package_id, package_name, package_price, status, created_at`,
         [
           truckId,

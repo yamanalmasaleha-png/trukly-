@@ -1,5 +1,5 @@
 import { db, auth } from "hatchable";
-import { UUID_RE, loadAccessContext, recordAuditLog } from "../../lib/authz.js";
+import { UUID_RE, loadAccessContext, recordAuditLog, isWritePaused } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -33,6 +33,10 @@ export default async function(req, res) {
         return rows;
       });
       return res.json({ pending });
+    }
+
+    if (isWritePaused("community")) {
+      return res.status(503).json({ error: "Community moderation writes are temporarily paused for maintenance." });
     }
 
     const b = req.body && typeof req.body === "object" ? req.body : {};

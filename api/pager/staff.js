@@ -5,7 +5,8 @@ import {
   authorizeVendorScope,
   authorizeVendorTarget,
   recordAuditLog,
-  redactPagerTargetId
+  redactPagerTargetId,
+  isWritePaused
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -45,6 +46,10 @@ export default async function(req, res) {
       return res.json({ pagers: rows });
     }
 
+    if (isWritePaused("pagers")) {
+      return res.status(503).json({ error: "Pickup pager creation is temporarily paused for maintenance." });
+    }
+
     const b = req.body && typeof req.body === "object" ? req.body : {};
     const requestedVendorId = typeof b.vendor_id === "string"
       ? b.vendor_id
@@ -74,43 +79,51 @@ export default async function(req, res) {
       }
       const canonicalVendorName = String(vendorRows[0].display_name).slice(0, 80);
 
-      const { rows: existing } = await tx.query(
-        `SELECT id, vendor_id, vendor, ticket, status, updated_at, expires_at
-         FROM pickup_pagers
-         WHERE request_key = $1
-         FOR UPDATE`,
-        [key]
-      );
-
-      if (existing.length) {
-        const prev = existing[0];
-        if (prev.vendor_id !== authz.vendorId || prev.ticket !== ticket) {
-          return {
-            status: 409,
-            body: { error: "request_key was already used with different pager parameters." }
-          };
-        }
-        return { status: 200, body: { pager: prev, idempotent_replay: true } };
-      }
-
+      // Atomic insert with ON CONFLICT (request_key) DO NOTHING serializes concurrent retries
+      // on the unique index without failing with 23505 -> 503.
       const { rows: created } = await tx.query(
         `INSERT INTO pickup_pagers (vendor_id, vendor, ticket, request_key, created_by, updated_by)
          VALUES ($1, $2, $3, $4, $5, $5)
+         ON CONFLICT (request_key) DO NOTHING
          RETURNING id, vendor_id, vendor, ticket, status, updated_at, expires_at`,
         [authz.vendorId, canonicalVendorName, ticket, key, ctx.user.id]
       );
 
-      await recordAuditLog(tx, {
-        actorId: ctx.user.id,
-        actorRole: authz.actorRole,
-        vendorId: authz.vendorId,
-        targetType: "pickup_pager",
-        targetId: redactPagerTargetId(created[0].id),
-        action: "pager.create",
-        metadata: { ticket }
-      });
+      if (created.length) {
+        await recordAuditLog(tx, {
+          actorId: ctx.user.id,
+          actorRole: authz.actorRole,
+          vendorId: authz.vendorId,
+          targetType: "pickup_pager",
+          targetId: redactPagerTargetId(created[0].id),
+          action: "pager.create",
+          metadata: { ticket }
+        });
 
-      return { status: 201, body: { pager: created[0] } };
+        return { status: 201, body: { pager: created[0] } };
+      }
+
+      // Conflict occurred: inspect committed row in READ COMMITTED snapshot.
+      // Never expose another vendor's pager UUID, vendor name, or ticket on a mismatch.
+      const { rows: existing } = await tx.query(
+        `SELECT id, vendor_id, vendor, ticket, status, updated_at, expires_at
+         FROM pickup_pagers
+         WHERE request_key = $1`,
+        [key]
+      );
+      if (!existing.length) {
+        throw new Error("Pager request_key conflict did not resolve.");
+      }
+
+      const prev = existing[0];
+      if (prev.vendor_id !== authz.vendorId || prev.ticket !== ticket) {
+        return {
+          status: 409,
+          body: { error: "request_key was already used with different pager parameters." }
+        };
+      }
+
+      return { status: 200, body: { pager: prev, idempotent_replay: true } };
     });
 
     return res.status(outcome.status).json(outcome.body);

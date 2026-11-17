@@ -1,5 +1,6 @@
 import { db, auth } from "hatchable";
 import { loadAccessContext, authorizeVendorScope } from "../../lib/authz.js";
+import { normalizeCalendarDate } from "../../lib/dates.js";
 
 export const access = "user";
 export const methods = ["GET"];
@@ -18,7 +19,9 @@ export default async function(req, res) {
     }
 
     const selectCols = `
-      id, truck_id, truck_name, event_type, event_date, guest_count, location, note,
+      id, truck_id, truck_name, event_type,
+      to_char(event_date, 'YYYY-MM-DD') AS event_date,
+      guest_count, location, note,
       COALESCE(requester_email, requester) AS requester,
       package_id, package_name, package_price, status, decided_by, decided_at, created_at
     `;
@@ -40,7 +43,12 @@ export default async function(req, res) {
           )).rows;
     }
 
-    return res.json({ bookings: rows });
+    return res.json({
+      bookings: rows.map(r => ({
+        ...r,
+        event_date: r.event_date == null ? null : normalizeCalendarDate(r.event_date)
+      }))
+    });
   } catch {
     return res.status(503).json({ error: "Owner bookings service is temporarily unavailable." });
   }

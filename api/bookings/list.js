@@ -1,5 +1,6 @@
 import { db, auth } from "hatchable";
 import { resolveIdentity } from "../../lib/authz.js";
+import { normalizeCalendarDate } from "../../lib/dates.js";
 
 export const access = "user";
 export const methods = ["GET"];
@@ -13,7 +14,9 @@ export default async function(req, res) {
   try {
     const { rows } = await db.query(
       `SELECT
-         id, truck_id, truck_name, event_type, event_date, guest_count, location,
+         id, truck_id, truck_name, event_type,
+         to_char(event_date, 'YYYY-MM-DD') AS event_date,
+         guest_count, location,
          package_id, package_name, package_price, status, decided_at, created_at
        FROM bookings
        WHERE requester_user_id = $1
@@ -21,7 +24,12 @@ export default async function(req, res) {
        LIMIT 50`,
       [user.id]
     );
-    return res.json({ bookings: rows });
+    return res.json({
+      bookings: rows.map(r => ({
+        ...r,
+        event_date: normalizeCalendarDate(r.event_date)
+      }))
+    });
   } catch {
     return res.status(503).json({ error: "Bookings could not be loaded right now." });
   }

@@ -344,9 +344,9 @@
       return;
     }
     try {
-      var d = new Date();
-      d.setDate(d.getDate() + 9);
-      var iso = d.toISOString().slice(0, 10);
+      var iso = typeof futureDateISO === "function"
+        ? futureDateISO(9)
+        : new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(new Date(Date.now() + 9 * 86400000));
       var r = await fetch("/api/bookings/create", {
         method: "POST",
         headers: {

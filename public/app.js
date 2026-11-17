@@ -128,10 +128,37 @@ let notifyPrefs = (() => {
     : { nearby_enabled: true, radius_miles: 3 };
 })();
 
+function formatUTCDateISO(dt) {
+  return (
+    dt.getUTCFullYear() +
+    '-' +
+    String(dt.getUTCMonth() + 1).padStart(2, '0') +
+    '-' +
+    String(dt.getUTCDate()).padStart(2, '0')
+  );
+}
+
 function addDaysISO(isoDate, days) {
   const [y, m, d] = String(isoDate).split('-').map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + days));
-  return dt.toISOString().slice(0, 10);
+  return formatUTCDateISO(new Date(Date.UTC(y, m - 1, d + days)));
+}
+
+function toCalendarDateISO(raw) {
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    if (raw.getHours() === 0 && raw.getMinutes() === 0 && raw.getSeconds() === 0 && raw.getMilliseconds() === 0) {
+      return (
+        raw.getFullYear() +
+        '-' +
+        String(raw.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(raw.getDate()).padStart(2, '0')
+      );
+    }
+    return formatUTCDateISO(raw);
+  }
+  const s = String(raw || '').trim();
+  const m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+  return m ? m[1] : s;
 }
 
 function defaultEventDate() {
@@ -139,7 +166,7 @@ function defaultEventDate() {
 }
 
 function parseEventDate(raw) {
-  const isoDay = String(raw || '').slice(0, 10);
+  const isoDay = toCalendarDateISO(raw);
   const d = /^\d{4}-\d{2}-\d{2}$/.test(isoDay) ? new Date(isoDay + 'T12:00:00') : new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -939,7 +966,7 @@ async function submitBooking(e) {
       truck_id: payload.truck_id || truck.id,
       truck_name: payload.truck_name || truck.name,
       event_type: payload.event_type || eventType,
-      event_date: String(payload.event_date || eventDate).slice(0, 10),
+      event_date: toCalendarDateISO(payload.event_date || eventDate),
       guest_count: payload.guest_count ?? guestCount,
       location: payload.location || location,
       status: payload.status || 'pending',
@@ -980,7 +1007,7 @@ async function loadUserBookings() {
 
     bookings = data.bookings.map(b => ({
       ...b,
-      event_date: String(b.event_date || '').slice(0, 10)
+      event_date: toCalendarDateISO(b.event_date)
     }));
     renderBookings();
   } catch {}
@@ -1056,7 +1083,14 @@ function todayPacificISO() {
       day: '2-digit'
     }).format(new Date());
   } catch {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    return (
+      now.getFullYear() +
+      '-' +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(now.getDate()).padStart(2, '0')
+    );
   }
 }
 
@@ -1159,7 +1193,7 @@ function syncOwnerScheduleDay() {
   const d = parseEventDate(dateInput.value);
   if (dayLabel) dayLabel.textContent = d ? d.toLocaleString('en', { weekday: 'short' }) : 'Date';
 
-  const existing = ownerSchedule.find(s => String(s.service_date).slice(0, 10) === dateInput.value && (!s.truck_id || s.truck_id === ownerTruckId));
+  const existing = ownerSchedule.find(s => toCalendarDateISO(s.service_date) === dateInput.value && (!s.truck_id || s.truck_id === ownerTruckId));
   if (existing) {
     const opensEl = document.getElementById('ownerOpensAt');
     const closesEl = document.getElementById('ownerClosesAt');
@@ -1178,7 +1212,7 @@ function renderOwnerScheduleList() {
     .slice(0, 4);
   el.innerHTML = upcoming.length
     ? upcoming.map(s => {
-        const dayStr = String(s.service_date || '').slice(0, 10);
+        const dayStr = toCalendarDateISO(s.service_date);
         const d = parseEventDate(dayStr);
         const label = d ? d.toLocaleString('en', { weekday: 'short', month: 'short', day: 'numeric' }) : dayStr;
         const hrs = s.status === 'unavailable'
@@ -1453,8 +1487,8 @@ async function saveOwnerSchedule() {
         return toast(err.error || 'Could not save schedule');
       }
       const saved = await r.json();
-      ownerSchedule = [saved, ...ownerSchedule.filter(s => !(s.truck_id === ownerTruckId && String(s.service_date).slice(0, 10) === serviceDate))]
-        .sort((a, b) => String(a.service_date).localeCompare(String(b.service_date)));
+      ownerSchedule = [saved, ...ownerSchedule.filter(s => !(s.truck_id === ownerTruckId && toCalendarDateISO(s.service_date) === serviceDate))]
+        .sort((a, b) => toCalendarDateISO(a.service_date).localeCompare(toCalendarDateISO(b.service_date)));
       renderOwnerScheduleList();
       return toast('Service schedule saved');
     } catch {
@@ -1462,8 +1496,8 @@ async function saveOwnerSchedule() {
     }
   }
 
-  ownerSchedule = [entry, ...ownerSchedule.filter(s => !(s.truck_id === ownerTruckId && String(s.service_date).slice(0, 10) === serviceDate))]
-    .sort((a, b) => String(a.service_date).localeCompare(String(b.service_date)));
+  ownerSchedule = [entry, ...ownerSchedule.filter(s => !(s.truck_id === ownerTruckId && toCalendarDateISO(s.service_date) === serviceDate))]
+    .sort((a, b) => toCalendarDateISO(a.service_date).localeCompare(toCalendarDateISO(b.service_date)));
   localStorage.setItem('truckly_owner_schedule', JSON.stringify(ownerSchedule));
   renderOwnerScheduleList();
   toast('Schedule saved on this device (preview mode)');
