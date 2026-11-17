@@ -1,6 +1,6 @@
 # Truckly Staging & Physical-Device Release Verification Report
 
-**Report Generated:** `2026-11-17T00:46:00-08:00` (`America/Los_Angeles` / `2026-11-17T08:46:00Z`)
+**Report Generated:** `2026-11-17T00:57:00-08:00` (`America/Los_Angeles` / `2026-11-17T08:57:00Z`)
 **Repository:** `https://github.com/yamanalmasaleha-png/trukly-/`
 **Production Guard Status:** `proj_MEO518rmLLl0` (`https://truckly.hatchable.site`) **UNTOUCHED** — zero production deploys, schema changes, data exports, or customer notifications occurred.
 
@@ -10,7 +10,7 @@
 
 **Decision: `BLOCKED`** *(required hosted staging access, scheduler runtime access, and physical test devices are unavailable in this environment)*.
 
-- All local static checks, real-PostgreSQL (`18.6` locally and `16` in GitHub Actions CI) security/concurrency/migration/notification suites, local pre-flight staging harness checks (`G1`–`G9` + `E2E1`–`E2E6`), and real Headless Chrome (`157.0.8103.51`) browser E2E suites **passed** on the defect-corrected candidate (`0948ee56275733ef3ec1ecdce0857d358f6d0e1e`).
+- All local static checks, real-PostgreSQL (`18.6` locally and `16` in GitHub Actions CI) security/concurrency/migration/notification suites, local pre-flight staging harness checks (`G1`–`G9` + `E2E1`–`E2E6`), and real Headless Chrome (`157.0.8103.51`) browser E2E suites **passed** on the final defect-corrected code candidate (`fa4e40affb574d3da5a98e4874b301ad5251e17c`, GitHub Actions Run `44050906767` `completed / success`).
 - Live hosted Hatchable staging gates (`G1`–`G9`), live Hatchable function timeout and scheduler cadence verification, and real Web Push provider + physical Android / iPhone (`iOS 16.4+` Home Screen PWA) checks remain **`BLOCKED` / `NOT RUN`** pending operator-provisioned staging access and physical test devices.
 - Production deployment remains **unauthorized**.
 
@@ -22,15 +22,16 @@
 |---|---|
 | **Branch** | `improve/p1-audit-and-pager-notifications` (`origin/main` untouched at `4836520029e91e952fb1817595ee961c67514e6a`) |
 | **Initial Reviewed Candidate SHA** | `5c63cbfa52b5188bb683b076a97a473861324ddd` |
-| **Final Verified Code SHA** | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` *(fixes `DEF-01` & `DEF-02`; subsequent report commit modifies documentation only with `0` diff across `api/`, `lib/`, `public/`, `migrations/`, `hatchable.toml`, `scripts/`, and `tests/`)* |
+| **Intermediate Fix SHA (`DEF-01` & `DEF-02`)** | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` |
+| **Final Verified Code SHA (`DEF-03`)** | `fa4e40affb574d3da5a98e4874b301ad5251e17c` *(subsequent report commit modifies `docs/RELEASE_VERIFICATION_REPORT.md` only with `0` diff across `api/`, `lib/`, `public/`, `migrations/`, `hatchable.toml`, `scripts/`, and `tests/`)* |
 | **Working-Tree Cleanliness** | Clean (`git status --short` empty; exact `30` permanent `api/**/*.js` files; `0` probe/debug files in `api/`) |
 | **Staging Project ID & Canonical URL** | **`BLOCKED` (Unprovisioned)** — no `STAGING_BASE_URL`, `HATCHABLE_*` credentials, or non-production project designated in workspace (`proj_MEO518rmLLl0` / `https://truckly.hatchable.site` hard-blocked) |
 | **Platform Deployment / Release ID** | **`NOT DEPLOYED` (`BLOCKED`)** |
 | **Local Verification Runtime** | `Node.js v24.19.0`, `Microsoft Windows NT 10.0.19045.0`, `PostgreSQL 18.6 on x86_64-windows` (`pg@8.20.0`, `NOSUPERUSER NOBYPASSRLS` role), `Headless Chrome/157.0.8103.51` |
-| **Remote CI Runtime** | GitHub Actions `ubuntu-latest`, `Node.js 22`, `postgres:16` service container (`pg@8.13.1`), Headless Chromium (Run `44046236223` on `5c63cbf` `completed / success`) |
+| **Remote CI Runtime** | GitHub Actions `ubuntu-latest`, `Node.js 22`, `postgres:16` service container (`pg@8.13.1`), Headless Chromium (Run `44050906767` on `fa4e40a` `completed / success`) |
 | **Scheduler Mechanism & Measured Cadence** | Worker endpoint `POST /api/pager/worker` + CLI [`scripts/run-pager-worker.cjs`](../scripts/run-pager-worker.cjs); **hosted scheduler & Hatchable function timeout: `BLOCKED` (unmeasured)** |
 | **Physical Device / Browser Matrix** | Android device: **Unavailable (`NOT RUN`)** · iPhone (`iOS/iPadOS 16.4+` Home Screen PWA): **Unavailable (`NOT RUN`)** · Local simulated browser: `Headless Chrome/157.0.8103.51` |
-| **Verification Window & Timezone** | `2026-11-17T00:32:34-08:00` – `2026-11-17T00:46:00-08:00` (`America/Los_Angeles`, `UTC-08:00`) |
+| **Verification Window & Timezone** | `2026-11-17T00:32:34-08:00` – `2026-11-17T00:57:00-08:00` (`America/Los_Angeles`, `UTC-08:00`) |
 
 #### Migration Inventory (`migrations/001`–`016`) & SHA-256 Checksums
 
@@ -84,6 +85,9 @@
 | `PG-NOTIF` | Real PostgreSQL `18.6` + loopback RFC 8291/8292 HTTP | `001`–`016` migrations, `FORCE RLS`, SSRF/CSRF/rate limits, RFC 8291/8292 wire decrypt/verify, wave claims, pre-dispatch recheck, ready catch-up, fail-closed config | `PASS` `[1/8]`..`[12/12]` in `11,887ms` (`exit 0`) | **PASS** | `2026-11-17T08:44:38Z` | `tests/pager-notifications.integration.cjs` | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` |
 | `BR-DISCOVERY` | Real Headless `Chrome/157.0.8103.51` + Real PG `18.6` | Customer loads 59 listings; Vendor owner publishes profile/GPS/schedule; Customer refreshes card & modal | `PASS` `[E2E 1/3]`–`[E2E 3/3]` in `11,359ms` (`exit 0`) | **PASS** | `2026-11-17T08:44:50Z` | `tests/discovery-browser.e2e.cjs` | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` |
 | `BR-NOTIF` | Real Headless `Chrome/157.0.8103.51` + Real PG `18.6` + simulated loopback push | Sample demo isolated (`0` calls); real pager opt-in, `/sw.js`, worker push, `#pager-ref` tap routing, denied & unsupported fallbacks | `PASS` `[E2E 1/4]`–`[E2E 4/4]` in `11,512ms` (`exit 0`) | **PASS** *(simulated provider)* | `2026-11-17T08:45:01Z` | `tests/pager-notifications-browser.e2e.cjs` | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` |
+| `CI-GHA-5E5FC01` | GitHub Actions (`ubuntu-latest`, Node 22, PG 16, Chromium) | Full workflow verification after `0948ee5` | PG 16 suites `PASS`, but Step 10 (`discovery-browser.e2e.cjs`) timed out at `15s` when external `unpkg.com` Leaflet CDN stalled (`DEF-03` filed & fixed in `fa4e40a`) | **FAIL** *(pre-`DEF-03`)* | `2026-11-17T08:50:06Z` | GHA Run `44049995512` | `5e5fc019efd0a4007dd3c5cbe9238f543e9720cb` |
+| `RETEST-LOCAL-FINAL` | Local Node `v24.19.0` + Real PG `18.6` + Headless `Chrome/157.0.8103.51` (`unpkg.com` blocked) | Rerun `L-DEMO`, `L-PARITY`, `PG-STG-PREFLIGHT`, `BR-DISCOVERY`, `BR-NOTIF` on final code candidate | All 5 suites `PASS` (`0` external CDN requests; graceful map-unavailable rendering verified) | **PASS** | `2026-11-17T08:56:05Z` | Local retest log | `fa4e40affb574d3da5a98e4874b301ad5251e17c` |
+| `CI-GHA-FINAL` | GitHub Actions (`ubuntu-latest`, Node 22, PG 16, Headless Chromium) | All 3 CI jobs (`Pager demo + syntax`, `Catalog & UX`, `Real PostgreSQL + Chrome E2E`) pass on final code SHA | Run `44050906767`: all 3 jobs & all 8 suites `completed / success` | **PASS** | `2026-11-17T08:56:28Z` | GHA Run `44050906767` | `fa4e40affb574d3da5a98e4874b301ad5251e17c` |
 
 #### B. Hosted Hatchable Staging & Scheduler Gates (`--require-live`)
 
@@ -131,6 +135,7 @@
 |---|---|---|---|---|---|---|
 | **`DEF-01`** | Medium | `GET /api/trucks/nearby?lat=38.4404&lng=-122.7141` in [`api/trucks/nearby.js`](../api/trucks/nearby.js) omitted `Cache-Control: private, no-store, max-age=0`, and unary `+req.query.lat` coerced blank `?lat=&lng=` to `(0, 0)` (`200` instead of `400`) and accepted out-of-range coordinates (`|lat| > 90`, `|lng| > 180`). | Coordinate-derived responses could be cached by shared intermediaries, and blank/out-of-bounds coordinates returned bogus hub distances instead of `400`. | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` | [`tests/p1-unified-discovery.integration.cjs`](../tests/p1-unified-discovery.integration.cjs) Part `8c` & [`tests/staging-hatchable-gates.cjs`](../tests/staging-hatchable-gates.cjs) `G1` | Local & PG 18.6: **PASS** (`PG-DISCOVERY`, `PG-STG-PREFLIGHT`); Hosted: **`BLOCKED`** |
 | **`DEF-02`** | Medium (Verification & Docs) | Staging probe & gate runner lacked runtime `webpush-crypto` execution, `/__debug/*` non-exposure checks, narrow probe `404`/`403` auth checks, `app.pager_internal` GUC non-leakage check, `moderator != platform_admin` check, notification-table direct-gateway probes, text-only location pin-clearing check in `G8`, and active notification CSRF/outbox/telemetry/worker-secret checks in `G9`; `HATCHABLE_STAGING_RUNBOOK.md` did not document the temporary `31`-route count while `api/_staging_gate_probe.js` is deployed. | Hosted gate execution could have reported `PASS` without exercising those required Phase 2/Phase 3 invariants, or confused operators during the temporary 31-route probe window. | `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` | [`scripts/staging-runtime-probe.template.js`](../scripts/staging-runtime-probe.template.js), [`tests/staging-hatchable-gates.cjs`](../tests/staging-hatchable-gates.cjs), [`scripts/staging-cleanup.sql`](../scripts/staging-cleanup.sql), [`docs/HATCHABLE_STAGING_RUNBOOK.md`](./HATCHABLE_STAGING_RUNBOOK.md) | Local preflight (`PG-STG-PREFLIGHT`): **PASS**; Hosted: **`BLOCKED`** |
+| **`DEF-03`** | Medium (Client Resilience & E2E Isolation) | Live GitHub Actions Run `44049995512` timed out at `15s` in `discovery-browser.e2e.cjs` when external `unpkg.com` Leaflet CDN stalled; in [`public/app.js`](../public/app.js), `init()` called `L.map(...)` unconditionally (throwing `ReferenceError: L is not defined` if `unpkg.com` fails) and `applyFilters()` returned early (`if (!map) return;`) before rendering `#truckCards` and `#nearbyCount`. | A third-party `unpkg.com` CDN outage/block broke Truckly's entire List view, detail modal, Owner Mode, and Pickup Pager initialization instead of degrading only the interactive map, and caused CI browser E2E flakiness. | `fa4e40affb574d3da5a98e4874b301ad5251e17c` | Blocked `*://unpkg.com/*` in [`tests/discovery-browser.e2e.cjs`](../tests/discovery-browser.e2e.cjs) & [`tests/pager-notifications-browser.e2e.cjs`](../tests/pager-notifications-browser.e2e.cjs) to verify CDN-offline rendering on every run | Local (`RETEST-LOCAL-FINAL`) & Remote CI (`CI-GHA-FINAL` Run `44050906767`): **PASS**; Hosted: **`BLOCKED`** |
 
 ---
 
@@ -156,7 +161,7 @@
 
 - **Production Untouched:** Confirmed zero connections, HTTP requests, SQL statements, or deployments targeted `proj_MEO518rmLLl0` or `https://truckly.hatchable.site` (`assertNotProductionUrl` and `staging-runtime-probe.template.js` hard-block both).
 - **Hosted Staging Resources:** None created (`BLOCKED` prior to Phase 2).
-- **Repository & Route Hygiene (`0948ee56275733ef3ec1ecdce0857d358f6d0e1e`):**
+- **Repository & Route Hygiene (`fa4e40affb574d3da5a98e4874b301ad5251e17c`):**
   - Permanent API route file count in `api/`: **exact `30`** `.js` files.
   - Ephemeral probe (`api/_staging_gate_probe.js`) in `api/`: **absent (`0`)**.
   - Secrets, cookies, VAPID private keys, or bearer pager UUIDs in `public/`, `api/`, `lib/`, `tests/`, or `docs/`: **`0`**.
@@ -193,7 +198,7 @@
 
 | # | Unresolved Item | Impact | Owner | Exact Next Action Required |
 |---|---|---|---|---|
-| 1 | **Isolated Hatchable staging project & credentials** | Blocks all hosted runtime gates (`HOSTED-G1`–`HOSTED-G9`) and hosted transaction/RLS/gateway verification | Platform / Project Owner | Designate an existing isolated Hatchable staging project (or approve creating a blank staging project after confirming any Hatchable plan/billing cost), deploy `0948ee56275733ef3ec1ecdce0857d358f6d0e1e` with `TRUCKLY_ENV=staging`, sign in 7 disposable test personas into a local non-committed `.env.staging`, and run `node --env-file=.env.staging tests/staging-hatchable-gates.cjs --require-live`. |
+| 1 | **Isolated Hatchable staging project & credentials** | Blocks all hosted runtime gates (`HOSTED-G1`–`HOSTED-G9`) and hosted transaction/RLS/gateway verification | Platform / Project Owner | Designate an existing isolated Hatchable staging project (or approve creating a blank staging project after confirming any Hatchable plan/billing cost), deploy `fa4e40affb574d3da5a98e4874b301ad5251e17c` with `TRUCKLY_ENV=staging`, sign in 7 disposable test personas into a local non-committed `.env.staging`, and run `node --env-file=.env.staging tests/staging-hatchable-gates.cjs --require-live`. |
 | 2 | **Hosting scheduler cadence & function timeout measurement** | Blocks `HOSTED-SCHEDULER` and determines achievable background alert latency (`10–15s` vs `>= 60s`) | Platform / Ops | Measure actual Hatchable function timeout on staging and verify the supported external scheduler's minimum trigger cadence against `POST /api/pager/worker`; if only 1-minute cron is available without multi-tick runner support, approve either a supervised sub-minute runner or a revised alert-latency target. |
 | 3 | **Physical Android & iPhone (`iOS 16.4+` Home Screen PWA) Web Push execution** | Blocks `PD-01`–`PD-18` (live FCM/APNs Web Push interoperability, lock-screen display, tap routing, and live `410` behavior) | QA / Operator with Physical Devices | Provision staging VAPID keys (`TRUCKLY_PUSH_PROVIDER_MODE=webpush`) on isolated staging and execute `PD-01`–`PD-18` on a designated Android Chrome phone and a designated iPhone running `iOS 16.4+` with Truckly added to the Home Screen. |
 | 4 | **Platform scope boundary: Web Push vs Native Mobile Push** | Non-installed iOS Safari browser tabs cannot receive Web Push (`Add to Home Screen` required by Apple WebKit); native APNs/FCM requires a packaged mobile app | Product | Retain current truthful iOS Home Screen install guidance + foreground 8s live polling for web release; schedule packaged Capacitor/native APNs+FCM app only if non-PWA mobile background push is required later. |
