@@ -125,7 +125,7 @@ If an emergency forces redeploying the prior `8bbbbe3` application bundle agains
 
 ## 6. Hatchable Deployment Feasibility & Blocked Staging Gates
 
-No Hatchable staging credentials or hosted runtime access exist in this development workspace. Production deployment is **BLOCKED** until each gate below passes on an isolated Hatchable staging project:
+No Hatchable staging credentials or hosted runtime access exist in this development workspace. Production deployment is **BLOCKED** until each gate below passes on an isolated Hatchable staging project using the step-by-step runbook in [`docs/HATCHABLE_STAGING_RUNBOOK.md`](./HATCHABLE_STAGING_RUNBOOK.md) and automated runner [`tests/staging-hatchable-gates.cjs`](../tests/staging-hatchable-gates.cjs):
 
 | Gate | Platform Requirement | Current Status | Staging Verification Procedure |
 |---|---|---|---|
