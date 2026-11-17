@@ -56,6 +56,13 @@
 .pager-demo-utility button{border:1px solid #214b3b52;border-radius:12px;min-height:42px;padding:9px 12px;background:#fffdf7;color:#214b3b;font-weight:750}
 .pager-demo-utility button:hover{background:#dfead9}
 .pager-sound{background:#fff9ec;min-height:44px;margin-top:3px}
+.pager-push-box{margin:14px auto 8px;max-width:410px;padding:12px 14px;border-radius:15px;background:#fffdf6e0;border:1px solid #214b3b30;text-align:left;display:grid;gap:8px}
+.pager-push-box strong{font-size:13px;color:#1b4232;display:block}
+.pager-push-box small{font-size:12px;line-height:1.45;color:#4a634f;display:block}
+.pager-push-btn{width:100%;min-height:44px;border-radius:12px;border:1.5px solid #214b3b;background:#214b3b;color:#fff9ea;font-weight:800;font-size:14px;padding:10px 14px;cursor:pointer}
+.pager-push-btn.secondary-push{background:#fffaf0;color:#214b3b;border-color:#214b3b55}
+.pager-push-btn:disabled{opacity:.6;cursor:wait}
+.pager-push-error{color:#9c2f23!important;font-weight:700}
 .pager-live-note{line-height:1.45}
 .pager-celebrate{font-size:19px;letter-spacing:.2em;margin-top:8px;animation:pager-pop .45s ease-out 2}
 .pager-idle-note{font-weight:700;font-size:12px;color:#4c6649}
