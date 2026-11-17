@@ -413,16 +413,9 @@
         map.removeLayer(userMarker);
         userMarker = null;
       }
-      try {
-        var r = await fetch(API + "/trucks");
-        if (r.ok) {
-          var live = await r.json();
-          if (Array.isArray(live.trucks)) {
-            trucks = live.trucks;
-            if (typeof mergeNeighborhoodAdditions === "function") mergeNeighborhoodAdditions();
-          }
-        }
-      } catch (_) {}
+      if (typeof refreshDiscoveryCatalog === "function") {
+        await refreshDiscoveryCatalog({ fresh: true });
+      }
       var lbl = document.getElementById("locationLabel");
       if (lbl) lbl.textContent = "Sonoma County";
       if (map) map.flyTo([38.43, -122.70], 11, { duration: 0.5 });
@@ -459,17 +452,9 @@
   async function simulateHours(mode) {
     state.hoursPreset = mode;
     if (mode === "live") {
-      try {
-        var r = await fetch(API + "/trucks");
-        if (r.ok) {
-          var live = await r.json();
-          if (Array.isArray(live.trucks)) {
-            trucks = live.trucks;
-            if (typeof mergeNeighborhoodAdditions === "function") mergeNeighborhoodAdditions();
-            recomputeDistances();
-          }
-        }
-      } catch (_) {}
+      if (typeof refreshDiscoveryCatalog === "function") {
+        await refreshDiscoveryCatalog({ fresh: true });
+      }
       applyFilters();
       renderDrawer();
       toast("Restored live Pacific clock hours");

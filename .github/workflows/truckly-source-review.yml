@@ -7,6 +7,7 @@ on:
       - review/v77-pager-demo-and-source-sync
       - reconcile/v77-pager-ux-and-debug-workbench
       - harden/**
+      - improve/**
 
 permissions:
   contents: read
@@ -93,3 +94,13 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/staging-hatchable-gates.cjs --preflight-local
+      - name: Run P1 unified discovery & owner publishing PostgreSQL integration suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
+        run: node tests/p1-unified-discovery.integration.cjs
+      - name: Run real headless Chrome + PostgreSQL discovery browser E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
+        run: node tests/discovery-browser.e2e.cjs

@@ -6,7 +6,7 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 
 > **Reconciliation note:** This repository reconciles the full Hatchable **v77** text-source mirror and **Pickup Pager Demo** (PR #2) with the **Photo/Menu Verification** patch (PR #1) and client/API parity fixes — combining all **59 directory listings** (47 primary + 12 neighborhood additions), **27 Hatchable API functions**, and **10 SQL migrations** with both regression suites passing. Three pre-existing binary JPEGs (`public/assets/mitote.jpg`, `oak-hill-guide.jpg`, `retrograde-roasting.jpg`) remain excluded pending image-rights review and gracefully fall back in UI.
 
-> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
+> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), [docs/HATCHABLE_STAGING_RUNBOOK.md](./docs/HATCHABLE_STAGING_RUNBOOK.md), [docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](./docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
 
 ## What this repository contains
 
@@ -16,6 +16,8 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 ├── TECH_MAP.md                       # Full architecture, route, DOM & schema guide
 ├── docs/
 │   ├── BACKEND_SECURITY_HARDENING.md # P0 RBAC permission matrix, booking/RLS invariants & rollout plan
+│   ├── HATCHABLE_STAGING_RUNBOOK.md  # Hosted Hatchable staging gates (G1–G6) & operator verification guide
+│   ├── P1_UNIFIED_DISCOVERY_ARCHITECTURE.md # Unified 59-place PostgreSQL read model, location/schedule precedence & cache contract
 │   ├── PHOTO_MENU_VERIFICATION.md    # Vendor address, menu spotlight & photo-rights audit
 │   └── V77_PAGER_SOURCE_REVIEW.md    # Reconciled v77 & pager UX review notes
 ├── hatchable.toml                    # Hatchable auth & table permission config (community_reviews restricted to API)
@@ -23,10 +25,11 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── authz.js                      # Trusted identity resolution, vendor RBAC, and redacted audit logging
 │   ├── catalog.js                    # Canonical 59-vendor registry & server-enforced booking package terms
 │   ├── dates.js                      # Real calendar date & America/Los_Angeles future-date validation
-│   └── db-tx.js                      # Transaction wrapper for Hatchable db.transaction & node-postgres
+│   ├── db-tx.js                      # Transaction wrapper for Hatchable db.transaction & node-postgres
+│   └── discovery.js                  # Unified PostgreSQL discovery read model, truthful location/expiry & Pacific schedule precedence
 ├── public/
 │   ├── index.html                    # Main mobile UI, modals, community, pager & Owner Mode markup
-│   ├── app.js                        # Map, filters, GPS, auth sync, idempotent bookings & scoped Owner Mode
+│   ├── app.js                        # Unified 59-place discovery client, truthful GPS distances, auth sync, bookings & Owner Mode
 │   ├── pager.js                      # Isolated customer pager demo + vendor-scoped staff kitchen queue
 │   ├── community.js                  # Approved-only community feed, author status & moderator queue UI
 │   ├── listing-highlights.js         # Sourced menu spotlights & unlicensed stock-photo guard
@@ -36,23 +39,27 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── logo.svg
 │   └── build.json                    # Build/QA metadata
 ├── api/                              # Exact 27 standalone Hatchable serverless endpoints (no helper files here)
-│   ├── trucks.js                     # Canonical 47-listing Sonoma County catalog endpoint
+│   ├── trucks.js                     # Unified 59-listing PostgreSQL Sonoma County discovery endpoint
 │   ├── trucks/                       # [id] detail, accent-folded search, nearby hubs, fail-closed availability
 │   ├── bookings/                     # Authenticated, Pacific-validated, idempotent booking create & user list
 │   ├── favorites/                    # Authenticated saved trucks
 │   ├── owner/                        # Vendor-scoped RBAC APIs (stats, profile, location, schedule, requests, bookings)
 │   ├── pager/                        # Public bearer status + vendor-scoped staff queue & ticket updates
 │   ├── community/                    # Public approved projection, author mine/post, moderator-only decisions
-│   ├── catalog/                      # Cities, 6 cuisines/categories, featured IDs
+│   ├── catalog/                      # Cities, 6 cuisines/categories, PostgreSQL-backed featured IDs
 │   ├── notifications/                # User nearby-alert preferences
 │   └── schedule/                     # Public daily schedule backed by active vendors + owner_schedule
-├── migrations/                       # PostgreSQL schema history (001–013)
+├── migrations/                       # PostgreSQL schema history (001–014)
 ├── scripts/
-│   └── dev-server.cjs                # LOCAL DEV ONLY preview simulator — NEVER deploy to production
+│   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (supports DATABASE_URL or seed mock) — NEVER deploy
+│   └── seed-sql-reader.cjs           # Local zero-dependency SQL seed reader for dev simulator & contract tests
 ├── tests/
 │   ├── pager-demo.test.cjs           # Isolated pager demo zero-network smoke test
 │   ├── listing-verification.cjs      # Zero-dependency Node catalog, UX & cross-API parity suite
-│   └── backend-hardening.integration.cjs # Real-PostgreSQL RBAC, booking concurrency, legacy & RLS suite
+│   ├── backend-hardening.integration.cjs # Real-PostgreSQL P0 RBAC, booking concurrency, legacy & RLS suite
+│   ├── staging-hatchable-gates.cjs   # Hosted Hatchable staging gates (G1–G6) & local pre-flight validator
+│   ├── p1-unified-discovery.integration.cjs # Real-PostgreSQL P1 unified catalog, truthful location/expiry & DST schedule suite
+│   └── discovery-browser.e2e.cjs     # Real headless Chrome + real PostgreSQL owner-publish -> customer-refresh E2E test
 ├── truckly-v63.zip                   # Historical snapshot (retain)
 └── truckly-data.sql.gz               # Historical data backup (retain)
 ```
@@ -81,13 +88,16 @@ node tests/pager-demo.test.cjs
 node tests/listing-verification.cjs
 ```
 
-Run the real-PostgreSQL backend hardening integration suite (requires a PostgreSQL instance via `DATABASE_URL` and the `pg` client, as run automatically in `.github/workflows/truckly-source-review.yml`):
+Run the real-PostgreSQL integration and headless Chromium E2E suites (requires PostgreSQL via `DATABASE_URL` and the `pg` client, as run automatically in `.github/workflows/truckly-source-review.yml`):
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/backend-hardening.integration.cjs
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/staging-hatchable-gates.cjs --preflight-local
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/p1-unified-discovery.integration.cjs
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/discovery-browser.e2e.cjs
 ```
 
-This verifies all 47 primary catalog listings, corrected addresses, safe photo defaults (`verified: false` and `photo_rights_verified: false` until confirmed), JS syntax, spotlight script wiring, client UX flows (booking validation, Open Now, geolocation distances, hybrid auth sync, XSS escaping, Owner Mode), and 100% cross-endpoint parity across `api/`.
+This verifies all 59 unified Sonoma County catalog listings, truthful location provenance & expiry (`illustrative_pin` never treated as measured GPS proximity), Pacific (`America/Los_Angeles`) schedule precedence across overnight windows and DST transitions, safe photo defaults (`verified: false` and `photo_rights_verified: false` until platform-confirmed), explicit `503` database-outage handling, and real browser owner-publish → customer-refresh synchronization.
 
 ## Core product flows
 
@@ -119,19 +129,19 @@ Clicking the Truckly brand opens **Owner Mode**:
 
 ## Important source-of-truth rules
 
-1. **`api/trucks.js` is the canonical primary catalog source** (47 Sonoma County records). `api/trucks/[id].js`, `api/trucks/search.js`, and `api/catalog/cuisines.js` are synced 1:1 with it and guarded by `tests/listing-verification.cjs`.
-2. **`public/app.js` contains 6 Sonoma County offline fallback entries** used only when both `GET /api/trucks` and cached `localStorage` catalog data are unavailable.
+1. **PostgreSQL (`vendors` + `owner_profiles` + `truck_settings` + `owner_schedule` via `lib/discovery.js`) is the single discovery read model** for all **59** Sonoma County places (`47` primary `extra: false` + `12` neighborhood `extra: true`), seeded by `migrations/014_unified_discovery_catalog.sql`. `api/trucks.js`, `api/trucks/[id].js`, `api/trucks/search.js`, `api/catalog/featured.js`, and `api/schedule/today.js` all query PostgreSQL and return explicit `503` (`DISCOVERY_DB_UNAVAILABLE`) on database failures rather than silent empty `200` lists.
+2. **`public/app.js` contains 6 Sonoma County offline fallback entries (`OFFLINE_FALLBACK_TRUCKS`)** used only when both `GET /api/trucks` and the bounded `truckly_catalog_v2` `localStorage` snapshot are unavailable, displaying an explicit offline notice.
 3. **Truckly is Sonoma-first.** Preserve Santa Rosa / Sonoma County / Petaluma as the main geography unless product scope explicitly changes.
-4. **Do not claim unverified facts or unlicensed photos.** Keep `verified: false` and `photo_rights_verified: false` unless independently confirmed per [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md).
+4. **Do not claim unverified facts, unmeasured GPS distances, or unlicensed photos.** Keep `verified: false` and `photo_rights_verified: false` unless platform-confirmed (`owner` routes block self-elevation with `403`), and compute numeric mileage only for `verified_coordinate`, `venue_address`, or non-expired `owner_reported_coords`.
 5. **Map and List are intentionally separate views.** Avoid reintroducing cards overlaying the map.
 6. **Preserve standalone Hatchable function files (`api/**/*.js`).** Do not add extra helper `.js` files inside `api/` (Hatchable treats files in `api/` as route functions).
 7. **Do not silently remove historical files** `truckly-v63.zip` or `truckly-data.sql.gz`.
 
 ## Remaining architectural caveats
 
-- The 47-record primary catalog is maintained in code (`api/trucks.js` + synced `api/trucks/[id].js` and `api/trucks/search.js`) rather than normalized into a PostgreSQL `trucks` table yet.
-- Owner photo uploads in `#ownerPhotoGrid` preview locally via `FileReader`; persistent cloud image hosting and rights verification workflow are not yet wired.
-- Rebase/reconcile with Hatchable **v77** before production deployment.
+- **Hosted P0 Hatchable staging verification (`G1`–`G6`) remains required** before any production deployment (`docs/HATCHABLE_STAGING_RUNBOOK.md`).
+- Owner photo uploads in `#ownerPhotoGrid` preview locally via `FileReader`; persistent cloud image hosting and admin rights-verification sign-off workflow remain on the P1 backlog.
+- Transactional email/push delivery for booking notifications and nearby alerts remains on the P1 backlog.
 
 ## Quick change guide
 
@@ -141,7 +151,7 @@ Clicking the Truckly brand opens **Owner Mode**:
 | Change styling/responsiveness | `public/theme.css` |
 | Change map/filter/auth/booking/owner client behavior | `public/app.js` |
 | Change menu spotlights / stock-photo guard | `public/listing-highlights.js` and `docs/PHOTO_MENU_VERIFICATION.md` |
-| Add/update trucks/vendors | `api/trucks.js`, `api/trucks/[id].js`, `api/trucks/search.js` (then run `node tests/listing-verification.cjs`) |
+| Add/update curated trucks/vendors or discovery merge logic | new migration updating `vendors` + `lib/catalog.js` + `lib/discovery.js` (then run `tests/listing-verification.cjs` and `tests/p1-unified-discovery.integration.cjs`) |
 | Change booking packages/validation | `api/bookings/create.js`, `public/index.html`, and `PACKAGES` in `public/app.js` |
 | Change owner data behavior | `api/owner/*` and Owner Mode functions in `public/app.js` |
 | Change database structure | add a new numbered SQL file in `migrations/` |

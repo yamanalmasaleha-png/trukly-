@@ -1,5 +1,6 @@
 import { db, auth } from "hatchable";
 import { loadAccessContext, authorizeVendorTarget, recordAuditLog, isWritePaused } from "../../lib/authz.js";
+import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -17,6 +18,14 @@ export default async function(req, res) {
       const b = req.body && typeof req.body === "object" ? req.body : {};
       const authz = await authorizeVendorTarget(ctx, b.truck_id || req.query?.truck_id, "owner", db);
       if (!authz.ok) return res.status(authz.status).json({ error: authz.error });
+
+      const forbiddenField = findForbiddenSelfElevationField(b);
+      if (forbiddenField) {
+        return res.status(403).json({
+          error: "Verification status and photo rights are controlled by platform review and cannot be modified by vendors.",
+          field: forbiddenField
+        });
+      }
 
       if (typeof b.display_name !== "string" || b.display_name.trim().length < 2 || b.display_name.trim().length > 120) {
         return res.status(400).json({ error: "display_name must be between 2 and 120 characters." });

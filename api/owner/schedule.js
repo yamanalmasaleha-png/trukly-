@@ -7,6 +7,7 @@ import {
   isWritePaused
 } from "../../lib/authz.js";
 import { isValidCalendarDate, isValidTimeValue, getPacificToday, normalizeCalendarDate } from "../../lib/dates.js";
+import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -25,6 +26,14 @@ export default async function(req, res) {
       const b = req.body && typeof req.body === "object" ? req.body : {};
       const authz = await authorizeVendorTarget(ctx, b.truck_id, "staff", db);
       if (!authz.ok) return res.status(authz.status).json({ error: authz.error });
+
+      const forbiddenField = findForbiddenSelfElevationField(b);
+      if (forbiddenField) {
+        return res.status(403).json({
+          error: "Verification status and photo rights are controlled by platform review and cannot be modified by vendors.",
+          field: forbiddenField
+        });
+      }
 
       const serviceDate = typeof b.service_date === "string" ? b.service_date.trim() : "";
       if (!isValidCalendarDate(serviceDate) || serviceDate < pacificToday) {
@@ -49,14 +58,15 @@ export default async function(req, res) {
 
       const saved = await withTransaction(db, async tx => {
         const { rows } = await tx.query(
-          `INSERT INTO owner_schedule (truck_id, service_date, opens_at, closes_at, location, status)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO owner_schedule (truck_id, service_date, opens_at, closes_at, location, status, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, now())
            ON CONFLICT (truck_id, service_date) DO UPDATE
              SET opens_at = EXCLUDED.opens_at,
                  closes_at = EXCLUDED.closes_at,
                  location = EXCLUDED.location,
-                 status = EXCLUDED.status
-           RETURNING id, truck_id, to_char(service_date, 'YYYY-MM-DD') AS service_date, opens_at, closes_at, location, status`,
+                 status = EXCLUDED.status,
+                 updated_at = now()
+           RETURNING id, truck_id, to_char(service_date, 'YYYY-MM-DD') AS service_date, opens_at, closes_at, location, status, updated_at`,
           [authz.vendorId, serviceDate, opensAt, closesAt, location, status]
         );
         const normalized = {
@@ -81,7 +91,7 @@ export default async function(req, res) {
     const scope = await authorizeVendorScope(ctx, req.query?.truck_id, db);
     if (!scope.ok) return res.status(scope.status).json({ error: scope.error });
 
-    const selectCols = "id, truck_id, to_char(service_date, 'YYYY-MM-DD') AS service_date, opens_at, closes_at, location, status";
+    const selectCols = "id, truck_id, to_char(service_date, 'YYYY-MM-DD') AS service_date, opens_at, closes_at, location, status, updated_at";
     const { rows } = scope.global
       ? await db.query(
           `SELECT ${selectCols} FROM owner_schedule WHERE service_date >= $1 ORDER BY service_date ASC, truck_id ASC LIMIT 60`,

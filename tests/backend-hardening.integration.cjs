@@ -286,7 +286,7 @@ function futurePacificDate(daysAhead = 12) {
     const preHardeningFiles = listMigrationFiles(10);
     const hardeningFiles = listMigrationFiles(999).filter(f => Number(f.slice(0, 3)) >= 11);
     assert.equal(preHardeningFiles.length, 10, 'expected 001..010 baseline migrations');
-    assert.equal(hardeningFiles.length, 3, 'expected 011..013 hardening migrations');
+    assert(hardeningFiles.length >= 3, 'expected 011+ post-baseline migrations');
 
     await applyMigrations(legacyPool, preHardeningFiles);
 

@@ -6,6 +6,7 @@ const assert=require('node:assert/strict');
 const {join,resolve}=require('node:path');
 const {register}=require('node:module');
 const {pathToFileURL}=require('node:url');
+const {loadSeedVendorsFromMigration014}=require('../scripts/seed-sql-reader.cjs');
 
 let currentMockDb={async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
 let currentMockAuth={async getUser(){return null;}};
@@ -64,21 +65,65 @@ function makeEl(id,extra={}){
 }
 
 (async()=>{
-  // 1. Primary API & static source checks
-  const src=fs.readFileSync(join('api','trucks.js'),'utf8');
-  const transformed=src.replace(/^export const [^\n]*\n/gm,'').replace('export default async function(req,res){','return async function(req,res){');
-  const handler=new Function(transformed)();
-  let result;
-  await handler({query:{}},{setHeader(){},json(payload){result=payload;}});
-  assert(result && Array.isArray(result.trucks),'API returns listings');
-  assert.equal(result.trucks.length,47,'expected audit baseline of 47 primary records');
+  async function loadHandler(relPath,mockDb=null){
+    const mod=await import(pathToFileURL(resolve(relPath)).href);
+    return async function(req,res){
+      currentMockDb=mockDb||{async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
+      if(mockDb&&!mockDb.transaction)mockDb.transaction=async(fn)=>fn(mockDb);
+      currentMockAuth={async getUser(){return req.user||null;}};
+      return mod.default(req,res);
+    };
+  }
+  async function invoke(fn,req={}){
+    let code=200,payload=null;
+    const headers={};
+    const res={
+      setHeader(k,v){headers[k]=v;},
+      status(c){code=c;return this;},
+      end(){return this;},
+      json(p){payload=p;return this;}
+    };
+    await fn({query:{},params:{},body:{},headers:{},method:'GET',...req},res);
+    return {status:code,body:payload,headers};
+  }
+
+  const seedVendorRows=loadSeedVendorsFromMigration014(resolve('.'));
+  assert.equal(seedVendorRows.length,59,'migration 014 seeds all 59 canonical Sonoma County listings');
+  const catalogMockDb={
+    async query(sql,params=[]){
+      if(/WITH sched_latest AS/i.test(sql)){
+        const filterId=params[2]||null;
+        const rows=seedVendorRows
+          .filter(v=>v.is_active&&(!filterId||v.id===filterId))
+          .sort((a,b)=>(a.sort_order-b.sort_order)||a.id.localeCompare(b.id))
+          .map(v=>({...v,v_updated_at:v.updated_at}));
+        return {rows};
+      }
+      return {rows:[]};
+    }
+  };
+
+  // 1. Unified API & static source checks
+  const trucksFn=await loadHandler(join('api','trucks.js'),catalogMockDb);
+  const trucksInvoke=await invoke(trucksFn);
+  assert.equal(trucksInvoke.status,200);
+  const result=trucksInvoke.body;
+  assert(result && Array.isArray(result.trucks),'API returns unified listings');
+  assert.equal(result.trucks.length,59,'expected unified catalog of 59 listings (47 primary + 12 neighborhood)');
+  assert.equal(result.primary_total,47,'expected 47 primary event-bookable listings');
+  assert.equal(result.trucks.filter(t=>!t.extra).length,47,'47 primary records');
+  assert.equal(result.trucks.filter(t=>t.extra).length,12,'12 reconciled v77 neighborhood records');
+  assert(typeof result.catalog_version==='string' && result.catalog_version.startsWith('v1:'),'catalog_version emitted');
   const byId=Object.fromEntries(result.trucks.map(t=>[t.id,t]));
   assert.equal(byId.mitote.location,'100 Sebastopol Rd, Santa Rosa');
   assert.equal(byId.elroys.location,'1569 Sebastopol Rd, Santa Rosa');
   assert.equal(byId.kolobok.cuisine,'Global');
   assert.equal(byId.hefty.cuisine,'Global');
+  assert.equal(byId['coffee-crooks'].extra,true);
+  assert.equal(byId['coffee-crooks'].kind,'Coffee');
   assert(result.trucks.every(t=>t.verified===false),'no blanket verified true');
   assert(result.trucks.every(t=>t.photo_rights_verified===false),'no unlicensed photos marked verified');
+  assert(result.trucks.every(t=>t.distance===null),'no fabricated proximity distances without user coordinates');
   assert(result.trucks.every(t=>t.id && t.name),'all listings have identity');
   assert(result.trucks.every(t=>!t.photo || !t.photo.includes('images.unsplash.com')),'no stock photos presented as named vendors');
 
@@ -88,6 +133,7 @@ function makeEl(id,extra={}){
   const html=fs.readFileSync(join('public','index.html'),'utf8');
   const loginHtml=fs.readFileSync(join('public','login.html'),'utf8');
   new Function(app);new Function(highlight);new Function(debugAdmin);
+  assert(!app.includes('neighborhoodAdditions')&&!app.includes('mergeNeighborhoodAdditions'),'client-side duplicate neighborhoodAdditions catalog removed');
   assert(html.includes('/listing-highlights.js'),'listing visual enhancement is actually loaded');
   assert(html.includes('/debug-admin.js')&&html.includes('/debug-admin.css'),'admin/debug workbench assets wired');
   assert(!html.includes('>JM</summary>'),'hardcoded JM avatar removed');
@@ -113,14 +159,19 @@ function makeEl(id,extra={}){
     distanceText:makeEl('distanceText',{textContent:'30 mi'}),
     distanceRange:makeEl('distanceRange',{value:'30'}),
     rangeValue:makeEl('rangeValue',{textContent:'30 miles'}),
+    refreshCatalogBtn:makeEl('refreshCatalogBtn'),
     nearbyCount:makeEl('nearbyCount'),
     openHoursNote:makeEl('openHoursNote',{hidden:true}),
+    catalogOfflineNote:makeEl('catalogOfflineNote',{hidden:true}),
     mapEmpty:makeEl('mapEmpty',{hidden:true}),
     truckSheet:makeEl('truckSheet'),
     truckCards:makeEl('truckCards'),
     favoriteGrid:makeEl('favoriteGrid'),
     bookingList:makeEl('bookingList'),
     ownerLocation:makeEl('ownerLocation',{value:'Ross Street'}),
+    ownerLat:makeEl('ownerLat',{value:''}),
+    ownerLng:makeEl('ownerLng',{value:''}),
+    ownerLocationTtl:makeEl('ownerLocationTtl',{value:'480'}),
     ownerPhotoGrid:makeEl('ownerPhotoGrid'),
     ownerRequests:makeEl('ownerRequests'),
     ownerRequestCount:makeEl('ownerRequestCount'),
@@ -188,13 +239,15 @@ function makeEl(id,extra={}){
 
   fetchHandler=async(url,opts={})=>{
     if(url.startsWith('/api/owner/'))ownerCallsDuringInit++;
-    if(url==='/api/trucks')return {ok:true,status:200,json:async()=>({trucks:catalogSample})};
+    if(url==='/api/trucks'||url.startsWith('/api/trucks?'))return {ok:true,status:200,json:async()=>({catalog_version:result.catalog_version,trucks:catalogSample})};
     if(url.startsWith('/api/trucks/nearby'))return {ok:true,status:200,json:async()=>({nearest_hubs:[{city:'Petaluma',distance_miles:0.1}]})};
     return {ok:false,status:401,json:async()=>({error:'Unauthorized'})};
   };
 
   const sandbox={
-    window:{innerWidth:390,addEventListener(){}},
+    window:{innerWidth:390,addEventListener(){},dispatchEvent(){}},
+    URLSearchParams,
+    CustomEvent:class CustomEvent{constructor(type,init){this.type=type;this.detail=init?.detail;}},
     localStorage:{
       getItem:k=>store.has(k)?store.get(k):null,
       setItem:(k,v)=>store.set(k,String(v)),
@@ -270,12 +323,13 @@ function makeEl(id,extra={}){
   sandbox.toggleOpen(); // turn Open Now back off
   assert.equal(elements.mapEmpty.hidden,true);
 
-  // Test Fix 3: Geolocation recalculates real distances and sorts nearest first
+  // Test Fix 3: Geolocation recalculates real distances ONLY on measured coordinates (never illustrative pins) and sorts nearest first
   sandbox.locateMe();
   await new Promise(r=>setImmediate(r));
   const nearestFirst=vm.runInContext('filtered()[0]',sandbox);
-  assert.equal(nearestFirst.id,'elroys-pet-1','Petaluma truck is nearest when located in Petaluma');
-  assert.equal(nearestFirst.distance,0,'Haversine distance recalculated to 0.0 mi');
+  assert.equal(nearestFirst.id,'elroys-pet-1','Petaluma venue-address truck is nearest when located in Petaluma');
+  assert.equal(nearestFirst.distance,0,'Haversine distance recalculated to 0.0 mi for venue_address');
+  assert.equal(vm.runInContext('trucks.find(t=>t.id==="holy-chile").distance',sandbox),null,'illustrative_pin never receives fabricated measured mileage');
   assert.equal(elements.locationLabel.textContent,'Near Petaluma','location pill updated to nearest Sonoma hub');
   assert.deepEqual([...mapFlownTo],[38.2437,-122.6269],'map flew to user coordinates');
 
@@ -371,26 +425,7 @@ function makeEl(id,extra={}){
   sandbox.resetFilters();
 
   // 3. Cross-endpoint API parity & stale-data regression checks
-  // (Full real-PostgreSQL RBAC, RLS, constraint, and concurrency tests live in tests/backend-hardening.integration.cjs)
-  async function loadHandler(relPath,mockDb=null){
-    const mod=await import(pathToFileURL(resolve(relPath)).href);
-    return async function(req,res){
-      currentMockDb=mockDb||{async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
-      if(mockDb&&!mockDb.transaction)mockDb.transaction=async(fn)=>fn(mockDb);
-      currentMockAuth={async getUser(){return req.user||null;}};
-      return mod.default(req,res);
-    };
-  }
-  async function invoke(fn,req={}){
-    let code=200,payload=null;
-    const res={
-      setHeader(){},
-      status(c){code=c;return this;},
-      json(p){payload=p;return this;}
-    };
-    await fn({query:{},params:{},body:{},headers:{},method:'GET',...req},res);
-    return {status:code,body:payload};
-  }
+  // (Full real-PostgreSQL RBAC, RLS, constraint, and concurrency tests live in tests/backend-hardening.integration.cjs and tests/p1-unified-discovery.integration.cjs)
 
   // Ensure exact 27 Hatchable server function files (20 base + 3 pager + 4 community) and no legacy Austin strings
   function listJs(dir){
@@ -411,8 +446,8 @@ function makeEl(id,extra={}){
     assert(!txt.includes('"2026-09-07"'),'no expired hardcoded Sep 2026 Ross schedule in '+f);
   }
 
-  // 3a. api/trucks/[id].js parity with all 47 listings in api/trucks.js
-  const detailFn=await loadHandler(join('api','trucks','[id].js'));
+  // 3a. api/trucks/[id].js parity with all 59 unified listings in api/trucks.js
+  const detailFn=await loadHandler(join('api','trucks','[id].js'),catalogMockDb);
   for(const t of result.trucks){
     const r=await invoke(detailFn,{params:{id:t.id}});
     assert.equal(r.status,200,'detail found for '+t.id);
@@ -421,30 +456,46 @@ function makeEl(id,extra={}){
     assert.equal(r.body.city,t.city,'detail city matches for '+t.id);
     assert.equal(r.body.cuisine,t.cuisine,'detail cuisine matches for '+t.id);
     assert.equal(r.body.type,t.listing_type,'detail type matches for '+t.id);
+    assert.equal(r.body.extra,t.extra,'detail extra flag matches for '+t.id);
     assert.equal(r.body.verified,false,'detail verified flag matches audit baseline');
+    assert.equal(r.body.catalog_version,result.catalog_version,'detail catalog_version matches list');
   }
   const missingDetail=await invoke(detailFn,{params:{id:'nonexistent-truck'}});
   assert.equal(missingDetail.status,404,'unknown truck returns 404');
 
-  // 3b. api/trucks/search.js parity + accent-insensitive search
-  const searchFn=await loadHandler(join('api','trucks','search.js'));
-  const allSearch=await invoke(searchFn,{query:{limit:'50'}});
-  assert.equal(allSearch.body.total,47,'search indexes all 47 primary listings');
-  assert.equal(allSearch.body.results.length,47,'search limit=50 returns all 47 listings');
-  assert.deepEqual(allSearch.body.results.map(x=>x.id),result.trucks.map(x=>x.id),'search order & IDs match catalog');
+  // 3b. api/trucks/search.js parity across all 59 unified listings + accent-insensitive search
+  const searchFn=await loadHandler(join('api','trucks','search.js'),catalogMockDb);
+  const allSearch=await invoke(searchFn,{query:{limit:'100'}});
+  assert.equal(allSearch.body.total,59,'search indexes all 59 unified listings');
+  assert.equal(allSearch.body.results.length,59,'search limit=100 returns all 59 listings');
+  assert.deepEqual(allSearch.body.results.map(x=>x.id),result.trucks.map(x=>x.id),'search order & IDs match unified catalog');
+  const primaryOnlySearch=await invoke(searchFn,{query:{limit:'100',include_extra:'0'}});
+  assert.equal(primaryOnlySearch.body.total,47,'include_extra=0 filters to 47 primary listings');
   const accentSearch=await invoke(searchFn,{query:{q:'iniguez'}});
   assert.equal(accentSearch.body.results[0]?.id,'iniguez','accent-folded search finds Tacos Iñiguez');
+  const coffeeSearch=await invoke(searchFn,{query:{q:'retrograde'}});
+  assert.equal(coffeeSearch.body.results[0]?.id,'coffee-retrograde','unified search finds neighborhood coffee roaster');
   const marketSearch=await invoke(searchFn,{query:{q:'markets',limit:'50'}});
-  assert.equal(marketSearch.body.total,10,'tag search finds all 10 market stalls');
+  assert.equal(marketSearch.body.total,12,'tag search finds all 12 market listings (10 stalls + 2 farmers markets)');
 
-  // 3c. api/catalog/cuisines.js, featured.js, cities.js & nearby.js parity
+  // 3c. api/catalog/cuisines.js, featured.js, cities.js & nearby.js parity + explicit 503 outage handling
   const cuisinesRes=await invoke(await loadHandler(join('api','catalog','cuisines.js')));
   assert.deepEqual(cuisinesRes.body.cuisines.map(c=>c.id),result.sections,'cuisines metadata includes all 6 catalog sections including Markets');
-  const featuredRes=await invoke(await loadHandler(join('api','catalog','featured.js')));
-  assert(featuredRes.body.featured_ids.every(id=>byId[id]),'all featured IDs exist in primary catalog');
+  const featuredRes=await invoke(await loadHandler(join('api','catalog','featured.js'),catalogMockDb));
+  assert.equal(featuredRes.status,200);
+  assert.equal(featuredRes.body.featured_ids.length,5);
+  assert(featuredRes.body.featured_ids.every(id=>byId[id]),'all featured IDs exist in unified catalog');
   const citiesRes=await invoke(await loadHandler(join('api','catalog','cities.js')));
   const nearbyRes=await invoke(await loadHandler(join('api','trucks','nearby.js')),{query:{lat:'38.4405',lng:'-122.7144'}});
   assert.deepEqual(new Set(citiesRes.body.cities.map(c=>c.name)),new Set(nearbyRes.body.nearest_hubs.map(h=>h.city)),'cities and nearby hubs match');
+
+  const brokenDb={async query(){throw new Error('simulated postgres outage');}};
+  for(const rel of [join('api','trucks.js'),join('api','trucks','[id].js'),join('api','trucks','search.js'),join('api','catalog','featured.js'),join('api','schedule','today.js')]){
+    const outageFn=await loadHandler(rel,brokenDb);
+    const outageRes=await invoke(outageFn,{params:{id:'mitote'}});
+    assert.equal(outageRes.status,503,`DB outage returns explicit 503 on ${rel}`);
+    assert.equal(outageRes.body.code,'DISCOVERY_DB_UNAVAILABLE',`DB outage returns DISCOVERY_DB_UNAVAILABLE on ${rel}`);
+  }
 
   // 3d. api/schedule/today.js reads owner_schedule and validates real calendar date param
   const scheduleFn=await loadHandler(join('api','schedule','today.js'),{
@@ -598,5 +649,5 @@ function makeEl(id,extra={}){
   const filteredBookingsRes=await invoke(ownerBookingsApi,{user:{id:'usr_owner_dinos'},query:{status:'accepted'}});
   assert.equal(filteredBookingsRes.body.bookings[0].status,'accepted');
 
-  console.log('PASS: 47 primary listings, addresses, category matching, safe photo defaults, JS syntax, UI flows, cross-API parity, and Owner Mode wiring');
+  console.log('PASS: 59 unified Sonoma County listings, truthful distances, safe photo defaults, JS syntax, UI flows, cross-API parity, 503 outage guards, and Owner Mode wiring');
 })().catch(e=>{console.error(e);process.exitCode=1;});

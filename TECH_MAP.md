@@ -1148,10 +1148,10 @@ public/login.html
   Email code + WebAuthn passkey authentication UI
 
 api/trucks.js
-  Canonical 47-listing Sonoma County catalog source
+  Unified 59-listing PostgreSQL Sonoma County catalog endpoint (`lib/discovery.js`)
 
 api/trucks/*
-  Synced detail, accent-folded search, nearby hubs, and date availability endpoints
+  PostgreSQL-backed detail, accent-folded search, nearby hubs, and date availability endpoints
 
 api/bookings/*
   Customer event booking flow
@@ -1166,19 +1166,25 @@ api/owner/*
   Owner/admin operational endpoints (stats, profile, location, schedule, requests, bookings)
 
 api/catalog/*
-  Cities, 6 cuisines/categories, and featured metadata
+  Cities, 6 cuisines/categories, and PostgreSQL-backed featured metadata
 
 api/schedule/*
-  Public schedule endpoint backed by owner_schedule
+  Public schedule endpoint backed by active vendors + owner_schedule
 
 migrations/*
-  PostgreSQL schema history (001–013, including vendors, vendor_memberships, platform_roles, audit_logs, booking integrity triggers, and community_reviews FORCE RLS + community_public_posts view)
+  PostgreSQL schema history (001–014, including unified 59-place `vendors` catalog, truthful `truck_settings` location/expiry columns, `vendor_memberships`, `platform_roles`, `audit_logs`, booking integrity triggers, and `community_reviews` FORCE RLS + `community_public_posts` view)
 
 lib/*
-  Shared server-side authorization, catalog/package terms, Pacific date validation, and transaction helpers (kept outside api/ so Hatchable does not register helpers as routes)
+  Shared server-side authorization (`authz.js`), unified discovery read model (`discovery.js`), catalog/package terms (`catalog.js`), Pacific date validation (`dates.js`), and transaction helpers (`db-tx.js`) — kept outside `api/` so Hatchable does not register helpers as routes
 
 docs/BACKEND_SECURITY_HARDENING.md
   P0 permission matrix, invariants, legacy quarantine rules, and staging rollout/rollback guide
+
+docs/HATCHABLE_STAGING_RUNBOOK.md
+  Hosted Hatchable staging verification gates (`G1`–`G6`) and operator runbook
+
+docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md
+  P1 unified discovery schema ownership, truthful location/schedule precedence, caching & rollback plan
 
 docs/PHOTO_MENU_VERIFICATION.md
   Listing verification, address corrections, and photo/menu audit register
@@ -1188,6 +1194,12 @@ tests/listing-verification.cjs
 
 tests/backend-hardening.integration.cjs
   Real-PostgreSQL integration suite for P0-A RBAC, P0-B booking integrity/concurrency, and P0-C community RLS
+
+tests/p1-unified-discovery.integration.cjs
+  Real-PostgreSQL integration suite for P1 unified 59-listing catalog, owner publishing, truthful locations/expiry, and Pacific DST/overnight schedule precedence
+
+tests/discovery-browser.e2e.cjs
+  Real headless Chrome + real PostgreSQL browser E2E suite verifying owner publish -> customer discovery refresh parity
 
 hatchable.toml
   Project/auth/data permission configuration (direct table access restricted to favorites & notification_settings)

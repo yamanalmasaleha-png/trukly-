@@ -140,9 +140,11 @@ async function runStagingSuite(cfg) {
       '/lib/catalog.js',
       '/lib/dates.js',
       '/lib/db-tx.js',
+      '/lib/discovery.js',
       '/api/lib/authz',
       '/api/authz',
-      '/scripts/dev-server.cjs'
+      '/scripts/dev-server.cjs',
+      '/scripts/seed-sql-reader.cjs'
     ];
     const helperChecks = await Promise.all(forbiddenHelperPaths.map(p => reqJson(p)));
     const exposedHelper = forbiddenHelperPaths.find((_, i) => ![404, 403].includes(helperChecks[i].status));

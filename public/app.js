@@ -1,37 +1,23 @@
 const API = (window.__HATCHABLE__ && window.__HATCHABLE__.api) || '/api';
 
-let trucks = [
-  {"id":"mitote","name":"Mitote Food Park","cuisine":"Mexican","section":"Mexican","emoji":"🎉","city":"Santa Rosa","lat":38.43,"lng":-122.72,"location":"100 Sebastopol Rd, Santa Rosa","blurb":"Mexican food park with a rotating vendor lineup.","source":"https://www.mitotefoodpark.com/","tags":["Mexican"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#f6bd4b","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true},
-  {"id":"elroys","name":"El Roy's Express Mex","cuisine":"Mexican","section":"Mexican","emoji":"🌯","city":"Santa Rosa","lat":38.43,"lng":-122.74,"location":"1569 Sebastopol Rd, Santa Rosa","blurb":"Mexican street eats from the operator's Sebastopol Road truck.","source":"https://elroys.com/locations/","tags":["Mexican"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#d1cc94","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true},
-  {"id":"xies","name":"Xies707 Sushi Rolls","cuisine":"Global","section":"Global","emoji":"🍣","city":"Santa Rosa","lat":38.43,"lng":-122.72,"location":"44 Sebastopol Ave, Santa Rosa","blurb":"Mexican-style sushi rolls; published Golden Tray selection.","source":"https://toast.app/r/xies-sushi-rolls-llc-xies707/order","tags":["Global"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#b8d7c7","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true},
-  {"id":"dinos","name":"Dino's Greek Food","cuisine":"Global","section":"Global","emoji":"🥙","city":"Sonoma County","lat":38.44,"lng":-122.72,"location":"Sonoma County mobile schedule — location varies","blurb":"Greek street food including gyro and falafel.","source":"https://www.dinosgreekfoodtruck.com/","tags":["Global"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#b7c1ad","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true},
-  {"id":"fruta","name":"Fru-ta Ice Cream Truck","cuisine":"Sweets","section":"Sweets","emoji":"🍨","city":"Santa Rosa","lat":38.4,"lng":-122.71,"location":"2970 Santa Rosa Ave, Santa Rosa","blurb":"Paletas, ice cream and a featured Bionico fruit bowl.","source":"https://toast.app/r/fru-ta-food-truck-2970-santa-rosa-ave/order","tags":["Sweets"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#e2c0a1","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true},
-  {"id":"holy-chile","name":"Holy Chile Mole","cuisine":"Global","section":"Global","emoji":"🌮","city":"Petaluma area","lat":38.23,"lng":-122.63,"location":"Mobile schedule — confirm location before visiting","blurb":"BBQ-meat tacos and melts described by the operator.","source":"https://holychilemole.com/","tags":["Global"],"rating":null,"reviews":null,"distance":0,"open":null,"price":"","color":"#d5c69a","photo":null,"verified":false,"verification_status":"needs_review","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","is_demo":true}
+const OFFLINE_FALLBACK_TRUCKS = [
+  {"id":"mitote","name":"Mitote Food Park","cuisine":"Mexican","section":"Mexican","emoji":"🎉","city":"Santa Rosa","lat":38.43,"lng":-122.72,"location":"100 Sebastopol Rd, Santa Rosa","blurb":"Mexican food park with a rotating vendor lineup.","source":"https://www.mitotefoodpark.com/","tags":["Mexican"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#f6bd4b","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
+  {"id":"elroys","name":"El Roy's Express Mex","cuisine":"Mexican","section":"Mexican","emoji":"🌯","city":"Santa Rosa","lat":38.43,"lng":-122.74,"location":"1569 Sebastopol Rd, Santa Rosa","blurb":"Mexican street eats from the operator's Sebastopol Road truck.","source":"https://elroys.com/locations/","tags":["Mexican"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#d1cc94","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
+  {"id":"xies","name":"Xies707 Sushi Rolls","cuisine":"Global","section":"Global","emoji":"🍣","city":"Santa Rosa","lat":38.43,"lng":-122.72,"location":"44 Sebastopol Ave, Santa Rosa","blurb":"Mexican-style sushi rolls; published Golden Tray selection.","source":"https://toast.app/r/xies-sushi-rolls-llc-xies707/order","tags":["Global"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#b8d7c7","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
+  {"id":"dinos","name":"Dino's Greek Food","cuisine":"Global","section":"Global","emoji":"🥙","city":"Sonoma County","lat":38.44,"lng":-122.72,"location":"Sonoma County mobile schedule — location varies","blurb":"Greek street food including gyro and falafel.","source":"https://www.dinosgreekfoodtruck.com/","tags":["Global"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#b7c1ad","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
+  {"id":"fruta","name":"Fru-ta Ice Cream Truck","cuisine":"Sweets","section":"Sweets","emoji":"🍨","city":"Santa Rosa","lat":38.4,"lng":-122.71,"location":"2970 Santa Rosa Ave, Santa Rosa","blurb":"Paletas, ice cream and a featured Bionico fruit bowl.","source":"https://toast.app/r/fru-ta-food-truck-2970-santa-rosa-ave/order","tags":["Sweets"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#e2c0a1","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
+  {"id":"holy-chile","name":"Holy Chile Mole","cuisine":"Global","section":"Global","emoji":"🌮","city":"Petaluma area","lat":38.23,"lng":-122.63,"location":"Mobile schedule — confirm location before visiting","blurb":"BBQ-meat tacos and melts described by the operator.","source":"https://holychilemole.com/","tags":["Global"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#d5c69a","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true}
 ];
+
+let trucks = OFFLINE_FALLBACK_TRUCKS.map(t => ({ ...t }));
+let catalogVersion = null;
+const CATALOG_CACHE_KEY = 'truckly_catalog_v2';
+const CATALOG_CACHE_MAX_AGE_MS = 15 * 60 * 1000;
+const MEASURED_ACCURACIES = new Set(['verified_coordinate', 'venue_address', 'owner_reported_coords']);
 
 const cuisineSections = ['Mexican', 'Burgers', 'Hot Dogs', 'Global', 'Sweets', 'Coffee', 'Markets'];
 
-const neighborhoodAdditions = [
-  {"id":"farm-oakhill","name":"Oak Hill Farm — Red Barn Store","kind":"Farm Stands","cuisine":"Farm produce","emoji":"🥕","city":"Glen Ellen","location":"15101 Sonoma Highway, Glen Ellen","hours":"Spring–December · Wed 3–7 pm · Sat 9 am–3 pm; confirm before visiting","blurb":"Seasonal produce, flowers, and a pantry of goods from regional growers and makers.","source":"https://www.oakhillfarm.net/the-red-barn-store","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#d5dfaa","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Farm Stands"],"listing_type":"Farm Stands","checked":"November 14, 2026"},
-  {"id":"farm-barn","name":"Farm Barn","kind":"Farm Stands","cuisine":"Eggs & farm goods","emoji":"🥚","city":"Petaluma","location":"2910 Pepper Road, Petaluma","hours":"Published hours: daily, 9 am to early evening; confirm before visiting","blurb":"An honor-system farm stand with eggs, honey, preserves, and goods from local producers.","source":"https://www.farmtrails.org/business/farm-barn/","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#d5dfaa","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Farm Stands"],"listing_type":"Farm Stands","checked":"November 14, 2026"},
-  {"id":"market-sr-community","name":"Santa Rosa Community Farmers Market","kind":"Markets","cuisine":"Farmers market","emoji":"🧺","city":"Santa Rosa","location":"1351 Maple Ave, Santa Rosa","hours":"Wed 9 am–1 pm · Sat 8:30 am–1 pm · year-round; check organizer updates","blurb":"A regular stop for local growers and food vendors, now at the Veterans Memorial Building.","source":"https://www.ourfarmersmarkets.org/locations-santa-rosa/","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#f3d28c","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Markets"],"listing_type":"Markets","checked":"November 14, 2026"},
-  {"id":"market-sr-original","name":"Santa Rosa Original Certified Farmers Market","kind":"Markets","cuisine":"Farmers market","emoji":"🍎","city":"Santa Rosa","location":"50 Mark West Springs Road, Santa Rosa","hours":"Sat 8:30 am–1 pm year-round; seasonal Wednesday market · check organizer updates","blurb":"Farmers and food producers gather at the Luther Burbank Center for the Arts.","source":"https://www.ourfarmersmarkets.org/locations-santa-rosa/","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#f3d28c","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Markets"],"listing_type":"Markets","checked":"November 14, 2026"},
-  {"id":"truck-galvans","name":"Galvan’s Eatery","kind":"Food Trucks","popup":true,"cuisine":"Mexican-American","emoji":"🌮","city":"Sonoma County","location":"Rotating Sonoma County stops · see host calendar","hours":"Rotating pop-ups · confirm the next date and location with the host","blurb":"Mexican-American food truck with tacos and burritos; listed on Old Caz’s rotating food calendar.","source":"https://seadragon-flamingo-rwlk.squarespace.com/backyard-food-and-events","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#eeb6a1","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Food Trucks"],"listing_type":"Food Trucks","checked":"November 14, 2026"},
-  {"id":"truck-flippin","name":"Los Flippin Tacos","kind":"Food Trucks","popup":true,"cuisine":"Mexican","emoji":"🌮","city":"Sonoma County","location":"Rotating stops · Old Caz host calendar","hours":"Rotating pop-ups · confirm the next date and location with the host","blurb":"Mexican street food served at local pop-up stops, including the Old Caz backyard.","source":"https://seadragon-flamingo-rwlk.squarespace.com/backyard-food-and-events","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#eeb6a1","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Food Trucks"],"listing_type":"Food Trucks","checked":"November 14, 2026"},
-  {"id":"truck-casanostra","name":"Casa Nostra NorCal","kind":"Food Trucks","popup":true,"cuisine":"Pizza & pasta","emoji":"🍕","city":"Rohnert Park","location":"Rotating stops · Old Caz host calendar","hours":"Rotating pop-ups · confirm the next date and location with the host","blurb":"A Rohnert Park food truck serving wood-fired pizza and pasta at rotating stops.","source":"https://seadragon-flamingo-rwlk.squarespace.com/backyard-food-and-events","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#eeb6a1","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Food Trucks"],"listing_type":"Food Trucks","checked":"November 14, 2026"},
-  {"id":"truck-thespot","name":"The Spot Food Truck","kind":"Food Trucks","popup":true,"cuisine":"Burgers & sandwiches","emoji":"🍔","city":"Sonoma County","location":"Rotating Sonoma County stops · see host calendar","hours":"Rotating pop-ups · confirm the next date and location with the host","blurb":"Burgers, sandwiches, and loaded fries on a rotating local food-truck schedule.","source":"https://seadragon-flamingo-rwlk.squarespace.com/backyard-food-and-events","extra":true,"open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#eeb6a1","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Food Trucks"],"listing_type":"Food Trucks","checked":"November 14, 2026"},
-  {"id":"coffee-crooks","name":"Crooks Coffee","city":"Santa Rosa","location":"404c Mendocino Avenue, Santa Rosa","hours":"Published hours: Mon–Fri 6 am–3 pm; Sat–Sun 7 am–3 pm. Confirm before visiting.","blurb":"A downtown coffee bar with espresso, specialty drinks, and toast plates.","special":"A crème brûlée latte shares the menu with Mexican mocha and café con miele. A coffee stop with a dessert-minded side.","source":"https://shadyraveninc.com/menu","extra":true,"kind":"Coffee","cuisine":"Coffee & café","emoji":"☕","open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#e4c4a0","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Coffee"],"listing_type":"Coffee","checked":"November 14, 2026"},
-  {"id":"coffee-retrograde","name":"Retrograde Coffee Roasters","city":"Sebastopol","location":"130 S Main Street #103, Sebastopol","hours":"Mon–Fri 7 am–5 pm; Sat–Sun 7 am–4 pm. Kitchen closes at 3 pm; confirm before visiting.","blurb":"Specialty coffee and prepared food on Main Street, with indoor seating and outdoor courtyard or parklet options.","special":"Coffee roasted in-house, a lineup of single origins and space-themed blends, and a Main Street café with outdoor seating.","source":"https://retrograderoasters.com/pages/visit","storySource":"https://retrograderoasters.com/","extra":true,"kind":"Coffee","cuisine":"Coffee & café","emoji":"☕","open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#e4c4a0","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Coffee"],"listing_type":"Coffee","checked":"November 14, 2026"},
-  {"id":"coffee-avid-petaluma","name":"Avid Coffee — Downtown Petaluma","city":"Petaluma","location":"21 4th Street, Petaluma","hours":"Sun–Thu 7 am–3 pm; Fri–Sat 7 am–4 pm. Confirm before visiting.","blurb":"A neighborhood café in historic downtown Petaluma.","special":"This café was the starting point of the business in 2011. Its local story began as Acre Coffee before the Avid name arrived in 2021.","source":"https://avidcoffee.com/pages/locations","storySource":"https://avidcoffee.com/pages/learn","extra":true,"kind":"Coffee","cuisine":"Coffee & café","emoji":"☕","open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#e4c4a0","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Coffee"],"listing_type":"Coffee","checked":"November 14, 2026"},
-  {"id":"coffee-avid-sr","name":"Avid Coffee — Montgomery Village","city":"Santa Rosa","location":"2365 Midway Drive, Santa Rosa","hours":"Published hours: daily 7 am–4 pm. Confirm before visiting.","blurb":"A spacious café at the north end of Montgomery Village.","special":"A neighborhood meeting place with roots in Sonoma County and a roastery in Windsor.","source":"https://avidcoffee.com/pages/locations","storySource":"https://avidcoffee.com/pages/learn","extra":true,"kind":"Coffee","cuisine":"Coffee & café","emoji":"☕","open":null,"distance":null,"lat":null,"lng":null,"price":"","color":"#e4c4a0","verified":false,"photo_rights_verified":false,"photo":null,"tags":["Coffee"],"listing_type":"Coffee","checked":"November 14, 2026"}
-];
-
 let activeKind = 'All';
-
-function mergeNeighborhoodAdditions() {
-  const ids = new Set(trucks.map(t => t.id));
-  trucks.push(...neighborhoodAdditions.filter(t => !ids.has(t.id)).map(t => ({ ...t })));
-}
 
 function kindMatches(t) {
   if (activeKind === 'All') return true;
@@ -183,11 +169,16 @@ function hasCoords(t) {
   return t != null && t.lat !== null && t.lng !== null && Number.isFinite(Number(t.lat)) && Number.isFinite(Number(t.lng));
 }
 
+function hasMeasuredCoords(t) {
+  return hasCoords(t) && !t.location_expired && MEASURED_ACCURACIES.has(t.location_accuracy);
+}
+
 function recomputeDistances() {
-  if (!userCoords) return;
   trucks.forEach(t => {
-    if (hasCoords(t)) {
+    if (userCoords && hasMeasuredCoords(t)) {
       t.distance = +milesBetween(userCoords.lat, userCoords.lng, +t.lat, +t.lng).toFixed(1);
+    } else {
+      t.distance = null;
     }
   });
 }
@@ -198,13 +189,105 @@ function distanceLabel(t, mode) {
     return mode === 'detail' ? `${t.distance} mi away` : `${t.distance} mi`;
   }
   if (t.location_accuracy === 'venue_address' && hasDist) {
-    return mode === 'detail' ? `~${t.distance} mi away` : `~${t.distance} mi`;
+    return mode === 'detail' ? `~${t.distance} mi (venue address)` : `~${t.distance} mi`;
   }
-  if (userCoords && hasDist) {
-    return mode === 'detail' ? `~${t.distance} mi (area pin)` : `~${t.distance} mi area`;
+  if (t.location_accuracy === 'owner_reported_coords' && hasDist) {
+    return mode === 'detail' ? `~${t.distance} mi (owner-reported)` : `~${t.distance} mi (owner)`;
   }
-  if (mode === 'detail') return 'Pin is approximate';
+  if (t.location_expired) {
+    return mode === 'detail' ? 'Earlier live pin expired · confirm spot' : 'Past pin expired';
+  }
+  if (t.location_accuracy === 'owner_text_only') {
+    return mode === 'detail' ? 'Vendor-reported spot · no GPS pin' : 'Vendor-reported spot';
+  }
+  if (t.location_accuracy === 'venue_address') {
+    return mode === 'detail' ? 'Published venue address' : 'Published address';
+  }
+  if (t.location_accuracy === 'owner_reported_coords') {
+    return mode === 'detail' ? 'Owner-reported pin' : 'Owner-reported pin';
+  }
+  if (mode === 'detail') return 'Area pin · confirm exact spot';
   return mode === 'fav' ? 'Confirm location' : 'Location to confirm';
+}
+
+function sanitizeCatalogItem(t) {
+  const verified = t.verified === true && t.verification_status === 'business_confirmed';
+  const photoRights = t.photo_rights_verified === true;
+  return {
+    ...t,
+    verified,
+    verification_status: verified ? 'business_confirmed' : 'needs_review',
+    photo_rights_verified: photoRights,
+    photo: photoRights && t.photo && !/images\.unsplash\.com/i.test(t.photo) ? t.photo : null
+  };
+}
+
+function setCatalogOfflineNotice(visible, text) {
+  const note = document.getElementById('catalogOfflineNote');
+  if (!note) return;
+  if (text) note.textContent = text;
+  note.hidden = !visible;
+}
+
+async function refreshDiscoveryCatalog({ fresh = false, announce = false } = {}) {
+  const params = new URLSearchParams();
+  if (userCoords && Number.isFinite(userCoords.lat) && Number.isFinite(userCoords.lng)) {
+    params.set('lat', String(userCoords.lat));
+    params.set('lng', String(userCoords.lng));
+  }
+  if (fresh) params.set('fresh', '1');
+  const qs = params.toString();
+  const url = `${API}/trucks${qs ? '?' + qs : ''}`;
+
+  try {
+    const r = await fetch(url, { cache: fresh ? 'no-store' : 'default' });
+    if (r.ok) {
+      const live = await r.json();
+      if (Array.isArray(live.trucks) && live.trucks.length) {
+        trucks = live.trucks.map(sanitizeCatalogItem);
+        catalogVersion = live.catalog_version || null;
+        try {
+          localStorage.removeItem('truckly_catalog');
+          localStorage.setItem(
+            CATALOG_CACHE_KEY,
+            JSON.stringify({
+              catalog_version: catalogVersion,
+              fetched_at: Date.now(),
+              trucks
+            })
+          );
+        } catch {}
+        setCatalogOfflineNotice(false);
+        recomputeDistances();
+        if (!selectedTruck || !trucks.some(t => t.id === selectedTruck)) {
+          selectedTruck = trucks[0]?.id || null;
+        }
+        if (!userCoords) {
+          const locLbl = document.getElementById('locationLabel');
+          if (locLbl) locLbl.textContent = 'Sonoma County';
+        }
+        applyFilters();
+        renderFavorites();
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('truckly:catalog-updated', { detail: { catalog_version: catalogVersion, total: trucks.length } }));
+        }
+        if (announce) toast('Discovery directory refreshed');
+        return true;
+      }
+    }
+  } catch (e) {
+    console.warn('Live truck feed unavailable', e);
+  }
+
+  const isOfflineDemo = trucks.every(t => t.is_demo);
+  setCatalogOfflineNotice(
+    true,
+    isOfflineDemo
+      ? 'Live catalog unavailable — showing 6-item offline Sonoma County fallback sample.'
+      : 'Live catalog temporarily unavailable — showing your last saved Sonoma County directory snapshot.'
+  );
+  if (announce) toast('Live catalog unavailable — showing saved directory snapshot');
+  return false;
 }
 
 async function init() {
@@ -219,23 +302,23 @@ async function init() {
     b.onclick = () => chooseCuisine(b.dataset.cuisine);
   });
 
-  mergeNeighborhoodAdditions();
-
   const dateInput = document.getElementById('eventDate');
   if (dateInput && !dateInput.value) dateInput.value = defaultEventDate();
 
   let hasCached = false;
   try {
-    const cached = safeJSON('truckly_catalog', null);
-    if (Array.isArray(cached) && cached.length) {
-      trucks = cached
-        .filter(t => !t.extra && !['estrella', 'bao', 'ember', 'verde', 'swirl', 'masa'].includes(t.id))
-        .map(t => ({
-          ...t,
-          verified: t.verification_status === 'business_confirmed',
-          photo: t.photo_rights_verified ? t.photo : null
-        }));
-      mergeNeighborhoodAdditions();
+    const cached = safeJSON(CATALOG_CACHE_KEY, null);
+    if (
+      cached &&
+      Array.isArray(cached.trucks) &&
+      cached.trucks.length &&
+      Number.isFinite(cached.fetched_at) &&
+      Date.now() - cached.fetched_at <= CATALOG_CACHE_MAX_AGE_MS
+    ) {
+      trucks = cached.trucks
+        .filter(t => !['estrella', 'owner-truck', 'bao', 'ember', 'verde', 'swirl', 'masa'].includes(t.id))
+        .map(sanitizeCatalogItem);
+      catalogVersion = cached.catalog_version || null;
       recomputeDistances();
       selectedTruck = trucks[0]?.id || null;
       hasCached = true;
@@ -251,22 +334,7 @@ async function init() {
   renderNotificationUI();
   updateAuthUI();
 
-  try {
-    const r = await fetch(API + '/trucks');
-    if (r.ok) {
-      const live = await r.json();
-      if (Array.isArray(live.trucks) && live.trucks.length) {
-        trucks = live.trucks;
-        localStorage.setItem('truckly_catalog', JSON.stringify(trucks));
-        mergeNeighborhoodAdditions();
-        recomputeDistances();
-        selectedTruck = trucks[0]?.id || null;
-        if (!userCoords) document.getElementById('locationLabel').textContent = 'Sonoma County';
-      }
-    }
-  } catch (e) {
-    console.warn('Live truck feed unavailable', e);
-  }
+  await refreshDiscoveryCatalog({ fresh: false });
 
   applyFilters();
   renderFavorites();
@@ -304,9 +372,53 @@ function filtered() {
   return list;
 }
 
+function pinStatusBadge(t) {
+  if (t.verified && t.open === true) return 'OPEN';
+  if (t.is_confirmed_service && t.open === true) return 'LIVE';
+  if (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today') return 'CLOSED';
+  if (t.open === true) return 'EST OPEN';
+  return t.listing_type === 'Fixed truck / venue' ? 'HOURS' : 'CHECK';
+}
+
+function cardOpenBadge(t) {
+  if (t.verified && t.open === true) return '● OPEN';
+  if (t.is_confirmed_service && t.open === true) {
+    return t.schedule_source === 'owner_schedule' ? '● SCHEDULED' : '● LIVE TODAY';
+  }
+  if (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today') {
+    return '○ CLOSED TODAY';
+  }
+  if (t.open === true) return '◐ EST. OPEN';
+  return t.id === 'ross' ? 'CHECK LINEUP' : 'CHECK HOURS';
+}
+
+function detailStatusPrefix(t) {
+  if (t.verified && t.open === true) return '● OPEN NOW · ';
+  if (t.is_confirmed_service && t.open === true) {
+    return t.schedule_source === 'owner_schedule' ? '● VENDOR SCHEDULED OPEN · ' : '● VENDOR LIVE TODAY · ';
+  }
+  if (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today') {
+    return '○ CLOSED TODAY · ';
+  }
+  if (t.open === true) return '◐ PUBLISHED HOURS (UNVERIFIED) · ';
+  return '';
+}
+
+function detailHoursNote(t) {
+  if (t.location_source === 'owner_reported' && !t.location_expired) {
+    return `Vendor live update · ${t.hours}`;
+  }
+  if (t.location_source === 'temporary_service') {
+    return `Scheduled service stop · ${t.hours}`;
+  }
+  if (t.location_expired) {
+    return `Earlier live update expired · ${t.hours}`;
+  }
+  return `Published/estimated · ${t.hours}`;
+}
+
 function applyFilters() {
   if (!map) return;
-  mergeNeighborhoodAdditions();
   const show = filtered();
   Object.values(markers).forEach(m => map.removeLayer(m));
   markers = {};
@@ -318,9 +430,7 @@ function applyFilters() {
     .slice(0, pinLimit);
 
   pinList.forEach(t => {
-    const badge = t.verified && t.open === true
-      ? 'OPEN'
-      : (t.open === true ? 'EST OPEN' : (t.listing_type === 'Fixed truck / venue' ? 'HOURS' : 'CHECK'));
+    const badge = pinStatusBadge(t);
     const icon = L.divIcon({
       className: '',
       html: `<div class="truck-pin ${t.id === selectedTruck ? 'selected' : ''}" style="--pin:${esc(t.color)}"><span>${esc(t.emoji)}</span><b>${badge}</b></div>`,
@@ -341,7 +451,7 @@ function applyFilters() {
 
   const hoursNote = document.getElementById('openHoursNote');
   if (hoursNote) {
-    hoursNote.hidden = !(openOnly && show.some(t => !t.verified));
+    hoursNote.hidden = !(openOnly && show.some(t => !t.verified && !t.is_confirmed_service));
   }
 
   const mapEmpty = document.getElementById('mapEmpty');
@@ -393,21 +503,26 @@ function openTruck(id) {
 function extraCard(t) {
   const isSaved = favs.has(t.id);
   const safeId = esc(t.id);
-  return `<article class="truck-card" onclick="openDetail('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span><span class="open-tag">${esc(t.kind || 'Local')}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta">${esc(t.cuisine)} · ${esc(t.city)}</div><div class="distance">${esc(t.blurb)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Hours &amp; details ↗</button></div></article>`;
+  const tagLabel = t.is_confirmed_service && t.open === true
+    ? `● LIVE · ${t.kind || 'Local'}`
+    : (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today' ? '○ CLOSED TODAY' : (t.kind || 'Local'));
+  return `<article class="truck-card" onclick="openDetail('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span><span class="open-tag">${esc(tagLabel)}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta">${esc(t.cuisine)} · ${esc(t.city)}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Hours &amp; details ↗</button></div></article>`;
 }
 
 function extraDetail(t) {
   const safeId = esc(t.id);
   const storyHref = esc(t.storySource || t.source || '');
-  document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()" aria-label="Close details">×</button><div class="detail-hero icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span></div><div class="detail-body"><small>${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2>${esc(t.name)}</h2><p>${esc(t.blurb)}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>${esc(t.location)}</b><small>${esc(t.hours)}</small></div><p class="meta">Source checked ${esc(t.checked || 'recently')}. Hours and pop-up locations can change. No live open status or verified distance is available for this listing.</p><a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source || '#')}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
+  const statusPrefix = detailStatusPrefix(t);
+  const metaDisclaimer = t.is_confirmed_service
+    ? `Status reported directly by authorized vendor staff (${esc(distanceLabel(t, 'detail'))}).`
+    : `Source checked ${esc(t.checked || 'recently')}. Hours and pop-up locations can change. ${esc(distanceLabel(t, 'detail'))}.`;
+  document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()" aria-label="Close details">×</button><div class="detail-hero icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span></div><div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2>${esc(t.name)}</h2><p>${esc(t.blurb)}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
   document.getElementById('detailModal').classList.add('show');
 }
 
 function cardHTML(t) {
   if (t.extra) return extraCard(t);
-  const openTag = t.verified && t.open === true
-    ? '● OPEN'
-    : (t.open === true ? '◐ EST. OPEN' : (t.id === 'ross' ? 'CHECK LINEUP' : 'CHECK HOURS'));
+  const openTag = cardOpenBadge(t);
   const isSaved = favs.has(t.id);
   const safeId = esc(t.id);
   return `<article class="truck-card" onclick="openTruck('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}<span class="open-tag">${openTag}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta"><span class="rating">${t.verified && t.rating ? `★ ${esc(t.rating)}` : 'Menu & info'}</span> ${t.verified && t.reviews ? `(${esc(t.reviews)}) · ` : ''}${esc(t.cuisine)}${t.price ? ' · ' + esc(t.price) : ''}</div><div class="meta city-meta">${esc(t.city || 'Sonoma County')} · ${esc(t.listing_type || t.availability || '')}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Get the lowdown →</button></div></article>`;
@@ -431,11 +546,9 @@ function openDetail(id) {
     extraDetail(t);
     return;
   }
-  const statusPrefix = t.verified && t.open === true
-    ? '● OPEN NOW · '
-    : (t.open === true ? '◐ PUBLISHED HOURS (UNVERIFIED) · ' : '');
+  const statusPrefix = detailStatusPrefix(t);
   const safeId = esc(t.id);
-  document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()">×</button><div class="detail-hero ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}</div><div class="detail-body"><small>${statusPrefix}${esc(t.cuisine).toUpperCase()}</small><h2>${esc(t.emoji)} ${esc(t.name)}</h2><p>${esc(t.blurb)}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${t.price ? `<span>${esc(t.price)}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>Published/estimated · ${esc(t.hours)}</small></div><div class="truth-card"><span class="verified-dot">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(t.listing_type || t.availability || 'Mobile vendor')} · ${esc(t.city || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button><button class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button></div>`;
+  document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()">×</button><div class="detail-hero ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}</div><div class="detail-body"><small>${statusPrefix}${esc(t.cuisine).toUpperCase()}</small><h2>${esc(t.emoji)} ${esc(t.name)}</h2><p>${esc(t.blurb)}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${t.price ? `<span>${esc(t.price)}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(t.listing_type || t.availability || 'Mobile vendor')} · ${esc(t.city || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button><button class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button></div>`;
   document.getElementById('detailModal').classList.add('show');
 }
 
@@ -687,7 +800,10 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(name + 'Screen').classList.add('active');
   document.querySelectorAll('.bottom-nav button[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
-  if (name === 'discover' && map) setTimeout(() => map.invalidateSize(), 30);
+  if (name === 'discover') {
+    if (map) setTimeout(() => map.invalidateSize(), 30);
+    refreshDiscoveryCatalog({ fresh: false });
+  }
   if (name === 'favorites') renderFavorites();
   if (name === 'bookings') {
     renderBookings();
@@ -1286,10 +1402,14 @@ async function loadOwnerDashboard() {
       if (locRes && locRes.ok) {
         const loc = await locRes.json();
         const locInput = document.getElementById('ownerLocation');
+        const latInput = document.getElementById('ownerLat');
+        const lngInput = document.getElementById('ownerLng');
         const openToggle = document.getElementById('ownerIsOpen');
         const opensEl = document.getElementById('ownerOpensAt');
         const closesEl = document.getElementById('ownerClosesAt');
         if (locInput && loc.location) locInput.value = loc.location;
+        if (latInput) latInput.value = loc.lat != null ? String(loc.lat) : '';
+        if (lngInput) lngInput.value = loc.lng != null ? String(loc.lng) : '';
         if (openToggle && typeof loc.is_open === 'boolean') openToggle.checked = loc.is_open;
         if (opensEl && loc.opens_at) opensEl.value = String(loc.opens_at).slice(0, 5);
         if (closesEl && loc.closes_at) closesEl.value = String(loc.closes_at).slice(0, 5);
@@ -1431,9 +1551,19 @@ async function updateOwnerLocation() {
   const location = (document.getElementById('ownerLocation')?.value || '').trim();
   if (!location) return toast('Please enter a parked location first');
 
-  const isOpen = !!document.getElementById('ownerIsOpen')?.checked;
-  const opensAt = document.getElementById('ownerOpensAt')?.value || null;
-  const closesAt = document.getElementById('ownerClosesAt')?.value || null;
+  const rawLat = (document.getElementById('ownerLat')?.value || '').trim();
+  const rawLng = (document.getElementById('ownerLng')?.value || '').trim();
+  if ((rawLat !== '') !== (rawLng !== '')) {
+    return toast('Enter both latitude and longitude, or leave both blank');
+  }
+  const lat = rawLat === '' ? null : Number(rawLat);
+  const lng = rawLng === '' ? null : Number(rawLng);
+  if (rawLat !== '' && (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180 || (lat === 0 && lng === 0))) {
+    return toast('Enter valid decimal latitude (-90..90) and longitude (-180..180)');
+  }
+
+  const ttlMinutes = Number(document.getElementById('ownerLocationTtl')?.value) || 480;
+  const isOpen = document.getElementById('ownerIsOpen') ? !!document.getElementById('ownerIsOpen').checked : true;
 
   if (isOwnerAdmin) {
     try {
@@ -1441,12 +1571,23 @@ async function updateOwnerLocation() {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ truck_id: ownerTruckId, location, is_open: isOpen, opens_at: opensAt, closes_at: closesAt })
+        body: JSON.stringify({
+          truck_id: ownerTruckId,
+          location,
+          lat,
+          lng,
+          ttl_minutes: ttlMinutes,
+          is_open: isOpen,
+          opens_at: null,
+          closes_at: null
+        })
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
         return toast(err.error || 'Could not publish location update');
       }
+      await refreshDiscoveryCatalog({ fresh: true });
+      return toast('Live location published');
     } catch {
       return toast('Connection error — could not publish location');
     }
@@ -1457,7 +1598,7 @@ async function updateOwnerLocation() {
     target.location = location;
     applyFilters();
   }
-  toast(isOwnerAdmin ? 'Live location published' : 'Location updated in preview mode');
+  toast('Location updated in preview mode');
 }
 
 function toggleOwnerOpenStatus() {
@@ -1490,6 +1631,7 @@ async function saveOwnerSchedule() {
       ownerSchedule = [saved, ...ownerSchedule.filter(s => !(s.truck_id === ownerTruckId && toCalendarDateISO(s.service_date) === serviceDate))]
         .sort((a, b) => toCalendarDateISO(a.service_date).localeCompare(toCalendarDateISO(b.service_date)));
       renderOwnerScheduleList();
+      await refreshDiscoveryCatalog({ fresh: true });
       return toast('Service schedule saved');
     } catch {
       return toast('Connection error — could not save schedule');
@@ -1555,6 +1697,7 @@ async function saveOwnerProfile(e) {
         return toast(err.error || 'Could not save owner profile');
       }
       ownerProfile = await r.json();
+      await refreshDiscoveryCatalog({ fresh: true });
     } catch {
       return toast('Connection error — could not save profile');
     }

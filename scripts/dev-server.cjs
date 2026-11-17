@@ -10,6 +10,7 @@ const crypto = require('node:crypto');
 const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 const { AsyncLocalStorage } = require('node:async_hooks');
+const { loadSeedVendorsFromMigration014 } = require('./seed-sql-reader.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -43,17 +44,14 @@ let canonicalVendors = [];
 let store = null;
 
 function createInitialStore() {
+  const seedRows = loadSeedVendorsFromMigration014(ROOT);
   const vendors = new Map(
-    canonicalVendors.map(v => [
+    seedRows.map(v => [
       v.id,
       {
-        id: v.id,
-        canonical_name: v.canonical_name,
-        city: v.city,
-        cuisine: v.cuisine,
-        listing_kind: v.listing_kind,
+        ...v,
         event_bookable: !!v.event_bookable,
-        is_active: true
+        is_active: v.is_active !== false
       }
     ])
   );
@@ -320,16 +318,93 @@ const mockDb = {
       return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
     }
 
+    if (/^WITH sched_latest AS/i.test(s)) {
+      const todayIso = params[0];
+      const yesterdayIso = params[1];
+      const filterVendorId = params[2] || null;
+      const rows = [...store.vendors.values()]
+        .filter(v => v.is_active && (!filterVendorId || v.id === filterVendorId))
+        .sort((a, b) => (a.sort_order - b.sort_order) || a.id.localeCompare(b.id))
+        .map(v => {
+          const op = store.owner_profiles.get(v.id) || null;
+          const ts = store.truck_settings.get(v.id) || null;
+          const osToday = store.owner_schedule.find(x => x.truck_id === v.id && x.service_date === todayIso) || null;
+          const osYest = store.owner_schedule.find(x => x.truck_id === v.id && x.service_date === yesterdayIso) || null;
+          const anySchedTimes = store.owner_schedule
+            .filter(x => x.truck_id === v.id && x.updated_at)
+            .map(x => x.updated_at)
+            .sort();
+          const maxSched = anySchedTimes.length ? anySchedTimes[anySchedTimes.length - 1] : null;
+          return {
+            ...v,
+            v_updated_at: v.updated_at,
+            op_display_name: op?.display_name ?? null,
+            op_description: op?.description ?? null,
+            op_cuisine: op?.cuisine ?? null,
+            op_accepting_bookings: op ? op.accepting_bookings : null,
+            op_updated_at: op?.updated_at ?? null,
+            ts_truck_id: ts?.truck_id ?? null,
+            ts_location: ts?.location ?? null,
+            ts_lat: ts?.lat ?? null,
+            ts_lng: ts?.lng ?? null,
+            ts_location_source: ts?.location_source ?? null,
+            ts_location_accuracy: ts?.location_accuracy ?? null,
+            ts_is_open: ts ? ts.is_open : null,
+            ts_opens_at: ts?.opens_at ?? null,
+            ts_closes_at: ts?.closes_at ?? null,
+            ts_observed_at: ts?.observed_at ?? null,
+            ts_expires_at: ts?.expires_at ?? null,
+            ts_updated_at: ts?.updated_at ?? null,
+            os_opens_at: osToday?.opens_at ?? null,
+            os_closes_at: osToday?.closes_at ?? null,
+            os_location: osToday?.location ?? null,
+            os_status: osToday?.status ?? null,
+            os_updated_at: osToday?.updated_at ?? null,
+            ys_opens_at: osYest?.opens_at ?? null,
+            ys_closes_at: osYest?.closes_at ?? null,
+            ys_location: osYest?.location ?? null,
+            ys_status: osYest?.status ?? null,
+            ys_updated_at: osYest?.updated_at ?? null,
+            any_os_updated_at: maxSched
+          };
+        });
+      return { rows, rowCount: rows.length };
+    }
+
     if (/^INSERT INTO truck_settings/i.test(s)) {
       const prev = store.truck_settings.get(params[0]) || {};
-      const row = {
-        truck_id: params[0],
-        location: params[1],
-        is_open: params.length > 2 ? (params[5] != null ? params[5] : params[2]) : (prev.is_open ?? true),
-        opens_at: params.length > 2 ? (params[3] || prev.opens_at || null) : (prev.opens_at || null),
-        closes_at: params.length > 2 ? (params[4] || prev.closes_at || null) : (prev.closes_at || null),
-        updated_at: new Date().toISOString()
-      };
+      let row;
+      if (params.length >= 13) {
+        row = {
+          truck_id: params[0],
+          location: params[1],
+          lat: params[2],
+          lng: params[3],
+          location_source: 'owner_reported',
+          location_accuracy: params[4],
+          is_open: params[10] != null ? params[10] : (prev.is_open ?? params[5]),
+          opens_at: params[11] ? null : (params[6] || prev.opens_at || null),
+          closes_at: params[12] ? null : (params[7] || prev.closes_at || null),
+          observed_at: params[8],
+          expires_at: params[9],
+          updated_at: new Date().toISOString()
+        };
+      } else {
+        row = {
+          truck_id: params[0],
+          location: params[1],
+          lat: null,
+          lng: null,
+          location_source: 'owner_reported',
+          location_accuracy: 'owner_text_only',
+          is_open: params.length > 2 ? (params[5] != null ? params[5] : params[2]) : (prev.is_open ?? true),
+          opens_at: params.length > 2 ? (params[3] || prev.opens_at || null) : (prev.opens_at || null),
+          closes_at: params.length > 2 ? (params[4] || prev.closes_at || null) : (prev.closes_at || null),
+          observed_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+          updated_at: new Date().toISOString()
+        };
+      }
       store.truck_settings.set(row.truck_id, row);
       return { rows: [row], rowCount: 1 };
     }
@@ -350,7 +425,16 @@ const mockDb = {
 
     if (/^INSERT INTO owner_schedule/i.test(s)) {
       const idx = store.owner_schedule.findIndex(x => x.truck_id === params[0] && x.service_date === params[1]);
-      const row = { id: idx >= 0 ? store.owner_schedule[idx].id : crypto.randomUUID(), truck_id: params[0], service_date: params[1], opens_at: params[2], closes_at: params[3], location: params[4], status: params[5] || 'scheduled' };
+      const row = {
+        id: idx >= 0 ? store.owner_schedule[idx].id : crypto.randomUUID(),
+        truck_id: params[0],
+        service_date: params[1],
+        opens_at: params[2],
+        closes_at: params[3],
+        location: params[4],
+        status: params[5] || 'scheduled',
+        updated_at: new Date().toISOString()
+      };
       if (idx >= 0) store.owner_schedule[idx] = row;
       else store.owner_schedule.push(row);
       return { rows: [row], rowCount: 1 };
@@ -362,7 +446,15 @@ const mockDb = {
     if (/FROM owner_schedule s JOIN vendors v/i.test(s)) {
       const rows = store.owner_schedule
         .filter(x => x.service_date === params[0] && x.status !== 'unavailable' && store.vendors.get(x.truck_id)?.is_active)
-        .map(x => ({ ...x, vendor: vendorDisplayName(x.truck_id) }));
+        .map(x => {
+          const v = store.vendors.get(x.truck_id);
+          return {
+            ...x,
+            vendor: vendorDisplayName(x.truck_id),
+            location: x.location || v?.curated_location || 'Sonoma County · check vendor listing',
+            row_updated_at: x.updated_at || v?.updated_at || null
+          };
+        });
       return { rows, rowCount: rows.length };
     }
     if (/FROM owner_schedule WHERE truck_id = ANY\(\$1::text\[\]\) AND service_date >= \$2/i.test(s)) {
@@ -497,7 +589,40 @@ const mockAuth = {
   }
 };
 
-globalThis.__TRUCKLY_HATCHABLE__ = { db: mockDb, auth: mockAuth };
+let activeDb = mockDb;
+let pgPool = null;
+if (process.env.DATABASE_URL) {
+  const extraNodeModules = process.env.TRUCKLY_PG_NODE_MODULES;
+  const { Pool } = extraNodeModules
+    ? require(path.join(extraNodeModules, 'pg'))
+    : require('pg');
+  pgPool = new Pool({ connectionString: process.env.DATABASE_URL, max: 10 });
+  activeDb = {
+    query: (text, params) => pgPool.query(text, params),
+    async transaction(fn) {
+      const client = await pgPool.connect();
+      try {
+        await client.query('BEGIN');
+        const out = await fn(client);
+        await client.query('COMMIT');
+        return out;
+      } catch (err) {
+        try { await client.query('ROLLBACK'); } catch {}
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+  };
+}
+
+globalThis.__TRUCKLY_HATCHABLE__ = {
+  db: {
+    query: (...args) => activeDb.query(...args),
+    transaction: fn => activeDb.transaction(fn)
+  },
+  auth: mockAuth
+};
 const loaderCode = `
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === "hatchable") {
@@ -613,6 +738,13 @@ function resolveApiRoute(pathname) {
         const mockRes = {
           setHeader(k, v) { headers[k] = v; },
           status(code) { statusCode = code; return this; },
+          end(body = '') {
+            if (!res.headersSent) {
+              res.writeHead(statusCode, headers);
+              res.end(body);
+            }
+            return this;
+          },
           json(payload) {
             if (!res.headersSent) {
               res.writeHead(statusCode, headers);
