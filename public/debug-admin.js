@@ -38,21 +38,68 @@
     logs: []
   };
 
-  if (!["guest", "customer", "admin"].includes(state.role)) state.role = "guest";
+  var ALLOWED_ROLES = [
+    "guest",
+    "customer",
+    "customer_b",
+    "vendor_a_owner",
+    "vendor_a_staff",
+    "vendor_b_owner",
+    "moderator",
+    "admin"
+  ];
+  if (!ALLOWED_ROLES.includes(state.role)) state.role = "guest";
 
   var ROLE_META = {
-    guest: { short: "Guest", label: "Guest Customer", sub: "Anonymous · localStorage", user: null },
+    guest: { short: "Guest", label: "Guest Visitor", sub: "Anonymous · 401 on auth routes", badge: "401 / anon", user: null },
     customer: {
-      short: "Customer",
-      label: "Signed-in Customer",
+      short: "Cust A",
+      label: "Signed-in Customer A",
       sub: "alex@sonoma.local",
+      badge: "requester A",
       user: { id: "usr_demo_customer", email: "alex@sonoma.local", name: "Alex Rivera" }
     },
+    customer_b: {
+      short: "Cust B",
+      label: "Signed-in Customer B",
+      sub: "jordan@sonoma.local",
+      badge: "requester B",
+      user: { id: "usr_demo_customer_b", email: "jordan@sonoma.local", name: "Jordan Kim" }
+    },
+    vendor_a_owner: {
+      short: "Owner A",
+      label: "Vendor A Owner (Iñiguez)",
+      sub: "iniguez-owner@truckly.local",
+      badge: "iniguez · owner",
+      user: { id: "usr_vendor_a_owner", email: "iniguez-owner@truckly.local", name: "Iñiguez Owner" }
+    },
+    vendor_a_staff: {
+      short: "Staff A",
+      label: "Vendor A Staff (Iñiguez)",
+      sub: "iniguez-staff@truckly.local",
+      badge: "iniguez · staff",
+      user: { id: "usr_vendor_a_staff", email: "iniguez-staff@truckly.local", name: "Iñiguez Staff" }
+    },
+    vendor_b_owner: {
+      short: "Owner B",
+      label: "Vendor B Owner (Mitote)",
+      sub: "mitote-owner@truckly.local",
+      badge: "mitote · owner",
+      user: { id: "usr_vendor_b_owner", email: "mitote-owner@truckly.local", name: "Mitote Owner" }
+    },
+    moderator: {
+      short: "Mod",
+      label: "Community Moderator",
+      sub: "moderator@truckly.local",
+      badge: "community mod",
+      user: { id: "usr_demo_moderator", email: "moderator@truckly.local", name: "Community Moderator" }
+    },
     admin: {
-      short: "Provider",
-      label: "Provider / Admin",
-      sub: "owner@truckly.local",
-      user: { id: "usr_demo_owner", email: "owner@truckly.local", name: "Truckly Provider" }
+      short: "Admin",
+      label: "Platform Administrator",
+      sub: "admin@truckly.local",
+      badge: "global admin",
+      user: { id: "usr_platform_admin", email: "admin@truckly.local", name: "Platform Admin" }
     }
   };
 
@@ -204,8 +251,12 @@
   }
 
   async function jumpProvider(target) {
-    if (IS_LOCAL && state.role !== "admin") {
-      await setRole("admin");
+    if (IS_LOCAL) {
+      if (target === "moderation" && !["moderator", "admin"].includes(state.role)) {
+        await setRole("moderator");
+      } else if (target !== "moderation" && !["vendor_a_owner", "vendor_a_staff", "vendor_b_owner", "admin"].includes(state.role)) {
+        await setRole("vendor_a_owner");
+      }
     }
     if (target === "owner") {
       showScreen("owner");
@@ -236,10 +287,10 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-truckly-debug-role": "admin"
+          "x-truckly-debug-role": "vendor_b_owner"
         },
         body: JSON.stringify({
-          vendor: "Mitote Taco Stand",
+          vendor_id: "mitote",
           ticket: ticketNum,
           request_key: crypto.randomUUID()
         })
@@ -271,7 +322,7 @@
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-truckly-debug-role": "admin"
+          "x-truckly-debug-role": "vendor_b_owner"
         },
         body: JSON.stringify({ id: state.activePager.id, status: status })
       });
@@ -521,15 +572,15 @@
       '<section class="debug-section">' +
       '<div class="debug-section-title"><span>1 · Active Role Simulator</span><span>' + (IS_LOCAL ? "LOCAL FULL-STACK" : "CLIENT INSPECTOR") + "</span></div>" +
       '<div class="debug-role-grid">' +
-      ["guest", "customer", "admin"].map(function (r) {
+      ALLOWED_ROLES.map(function (r) {
         var m = ROLE_META[r];
         return '<button type="button" class="debug-role-btn ' + (state.role === r ? "active" : "") + '" onclick="trucklyDebug.setRole(\'' + r + '\')">' +
-          dbgEsc(m.short) + "<small>" + dbgEsc(r === "guest" ? "401 / local" : (r === "customer" ? "user auth" : "owner admin")) + "</small></button>";
+          dbgEsc(m.short) + "<small>" + dbgEsc(m.badge) + "</small></button>";
       }).join("") +
       "</div>" +
       '<p class="debug-note">' + (IS_LOCAL
-        ? "Switches server session (" + dbgEsc((ROLE_META[state.role] || ROLE_META.guest).sub) + ") across all 27 API routes."
-        : "Hosted mode: server APIs enforce real Hatchable auth. Use /login.html for live sessions.") + "</p>" +
+        ? "Local dev simulator only (" + dbgEsc((ROLE_META[state.role] || ROLE_META.guest).sub) + "). Debug headers/cookies are ignored in production."
+        : "Hosted mode: server APIs enforce real Hatchable auth & vendor RBAC. Debug headers have zero effect.") + "</p>" +
       "</section>" +
 
       '<section class="debug-section">' +

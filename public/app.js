@@ -118,10 +118,9 @@ const favs = new Set((() => {
   const stored = safeJSON('truckly_favs', []);
   return Array.isArray(stored) ? stored : [];
 })());
-let bookings = (() => {
-  const stored = safeJSON('truckly_bookings', []);
-  return Array.isArray(stored) ? stored : [];
-})();
+let bookings = [];
+let bookingDraftKey = null;
+let bookingDraftSignature = '';
 let notifyPrefs = (() => {
   const stored = safeJSON('truckly_notify', null);
   return stored && typeof stored === 'object'
@@ -129,10 +128,14 @@ let notifyPrefs = (() => {
     : { nearby_enabled: true, radius_miles: 3 };
 })();
 
+function addDaysISO(isoDate, days) {
+  const [y, m, d] = String(isoDate).split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + days));
+  return dt.toISOString().slice(0, 10);
+}
+
 function defaultEventDate() {
-  const d = new Date();
-  d.setDate(d.getDate() + 7);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayPacificISO(), 7);
 }
 
 function parseEventDate(raw) {
@@ -428,6 +431,8 @@ function updateAuthUI() {
   const sub = document.getElementById('profileSub');
   const signInLink = document.getElementById('authSignInLink');
   const signOutBtn = document.getElementById('authSignOutBtn');
+  const bookingAuthNotice = document.getElementById('bookingAuthNotice');
+  if (bookingAuthNotice) bookingAuthNotice.hidden = isSignedIn;
   if (!avatar) return;
 
   if (isSignedIn) {
@@ -489,8 +494,11 @@ async function syncAuthAndUserData() {
   } catch {}
 
   isSignedIn = false;
+  bookings = [];
+  try { localStorage.removeItem('truckly_bookings'); } catch {}
   updateAuthUI();
   renderNotificationUI();
+  renderBookings();
 }
 
 async function signOutUser() {
@@ -503,8 +511,11 @@ async function signOutUser() {
   } catch {}
   isSignedIn = false;
   currentUser = null;
+  bookings = [];
+  try { localStorage.removeItem('truckly_bookings'); } catch {}
   updateAuthUI();
   renderNotificationUI();
+  renderBookings();
   toast('Signed out — favorites stay saved on this device');
 }
 
@@ -738,6 +749,37 @@ function validateBookingChoice() {
 
 let bookingDateBlocked = false;
 
+function makeIdempotencyKey() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'idem-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
+}
+
+function populateBookingTruckSelect(preferredId) {
+  const sel = document.getElementById('bookingTruck');
+  if (!sel) return;
+  const eligible = trucks.filter(t => !t.extra);
+  const current = preferredId && preferredId !== 'owner-truck' ? preferredId : sel.value;
+  sel.innerHTML =
+    '<option value="">Choose an eligible food truck</option>' +
+    eligible.map(t => `<option value="${esc(t.id)}">${esc(t.name)} · ${esc(t.city)}</option>`).join('');
+  sel.value = eligible.some(t => t.id === current) ? current : '';
+}
+
+function onBookingTruckChange() {
+  const sel = document.getElementById('bookingTruck');
+  const t = sel ? trucks.find(x => !x.extra && x.id === sel.value) : null;
+  const lbl = document.getElementById('bookingTruckLabel');
+  if (lbl) {
+    lbl.textContent = t
+      ? `Send an event inquiry to ${t.name}.`
+      : 'Send an event inquiry. The vendor will review and confirm availability.';
+  }
+  setBookingError('');
+  checkBookingAvailability();
+}
+
 async function checkBookingAvailability() {
   bookingDateBlocked = false;
   const truckId = (document.getElementById('bookingTruck')?.value || '').trim();
@@ -746,12 +788,26 @@ async function checkBookingAvailability() {
 
   try {
     const r = await fetch(`${API}/trucks/availability?truck_id=${encodeURIComponent(truckId)}&date=${encodeURIComponent(dateVal)}`);
+    if (r.status === 503) {
+      bookingDateBlocked = true;
+      setBookingError('Vendor availability cannot be verified right now. Please try again in a moment.');
+      return false;
+    }
     if (r.ok) {
       const out = await r.json();
       if (out.requestable === false) {
         const t = trucks.find(x => x.id === truckId);
+        const name = t ? t.name : 'This vendor';
         bookingDateBlocked = true;
-        setBookingError(`${t ? t.name : 'This truck'} marked ${dateVal} as unavailable for event bookings. Please choose another date or truck.`);
+        if (out.reason === 'bookings_paused') {
+          setBookingError(`${name} has paused new event booking inquiries right now. Please choose another food truck.`);
+        } else if (out.reason === 'past_or_same_day_pacific') {
+          setBookingError('Event inquiries must be scheduled for a future calendar date (Pacific time).');
+        } else if (out.reason === 'vendor_not_bookable') {
+          setBookingError(`${name} is not eligible for event booking requests.`);
+        } else {
+          setBookingError(`${name} marked ${dateVal} as unavailable for event bookings. Please choose another date or truck.`);
+        }
         return false;
       }
     }
@@ -760,13 +816,22 @@ async function checkBookingAvailability() {
 }
 
 function openBooking(id) {
-  const t = id && id !== 'owner-truck' ? trucks.find(x => x.id === id) : null;
-  document.getElementById('bookingTruck').value = t ? t.id : '';
-  document.getElementById('bookingTruckLabel').textContent = t
-    ? `Request ${t.name} for your event.`
-    : 'Tell us about your event. We’ll match you with a great local truck.';
+  const t = id && id !== 'owner-truck' ? trucks.find(x => !x.extra && x.id === id) : null;
+  populateBookingTruckSelect(t ? t.id : '');
+  const lbl = document.getElementById('bookingTruckLabel');
+  if (lbl) {
+    lbl.textContent = t
+      ? `Send an event inquiry to ${t.name}.`
+      : 'Send an event inquiry. The vendor will review and confirm availability.';
+  }
+  const authNotice = document.getElementById('bookingAuthNotice');
+  if (authNotice) authNotice.hidden = isSignedIn;
   const dateInput = document.getElementById('eventDate');
-  if (dateInput && !dateInput.value) dateInput.value = defaultEventDate();
+  const minDate = addDaysISO(todayPacificISO(), 1);
+  if (dateInput) {
+    dateInput.min = minDate;
+    if (!dateInput.value || dateInput.value < minDate) dateInput.value = defaultEventDate();
+  }
   bookingDateBlocked = false;
   setBookingError('');
   document.getElementById('bookingModal').classList.add('show');
@@ -782,9 +847,27 @@ function closeBooking() {
 async function submitBooking(e) {
   e.preventDefault();
   if (!validateBookingChoice()) return;
+
+  if (!isSignedIn) {
+    const authNotice = document.getElementById('bookingAuthNotice');
+    if (authNotice) authNotice.hidden = false;
+    const msg = 'Please sign in first so your event inquiry is linked to your account.';
+    setBookingError(msg);
+    toast(msg);
+    return;
+  }
+
+  const truckVal = (document.getElementById('bookingTruck')?.value || '').trim();
+  const truck = trucks.find(t => !t.extra && t.id === truckVal);
+  if (!truck) {
+    const msg = 'Choose an eligible food truck for your event.';
+    setBookingError(msg);
+    toast(msg);
+    return;
+  }
+
   if (bookingDateBlocked || !(await checkBookingAvailability())) return;
 
-  const truck = trucks.find(t => t.id === document.getElementById('bookingTruck').value);
   const chosen = document.querySelector('input[name="bookingPackage"]:checked');
   const pkgId = chosen?.value || '';
   const pkg = PACKAGES[pkgId];
@@ -794,24 +877,28 @@ async function submitBooking(e) {
   const location = document.getElementById('eventLocation').value.trim();
   const note = document.getElementById('eventNote').value.trim();
 
-  if (!eventType || !eventDate || !location || !Number.isInteger(guestCount) || guestCount < 10) {
-    const msg = 'Please include an event type, date, location, and at least 10 guests.';
+  if (eventType.length < 2 || !eventDate || location.length < 3 || !Number.isInteger(guestCount) || guestCount < 10) {
+    const msg = 'Please include an event type, future date, location (3+ chars), and at least 10 guests.';
     setBookingError(msg);
     toast(msg);
     return;
   }
 
+  const sig = JSON.stringify([truck.id, pkgId, eventType, eventDate, guestCount, location, note]);
+  if (!bookingDraftKey || bookingDraftSignature !== sig) {
+    bookingDraftKey = makeIdempotencyKey();
+    bookingDraftSignature = sig;
+  }
+
   const data = {
-    truck_id: truck?.id || null,
-    truck_name: truck?.name || 'Best available match',
+    truck_id: truck.id,
     package_id: pkgId,
-    package_name: pkg.name,
-    package_price: pkg.price,
     event_type: eventType,
     event_date: eventDate,
     guest_count: guestCount,
     location,
-    note
+    note,
+    idempotency_key: bookingDraftKey
   };
 
   const submitBtn = document.getElementById('bookingSubmitBtn');
@@ -822,10 +909,21 @@ async function submitBooking(e) {
     const r = await fetch(API + '/bookings/create', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': bookingDraftKey
+      },
       body: JSON.stringify(data)
     });
     const payload = await r.json().catch(() => ({}));
+    if (r.status === 401) {
+      isSignedIn = false;
+      updateAuthUI();
+      const msg = payload.error || 'Sign in to submit an event booking request.';
+      setBookingError(msg);
+      toast(msg);
+      return;
+    }
     if (!r.ok) {
       const msg = payload.error || 'Could not submit your booking request. Please review your details and try again.';
       setBookingError(msg);
@@ -833,26 +931,34 @@ async function submitBooking(e) {
       return;
     }
 
+    bookingDraftKey = null;
+    bookingDraftSignature = '';
+
     const savedBooking = {
-      ...data,
-      id: payload.id || Date.now(),
+      id: payload.id,
+      truck_id: payload.truck_id || truck.id,
+      truck_name: payload.truck_name || truck.name,
+      event_type: payload.event_type || eventType,
+      event_date: String(payload.event_date || eventDate).slice(0, 10),
+      guest_count: payload.guest_count ?? guestCount,
+      location: payload.location || location,
       status: payload.status || 'pending',
+      package_id: payload.package_id || pkgId,
       package_name: payload.package_name || pkg.name,
       package_price: payload.package_price ?? pkg.price,
       created_at: payload.created_at || new Date().toISOString()
     };
     bookings = [savedBooking, ...bookings.filter(b => String(b.id) !== String(savedBooking.id))];
-    localStorage.setItem('truckly_bookings', JSON.stringify(bookings));
 
     closeBooking();
     e.target.reset();
     document.getElementById('eventDate').value = defaultEventDate();
     renderBookings();
     if (isSignedIn) loadUserBookings();
-    toast('Request sent! The owner will get back to you soon.');
+    toast(payload.idempotent_replay ? 'Inquiry already received — showing your existing request.' : 'Inquiry sent! Pending vendor review.');
     showScreen('bookings');
   } catch {
-    const msg = 'Could not reach Truckly right now. Check your connection and try sending again.';
+    const msg = 'Could not reach Truckly right now. Check your connection and retry — duplicate sends are protected.';
     setBookingError(msg);
     toast(msg);
   } finally {
@@ -863,32 +969,38 @@ async function submitBooking(e) {
 async function loadUserBookings() {
   try {
     const r = await fetch(API + '/bookings/list', { credentials: 'same-origin' });
+    if (r.status === 401) {
+      bookings = [];
+      renderBookings();
+      return;
+    }
     if (!r.ok) return;
     const data = await r.json();
     if (!Array.isArray(data.bookings)) return;
 
-    const serverList = data.bookings.map(b => ({
+    bookings = data.bookings.map(b => ({
       ...b,
       event_date: String(b.event_date || '').slice(0, 10)
     }));
-    const seen = new Set(serverList.map(b => String(b.id)));
-    const localOnly = bookings.filter(b => b && b.id != null && !seen.has(String(b.id)));
-    bookings = [...serverList, ...localOnly];
-    localStorage.setItem('truckly_bookings', JSON.stringify(bookings));
     renderBookings();
   } catch {}
 }
 
 function formatBookingStatus(raw) {
   const s = String(raw || 'pending').toLowerCase();
-  if (s === 'accepted') return { label: 'Accepted', cls: 'status-accepted' };
+  if (s === 'accepted') return { label: 'Accepted · Confirm with vendor', cls: 'status-accepted' };
   if (s === 'declined') return { label: 'Declined', cls: 'status-declined' };
-  return { label: 'Pending', cls: 'status-pending' };
+  if (s === 'cancelled') return { label: 'Cancelled', cls: 'status-declined' };
+  return { label: 'Pending inquiry', cls: 'status-pending' };
 }
 
 function renderBookings() {
   const el = document.getElementById('bookingList');
   if (!el) return;
+  if (!isSignedIn && !bookings.length) {
+    el.innerHTML = '<div class="empty">Sign in to view your event inquiries and track vendor responses. <a href="/login.html?next=/">Sign in →</a></div>';
+    return;
+  }
   el.innerHTML = bookings.length
     ? bookings.map(b => {
         const d = parseEventDate(b.event_date);
@@ -897,22 +1009,23 @@ function renderBookings() {
         const st = formatBookingStatus(b.status);
         return `<article class="booking-item"><div class="date-box"><small>${esc(month)}</small><b>${esc(day)}</b></div><div class="booking-main"><h3>${esc(b.truck_name)}</h3><div class="meta">${esc(b.event_type)} · ${esc(b.guest_count)} guests · ${esc(b.location)}${b.package_name ? ` · ${esc(b.package_name)}` : ''}${b.package_price ? ` ($${Number(b.package_price).toLocaleString()})` : ''}</div></div><span class="booking-status ${st.cls}">${esc(st.label)}</span></article>`;
       }).join('')
-    : '<div class="empty">No bookings yet. Tap Book a truck below to bring a food truck to your next event.</div>';
+    : '<div class="empty">No event inquiries yet. Tap Book below to send an inquiry to an eligible food truck.</div>';
 }
 
 let isOwnerAdmin = false;
+let ownerAccess = { isPlatformAdmin: false, isModerator: false, vendors: [] };
 let ownerTruckId = (() => {
   try {
     const saved = localStorage.getItem('truckly_owner_truck_id');
-    return saved && saved !== 'estrella' ? saved : 'owner-truck';
+    return saved && saved !== 'estrella' && saved !== 'owner-truck' ? saved : 'mitote';
   } catch {
-    return 'owner-truck';
+    return 'mitote';
   }
 })();
 let ownerRequestFilter = 'pending';
 let ownerProfile = safeJSON('truckly_owner_profile', {
   truck_id: ownerTruckId,
-  display_name: 'My Food Truck',
+  display_name: 'Mitote Food Park',
   cuisine: 'Mexican',
   description: 'Keep Sonoma County regulars in the loop.',
   accepting_bookings: true
@@ -923,10 +1036,15 @@ let ownerSchedule = (() => {
 })();
 let previewOwnerRows = null;
 
+function getActiveVendorRole() {
+  if (!isOwnerAdmin) return 'preview';
+  if (ownerAccess.isPlatformAdmin) return 'platform_admin';
+  const match = ownerAccess.vendors.find(v => v.vendor_id === ownerTruckId);
+  return match ? match.role : null;
+}
+
 function futureDateISO(daysAhead) {
-  const d = new Date();
-  d.setDate(d.getDate() + daysAhead);
-  return d.toISOString().slice(0, 10);
+  return addDaysISO(todayPacificISO(), daysAhead);
 }
 
 function todayPacificISO() {
@@ -956,16 +1074,46 @@ function getPreviewOwnerRows() {
 function populateOwnerTruckSelect() {
   const sel = document.getElementById('ownerTruckSelect');
   if (!sel) return;
-  const customLabel = ownerProfile.truck_id === 'owner-truck' && ownerProfile.display_name
-    ? ownerProfile.display_name
-    : 'My Food Truck';
-  const items = [
-    { id: 'owner-truck', label: `🌮 ${customLabel} (custom)` },
-    ...trucks.map(t => ({ id: t.id, label: `${t.emoji || '🚚'} ${t.name}` }))
-  ];
+
+  let items;
+  if (isOwnerAdmin && !ownerAccess.isPlatformAdmin && ownerAccess.vendors.length > 0) {
+    items = ownerAccess.vendors.map(v => {
+      const cat = trucks.find(t => t.id === v.vendor_id);
+      const emoji = cat?.emoji || '🚚';
+      const name = v.canonical_name || cat?.name || v.vendor_id;
+      return { id: v.vendor_id, label: `${emoji} ${name} (${v.role})` };
+    });
+  } else {
+    items = trucks.map(t => ({ id: t.id, label: `${t.emoji || '🚚'} ${t.name}` }));
+  }
+
+  if (!items.length) {
+    items = [{ id: 'mitote', label: '🎉 Mitote Food Park' }];
+  }
+
   sel.innerHTML = items.map(x => `<option value="${esc(x.id)}">${esc(x.label)}</option>`).join('');
-  if (!items.some(x => x.id === ownerTruckId)) ownerTruckId = 'owner-truck';
+  if (!items.some(x => x.id === ownerTruckId)) {
+    ownerTruckId = items[0].id;
+  }
   sel.value = ownerTruckId;
+}
+
+function syncOwnerPermissionsUI() {
+  const modCard = document.getElementById('ownerModerationCard');
+  if (modCard) {
+    modCard.hidden = isOwnerAdmin && !ownerAccess.isModerator && !ownerAccess.isPlatformAdmin;
+  }
+
+  const editBtn = document.getElementById('ownerEditProfileBtn');
+  const editSub = document.getElementById('ownerEditProfileSub');
+  const role = getActiveVendorRole();
+  const staffRestricted = isOwnerAdmin && role === 'staff';
+  if (editBtn) editBtn.disabled = staffRestricted;
+  if (editSub) {
+    editSub.textContent = staffRestricted
+      ? 'Vendor owner permission required'
+      : 'Update name, cuisine, bio & booking status';
+  }
 }
 
 function renderOwnerHeader() {
@@ -975,6 +1123,7 @@ function renderOwnerHeader() {
   const logoEl = document.getElementById('ownerLogo');
   const pinEl = document.getElementById('ownerPinEmoji');
   const pillEl = document.getElementById('ownerStatusPill');
+  const pagerVendorEl = document.getElementById('pagerVendor');
   const emoji = catalogMatch?.emoji || '🌮';
   const name = ownerProfile.display_name || catalogMatch?.name || 'Your Food Truck';
   const accepting = ownerProfile.accepting_bookings !== false;
@@ -983,10 +1132,12 @@ function renderOwnerHeader() {
   if (subEl) subEl.textContent = ownerProfile.description || catalogMatch?.blurb || 'Keep Sonoma County regulars in the loop.';
   if (logoEl) logoEl.textContent = emoji;
   if (pinEl) pinEl.textContent = emoji;
+  if (pagerVendorEl) pagerVendorEl.value = name;
   if (pillEl) {
     pillEl.textContent = accepting ? '● Accepting bookings' : '○ Bookings paused';
     pillEl.classList.toggle('paused', !accepting);
   }
+  syncOwnerPermissionsUI();
 }
 
 function renderOwnerStats(stats) {
@@ -1039,9 +1190,13 @@ function renderOwnerScheduleList() {
 }
 
 async function selectOwnerTruck(id) {
-  ownerTruckId = id || 'owner-truck';
+  ownerTruckId = id && id !== 'owner-truck' ? id : 'mitote';
   try { localStorage.setItem('truckly_owner_truck_id', ownerTruckId); } catch {}
   await loadOwnerDashboard();
+  const kp = document.getElementById('kitchenPanel');
+  if (kp && !kp.hidden && typeof loadKitchen === 'function') {
+    await loadKitchen();
+  }
 }
 
 async function loadOwnerDashboard() {
@@ -1056,21 +1211,39 @@ async function loadOwnerDashboard() {
       isOwnerAdmin = true;
       if (banner) banner.hidden = true;
       const stats = await statsRes.json();
-      renderOwnerStats(stats);
+      if (stats.actor && typeof stats.actor === 'object') {
+        ownerAccess = {
+          isPlatformAdmin: !!stats.actor.is_platform_admin,
+          isModerator: !!stats.actor.is_moderator,
+          vendors: Array.isArray(stats.actor.vendors) ? stats.actor.vendors : []
+        };
+      } else {
+        ownerAccess = { isPlatformAdmin: true, isModerator: true, vendors: [] };
+      }
 
+      populateOwnerTruckSelect();
       const qId = encodeURIComponent(ownerTruckId);
-      const [profRes, locRes, schedRes] = await Promise.all([
+
+      const needScopedStats = ownerAccess.isPlatformAdmin || ownerAccess.vendors.length > 1;
+      const [scopedStatsRes, profRes, locRes, schedRes] = await Promise.all([
+        needScopedStats ? fetch(`${API}/owner/stats?truck_id=${qId}`, { credentials: 'same-origin' }).catch(() => null) : Promise.resolve(null),
         fetch(`${API}/owner/profile?truck_id=${qId}`, { credentials: 'same-origin' }).catch(() => null),
         fetch(`${API}/owner/location?truck_id=${qId}`, { credentials: 'same-origin' }).catch(() => null),
         fetch(`${API}/owner/schedule?truck_id=${qId}`, { credentials: 'same-origin' }).catch(() => null)
       ]);
+
+      if (scopedStatsRes && scopedStatsRes.ok) {
+        renderOwnerStats(await scopedStatsRes.json());
+      } else {
+        renderOwnerStats(stats);
+      }
 
       if (profRes && profRes.ok) {
         const p = await profRes.json();
         const cat = trucks.find(t => t.id === ownerTruckId);
         ownerProfile = {
           truck_id: ownerTruckId,
-          display_name: p.display_name || cat?.name || 'My Food Truck',
+          display_name: p.display_name || cat?.name || 'Your Food Truck',
           cuisine: p.cuisine || cat?.cuisine || 'Mexican',
           description: p.description || cat?.blurb || 'Keep Sonoma County regulars in the loop.',
           accepting_bookings: p.accepting_bookings !== false
@@ -1101,11 +1274,13 @@ async function loadOwnerDashboard() {
     }
   } catch {}
 
-  // Non-admin / offline Preview Mode
+  // Non-vendor / offline Preview Mode
   isOwnerAdmin = false;
+  ownerAccess = { isPlatformAdmin: false, isModerator: false, vendors: [] };
   if (banner) banner.hidden = false;
+  populateOwnerTruckSelect();
   const cat = trucks.find(t => t.id === ownerTruckId);
-  if (cat && ownerTruckId !== 'owner-truck') {
+  if (cat) {
     ownerProfile = {
       truck_id: cat.id,
       display_name: cat.name,
@@ -1134,9 +1309,12 @@ async function loadOwnerRequests() {
   let rows = [];
   if (isOwnerAdmin) {
     try {
+      const qId = encodeURIComponent(ownerTruckId);
       const url = ownerRequestFilter === 'pending'
-        ? API + '/owner/requests'
-        : (ownerRequestFilter === 'accepted' ? API + '/owner/bookings?status=accepted' : API + '/owner/bookings');
+        ? `${API}/owner/requests?truck_id=${qId}`
+        : (ownerRequestFilter === 'accepted'
+          ? `${API}/owner/bookings?truck_id=${qId}&status=accepted`
+          : `${API}/owner/bookings?truck_id=${qId}`);
       const r = await fetch(url, { credentials: 'same-origin' });
       if (r.ok) {
         const data = await r.json();
@@ -1164,6 +1342,8 @@ async function loadOwnerRequests() {
     return;
   }
 
+  const canDecide = !isOwnerAdmin || getActiveVendorRole() === 'owner' || getActiveVendorRole() === 'platform_admin';
+
   container.innerHTML = rows.slice(0, 15).map(r => {
     const d = parseEventDate(r.event_date);
     const month = d ? d.toLocaleString('en', { month: 'short' }) : 'TBD';
@@ -1172,9 +1352,11 @@ async function loadOwnerRequests() {
     const st = formatBookingStatus(r.status);
     const isPending = String(r.status || 'pending').toLowerCase() === 'pending';
     const actionsHtml = isPending
-      ? `<div class="request-actions"><button type="button" class="accept" onclick="handleRequest('${safeId}','accepted')">Accept</button><button type="button" class="decline" onclick="handleRequest('${safeId}','declined')">Pass</button></div>`
+      ? (canDecide
+        ? `<div class="request-actions"><button type="button" class="accept" onclick="handleRequest('${safeId}','accepted')">Accept</button><button type="button" class="decline" onclick="handleRequest('${safeId}','declined')">Pass</button></div>`
+        : `<span class="booking-status status-pending">Owner decision required</span>`)
       : `<span class="booking-status ${st.cls}">${esc(st.label)}</span>`;
-    return `<div class="request-row" id="req-${safeId}"><div class="request-date"><small>${esc(month)}</small><b>${esc(day)}</b></div><div class="request-info"><b>${esc(r.event_type)} · ${esc(r.guest_count)} guests</b><small>${esc(r.requester || 'Truckly guest')} · ${esc(r.location)}</small><small class="request-package">${esc(r.package_name || 'Custom request')}${r.package_price ? ` · $${Number(r.package_price).toLocaleString()}` : ''}</small></div>${actionsHtml}</div>`;
+    return `<div class="request-row" id="req-${safeId}"><div class="request-date"><small>${esc(month)}</small><b>${esc(day)}</b></div><div class="request-info"><b>${esc(r.event_type)} · ${esc(r.guest_count)} guests</b><small>${esc(r.requester || 'Signed-in customer')} · ${esc(r.location)}</small><small class="request-package">${esc(r.package_name || 'Custom request')}${r.package_price ? ` · $${Number(r.package_price).toLocaleString()}` : ''}</small></div>${actionsHtml}</div>`;
   }).join('');
 }
 
@@ -1184,6 +1366,11 @@ async function handleRequest(id, status) {
     if (row) row.status = status;
     await loadOwnerRequests();
     toast(status === 'accepted' ? 'Booking accepted (preview mode)' : 'Request passed (preview mode)');
+    return;
+  }
+
+  if (getActiveVendorRole() === 'staff') {
+    toast('Vendor owner permission is required to accept or decline bookings');
     return;
   }
 
@@ -1199,7 +1386,7 @@ async function handleRequest(id, status) {
       toast(err.error || 'Could not update booking status');
       return;
     }
-    toast(status === 'accepted' ? 'Booking accepted — time to make it delicious!' : 'Request passed');
+    toast(status === 'accepted' ? 'Booking inquiry accepted — reach out to finalize details!' : 'Booking inquiry declined');
     await loadOwnerDashboard();
   } catch {
     toast('Connection error — could not update booking status');
@@ -1283,6 +1470,10 @@ async function saveOwnerSchedule() {
 }
 
 function openOwnerProfileModal() {
+  if (isOwnerAdmin && getActiveVendorRole() === 'staff') {
+    toast('Vendor owner permission is required to edit listing profile');
+    return;
+  }
   const cuisineSel = document.getElementById('ownerProfileCuisine');
   if (cuisineSel) {
     cuisineSel.innerHTML = cuisineSections.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
@@ -1291,7 +1482,7 @@ function openOwnerProfileModal() {
   const nameInput = document.getElementById('ownerProfileName');
   const bioInput = document.getElementById('ownerProfileBio');
   const acceptToggle = document.getElementById('ownerAcceptingBookings');
-  if (nameInput) nameInput.value = ownerProfile.display_name || 'My Food Truck';
+  if (nameInput) nameInput.value = ownerProfile.display_name || 'Your Food Truck';
   if (bioInput) bioInput.value = ownerProfile.description || '';
   if (acceptToggle) acceptToggle.checked = ownerProfile.accepting_bookings !== false;
   document.getElementById('ownerProfileModal')?.classList.add('show');
@@ -1325,7 +1516,10 @@ async function saveOwnerProfile(e) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (!r.ok) return toast('Could not save owner profile');
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        return toast(err.error || 'Could not save owner profile');
+      }
       ownerProfile = await r.json();
     } catch {
       return toast('Connection error — could not save profile');

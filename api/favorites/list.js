@@ -1,2 +1,16 @@
-import { db } from "hatchable";
-export const access="user";export const methods=["GET"];export default async function(req,res){const{rows}=await db.query("SELECT truck_id,created_at FROM favorites WHERE user_id=$1 ORDER BY created_at DESC",[req.user.id]);res.json({favorites:rows})}
+import { db, auth } from "hatchable";
+import { resolveIdentity } from "../../lib/authz.js";
+
+export const access = "user";
+export const methods = ["GET"];
+
+export default async function(req, res) {
+  const user = await resolveIdentity(req, auth);
+  if (!user) return res.status(401).json({ error: "Sign in is required." });
+
+  const { rows } = await db.query(
+    "SELECT truck_id, created_at FROM favorites WHERE user_id = $1 ORDER BY created_at DESC",
+    [user.id]
+  );
+  return res.json({ favorites: rows });
+}

@@ -534,56 +534,17 @@ Returns featured truck IDs (verified to exist in `api/trucks.js`).
 ## POST /api/bookings/create
 
 File:
-`api/bookings/create.js`
+`api/bookings/create.js` (with `lib/dates.js`, `lib/catalog.js`, `lib/authz.js`, `lib/db-tx.js`)
 
 Access:
-public
+`user` (authenticated `requester_user_id` required via `resolveIdentity(req, auth)`)
 
-Uses Hatchable auth opportunistically:
+### Server-enforced validation & invariants
 
-```js
-const user = await auth.getUser(req)
-```
-
-Anonymous requests are still possible; requester may be null.
-
-### Required request fields
-
-```text
-event_type
-event_date
-location
-guest_count >= 10
-package_id
-```
-
-Optional:
-
-```text
-truck_id
-truck_name
-note
-```
-
-### Package contract
-
-Backend package IDs:
-
-```js
-dropin
-party
-festival
-```
-
-Backend pricing:
-
-```text
-dropin   $750    max 50
-party    $1500   max 100
-festival $2900   max 250
-```
-
-The booking modal in `public/index.html` must remain synchronized with these values.
+- **Real calendar & Pacific future-date policy:** Rejects impossible dates (e.g. `2026-02-29`, `2026-11-31`) and enforces `event_date > getPacificToday()` in `America/Los_Angeles` (up to 365 days ahead).
+- **Eligible vendor & canonical terms:** Verifies `vendors.id` exists with `is_active = true` and `event_bookable = true` (`FOR SHARE OF v`), locks any `owner_profiles` row (`FOR SHARE`), and resolves canonical `truck_name`, `package_name`, and `package_price` on the server (`dropin`: $750 / 10–50 guests; `party`: $1,500 / 10–100 guests; `festival`: $2,900 / 10–250 guests).
+- **Fail-closed availability:** Rejects with `409` if `accepting_bookings = false` or `owner_schedule.status = 'unavailable'` (`FOR SHARE`). Any database read/write failure rolls back and returns `503`.
+- **Idempotency:** Optional `Idempotency-Key` header / `idempotency_key` body (`8–128` ASCII token chars) hashed with request parameters (`request_hash`). Exact retries return `200` (`idempotent_replay: true`); reusing a key with different booking parameters returns `409`.
 
 ---
 
@@ -593,13 +554,15 @@ File:
 `api/bookings/list.js`
 
 Access:
-user
+`user`
 
-Returns bookings where:
+Returns bookings strictly owned by the authenticated requester:
 
 ```sql
-requester = req.user.email
+WHERE requester_user_id = $1
 ```
+
+Unverified legacy rows (`requester_user_id IS NULL`) are never matched by email.
 
 ---
 
@@ -688,9 +651,17 @@ Queries scheduled service rows (`status <> 'unavailable'`) for today's `America/
 
 ---
 
-# 13. Owner/admin API map
+# 13. Vendor RBAC, Pickup Pager & Community Moderation APIs
 
-All owner routes use Hatchable `admin` access. When a non-admin visitor opens `ownerScreen`, `public/app.js` detects the `401/403` on `/api/owner/stats` and switches to explicit **Preview mode** (local device storage only).
+All `/api/owner/*`, `/api/pager/staff`, `/api/pager/update`, and `/api/community/moderate` routes export `access = "user"` and enforce explicit server-side authorization via `lib/authz.js` (`loadAccessContext`, `authorizeVendorTarget`, `authorizeVendorScope`). See `docs/BACKEND_SECURITY_HARDENING.md` for the complete permission matrix.
+
+- **Vendor roles (`vendor_memberships`):**
+  - `owner`: full access for assigned `vendor_id` (`profile`, `location`, `schedule`, `requests` GET/POST accept/decline, `bookings`, `stats`, and `pager` create/update).
+  - `staff`: operational access for assigned `vendor_id` (`location`, `schedule`, `pager` create/update, and read-only `profile`/`requests`/`bookings`/`stats`); `403` on `POST /api/owner/profile` and `POST /api/owner/requests`.
+- **Platform roles (`platform_roles`):**
+  - `moderator`: `GET/POST /api/community/moderate` only (vendor membership never grants moderation access).
+  - `platform_admin`: intentional global read access and explicit-vendor write access, including legacy unassigned/quarantined rows.
+- **Audit logging (`audit_logs`):** Privileged mutations record `actor_id`, `actor_role`, `vendor_id`, `target_type`, `target_id`, `action`, and sanitized `metadata` (redacting private pager UUID tokens and customer notes).
 
 ## GET / POST /api/owner/location
 
@@ -1201,7 +1172,13 @@ api/schedule/*
   Public schedule endpoint backed by owner_schedule
 
 migrations/*
-  PostgreSQL schema history (001–007)
+  PostgreSQL schema history (001–013, including vendors, vendor_memberships, platform_roles, audit_logs, booking integrity triggers, and community_reviews FORCE RLS + community_public_posts view)
+
+lib/*
+  Shared server-side authorization, catalog/package terms, Pacific date validation, and transaction helpers (kept outside api/ so Hatchable does not register helpers as routes)
+
+docs/BACKEND_SECURITY_HARDENING.md
+  P0 permission matrix, invariants, legacy quarantine rules, and staging rollout/rollback guide
 
 docs/PHOTO_MENU_VERIFICATION.md
   Listing verification, address corrections, and photo/menu audit register
@@ -1209,8 +1186,11 @@ docs/PHOTO_MENU_VERIFICATION.md
 tests/listing-verification.cjs
   Zero-dependency Node regression & cross-API parity test suite
 
+tests/backend-hardening.integration.cjs
+  Real-PostgreSQL integration suite for P0-A RBAC, P0-B booking integrity/concurrency, and P0-C community RLS
+
 hatchable.toml
-  Project/auth/data permission configuration
+  Project/auth/data permission configuration (direct table access restricted to favorites & notification_settings)
 ```
 
 ---

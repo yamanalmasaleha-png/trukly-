@@ -1,27 +1,22 @@
 import { db } from "hatchable";
+import { isValidCalendarDate, getPacificToday } from "../../lib/dates.js";
 
 export const access = "public";
 export const methods = ["GET"];
 
 export default async function(req, res) {
-  const now = new Date();
-  const localToday = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Los_Angeles",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(now);
+  const localToday = getPacificToday();
 
-  const requested = String(req.query?.date || "").trim();
-  if (requested && !/^\d{4}-\d{2}-\d{2}$/.test(requested)) {
-    return res.status(400).json({ error: "date must use YYYY-MM-DD format" });
+  const requested = typeof req.query?.date === "string" ? req.query.date.trim() : "";
+  if (requested && !isValidCalendarDate(requested)) {
+    return res.status(400).json({ error: "date must be a real YYYY-MM-DD calendar date" });
   }
   const date = requested || localToday;
 
   let events = [];
   try {
     const { rows } = await db.query(
-      "SELECT s.truck_id, COALESCE(p.display_name, s.truck_id) AS vendor, s.location, s.opens_at, s.closes_at, s.status FROM owner_schedule s LEFT JOIN owner_profiles p ON p.truck_id = s.truck_id WHERE s.service_date = $1 AND s.status <> 'unavailable' ORDER BY s.opens_at ASC NULLS LAST, s.truck_id ASC LIMIT 50",
+      "SELECT s.truck_id, COALESCE(p.display_name, v.canonical_name, s.truck_id) AS vendor, s.location, s.opens_at, s.closes_at, s.status FROM owner_schedule s JOIN vendors v ON v.id = s.truck_id AND v.is_active = true LEFT JOIN owner_profiles p ON p.truck_id = s.truck_id WHERE s.service_date = $1 AND s.status <> 'unavailable' ORDER BY s.opens_at ASC NULLS LAST, s.truck_id ASC LIMIT 50",
       [date]
     );
     events = rows.map(r => ({

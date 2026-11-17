@@ -1,26 +1,120 @@
-import { db } from "hatchable";
+import { db, auth } from "hatchable";
+import { UUID_RE, loadAccessContext, authorizeVendorScope, authorizeVendorTarget, recordAuditLog } from "../../lib/authz.js";
+import { withTransaction } from "../../lib/db-tx.js";
 
-export const access = "admin";
+export const access = "user";
 export const methods = ["GET", "POST"];
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export default async function(req, res) {
-  if (req.method === "POST") {
-    const { id, status } = req.body || {};
-    const cleanId = String(id || "").trim();
-    if (!UUID_RE.test(cleanId) || !["accepted", "declined"].includes(status)) {
-      return res.status(400).json({ error: "Valid booking UUID and status (accepted or declined) are required" });
+  try {
+    const ctx = await loadAccessContext(req, auth, db);
+    if (!ctx.authenticated) {
+      return res.status(401).json({ error: "Sign in is required." });
     }
-    const { rows } = await db.query(
-      "UPDATE bookings SET status = $1 WHERE id = $2 RETURNING id, status",
-      [status, cleanId]
-    );
-    return rows[0] ? res.json(rows[0]) : res.status(404).json({ error: "Not found" });
-  }
 
-  const { rows } = await db.query(
-    "SELECT id, event_type, event_date, guest_count, location, requester, truck_name, package_name, package_price, status, created_at FROM bookings WHERE status = 'pending' ORDER BY event_date ASC LIMIT 25"
-  );
-  res.json({ requests: rows });
+    if (req.method === "POST") {
+      if (!ctx.isPlatformAdmin && ctx.memberships.size === 0) {
+        return res.status(403).json({ error: "Vendor owner permission is required." });
+      }
+
+      const b = req.body && typeof req.body === "object" ? req.body : {};
+      const cleanId = typeof b.id === "string" ? b.id.trim() : "";
+      const targetStatus = typeof b.status === "string" ? b.status.trim().toLowerCase() : "";
+
+      if (!UUID_RE.test(cleanId) || !["accepted", "declined"].includes(targetStatus)) {
+        return res.status(400).json({ error: "Valid booking UUID and status ('accepted' or 'declined') are required." });
+      }
+
+      const outcome = await withTransaction(db, async tx => {
+        const { rows: locked } = await tx.query(
+          "SELECT id, truck_id, event_date, status FROM bookings WHERE id = $1 FOR UPDATE",
+          [cleanId]
+        );
+        if (!locked.length) {
+          return { status: 404, body: { error: "Booking request not found." } };
+        }
+        const booking = locked[0];
+
+        let actorRole = "platform_admin";
+        if (!ctx.isPlatformAdmin) {
+          if (!booking.truck_id) {
+            return { status: 403, body: { error: "Unassigned legacy bookings require platform administrator access." } };
+          }
+          const authz = await authorizeVendorTarget(ctx, booking.truck_id, "owner", tx);
+          if (!authz.ok) {
+            return { status: authz.status, body: { error: authz.error } };
+          }
+          actorRole = authz.actorRole;
+        }
+
+        if (booking.status !== "pending") {
+          return {
+            status: 409,
+            body: { error: `Booking has already been ${booking.status} and cannot transition to ${targetStatus}.` }
+          };
+        }
+
+        if (targetStatus === "accepted" && booking.truck_id) {
+          const { rows: schedRows } = await tx.query(
+            "SELECT status FROM owner_schedule WHERE truck_id = $1 AND service_date = $2 FOR SHARE",
+            [booking.truck_id, booking.event_date]
+          );
+          if (schedRows[0]?.status === "unavailable") {
+            return {
+              status: 409,
+              body: { error: "Cannot accept a booking on a date marked unavailable in the service schedule." }
+            };
+          }
+        }
+
+        const { rows: updated } = await tx.query(
+          `UPDATE bookings
+           SET status = $1, decided_by = $2, decided_at = now(), updated_at = now()
+           WHERE id = $3 AND status = 'pending'
+           RETURNING id, truck_id, status, decided_by, decided_at`,
+          [targetStatus, ctx.user.id, cleanId]
+        );
+
+        await recordAuditLog(tx, {
+          actorId: ctx.user.id,
+          actorRole,
+          vendorId: booking.truck_id || null,
+          targetType: "booking",
+          targetId: booking.id,
+          action: targetStatus === "accepted" ? "booking.accept" : "booking.decline",
+          metadata: {
+            from_status: "pending",
+            to_status: targetStatus,
+            event_date: String(booking.event_date).slice(0, 10)
+          }
+        });
+
+        return { status: 200, body: updated[0] };
+      });
+
+      return res.status(outcome.status).json(outcome.body);
+    }
+
+    const scope = await authorizeVendorScope(ctx, req.query?.truck_id, db);
+    if (!scope.ok) return res.status(scope.status).json({ error: scope.error });
+
+    const selectCols = `
+      id, truck_id, truck_name, event_type, event_date, guest_count, location,
+      COALESCE(requester_email, requester) AS requester,
+      package_id, package_name, package_price, status, created_at
+    `;
+
+    const { rows } = scope.global
+      ? await db.query(
+          `SELECT ${selectCols} FROM bookings WHERE status = 'pending' ORDER BY event_date ASC, created_at ASC LIMIT 25`
+        )
+      : await db.query(
+          `SELECT ${selectCols} FROM bookings WHERE status = 'pending' AND truck_id = ANY($1::text[]) ORDER BY event_date ASC, created_at ASC LIMIT 25`,
+          [scope.vendorIds]
+        );
+
+    return res.json({ requests: rows });
+  } catch {
+    return res.status(503).json({ error: "Owner booking requests are temporarily unavailable." });
+  }
 }

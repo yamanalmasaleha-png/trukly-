@@ -3,7 +3,32 @@
 const fs=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-const {join}=require('node:path');
+const {join,resolve}=require('node:path');
+const {register}=require('node:module');
+const {pathToFileURL}=require('node:url');
+
+let currentMockDb={async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
+let currentMockAuth={async getUser(){return null;}};
+globalThis.__TRUCKLY_HATCHABLE__={
+  db:{
+    query:(...args)=>currentMockDb.query(...args),
+    transaction:(fn)=>currentMockDb.transaction?currentMockDb.transaction(fn):fn(currentMockDb)
+  },
+  auth:{
+    getUser:(...args)=>currentMockAuth.getUser(...args)
+  }
+};
+register('data:text/javascript,'+encodeURIComponent(`
+export async function resolve(specifier, context, nextResolve) {
+  if (specifier === "hatchable") {
+    return {
+      shortCircuit: true,
+      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_HATCHABLE__.auth;"
+    };
+  }
+  return nextResolve(specifier, context);
+}
+`));
 
 function makeClassList(initial=[]){
   const set=new Set(initial);
@@ -102,6 +127,7 @@ function makeEl(id,extra={}){
     detailModal:makeEl('detailModal'),
     detailContent:makeEl('detailContent'),
     bookingModal:makeEl('bookingModal'),
+    bookingAuthNotice:makeEl('bookingAuthNotice',{hidden:true}),
     bookingTruck:makeEl('bookingTruck'),
     bookingTruckLabel:makeEl('bookingTruckLabel'),
     eventType:makeEl('eventType',{value:'Birthday party'}),
@@ -123,7 +149,11 @@ function makeEl(id,extra={}){
     nearbyAlertRadius:makeEl('nearbyAlertRadius',{value:'3',options:[{value:'1'},{value:'3'},{value:'5'},{value:'10'},{value:'15'},{value:'30'}]}),
     nearbyAlertMeta:makeEl('nearbyAlertMeta'),
     ownerModeBanner:makeEl('ownerModeBanner',{hidden:true}),
-    ownerTruckSelect:makeEl('ownerTruckSelect',{value:'owner-truck'}),
+    ownerTruckSelect:makeEl('ownerTruckSelect',{value:'mitote'}),
+    ownerModerationCard:makeEl('ownerModerationCard',{hidden:false}),
+    ownerEditProfileBtn:makeEl('ownerEditProfileBtn'),
+    ownerEditProfileSub:makeEl('ownerEditProfileSub'),
+    pagerVendor:makeEl('pagerVendor'),
     ownerTitle:makeEl('ownerTitle'),
     ownerSubtitle:makeEl('ownerSubtitle'),
     ownerLogo:makeEl('ownerLogo'),
@@ -249,45 +279,27 @@ function makeEl(id,extra={}){
   assert.equal(elements.locationLabel.textContent,'Near Petaluma','location pill updated to nearest Sonoma hub');
   assert.deepEqual([...mapFlownTo],[38.2437,-122.6269],'map flew to user coordinates');
 
-  // Test Fix 1: Booking client-side package limit validation & server 400 error handling
+  // Test Fix 1: Booking client-side sign-in requirement, package limit validation & server 400 error handling
   let createCalls=0;
-  fetchHandler=async(url)=>{
+  let capturedHeaders=null;
+  fetchHandler=async(url,opts={})=>{
     if(url==='/api/bookings/create'){
       createCalls++;
+      capturedHeaders=opts.headers||{};
       return {ok:false,status:400,json:async()=>({error:'Server rejected booking'})};
     }
     return {ok:false,status:401,json:async()=>({})};
   };
-  elements.guestCount.value='80'; // exceeds dropin max 50
+  // Guest (unauthenticated) booking attempt is blocked with explicit sign-in notice
+  elements.guestCount.value='40';
   sandbox.openBooking('mitote');
+  assert.equal(elements.bookingAuthNotice.hidden,false,'guest sees sign-in required notice in booking modal');
   await sandbox.submitBooking({preventDefault(){},target:{reset(){}}});
-  assert.equal(createCalls,0,'invalid package guest count blocked before network call');
-  assert.equal(elements.bookingError.hidden,false,'inline booking error shown');
-  assert(elements.bookingError.textContent.includes('up to 50 guests'));
-  assert.equal(vm.runInContext('bookings.length',sandbox),0,'rejected booking not saved');
+  assert.equal(createCalls,0,'unauthenticated booking blocked before network call');
+  assert(elements.bookingError.textContent.includes('sign in'),'sign-in guidance surfaced to guest');
 
-  // Switch to party (max 100), test server 400 error is NOT swallowed
-  activePackageRadio={value:'party',dataset:{price:'1500',max:'100',name:'Party Favorite'}};
-  await sandbox.submitBooking({preventDefault(){},target:{reset(){}}});
-  assert.equal(createCalls,1,'valid client payload sent to server');
-  assert.equal(elements.bookingError.textContent,'Server rejected booking','server 400 error surfaced in modal');
-  assert.equal(vm.runInContext('bookings.length',sandbox),0,'server-rejected booking not saved to localStorage');
-  assert.equal(elements.bookingModal.classList.contains('show'),true,'modal stays open on server error so user can fix input');
-
-  // Server 201 success path
-  fetchHandler=async(url)=>{
-    if(url==='/api/bookings/create'){
-      return {ok:true,status:201,json:async()=>({id:'uuid-booking-1',status:'pending',package_name:'Party Favorite',package_price:1500,created_at:'2026-11-16T18:00:00Z'})};
-    }
-    return {ok:false,status:401,json:async()=>({})};
-  };
-  await sandbox.submitBooking({preventDefault(){},target:{reset(){elements.eventDate.value='';}}});
-  assert.equal(vm.runInContext('bookings.length',sandbox),1,'confirmed booking saved');
-  assert.equal(elements.bookingModal.classList.contains('show'),false,'modal closed on 201');
-  assert(/^\d{4}-\d{2}-\d{2}$/.test(elements.eventDate.value),'default event date restored after form reset');
-
-  // Test Fix 4: Hybrid signed-in sync (favorites, ISO-timestamp bookings, notification settings, XSS escaping)
-  sandbox.window.__HATCHABLE__={user:{email:'maya@sonoma.example'}};
+  // Sign in user, then verify package guest-count check, 400 handling, and 201 idempotency header
+  sandbox.window.__HATCHABLE__={user:{id:'usr_maya',email:'maya@sonoma.example'}};
   fetchHandler=async(url,opts={})=>{
     if(url==='/api/favorites/list')return {ok:true,status:200,json:async()=>({favorites:[{truck_id:'mitote'},{truck_id:'fruta'}]})};
     if(url==='/api/bookings/list')return {ok:true,status:200,json:async()=>({bookings:[{id:'srv-1',truck_name:'Mitote <script>alert(1)</script>',event_type:'Wedding',event_date:'2026-12-05T00:00:00.000Z',guest_count:90,location:'Santa Rosa',package_name:'Party Favorite',package_price:1500,status:'accepted'}]})};
@@ -305,6 +317,47 @@ function makeEl(id,extra={}){
   assert(elements.bookingList.innerHTML.includes('status-accepted'),'accepted booking status styled');
   assert(!elements.bookingList.innerHTML.includes('<script>'),'XSS payload escaped in booking list');
 
+  fetchHandler=async(url,opts={})=>{
+    if(url==='/api/bookings/create'){
+      createCalls++;
+      capturedHeaders=opts.headers||{};
+      return {ok:false,status:400,json:async()=>({error:'Server rejected booking'})};
+    }
+    return {ok:true,status:200,json:async()=>({requestable:true})};
+  };
+  elements.guestCount.value='80'; // exceeds dropin max 50
+  sandbox.openBooking('mitote');
+  assert.equal(elements.bookingAuthNotice.hidden,true,'sign-in banner hidden when authenticated');
+  await sandbox.submitBooking({preventDefault(){},target:{reset(){}}});
+  assert.equal(createCalls,0,'invalid package guest count blocked before network call');
+  assert.equal(elements.bookingError.hidden,false,'inline booking error shown');
+  assert(elements.bookingError.textContent.includes('up to 50 guests'));
+
+  // Switch to party (max 100), test server 400 error is NOT swallowed and Idempotency-Key is sent
+  activePackageRadio={value:'party',dataset:{price:'1500',max:'100',name:'Party Favorite'}};
+  await sandbox.submitBooking({preventDefault(){},target:{reset(){}}});
+  assert.equal(createCalls,1,'valid client payload sent to server');
+  const firstIdemKey=capturedHeaders['Idempotency-Key'];
+  assert(firstIdemKey && firstIdemKey.length>=8,'Idempotency-Key header included');
+  assert.equal(elements.bookingError.textContent,'Server rejected booking','server 400 error surfaced in modal');
+  assert.equal(elements.bookingModal.classList.contains('show'),true,'modal stays open on server error so user can fix input');
+
+  // Retry identical payload reuses same Idempotency-Key, and 201 closes modal
+  fetchHandler=async(url,opts={})=>{
+    if(url==='/api/bookings/create'){
+      capturedHeaders=opts.headers||{};
+      return {ok:true,status:201,json:async()=>({id:'uuid-booking-1',truck_id:'mitote',truck_name:'Mitote Food Park',status:'pending',package_name:'Party Favorite',package_price:1500,created_at:'2026-11-16T18:00:00Z'})};
+    }
+    if(url==='/api/bookings/list'){
+      return {ok:true,status:200,json:async()=>({bookings:[{id:'uuid-booking-1',truck_id:'mitote',truck_name:'Mitote Food Park',event_type:'Birthday party',event_date:elements.eventDate.value||'2026-11-25',guest_count:80,location:'123 Fourth St, Santa Rosa',package_name:'Party Favorite',package_price:1500,status:'pending'}]})};
+    }
+    return {ok:true,status:200,json:async()=>({requestable:true})};
+  };
+  await sandbox.submitBooking({preventDefault(){},target:{reset(){elements.eventDate.value='';}}});
+  assert.equal(capturedHeaders['Idempotency-Key'],firstIdemKey,'retrying identical form draft reuses Idempotency-Key');
+  assert.equal(elements.bookingModal.classList.contains('show'),false,'modal closed on 201');
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(elements.eventDate.value),'default event date restored after form reset');
+
   // Test accent-folded client search ("iniguez" matches "Tacos Iñiguez")
   elements.searchInput.value='iniguez';
   assert.equal(vm.runInContext('filtered()[0]?.id',sandbox),'iniguez','client search matches accented vendor names');
@@ -318,13 +371,15 @@ function makeEl(id,extra={}){
   sandbox.resetFilters();
 
   // 3. Cross-endpoint API parity & stale-data regression checks
-  function loadHandler(relPath,mockDb=null){
-    const raw=fs.readFileSync(relPath,'utf8');
-    const body=raw
-      .replace(/import\s+\{[^}]*\}\s+from\s+['"]hatchable['"];?/g,'')
-      .replace(/export\s+const\s+(?:access|methods)\s*=\s*[^;]+;?/g,'')
-      .replace(/export\s+default\s+async\s+function\s*\(/,'return async function(');
-    return new Function('db',body)(mockDb);
+  // (Full real-PostgreSQL RBAC, RLS, constraint, and concurrency tests live in tests/backend-hardening.integration.cjs)
+  async function loadHandler(relPath,mockDb=null){
+    const mod=await import(pathToFileURL(resolve(relPath)).href);
+    return async function(req,res){
+      currentMockDb=mockDb||{async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
+      if(mockDb&&!mockDb.transaction)mockDb.transaction=async(fn)=>fn(mockDb);
+      currentMockAuth={async getUser(){return req.user||null;}};
+      return mod.default(req,res);
+    };
   }
   async function invoke(fn,req={}){
     let code=200,payload=null;
@@ -333,7 +388,7 @@ function makeEl(id,extra={}){
       status(c){code=c;return this;},
       json(p){payload=p;return this;}
     };
-    await fn({query:{},params:{},body:{},method:'GET',...req},res);
+    await fn({query:{},params:{},body:{},headers:{},method:'GET',...req},res);
     return {status:code,body:payload};
   }
 
@@ -357,7 +412,7 @@ function makeEl(id,extra={}){
   }
 
   // 3a. api/trucks/[id].js parity with all 47 listings in api/trucks.js
-  const detailFn=loadHandler(join('api','trucks','[id].js'));
+  const detailFn=await loadHandler(join('api','trucks','[id].js'));
   for(const t of result.trucks){
     const r=await invoke(detailFn,{params:{id:t.id}});
     assert.equal(r.status,200,'detail found for '+t.id);
@@ -372,7 +427,7 @@ function makeEl(id,extra={}){
   assert.equal(missingDetail.status,404,'unknown truck returns 404');
 
   // 3b. api/trucks/search.js parity + accent-insensitive search
-  const searchFn=loadHandler(join('api','trucks','search.js'));
+  const searchFn=await loadHandler(join('api','trucks','search.js'));
   const allSearch=await invoke(searchFn,{query:{limit:'50'}});
   assert.equal(allSearch.body.total,47,'search indexes all 47 primary listings');
   assert.equal(allSearch.body.results.length,47,'search limit=50 returns all 47 listings');
@@ -383,16 +438,16 @@ function makeEl(id,extra={}){
   assert.equal(marketSearch.body.total,10,'tag search finds all 10 market stalls');
 
   // 3c. api/catalog/cuisines.js, featured.js, cities.js & nearby.js parity
-  const cuisinesRes=await invoke(loadHandler(join('api','catalog','cuisines.js')));
+  const cuisinesRes=await invoke(await loadHandler(join('api','catalog','cuisines.js')));
   assert.deepEqual(cuisinesRes.body.cuisines.map(c=>c.id),result.sections,'cuisines metadata includes all 6 catalog sections including Markets');
-  const featuredRes=await invoke(loadHandler(join('api','catalog','featured.js')));
+  const featuredRes=await invoke(await loadHandler(join('api','catalog','featured.js')));
   assert(featuredRes.body.featured_ids.every(id=>byId[id]),'all featured IDs exist in primary catalog');
-  const citiesRes=await invoke(loadHandler(join('api','catalog','cities.js')));
-  const nearbyRes=await invoke(loadHandler(join('api','trucks','nearby.js')),{query:{lat:'38.4405',lng:'-122.7144'}});
+  const citiesRes=await invoke(await loadHandler(join('api','catalog','cities.js')));
+  const nearbyRes=await invoke(await loadHandler(join('api','trucks','nearby.js')),{query:{lat:'38.4405',lng:'-122.7144'}});
   assert.deepEqual(new Set(citiesRes.body.cities.map(c=>c.name)),new Set(nearbyRes.body.nearest_hubs.map(h=>h.city)),'cities and nearby hubs match');
 
-  // 3d. api/schedule/today.js reads owner_schedule and validates date param
-  const scheduleFn=loadHandler(join('api','schedule','today.js'),{
+  // 3d. api/schedule/today.js reads owner_schedule and validates real calendar date param
+  const scheduleFn=await loadHandler(join('api','schedule','today.js'),{
     async query(sql,params){
       assert(sql.includes('FROM owner_schedule'));
       return {rows:[{truck_id:'dinos',vendor:"Dino's Greek Food",location:'Courthouse Square, Santa Rosa',opens_at:'11:00:00',closes_at:'14:30:00',status:'scheduled'}]};
@@ -400,34 +455,47 @@ function makeEl(id,extra={}){
   });
   const badDate=await invoke(scheduleFn,{query:{date:'09/17/2026'}});
   assert.equal(badDate.status,400,'invalid date rejected on schedule/today');
+  const impossibleSchedDate=await invoke(scheduleFn,{query:{date:'2026-02-29'}});
+  assert.equal(impossibleSchedDate.status,400,'impossible calendar date rejected on schedule/today');
   const goodSchedule=await invoke(scheduleFn,{query:{date:'2026-11-16'}});
   assert.equal(goodSchedule.status,200);
   assert.equal(goodSchedule.body.events.length,1);
   assert.equal(goodSchedule.body.events[0].opens,'11:00');
   assert.equal(goodSchedule.body.events[0].closes,'14:30');
 
-  // 3e. api/owner/location.js Sonoma defaults & api/owner/requests.js UUID validation
-  let capturedTruckId=null;
-  const ownerLocFn=loadHandler(join('api','owner','location.js'),{
+  // 3e. api/owner/location.js vendor-scoped auth & api/owner/requests.js UUID validation
+  const ownerLocFn=await loadHandler(join('api','owner','location.js'),{
     async query(sql,params){
-      capturedTruckId=params[0];
-      if(sql.startsWith('SELECT'))return {rows:[]};
-      return {rows:[{truck_id:params[0],location:params[1],is_open:true}]};
+      if(sql.includes('FROM platform_roles'))return {rows:[]};
+      if(sql.includes('FROM vendor_memberships'))return {rows:[{vendor_id:'iniguez',role:'owner',canonical_name:'Tacos Iñiguez'}]};
+      if(sql.includes('FROM truck_settings'))return {rows:[]};
+      return {rows:[]};
     }
   });
-  const defaultLoc=await invoke(ownerLocFn,{method:'GET',query:{truck_id:'estrella'}});
-  assert.equal(capturedTruckId,'owner-truck','legacy estrella normalized to owner-truck');
-  assert.equal(defaultLoc.body.location,'Ross Street, Downtown Santa Rosa','Sonoma fallback location returned');
-  assert.equal(defaultLoc.body.is_open,false,'unconfigured owner truck defaults to is_open: false');
+  const unauthLoc=await invoke(ownerLocFn,{method:'GET',query:{truck_id:'iniguez'}});
+  assert.equal(unauthLoc.status,401,'unauthenticated owner location request denied');
+  const crossVendorLoc=await invoke(ownerLocFn,{method:'GET',user:{id:'usr_a'},query:{truck_id:'mitote'}});
+  assert.equal(crossVendorLoc.status,403,'cross-vendor location read denied');
+  const defaultLoc=await invoke(ownerLocFn,{method:'GET',user:{id:'usr_a'},query:{truck_id:'iniguez'}});
+  assert.equal(defaultLoc.status,200);
+  assert.equal(defaultLoc.body.truck_id,'iniguez');
+  assert.equal(defaultLoc.body.is_open,false,'unconfigured vendor defaults to is_open: false');
 
   let dbUpdated=false;
-  const ownerReqFn=loadHandler(join('api','owner','requests.js'),{
-    async query(){dbUpdated=true;return {rows:[{id:'00000000-0000-4000-8000-000000000001',status:'accepted'}]};}
+  const ownerReqFn=await loadHandler(join('api','owner','requests.js'),{
+    async query(sql){
+      if(sql.includes('FROM platform_roles'))return {rows:[]};
+      if(sql.includes('FROM vendor_memberships'))return {rows:[{vendor_id:'iniguez',role:'owner',canonical_name:'Tacos Iñiguez'}]};
+      if(sql.includes('FOR UPDATE'))return {rows:[{id:'00000000-0000-4000-8000-000000000001',truck_id:'iniguez',event_date:'2026-12-01',status:'pending'}]};
+      if(sql.includes('FROM owner_schedule'))return {rows:[]};
+      if(sql.includes('UPDATE bookings')){dbUpdated=true;return {rows:[{id:'00000000-0000-4000-8000-000000000001',truck_id:'iniguez',status:'accepted'}]};}
+      return {rows:[]};
+    }
   });
-  const demoIdRes=await invoke(ownerReqFn,{method:'POST',body:{id:'1',status:'accepted'}});
+  const demoIdRes=await invoke(ownerReqFn,{method:'POST',user:{id:'usr_a'},body:{id:'1',status:'accepted'}});
   assert.equal(demoIdRes.status,400,'non-UUID booking ID rejected cleanly before SQL cast');
   assert.equal(dbUpdated,false);
-  const validUuidRes=await invoke(ownerReqFn,{method:'POST',body:{id:'00000000-0000-4000-8000-000000000001',status:'accepted'}});
+  const validUuidRes=await invoke(ownerReqFn,{method:'POST',user:{id:'usr_a'},body:{id:'00000000-0000-4000-8000-000000000001',status:'accepted'}});
   assert.equal(validUuidRes.status,200);
   assert.equal(dbUpdated,true);
 
@@ -465,30 +533,34 @@ function makeEl(id,extra={}){
   assert.equal(elements.statAcceptedRequests.textContent,'1');
   assert.equal(elements.statPendingRequests.textContent,'2');
 
-  // 4c. Owner Mode — Live Admin Mode (real stats, empty pending inbox without fake rows, schedule & profile save)
+  // 4c. Owner Mode — Live Vendor Owner Mode (scoped stats, moderation hidden for non-moderators, schedule & profile save)
   let savedSchedulePayload=null,savedProfilePayload=null;
+  const futureSchedDate=vm.runInContext('futureDateISO(4)',sandbox);
   fetchHandler=async(url,opts={})=>{
-    if(url==='/api/owner/stats')return {ok:true,status:200,json:async()=>({total_requests:14,pending:0,accepted:11})};
-    if(url.startsWith('/api/owner/profile')&&(!opts.method||opts.method==='GET'))return {ok:true,status:200,json:async()=>({truck_id:'owner-truck',display_name:'Sonoma Fuego',cuisine:'Mexican',description:'Wood-fired tacos',accepting_bookings:true})};
+    if(url.startsWith('/api/owner/stats'))return {ok:true,status:200,json:async()=>({total_requests:14,pending:0,accepted:11,actor:{user_id:'usr_owner_a',is_platform_admin:false,is_moderator:false,vendors:[{vendor_id:'iniguez',role:'owner',canonical_name:'Tacos Iñiguez'}]}} )};
+    if(url.startsWith('/api/owner/profile')&&(!opts.method||opts.method==='GET'))return {ok:true,status:200,json:async()=>({truck_id:'iniguez',display_name:'Sonoma Fuego',cuisine:'Mexican',description:'Wood-fired tacos',accepting_bookings:true})};
     if(url==='/api/owner/profile'&&opts.method==='POST'){savedProfilePayload=JSON.parse(opts.body);return {ok:true,status:200,json:async()=>savedProfilePayload};}
-    if(url.startsWith('/api/owner/location'))return {ok:true,status:200,json:async()=>({truck_id:'owner-truck',location:'Courthouse Square, Santa Rosa',is_open:true,opens_at:'11:30:00',closes_at:'19:30:00'})};
+    if(url.startsWith('/api/owner/location'))return {ok:true,status:200,json:async()=>({truck_id:'iniguez',location:'Courthouse Square, Santa Rosa',is_open:true,opens_at:'11:30:00',closes_at:'19:30:00'})};
     if(url.startsWith('/api/owner/schedule')&&(!opts.method||opts.method==='GET'))return {ok:true,status:200,json:async()=>({schedule:[]})};
     if(url==='/api/owner/schedule'&&opts.method==='POST'){savedSchedulePayload=JSON.parse(opts.body);return {ok:true,status:200,json:async()=>savedSchedulePayload};}
-    if(url==='/api/owner/requests')return {ok:true,status:200,json:async()=>({requests:[]})};
+    if(url.startsWith('/api/owner/requests'))return {ok:true,status:200,json:async()=>({requests:[]})};
     return {ok:true,status:200,json:async()=>({})};
   };
   await vm.runInContext('loadOwnerDashboard()',sandbox);
-  assert.equal(elements.ownerModeBanner.hidden,true,'Preview Mode banner hidden for authenticated admin');
+  assert.equal(elements.ownerModeBanner.hidden,true,'Preview Mode banner hidden for authenticated vendor owner');
+  assert.equal(elements.ownerModerationCard.hidden,true,'community moderation card hidden for non-moderator vendor owner');
   assert.equal(elements.statTotalRequests.textContent,'14');
   assert.equal(elements.statAcceptedRequests.textContent,'11');
   assert.equal(elements.ownerTitle.textContent,'Sonoma Fuego');
-  assert(elements.ownerRequests.innerHTML.includes('No pending booking requests right now.'),'real admin empty inbox does not inject fake demo rows');
+  assert.equal(elements.pagerVendor.value,'Sonoma Fuego','pager vendor input synced to selected vendor display name');
+  assert(elements.ownerRequests.innerHTML.includes('No pending booking requests right now.'),'real vendor empty inbox does not inject fake demo rows');
 
-  elements.ownerScheduleDate.value='2026-11-20';
+  elements.ownerScheduleDate.value=futureSchedDate;
   elements.ownerOpensAt.value='11:30';
   elements.ownerClosesAt.value='19:30';
   elements.ownerIsOpen.checked=false;
   await sandbox.saveOwnerSchedule();
+  assert.equal(savedSchedulePayload.truck_id,'iniguez');
   assert.equal(savedSchedulePayload.status,'unavailable','unchecked open switch saves status=unavailable');
   assert(elements.ownerScheduleList.innerHTML.includes('Unavailable'),'saved schedule rendered in list');
 
@@ -501,18 +573,29 @@ function makeEl(id,extra={}){
   assert(elements.ownerStatusPill.textContent.includes('paused'),'paused booking status reflected in header pill');
 
   // 4d. Backend api/owner/schedule.js & api/owner/bookings.js validation
-  const ownerSchedApi=loadHandler(join('api','owner','schedule.js'),{
-    async query(sql,params){return {rows:[{truck_id:params[0]||'dinos',service_date:params[1]||'2026-11-20',status:'scheduled'}]};}
+  const ownerSchedApi=await loadHandler(join('api','owner','schedule.js'),{
+    async query(sql,params){
+      if(sql.includes('FROM platform_roles'))return {rows:[]};
+      if(sql.includes('FROM vendor_memberships'))return {rows:[{vendor_id:'dinos',role:'staff',canonical_name:"Dino's Greek Food"}]};
+      if(sql.includes('INSERT INTO owner_schedule'))return {rows:[{id:'00000000-0000-4000-8000-000000000010',truck_id:params[0]||'dinos',service_date:params[1]||futureSchedDate,status:'scheduled'}]};
+      return {rows:[]};
+    }
   });
-  const badSchedRes=await invoke(ownerSchedApi,{method:'POST',body:{truck_id:'dinos',service_date:'bad-date'}});
+  const badSchedRes=await invoke(ownerSchedApi,{method:'POST',user:{id:'usr_staff_dinos'},body:{truck_id:'dinos',service_date:'bad-date'}});
   assert.equal(badSchedRes.status,400,'owner/schedule rejects malformed date');
-  const goodSchedRes=await invoke(ownerSchedApi,{method:'POST',body:{truck_id:'dinos',service_date:'2026-11-20',opens_at:'11:00',closes_at:'15:00'}});
+  const goodSchedRes=await invoke(ownerSchedApi,{method:'POST',user:{id:'usr_staff_dinos'},body:{truck_id:'dinos',service_date:futureSchedDate,opens_at:'11:00',closes_at:'15:00'}});
   assert.equal(goodSchedRes.status,200);
 
-  const ownerBookingsApi=loadHandler(join('api','owner','bookings.js'),{
-    async query(sql,params){assert(sql.includes('LIMIT 100'));return {rows:[{id:'b1',status:params?.[0]||'accepted'}]};}
+  const ownerBookingsApi=await loadHandler(join('api','owner','bookings.js'),{
+    async query(sql,params){
+      if(sql.includes('FROM platform_roles'))return {rows:[]};
+      if(sql.includes('FROM vendor_memberships'))return {rows:[{vendor_id:'dinos',role:'owner',canonical_name:"Dino's Greek Food"}]};
+      assert(sql.includes('LIMIT 100'));
+      assert(sql.includes('ANY($1::text[])'));
+      return {rows:[{id:'b1',truck_id:'dinos',status:params?.[1]||'accepted'}]};
+    }
   });
-  const filteredBookingsRes=await invoke(ownerBookingsApi,{query:{status:'accepted'}});
+  const filteredBookingsRes=await invoke(ownerBookingsApi,{user:{id:'usr_owner_dinos'},query:{status:'accepted'}});
   assert.equal(filteredBookingsRes.body.bookings[0].status,'accepted');
 
   console.log('PASS: 47 primary listings, addresses, category matching, safe photo defaults, JS syntax, UI flows, cross-API parity, and Owner Mode wiring');
