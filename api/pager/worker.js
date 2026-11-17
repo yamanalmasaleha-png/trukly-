@@ -1,7 +1,13 @@
 import crypto from "node:crypto";
 import { db } from "hatchable";
 import { applyPrivateNoStoreHeaders } from "../../lib/authz.js";
-import { runNotificationWorkerBatch } from "../../lib/pager-notifications.js";
+import {
+  DEFAULT_WORKER_CONCURRENCY,
+  DEFAULT_PROVIDER_TIMEOUT_MS,
+  DEFAULT_WORKER_EXECUTION_BUDGET_MS,
+  WORKER_LEASE_SECONDS,
+  runNotificationWorkerBatch
+} from "../../lib/pager-notifications.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -39,18 +45,46 @@ export default async function(req, res) {
 
   const b = req.body && typeof req.body === "object" ? req.body : {};
   const batchSize = Math.max(1, Math.min(25, Number(b.batch_size) || 15));
+  const concurrency = Math.max(
+    1,
+    Math.min(5, Number(b.concurrency) || DEFAULT_WORKER_CONCURRENCY)
+  );
+  const executionBudgetMs = Math.max(
+    500,
+    Math.min(25000, Number(b.execution_budget_ms) || DEFAULT_WORKER_EXECUTION_BUDGET_MS)
+  );
   const runCleanup = b.cleanup !== false;
-  const now = req._testNow instanceof Date ? req._testNow : new Date();
+  const now = req._testNow instanceof Date ? req._testNow : null;
+  const clock = typeof req._testClock === "function" ? req._testClock : null;
+  const hooks = req._testHooks && typeof req._testHooks === "object" ? req._testHooks : null;
+  const leaseSeconds =
+    typeof req._testLeaseSeconds === "number" ? req._testLeaseSeconds : WORKER_LEASE_SECONDS;
+  const providerTimeoutMs =
+    typeof req._testProviderTimeoutMs === "number"
+      ? req._testProviderTimeoutMs
+      : DEFAULT_PROVIDER_TIMEOUT_MS;
+  const workerId =
+    typeof req._testWorkerId === "string" && req._testWorkerId.trim()
+      ? req._testWorkerId.trim()
+      : undefined;
 
   try {
     const result = await runNotificationWorkerBatch(db, {
       batchSize,
+      concurrency,
+      leaseSeconds,
+      providerTimeoutMs,
+      executionBudgetMs,
+      workerId,
       now,
+      clock,
+      hooks,
       runCleanup
     });
+    const executedIso = (now || new Date()).toISOString();
     return res.json({
       ok: true,
-      executed_at: now.toISOString(),
+      executed_at: executedIso,
       ...result
     });
   } catch {

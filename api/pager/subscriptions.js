@@ -12,7 +12,8 @@ import {
   validateSubscriptionPayload,
   verifySameOriginMutation,
   extractClientRateKey,
-  consumePagerRateLimit
+  consumePagerRateLimit,
+  enqueueReadyCatchupInTx
 } from "../../lib/pager-notifications.js";
 
 export const access = "public";
@@ -94,7 +95,7 @@ export default async function(req, res) {
     const b = req.body && typeof req.body === "object" ? req.body : {};
 
     // =========================================================================
-    // DELETE: Unsubscribe & immediately scrub endpoint/key material
+    // DELETE: Unsubscribe, scrub endpoint/key material & suppress un-dispatched work
     // =========================================================================
     if (req.method === "DELETE") {
       const subId = typeof (b.subscription_id || req.query?.subscription_id) === "string"
@@ -150,9 +151,16 @@ export default async function(req, res) {
            SET status = 'suppressed',
                last_error_code = 'user_unsubscribed',
                lease_owner = NULL,
+               claim_token = NULL,
+               claimed_at = NULL,
+               dispatched_at = NULL,
                lease_expires_at = NULL,
                updated_at = $2
-           WHERE subscription_id = $1 AND status IN ('queued', 'retry_scheduled')`,
+           WHERE subscription_id = $1
+             AND (
+               status IN ('queued', 'retry_scheduled')
+               OR (status = 'processing' AND dispatched_at IS NULL)
+             )`,
           [subId, nowIso]
         );
 
@@ -202,6 +210,11 @@ export default async function(req, res) {
       return res.status(400).json({ error: "A valid private pickup pager code is required to subscribe." });
     }
 
+    const rawReplaceId = typeof b.replaces_subscription_id === "string" ? b.replaces_subscription_id.trim() : "";
+    if (rawReplaceId && !UUID_RE.test(rawReplaceId)) {
+      return res.status(400).json({ error: "replaces_subscription_id must be a valid UUID when provided." });
+    }
+
     // Rate-limit both by client hash and by target pager hash
     const clientRl = await consumePagerRateLimit(db, {
       scope: "pager_sub_client",
@@ -244,11 +257,13 @@ export default async function(req, res) {
     const outcome = await withTransaction(db, async tx => {
       await enablePagerInternalContext(tx);
 
+      // Lock pickup_pagers FOR NO KEY UPDATE so concurrent ready transitions (`FOR UPDATE` in
+      // `POST /api/pager/update`) and concurrent device registrations strictly serialize on this ticket.
       const { rows: pagerRows } = await tx.query(
-        `SELECT id, vendor_id, vendor, ticket, status, expires_at
+        `SELECT id, vendor_id, vendor, ticket, status, expires_at, ready_notified_at, ready_notify_count
          FROM pickup_pagers
          WHERE id = $1
-         FOR SHARE`,
+         FOR NO KEY UPDATE`,
         [pagerCode]
       );
 
@@ -264,6 +279,60 @@ export default async function(req, res) {
       }
 
       const pager = pagerRows[0];
+
+      // Inspect existing subscription row for `(pager.id, destinationHash)` before upsert
+      const { rows: existingDestRows } = await tx.query(
+        `SELECT id, status
+         FROM pager_notification_subscriptions
+         WHERE pager_id = $1 AND destination_hash = $2
+         FOR UPDATE`,
+        [pager.id, validated.destinationHash]
+      );
+      const priorDestRow = existingDestRows[0] || null;
+
+      // Optional endpoint/token rotation on the same pager capability
+      let replacedSubscriptionId = null;
+      if (rawReplaceId && (!priorDestRow || priorDestRow.id !== rawReplaceId)) {
+        const { rows: replaceRows } = await tx.query(
+          `SELECT id
+           FROM pager_notification_subscriptions
+           WHERE id = $1 AND pager_id = $2
+           FOR UPDATE`,
+          [rawReplaceId, pager.id]
+        );
+        if (replaceRows.length > 0) {
+          replacedSubscriptionId = replaceRows[0].id;
+          await tx.query(
+            `UPDATE pager_notification_subscriptions
+             SET status = 'unsubscribed',
+                 invalidated_reason = 'token_rotated',
+                 endpoint_url = NULL,
+                 p256dh_key = NULL,
+                 auth_secret = NULL,
+                 device_token = NULL,
+                 updated_at = $2
+             WHERE id = $1`,
+            [replacedSubscriptionId, nowIso]
+          );
+          await tx.query(
+            `UPDATE pager_notification_deliveries
+             SET status = 'suppressed',
+                 last_error_code = 'token_rotated',
+                 lease_owner = NULL,
+                 claim_token = NULL,
+                 claimed_at = NULL,
+                 dispatched_at = NULL,
+                 lease_expires_at = NULL,
+                 updated_at = $2
+             WHERE subscription_id = $1
+               AND (
+                 status IN ('queued', 'retry_scheduled')
+                 OR (status = 'processing' AND dispatched_at IS NULL)
+               )`,
+            [replacedSubscriptionId, nowIso]
+          );
+        }
+      }
 
       const { rows: activeCountRows } = await tx.query(
         `SELECT count(*)::int AS active_count
@@ -318,6 +387,18 @@ export default async function(req, res) {
 
       const sub = upserted[0];
 
+      // Atomically enqueue ready-state catch-up when subscribing to an already-ready, non-expired ticket
+      const catchupMeta =
+        pager.status === "ready"
+          ? await enqueueReadyCatchupInTx(tx, {
+              pager,
+              subscriptionId: sub.id,
+              priorStatus: priorDestRow ? priorDestRow.status : null,
+              replacedSubscriptionId,
+              now
+            })
+          : { queued: false, reason: "pager_not_ready" };
+
       await recordAuditLog(tx, {
         actorId: "pager_subscriber",
         actorRole: "customer_capability",
@@ -327,9 +408,15 @@ export default async function(req, res) {
         action: "pager.subscription_upsert",
         metadata: {
           channel: sub.channel,
-          platform_hint: platformHint
+          platform_hint: platformHint,
+          catchup_queued: Boolean(catchupMeta.queued),
+          catchup_reason: catchupMeta.reason
         }
       });
+
+      if (req._testForceRollbackAfterCatchup === true) {
+        throw new Error("Simulated mid-transaction failure after catch-up enqueue");
+      }
 
       return {
         status: 201,
@@ -341,7 +428,11 @@ export default async function(req, res) {
             expires_at: sub.expires_at
           },
           unsubscribe_token: unsubscribeToken,
-          pager_status: pager.status
+          pager_status: pager.status,
+          catchup: {
+            queued: Boolean(catchupMeta.queued),
+            reason: catchupMeta.reason
+          }
         }
       };
     });

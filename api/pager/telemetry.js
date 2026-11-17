@@ -7,9 +7,7 @@ import {
 import { withTransaction } from "../../lib/db-tx.js";
 import {
   enablePagerInternalContext,
-  getPushProviderConfig,
-  isSubscriptionsDisabled,
-  isNotificationDeliveryDisabled
+  inspectNotificationRuntimeConfig
 } from "../../lib/pager-notifications.js";
 
 export const access = "user";
@@ -29,7 +27,7 @@ export default async function(req, res) {
 
     const now = req._testNow instanceof Date ? req._testNow : new Date();
     const nowIso = now.toISOString();
-    const providerCfg = getPushProviderConfig();
+    const runtimeControls = inspectNotificationRuntimeConfig();
 
     const stats = await withTransaction(db, async tx => {
       const verifiedAdmin = await reverifyPlatformAdminInTx(tx, ctx);
@@ -43,6 +41,8 @@ export default async function(req, res) {
         `SELECT
            count(*) FILTER (WHERE status = 'queued')::int AS queued,
            count(*) FILTER (WHERE status = 'processing')::int AS processing,
+           count(*) FILTER (WHERE status = 'processing' AND dispatched_at IS NULL)::int AS claimed_pending_dispatch,
+           count(*) FILTER (WHERE status = 'processing' AND dispatched_at IS NOT NULL)::int AS in_flight_dispatched,
            count(*) FILTER (WHERE status = 'processing' AND lease_expires_at <= $1)::int AS expired_leases,
            count(*) FILTER (WHERE status = 'retry_scheduled')::int AS retry_scheduled,
            count(*) FILTER (WHERE status = 'delivered')::int AS delivered,
@@ -92,13 +92,7 @@ export default async function(req, res) {
       ok: true,
       observed_at: nowIso,
       release_sha: process.env.TRUCKLY_RELEASE_SHA || process.env.GITHUB_SHA || "local-dev",
-      controls: {
-        provider_mode: providerCfg.mode,
-        provider_enabled: providerCfg.enabled,
-        subscriptions_paused: isSubscriptionsDisabled(),
-        delivery_paused: isNotificationDeliveryDisabled(),
-        worker_secret_configured: String(process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET || "").trim().length >= 24
-      },
+      controls: runtimeControls,
       ...stats
     });
   } catch {

@@ -254,6 +254,16 @@ async function subscribePagerPush(){
       });
     }
     const subJson=typeof pushSub.toJSON==='function'?pushSub.toJSON():pushSub;
+    const priorSaved=getLocalPagerSub(pagerToken);
+    const reqPayload={
+      code:pagerToken,
+      channel:'web_push',
+      subscription:subJson,
+      platform_hint:isIosNeedsHomeScreen()?'ios-tab':'web'
+    };
+    if(priorSaved&&typeof priorSaved.subscription_id==='string'&&priorSaved.subscription_id){
+      reqPayload.replaces_subscription_id=priorSaved.subscription_id;
+    }
     const resp=await fetch('/api/pager/subscriptions',{
       method:'POST',
       credentials:'same-origin',
@@ -262,12 +272,7 @@ async function subscribePagerPush(){
         'Content-Type':'application/json',
         'X-Truckly-Client':'web-pager-v1'
       },
-      body:JSON.stringify({
-        code:pagerToken,
-        channel:'web_push',
-        subscription:subJson,
-        platform_hint:isIosNeedsHomeScreen()?'ios-tab':'web'
-      })
+      body:JSON.stringify(reqPayload)
     });
     const out=await resp.json().catch(()=>({}));
     if(!resp.ok||!out.subscription){
