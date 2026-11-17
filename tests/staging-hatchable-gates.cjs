@@ -868,13 +868,18 @@ async function runStagingSuite(cfg) {
     assert.equal(adminTelemetry.json?.controls?.config_valid, true, 'Notification runtime config reported invalid on staging');
     assert(!JSON.stringify(adminTelemetry.json).includes(createdPagerId), 'Telemetry leaked raw private pager UUID');
 
-    // Worker endpoint secret guard (`401` on wrong/missing secret when configured, or `503 WORKER_NOT_CONFIGURED` before secret provisioning)
+    // Worker endpoint secret/network guard:
+    //   - On VPS Nginx public HTTPS, external `/api/pager/worker` is blocked at the reverse proxy (`403`)
+    //     while local supervisor invokes `cfg.workerLoopbackUrl` (`http://127.0.0.1:4100/api/pager/worker`).
+    //   - On direct loopback or serverless gateway, wrong Bearer secret returns `401` and valid secret returns `200`.
     const unauthWorker = await reqJson('/api/pager/worker', {
       method: 'POST',
       headers: { Authorization: 'Bearer invalid_wrong_worker_secret_token_0000' },
       body: { batch_size: 1, cleanup: false }
     });
-    if (cfg.workerSecret) {
+    if (cfg.expectExternalWorkerForbidden) {
+      assert.equal(unauthWorker.status, 403, 'Public Nginx vhost must block external /api/pager/worker with 403');
+    } else if (cfg.workerSecret) {
       assert.equal(unauthWorker.status, 401, 'Worker must reject wrong secret with 401');
       const authWorker = await reqJson('/api/pager/worker', {
         method: 'POST',
@@ -884,7 +889,7 @@ async function runStagingSuite(cfg) {
       assert.equal(authWorker.status, 200, 'Authenticated worker tick failed');
       assert(String(authWorker.headers?.['cache-control'] || '').includes('no-store'));
     } else {
-      assert([401, 503].includes(unauthWorker.status), `Unexpected unauthenticated worker status ${unauthWorker.status}`);
+      assert([401, 403, 503].includes(unauthWorker.status), `Unexpected unauthenticated worker status ${unauthWorker.status}`);
     }
 
     assert.equal(probeData.gate5_db_role?.all_notif_tables_rls_forced, true, 'All 4 pager_notification_* tables must enforce FORCE RLS');
@@ -1196,60 +1201,67 @@ export async function resolve(specifier, context, nextResolve) {
   }
 }
 
-(async () => {
-  if (process.argv.includes('--preflight-local')) {
-    await runLocalPreflightSelfTest();
-    return;
-  }
+module.exports = {
+  runStagingSuite,
+  assertNotProductionUrl
+};
 
-  const stagingUrl = (process.env.STAGING_BASE_URL || '').trim();
-  if (!stagingUrl) {
-    console.log(
-      JSON.stringify(
-        {
-          environment: 'HOSTED_HATCHABLE_STAGING',
-          overall_status: 'BLOCKED',
-          reason: 'STAGING_BASE_URL and Hatchable staging credentials are not configured in this environment.',
-          required_inputs: [
-            'STAGING_BASE_URL (isolated https://<staging>.hatchable.site — never truckly.hatchable.site)',
-            'STAGING_COOKIE_CUSTOMER_A',
-            'STAGING_COOKIE_CUSTOMER_B',
-            'STAGING_COOKIE_VENDOR_A_OWNER',
-            'STAGING_COOKIE_VENDOR_A_STAFF',
-            'STAGING_COOKIE_VENDOR_B_OWNER',
-            'STAGING_COOKIE_MODERATOR',
-            'STAGING_COOKIE_PLATFORM_ADMIN',
-            'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)',
-            'STAGING_WORKER_SECRET (matching TRUCKLY_NOTIFICATION_WORKER_SECRET for Gate G9)'
-          ]
-        },
-        null,
-        2
-      )
-    );
-    if (process.argv.includes('--require-live')) process.exitCode = 2;
-    return;
-  }
-
-  const report = await runStagingSuite({
-    baseUrl: stagingUrl,
-    probeToken: (process.env.STAGING_PROBE_TOKEN || '').trim(),
-    workerSecret: (process.env.STAGING_WORKER_SECRET || '').trim(),
-    cookies: {
-      customerA: process.env.STAGING_COOKIE_CUSTOMER_A || '',
-      customerB: process.env.STAGING_COOKIE_CUSTOMER_B || '',
-      vendorAOwner: process.env.STAGING_COOKIE_VENDOR_A_OWNER || '',
-      vendorAStaff: process.env.STAGING_COOKIE_VENDOR_A_STAFF || '',
-      vendorBOwner: process.env.STAGING_COOKIE_VENDOR_B_OWNER || '',
-      moderator: process.env.STAGING_COOKIE_MODERATOR || '',
-      platformAdmin: process.env.STAGING_COOKIE_PLATFORM_ADMIN || ''
+if (require.main === module) {
+  (async () => {
+    if (process.argv.includes('--preflight-local')) {
+      await runLocalPreflightSelfTest();
+      return;
     }
-  });
 
-  console.log(JSON.stringify({ environment: 'HOSTED_HATCHABLE_STAGING', ...report }, null, 2));
-  const anyNonPass = [...Object.values(report.gates), ...Object.values(report.e2e)].some(x => x.status !== 'PASS');
-  if (anyNonPass) process.exitCode = 1;
-})().catch(err => {
-  console.error('STAGING GATE RUNNER ERROR:', err.message || err);
-  process.exitCode = 1;
-});
+    const stagingUrl = (process.env.STAGING_BASE_URL || '').trim();
+    if (!stagingUrl) {
+      console.log(
+        JSON.stringify(
+          {
+            environment: 'HOSTED_HATCHABLE_STAGING',
+            overall_status: 'BLOCKED',
+            reason: 'STAGING_BASE_URL and Hatchable staging credentials are not configured in this environment.',
+            required_inputs: [
+              'STAGING_BASE_URL (isolated https://<staging>.hatchable.site — never truckly.hatchable.site)',
+              'STAGING_COOKIE_CUSTOMER_A',
+              'STAGING_COOKIE_CUSTOMER_B',
+              'STAGING_COOKIE_VENDOR_A_OWNER',
+              'STAGING_COOKIE_VENDOR_A_STAFF',
+              'STAGING_COOKIE_VENDOR_B_OWNER',
+              'STAGING_COOKIE_MODERATOR',
+              'STAGING_COOKIE_PLATFORM_ADMIN',
+              'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)',
+              'STAGING_WORKER_SECRET (matching TRUCKLY_NOTIFICATION_WORKER_SECRET for Gate G9)'
+            ]
+          },
+          null,
+          2
+        )
+      );
+      if (process.argv.includes('--require-live')) process.exitCode = 2;
+      return;
+    }
+
+    const report = await runStagingSuite({
+      baseUrl: stagingUrl,
+      probeToken: (process.env.STAGING_PROBE_TOKEN || '').trim(),
+      workerSecret: (process.env.STAGING_WORKER_SECRET || '').trim(),
+      cookies: {
+        customerA: process.env.STAGING_COOKIE_CUSTOMER_A || '',
+        customerB: process.env.STAGING_COOKIE_CUSTOMER_B || '',
+        vendorAOwner: process.env.STAGING_COOKIE_VENDOR_A_OWNER || '',
+        vendorAStaff: process.env.STAGING_COOKIE_VENDOR_A_STAFF || '',
+        vendorBOwner: process.env.STAGING_COOKIE_VENDOR_B_OWNER || '',
+        moderator: process.env.STAGING_COOKIE_MODERATOR || '',
+        platformAdmin: process.env.STAGING_COOKIE_PLATFORM_ADMIN || ''
+      }
+    });
+
+    console.log(JSON.stringify({ environment: 'HOSTED_HATCHABLE_STAGING', ...report }, null, 2));
+    const anyNonPass = [...Object.values(report.gates), ...Object.values(report.e2e)].some(x => x.status !== 'PASS');
+    if (anyNonPass) process.exitCode = 1;
+  })().catch(err => {
+    console.error('STAGING GATE RUNNER ERROR:', err.message || err);
+    process.exitCode = 1;
+  });
+}

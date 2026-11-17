@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Local & deployment environment secrets (never commit real secrets)
+.env
+.env.*
+!.env.example
+!deploy/**/*.example
+!deploy/**/*.template
+
+# OS, runtime & test artifacts
+*.log
+npm-debug.log*
+coverage/
+.tmp/
+.DS_Store
+Thumbs.db

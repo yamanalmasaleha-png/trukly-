@@ -1,1 +1,155 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · Truckly</title><link rel="stylesheet" href="/theme.css"><style>body{overflow:auto;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 20%,#ffd9d1,transparent 30%),radial-gradient(circle at 90% 80%,#d3f2e6,transparent 35%),#fff9ed}.login-card{width:min(100%,430px);background:white;padding:30px;border-radius:30px;box-shadow:var(--shadow)}.home-return{display:inline-flex;align-items:center;min-height:44px;margin-bottom:8px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}.login-logo{display:grid;place-items:center;width:65px;height:65px;border-radius:22px;background:var(--coral);color:white;font:700 37px Fredoka;transform:rotate(-4deg)}.login-card h1{font-size:32px;margin-top:20px}.login-card p{color:var(--muted)}.login-card button{margin-top:10px}.code{font-size:25px;letter-spacing:8px;text-align:center}.back{border:0;background:transparent;color:var(--muted);margin-bottom:5px}.error{color:#b33;font-size:13px;font-weight:600}.passkey-offer{background:#eef9f5;padding:15px;border-radius:17px;margin-top:15px}</style></head><body><main class="login-card"><a class="home-return" id="returnLink" href="/">← Back to Truckly</a><div class="login-logo">T</div><div id="emailStep"><small>YOUR FAVORITES ARE WAITING</small><h1>Roll back in</h1><p>Sign in to save trucks, manage bookings, and get nearby alerts.</p><form onsubmit="send(event)"><label>Email address<input id="email" type="email" autocomplete="username webauthn" placeholder="you@example.com" required></label><button class="primary" id="sendBtn">Email me a code →</button></form></div><div id="codeStep" hidden><button class="back" type="button" onclick="back()">← Use another email</button><h1>Check your inbox</h1><p>Enter the 6-digit code we sent to <b id="emailLabel"></b>.</p><form onsubmit="verify(event)"><label>Verification code<input id="code" class="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required></label><button class="primary">Sign in →</button></form></div><div id="passkeyOffer" class="passkey-offer" hidden><h2>Make next time instant</h2><p>Add a passkey to sign in with Face ID, fingerprint, or your screen lock.</p><button class="primary" type="button" onclick="addPasskey()">Add a passkey</button><button class="secondary" type="button" onclick="finish()">Not now</button></div><p id="error" class="error" role="alert"></p></main><script>let email='',hasPasskey=false;const next=(()=>{const n=new URLSearchParams(location.search).get('next')||'/';return n.startsWith('/')&&!n.startsWith('//')?n:'/'})();document.getElementById('returnLink').href=next;function getAuth(){if(window.hatchable&&window.hatchable.auth)return window.hatchable.auth;throw new Error('Email sign-in is only available on the hosted Truckly app. Guest mode remains active on this device.')}async function send(e){e.preventDefault();error.textContent='';email=document.getElementById('email').value;try{const auth=getAuth(),r=await auth.startLogin({email});hasPasskey=!!r.has_passkey;if(hasPasskey&&auth.supportsPasskeys()){try{await auth.signInWithPasskey({email});return location.href=next}catch{}}emailLabel.textContent=email;emailStep.hidden=true;codeStep.hidden=false;code.focus()}catch(x){error.textContent=x.message||'Could not send a code. Please try again.'}}async function verify(e){e.preventDefault();try{const auth=getAuth();await auth.verifyCode({email,code:code.value});if(!hasPasskey&&auth.supportsPasskeys()&&localStorage.getItem('passkey_offer_declined')!=='1'){codeStep.hidden=true;passkeyOffer.hidden=false}else finish()}catch(x){error.textContent=x.message||'That code did not work.'}}async function addPasskey(){const auth=window.hatchable&&window.hatchable.auth;const saved=auth?await auth.registerPasskey({name:'My Truckly passkey'}).catch(()=>null):null;if(!saved)localStorage.setItem('passkey_offer_declined','1');finish()}function finish(){localStorage.setItem('passkey_offer_declined','1');location.href=next}function back(){codeStep.hidden=true;emailStep.hidden=false;error.textContent=''}</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in · Truckly</title>
+  <link rel="stylesheet" href="/theme.css">
+  <style>
+    body{overflow:auto;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 20%,#ffd9d1,transparent 30%),radial-gradient(circle at 90% 80%,#d3f2e6,transparent 35%),#fff9ed}
+    .login-card{width:min(100%,430px);background:white;padding:30px;border-radius:30px;box-shadow:var(--shadow)}
+    .home-return{display:inline-flex;align-items:center;min-height:44px;margin-bottom:8px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}
+    .login-logo{display:grid;place-items:center;width:65px;height:65px;border-radius:22px;background:var(--coral);color:white;font:700 37px Fredoka;transform:rotate(-4deg)}
+    .login-card h1{font-size:32px;margin-top:20px}
+    .login-card p{color:var(--muted)}
+    .login-card button{margin-top:10px}
+    .code{font-size:25px;letter-spacing:8px;text-align:center}
+    .back{border:0;background:transparent;color:var(--muted);margin-bottom:5px}
+    .error{color:#b33;font-size:13px;font-weight:600}
+    .passkey-note{background:#f5f4ef;color:#4f5853;padding:10px 13px;border-radius:14px;font-size:12.5px;line-height:1.45;margin-top:14px}
+    .passkey-offer{background:#eef9f5;padding:15px;border-radius:17px;margin-top:15px}
+  </style>
+</head>
+<body>
+  <main class="login-card">
+    <a class="home-return" id="returnLink" href="/">← Back to Truckly</a>
+    <div class="login-logo">T</div>
+    <div id="emailStep">
+      <small>YOUR FAVORITES ARE WAITING</small>
+      <h1>Roll back in</h1>
+      <p>Sign in to save trucks, manage bookings, and get nearby alerts.</p>
+      <form id="emailForm" onsubmit="send(event)">
+        <label>Email address
+          <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        </label>
+        <button class="primary" id="sendBtn" type="submit">Email me a code →</button>
+      </form>
+      <p class="passkey-note" id="passkeyDisclosure" role="note">
+        Sign-in uses a single-use 6-digit email verification code. Passkeys are currently unavailable in standalone staging.
+      </p>
+    </div>
+    <div id="codeStep" hidden>
+      <button class="back" type="button" onclick="back()">← Use another email</button>
+      <h1>Check your inbox</h1>
+      <p>Enter the 6-digit code we sent to <b id="emailLabel"></b>.</p>
+      <form id="codeForm" onsubmit="verify(event)">
+        <label>Verification code
+          <input id="code" class="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+        </label>
+        <button class="primary" id="verifyBtn" type="submit">Sign in →</button>
+      </form>
+    </div>
+    <div id="passkeyOffer" class="passkey-offer" hidden>
+      <h2>Make next time instant</h2>
+      <p>Add a passkey to sign in with Face ID, fingerprint, or your screen lock.</p>
+      <button class="primary" type="button" onclick="addPasskey()">Add a passkey</button>
+      <button class="secondary" type="button" onclick="finish()">Not now</button>
+    </div>
+    <p id="error" class="error" role="alert"></p>
+  </main>
+  <script src="/auth-client.js"></script>
+  <script>
+    let email = '', hasPasskey = false;
+    const next = (() => {
+      const n = new URLSearchParams(location.search).get('next') || '/';
+      return n.startsWith('/') && !n.startsWith('//') ? n : '/';
+    })();
+    document.getElementById('returnLink').href = next;
+
+    function getAuth() {
+      if (window.hatchable && window.hatchable.auth) return window.hatchable.auth;
+      throw new Error('Email sign-in is unavailable right now. Guest mode remains active on this device.');
+    }
+
+    (function syncPasskeyNote() {
+      try {
+        const auth = getAuth();
+        const note = document.getElementById('passkeyDisclosure');
+        if (note && typeof auth.supportsPasskeys === 'function' && auth.supportsPasskeys()) {
+          note.hidden = true;
+        }
+      } catch {}
+    })();
+
+    async function send(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('error');
+      const btn = document.getElementById('sendBtn');
+      errEl.textContent = '';
+      email = document.getElementById('email').value.trim();
+      btn.disabled = true;
+      try {
+        const auth = getAuth();
+        const r = await auth.startLogin({ email });
+        hasPasskey = !!r.has_passkey;
+        if (hasPasskey && auth.supportsPasskeys()) {
+          try {
+            await auth.signInWithPasskey({ email });
+            location.href = next;
+            return;
+          } catch {}
+        }
+        document.getElementById('emailLabel').textContent = email;
+        document.getElementById('emailStep').hidden = true;
+        document.getElementById('codeStep').hidden = false;
+        document.getElementById('code').focus();
+      } catch (x) {
+        errEl.textContent = x.message || 'Could not send a code. Please try again.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function verify(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('error');
+      const btn = document.getElementById('verifyBtn');
+      const codeInput = document.getElementById('code');
+      errEl.textContent = '';
+      btn.disabled = true;
+      try {
+        const auth = getAuth();
+        await auth.verifyCode({ email, code: codeInput.value.trim() });
+        if (!hasPasskey && auth.supportsPasskeys() && localStorage.getItem('passkey_offer_declined') !== '1') {
+          document.getElementById('codeStep').hidden = true;
+          document.getElementById('passkeyOffer').hidden = false;
+        } else {
+          finish();
+        }
+      } catch (x) {
+        errEl.textContent = x.message || 'That code did not work.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function addPasskey() {
+      const auth = window.hatchable && window.hatchable.auth;
+      const saved = auth ? await auth.registerPasskey({ name: 'My Truckly passkey' }).catch(() => null) : null;
+      if (!saved) localStorage.setItem('passkey_offer_declined', '1');
+      finish();
+    }
+
+    function finish() {
+      localStorage.setItem('passkey_offer_declined', '1');
+      location.href = next;
+    }
+
+    function back() {
+      document.getElementById('codeStep').hidden = true;
+      document.getElementById('emailStep').hidden = false;
+      document.getElementById('error').textContent = '';
+    }
+  </script>
+</body>
+</html>

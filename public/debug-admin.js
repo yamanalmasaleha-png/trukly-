@@ -118,7 +118,7 @@
   };
 
   function syncRoleCookieAndWindow() {
-    if (IS_LOCAL && typeof document !== "undefined") {
+    if (IS_LOCAL && state.localSimulator && typeof document !== "undefined") {
       try {
         document.cookie = "truckly_debug_role=" + encodeURIComponent(state.role) + "; path=/; SameSite=Lax";
       } catch (_) {}
@@ -127,7 +127,7 @@
     }
   }
 
-  // Wrap window.fetch to log /api/* requests and pass local debug role header
+  // Wrap window.fetch to log /api/* requests and pass local debug role header ONLY on local dev simulator
   if (typeof window !== "undefined" && typeof window.fetch === "function" && !window.__trucklyFetchWrapped) {
     window.__trucklyFetchWrapped = true;
     var nativeFetch = window.fetch.bind(window);
@@ -138,7 +138,7 @@
       var isLocalDebug = urlStr.startsWith("/__debug/");
       var opts = init ? Object.assign({}, init) : {};
 
-      if (IS_LOCAL && (isApi || isLocalDebug)) {
+      if (IS_LOCAL && state.localSimulator && (isApi || isLocalDebug)) {
         var hdrs = Object.assign({}, opts.headers || {});
         if (!hdrs["x-truckly-debug-role"]) {
           hdrs["x-truckly-debug-role"] = state.role;
@@ -195,7 +195,7 @@
   function updateLaunchButton() {
     var btn = document.getElementById("debugMenuBtn");
     if (!btn) return;
-    var enabled = IS_LOCAL || URL_DEBUG || safeGet("truckly_debug_enabled", "0") === "1" || state.open;
+    var enabled = (IS_LOCAL && state.localSimulator) || URL_DEBUG || safeGet("truckly_debug_enabled", "0") === "1" || state.open;
     btn.hidden = !enabled;
     btn.dataset.role = state.role;
     var meta = ROLE_META[state.role] || ROLE_META.guest;
@@ -694,9 +694,14 @@
 
     updateLaunchButton();
 
-    if (IS_LOCAL && state.role !== "guest" && window.trucklyReady) {
-      window.trucklyReady.then(function () {
-        setRole(state.role);
+    if (IS_LOCAL) {
+      refreshServerDebugState().then(function () {
+        updateLaunchButton();
+        if (state.localSimulator && state.role !== "guest" && window.trucklyReady) {
+          return window.trucklyReady.then(function () {
+            return setRole(state.role);
+          });
+        }
       }).catch(function () {});
     }
 

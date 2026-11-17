@@ -1,0 +1,31 @@
+{
+  "name": "truckly",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Truckly Sonoma County food discovery, event inquiries, pickup pagers, and standalone Node/PostgreSQL runtime",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "worker": "node scripts/run-pager-worker.cjs",
+    "migrate": "node scripts/run-migrations.cjs",
+    "dev:simulator": "node scripts/dev-server.cjs",
+    "test:smoke": "node tests/pager-demo.test.cjs",
+    "test:parity": "node tests/listing-verification.cjs",
+    "test:standalone": "node tests/standalone-runtime-auth.integration.cjs",
+    "test:hardening": "node tests/backend-hardening.integration.cjs",
+    "test:discovery": "node tests/p1-unified-discovery.integration.cjs",
+    "test:notifications": "node tests/pager-notifications.integration.cjs",
+    "test:gates:preflight": "node tests/vps-staging-gates.cjs --preflight-local",
+    "test:e2e:discovery": "node tests/discovery-browser.e2e.cjs",
+    "test:e2e:notifications": "node tests/pager-notifications-browser.e2e.cjs"
+  },
+  "dependencies": {
+    "cookie": "1.1.1",
+    "hatchable": "file:./packages/hatchable-adapter",
+    "otplib": "13.6.0",
+    "pg": "8.23.1"
+  }
+}

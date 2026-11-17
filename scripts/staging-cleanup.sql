@@ -18,6 +18,17 @@ END $$;
 
 SELECT set_config('app.can_moderate', 'true', true);
 SELECT set_config('app.pager_internal', 'true', true);
+SELECT set_config('app.auth_internal', 'true', true);
+
+DO $$
+BEGIN
+  IF to_regclass('public.auth_staging_mailbox') IS NOT NULL THEN
+    DELETE FROM auth_staging_mailbox WHERE expires_at < now() + interval '1 day';
+  END IF;
+  IF to_regclass('public.auth_rate_limits') IS NOT NULL THEN
+    DELETE FROM auth_rate_limits WHERE window_start < now() + interval '1 day';
+  END IF;
+END $$;
 
 DELETE FROM community_reviews
 WHERE title LIKE '[STG-E2E-%]%'

@@ -149,12 +149,13 @@ export default async function(req, res) {
     [markerId]
   );
 
-  // Gate 3c: Verify all three GUCs are empty outside transactions
+  // Gate 3c: Verify all four GUCs are empty outside transactions
   const { rows: gucRows } = await db.query(
     `SELECT
        COALESCE(current_setting('app.user_id', true), '') AS leaked_user_id,
        COALESCE(current_setting('app.can_moderate', true), '') AS leaked_can_moderate,
-       COALESCE(current_setting('app.pager_internal', true), '') AS leaked_pager_internal`
+       COALESCE(current_setting('app.pager_internal', true), '') AS leaked_pager_internal,
+       COALESCE(current_setting('app.auth_internal', true), '') AS leaked_auth_internal`
   );
 
   // Gate 5: Role privilege, ownership & FORCE RLS inspection across all protected tables
@@ -206,6 +207,44 @@ export default async function(req, res) {
        (SELECT count(*)::int FROM pager_notification_deliveries) AS deliveries_visible`
   );
 
+  // Standalone auth RLS inspection (when migration 017 is present)
+  const { rows: authRlsRows } = await db.query(
+    `SELECT
+       c.relname AS table_name,
+       c.relrowsecurity AS rls_enabled,
+       c.relforcerowsecurity AS rls_forced
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+     WHERE c.relname IN (
+       'auth_users',
+       'auth_otp_challenges',
+       'auth_sessions',
+       'auth_rate_limits',
+       'auth_staging_mailbox'
+     )
+     ORDER BY c.relname ASC`
+  );
+
+  let authLeakSummary = null;
+  if (authRlsRows.length === 5) {
+    const allAuthForced = authRlsRows.every(r => r.rls_enabled === true && r.rls_forced === true);
+    const { rows: authLeak } = await db.query(
+      `SELECT
+         (SELECT count(*)::int FROM auth_users) AS users_visible,
+         (SELECT count(*)::int FROM auth_otp_challenges) AS challenges_visible,
+         (SELECT count(*)::int FROM auth_sessions) AS sessions_visible,
+         (SELECT count(*)::int FROM auth_staging_mailbox) AS mailbox_visible`
+    );
+    authLeakSummary = {
+      auth_tables_checked: authRlsRows.length,
+      all_auth_tables_rls_forced: allAuthForced,
+      auth_users_visible_without_guc: authLeak[0].users_visible,
+      auth_challenges_visible_without_guc: authLeak[0].challenges_visible,
+      auth_sessions_visible_without_guc: authLeak[0].sessions_visible,
+      auth_mailbox_visible_without_guc: authLeak[0].mailbox_visible
+    };
+  }
+
   return res.json({
     environment_identity: {
       is_staging_confirmed: runtimeEnv === "staging",
@@ -230,7 +269,8 @@ export default async function(req, res) {
     gate3_guc_isolation: {
       leaked_user_id: gucRows[0].leaked_user_id,
       leaked_can_moderate: gucRows[0].leaked_can_moderate,
-      leaked_pager_internal: gucRows[0].leaked_pager_internal
+      leaked_pager_internal: gucRows[0].leaked_pager_internal,
+      leaked_auth_internal: gucRows[0].leaked_auth_internal
     },
     gate5_db_role: {
       ...roleRows[0],
@@ -241,7 +281,8 @@ export default async function(req, res) {
       notif_tables_checked: notifRlsRows.length,
       notif_subs_visible_without_guc: notifLeakRows[0].subs_visible,
       notif_events_visible_without_guc: notifLeakRows[0].events_visible,
-      notif_deliveries_visible_without_guc: notifLeakRows[0].deliveries_visible
+      notif_deliveries_visible_without_guc: notifLeakRows[0].deliveries_visible,
+      ...(authLeakSummary || {})
     }
   });
 }

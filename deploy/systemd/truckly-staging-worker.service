@@ -1,0 +1,42 @@
+[Unit]
+Description=Truckly Isolated Staging Pager Notification Outbox Worker
+After=network.target postgresql.service truckly-staging-api.service
+Requires=truckly-staging-api.service
+
+[Service]
+Type=simple
+User=truckly-stg
+Group=truckly-stg
+WorkingDirectory=/srv/truckly-staging/current
+EnvironmentFile=/etc/truckly-staging/staging.env
+ExecStart=/opt/nodejs/node-v22-lts/bin/node --max-old-space-size=96 /srv/truckly-staging/current/scripts/run-pager-worker.cjs --continuous --interval-ms 10000 --batch-size 15
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+
+# Resource bounds protecting co-tenant workloads on 1 vCPU / 961 MiB VPS
+MemoryAccounting=true
+MemoryHigh=96M
+MemoryMax=128M
+CPUAccounting=true
+CPUQuota=30%
+TasksMax=32
+
+# Hardened service sandboxing
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/srv/truckly-staging
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=truckly-staging-worker
+
+[Install]
+WantedBy=multi-user.target

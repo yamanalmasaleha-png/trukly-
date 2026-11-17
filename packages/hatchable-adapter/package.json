@@ -1,0 +1,11 @@
+{
+  "name": "hatchable",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Intentional local standalone PostgreSQL + server-session adapter replacing Hatchable's runtime SDK for Truckly.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  }
+}

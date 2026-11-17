@@ -8,6 +8,7 @@ on:
       - reconcile/v77-pager-ux-and-debug-workbench
       - harden/**
       - improve/**
+      - migrate/**
 
 permissions:
   contents: read
@@ -28,10 +29,10 @@ jobs:
           echo "Found $count route files in api/"
           test "$count" = "30"
           ! find api -type f -name '*probe*' -o -name '*debug*' | grep -q .
-      - name: Check Hatchable API, shared lib, and staging probe ESM syntax
+      - name: Check Hatchable API, standalone server, shared lib, and staging probe ESM syntax
         shell: bash
         run: |
-          find api lib scripts -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
+          find api lib server packages scripts -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
             echo "Checking $f"
             node --check --input-type=module < "$f"
           done
@@ -80,38 +81,37 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install pinned pg client in isolated runner temp directory
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/pg-client"
-          npm --prefix "$RUNNER_TEMP/pg-client" install --no-save --no-audit --no-fund --save-exact pg@8.13.1
+      - name: Install locked dependencies via npm ci
+        run: npm ci --no-audit --no-fund
+      - name: Run standalone runtime, OTP auth, concurrency, CSRF & proxy integration suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/standalone-runtime-auth.integration.cjs
+      - name: Validate standalone VPS staging gate runner, SQL bootstrap, probe & cleanup pre-flight
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/vps-staging-gates.cjs --preflight-local
       - name: Run real-PostgreSQL backend hardening & FOR SHARE permission-lock concurrency suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/backend-hardening.integration.cjs
-      - name: Validate staging gate runner, SQL bootstrap, probe & cleanup pre-flight
+      - name: Validate Hatchable staging gate runner pre-flight
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/staging-hatchable-gates.cjs --preflight-local
       - name: Run P1 unified discovery & owner publishing PostgreSQL integration suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/p1-unified-discovery.integration.cjs
       - name: Run pager notifications outbox, worker lease fencing, pre-dispatch recheck, catch-up & config suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/pager-notifications.integration.cjs
-      - name: Run real headless Chrome + PostgreSQL discovery browser E2E suite
+      - name: Run real headless Chrome + PostgreSQL discovery & OTP sign-in browser E2E suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/discovery-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL pager notification browser E2E suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/pager-notifications-browser.e2e.cjs

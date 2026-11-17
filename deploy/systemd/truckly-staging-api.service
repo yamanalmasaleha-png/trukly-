@@ -1,0 +1,42 @@
+[Unit]
+Description=Truckly Isolated Staging HTTP & PostgreSQL API Server
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=truckly-stg
+Group=truckly-stg
+WorkingDirectory=/srv/truckly-staging/current
+EnvironmentFile=/etc/truckly-staging/staging.env
+ExecStart=/opt/nodejs/node-v22-lts/bin/node --max-old-space-size=128 /srv/truckly-staging/current/server/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=12
+
+# Resource bounds protecting co-tenant workloads on 1 vCPU / 961 MiB VPS
+MemoryAccounting=true
+MemoryHigh=160M
+MemoryMax=192M
+CPUAccounting=true
+CPUQuota=60%
+TasksMax=64
+
+# Hardened service sandboxing
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/srv/truckly-staging
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=truckly-staging-api
+
+[Install]
+WantedBy=multi-user.target

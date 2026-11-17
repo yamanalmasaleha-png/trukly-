@@ -21,15 +21,21 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── PAGER_NOTIFICATIONS_RUNBOOK.md # Durable pager push outbox, RFC 8291/8292 Web Push, native contract & incident runbook
 │   ├── PHOTO_MENU_VERIFICATION.md    # Vendor address, menu spotlight & photo-rights audit
 │   ├── RELEASE_VERIFICATION_REPORT.md # Executed staging, local PostgreSQL, browser & physical-device evidence report
+│   ├── STANDALONE_VPS_RUNTIME_AND_AUTH.md # Standalone Node/PostgreSQL runtime, OTP/session auth & VPS architecture
 │   └── V77_PAGER_SOURCE_REVIEW.md    # Reconciled v77 & pager UX review notes
+├── deploy/                           # Isolated VPS systemd units, Nginx vhost, PG bootstrap & encrypted backup templates
+├── packages/hatchable-adapter/       # Intentional local `"hatchable"` adapter backed by pg.Pool & verified sessions
+├── server/                           # Production-suitable standalone Node HTTP server & explicit 30-route manifest
 ├── hatchable.toml                    # Hatchable auth & table permission config (community_reviews & pager outbox restricted to API)
 ├── lib/                              # Shared backend helpers (outside api/ so Hatchable does not expose as routes)
 │   ├── authz.js                      # Trusted identity resolution, in-tx RBAC revocation checks, and redacted audit logging
 │   ├── catalog.js                    # Canonical 59-vendor registry & server-enforced booking package terms
+│   ├── client-ip.js                  # Trusted proxy & client-IP resolution preventing X-Forwarded-For spoofing
 │   ├── dates.js                      # Real calendar date & America/Los_Angeles future-date validation
 │   ├── db-tx.js                      # Transaction wrapper for Hatchable db.transaction & node-postgres
 │   ├── discovery.js                  # Unified PostgreSQL discovery read model, clock-aware ETag & Pacific schedule precedence
 │   ├── pager-notifications.js        # Capability subscriptions, SSRF/CSRF/rate limits, outbox enqueue & bounded lease worker
+│   ├── standalone-auth.js            # RFC 4226 HOTP email login, row-locked single-use verify & __Host- sessions
 │   └── webpush-crypto.js             # Standards-compliant RFC 8291 aes128gcm & RFC 8292 VAPID ES256 via native node:crypto
 ├── public/
 │   ├── index.html                    # Main mobile UI, modals, community, pager & Owner Mode markup
@@ -55,20 +61,23 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── catalog/                      # Cities, 6 cuisines/categories, PostgreSQL-backed featured IDs
 │   ├── notifications/                # User nearby-alert preferences
 │   └── schedule/                     # Public daily schedule backed by active vendors + owner_schedule
-├── migrations/                       # PostgreSQL schema history (001–016)
+├── migrations/                       # PostgreSQL schema history (001–017, including standalone auth_users/sessions)
 ├── scripts/
 │   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (supports DATABASE_URL or seed mock) — NEVER deploy
-│   ├── run-pager-worker.cjs          # Bounded notification delivery worker CLI (HTTPS trigger or direct DB mode)
+│   ├── run-migrations.cjs            # Checksum-verified idempotent PostgreSQL migration runner (001–017)
+│   ├── run-pager-worker.cjs          # Bounded & supervised notification delivery worker CLI
 │   └── seed-sql-reader.cjs           # Local zero-dependency SQL seed reader for dev simulator & contract tests
 ├── tests/
 │   ├── pager-demo.test.cjs           # Isolated pager demo zero-network smoke test
 │   ├── listing-verification.cjs      # Zero-dependency Node catalog, UX & cross-API parity suite
+│   ├── standalone-runtime-auth.integration.cjs # Standalone server, OTP race/lockout, __Host- cookies, CSRF & proxy suite
+│   ├── vps-staging-gates.cjs         # Standalone VPS staging gates (G1–G11 + E2E1–E2E6) & local pre-flight validator
 │   ├── backend-hardening.integration.cjs # Real-PostgreSQL P0 RBAC, absent-row booking locks, revocation & RLS suite
 │   ├── staging-hatchable-gates.cjs   # Hosted Hatchable staging gates (G1–G9) & local pre-flight validator
 │   ├── p1-unified-discovery.integration.cjs # Real-PostgreSQL P1 unified catalog, clock-aware ETags & DST schedule suite
 │   ├── pager-notifications.integration.cjs # Real-PostgreSQL pager outbox, RFC 8291/8292 crypto, leases, retries & RLS suite
-│   ├── discovery-browser.e2e.cjs     # Real headless Chrome + real PostgreSQL owner-publish -> customer-refresh E2E test
-│   └── pager-notifications-browser.e2e.cjs # Real headless Chrome + real PostgreSQL pager opt-in, SW, push & unsubscribe E2E test
+│   ├── discovery-browser.e2e.cjs     # Real headless Chrome + standalone server + OTP sign-in -> owner publish E2E test
+│   └── pager-notifications-browser.e2e.cjs # Real headless Chrome + standalone server pager opt-in, SW, push & unsubscribe E2E test
 ├── truckly-v63.zip                   # Historical snapshot (retain)
 └── truckly-data.sql.gz               # Historical data backup (retain)
 ```

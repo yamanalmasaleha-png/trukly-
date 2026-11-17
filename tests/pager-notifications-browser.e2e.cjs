@@ -234,28 +234,31 @@ class CdpClient {
   const receivedPushEnvelopes = [];
 
   try {
-    await adminPool.query(`CREATE ROLE ${appRole} LOGIN PASSWORD '${appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`);
-    await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${appRole}`);
+    const migratorRole = `truckly_pne2e_mig_${suffix}`;
+    const migratorPass = `mig_${suffix}`;
+    await adminPool.query(
+      `CREATE ROLE ${migratorRole} LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`
+    );
+    await adminPool.query(
+      `CREATE ROLE ${appRole} LOGIN PASSWORD '${appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`
+    );
+    await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${migratorRole}`);
 
+    const migratorDbUrl = buildDbUrl(pgCluster.adminUrl, {
+      user: migratorRole,
+      password: migratorPass,
+      database: dbName
+    });
     const appDbUrl = buildDbUrl(pgCluster.adminUrl, { user: appRole, password: appPass, database: dbName });
-    appPool = new Pool({ connectionString: appDbUrl, max: 6 });
 
-    const migFiles = fs
-      .readdirSync(path.join(ROOT, 'migrations'))
-      .filter(f => /^\d{3}_.+\.sql$/.test(f))
-      .sort();
-    for (const f of migFiles) {
-      await appPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
-    }
+    execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole], {
+      cwd: ROOT,
+      env: { ...process.env, MIGRATION_DATABASE_URL: migratorDbUrl },
+      stdio: 'pipe',
+      windowsHide: true
+    });
 
-    await appPool.query(
-      `INSERT INTO platform_roles (user_id, role, granted_by) VALUES ('usr_platform_admin', 'platform_admin', 'bootstrap')`
-    );
-    await appPool.query(
-      `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by) VALUES
-         ('iniguez', 'usr_vendor_a_owner', 'owner', 'usr_platform_admin'),
-         ('iniguez', 'usr_vendor_a_staff', 'staff', 'usr_vendor_a_owner')`
-    );
+    appPool = new Pool({ connectionString: migratorDbUrl, max: 4 });
 
     // Start local loopback Web Push receiver
     const pushPort = await getFreePort();
@@ -272,15 +275,26 @@ class CdpClient {
     });
     await new Promise(r => pushReceiver.listen(pushPort, '127.0.0.1', r));
 
-    // Start Truckly local server backed by real PostgreSQL + loopback_test Web Push mode
+    // Start Truckly standalone production server (`server/index.js`) backed by NOBYPASSRLS PostgreSQL
     const appPort = await getFreePort();
     const baseUrl = `http://127.0.0.1:${appPort}`;
-    serverProc = spawn(process.execPath, [path.join(ROOT, 'scripts', 'dev-server.cjs')], {
+    const authSecret = crypto.randomBytes(32).toString('hex');
+    const mailboxSecret = 'pne2e_mbx_' + crypto.randomBytes(16).toString('hex');
+    const staffEmail = 'iniguez-staff@staging.truckly.invalid';
+
+    serverProc = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], {
       cwd: ROOT,
       env: {
         ...process.env,
+        HOST: '127.0.0.1',
         PORT: String(appPort),
         DATABASE_URL: appDbUrl,
+        TRUCKLY_ENV: 'staging',
+        TRUCKLY_RELEASE_SHA: 'pne2e-standalone',
+        TRUCKLY_AUTH_SECRET: authSecret,
+        TRUCKLY_AUTH_DELIVERY_MODE: 'staging_mailbox',
+        TRUCKLY_STAGING_MAILBOX_SECRET: mailboxSecret,
+        TRUCKLY_STAGING_ALLOWED_EMAIL_DOMAINS: 'staging.truckly.invalid',
         TRUCKLY_ALLOW_TEST_PUSH_MODES: '1',
         TRUCKLY_PUSH_PROVIDER_MODE: 'loopback_test',
         TRUCKLY_VAPID_PUBLIC_KEY: vapid.publicKey,
@@ -297,7 +311,39 @@ class CdpClient {
         const r = await httpGetJson(`${baseUrl}/api/trucks?summary=1`);
         return r.status === 200 && r.json.total === 59;
       },
-      { label: 'dev-server startup' }
+      { label: 'standalone server/index.js startup' }
+    );
+
+    // Authenticate Vendor A Staff via real `/api/auth/*` OTP + `__Host-truckly_session` cookie
+    const otpStartRes = await fetch(`${baseUrl}/api/auth/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Truckly-Client': 'web-auth-v1' },
+      body: JSON.stringify({ email: staffEmail })
+    });
+    assert.equal(otpStartRes.status, 200);
+    const otpMbRes = await fetch(`${baseUrl}/api/auth/staging-mailbox`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Staging-Mailbox-Secret': mailboxSecret },
+      body: JSON.stringify({ email: staffEmail })
+    });
+    const { code: staffOtpCode } = await otpMbRes.json();
+    const otpVerifyRes = await fetch(`${baseUrl}/api/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Truckly-Client': 'web-auth-v1' },
+      body: JSON.stringify({ email: staffEmail, code: staffOtpCode })
+    });
+    assert.equal(otpVerifyRes.status, 200);
+    const staffVerifyJson = await otpVerifyRes.json();
+    const rawSetCookie =
+      typeof otpVerifyRes.headers.getSetCookie === 'function'
+        ? otpVerifyRes.headers.getSetCookie().join('; ')
+        : otpVerifyRes.headers.get('set-cookie');
+    const staffSessionCookie = /(__Host-truckly_session=[^;\s]+)/.exec(rawSetCookie)[1];
+
+    await appPool.query(
+      `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by)
+       VALUES ('iniguez', $1, 'staff', 'pne2e_bootstrap')`,
+      [staffVerifyJson.user.id]
     );
 
     // Launch real headless Chrome
@@ -444,12 +490,22 @@ class CdpClient {
     // =========================================================================
     // [E2E 2/4] Real Pager Join -> Hash Scrubbed -> Opt-In -> Ready -> Encrypted Push + UI Sync -> Unsubscribe
     // =========================================================================
-    // Create a real pager via Vendor A staff API
-    const createRes = await fetch(`${baseUrl}/api/pager/staff`, {
+    // Confirm standalone server rejects forged debug role header (401), then create pager with real session cookie
+    const spoofCreate = await fetch(`${baseUrl}/api/pager/staff`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-truckly-debug-role': 'vendor_a_staff'
+      },
+      body: JSON.stringify({ vendor_id: 'iniguez', ticket: '42', request_key: crypto.randomUUID() })
+    });
+    assert.equal(spoofCreate.status, 401, 'Standalone server must reject x-truckly-debug-role');
+
+    const createRes = await fetch(`${baseUrl}/api/pager/staff`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: staffSessionCookie
       },
       body: JSON.stringify({
         vendor_id: 'iniguez',
@@ -537,7 +593,7 @@ class CdpClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-truckly-debug-role': 'vendor_a_staff'
+        Cookie: staffSessionCookie
       },
       body: JSON.stringify({ id: realPagerId, status: 'ready' })
     });
@@ -636,7 +692,7 @@ class CdpClient {
     await cdp.send('Page.enable', {}, unsupportedSess);
     await cdp.send('Runtime.enable', {}, unsupportedSess);
     await cdp.send('Network.enable', {}, unsupportedSess);
-    await cdp.send('Network.setBlockedURLs', { urls: ['*://tile.openstreetmap.org/*'] }, unsupportedSess);
+    await cdp.send('Network.setBlockedURLs', { urls: ['*://tile.openstreetmap.org/*', '*://unpkg.com/*'] }, unsupportedSess);
     await cdp.send(
       'Page.addScriptToEvaluateOnNewDocument',
       { source: `try { delete window.PushManager; } catch (e) {}` },

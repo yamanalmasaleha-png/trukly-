@@ -1,0 +1,44 @@
+-- Isolated PostgreSQL 16 Staging Database & Least-Privilege Role Bootstrap
+-- Does NOT modify `velvet_key_db`, `velvet_key_user`, or global `postgresql.conf`.
+-- Execute with `psql -v ON_ERROR_STOP=1` substituting strong generated passwords outside Git.
+
+CREATE ROLE truckly_stg_migrator
+  LOGIN
+  NOSUPERUSER
+  NOCREATEDB
+  NOCREATEROLE
+  NOINHERIT
+  NOBYPASSRLS
+  CONNECTION LIMIT 4
+  PASSWORD '__CHANGE_ME_MIGRATOR_PASSWORD__';
+
+CREATE ROLE truckly_stg_app
+  LOGIN
+  NOSUPERUSER
+  NOCREATEDB
+  NOCREATEROLE
+  NOINHERIT
+  NOBYPASSRLS
+  CONNECTION LIMIT 12
+  PASSWORD '__CHANGE_ME_APP_PASSWORD__';
+
+CREATE DATABASE truckly_staging
+  OWNER truckly_stg_migrator
+  ENCODING 'UTF8'
+  TEMPLATE template0;
+
+REVOKE ALL ON DATABASE truckly_staging FROM PUBLIC;
+GRANT CONNECT ON DATABASE truckly_staging TO truckly_stg_migrator, truckly_stg_app;
+
+\connect truckly_staging
+
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+ALTER SCHEMA public OWNER TO truckly_stg_migrator;
+GRANT USAGE, CREATE ON SCHEMA public TO truckly_stg_migrator;
+GRANT USAGE ON SCHEMA public TO truckly_stg_app;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE truckly_stg_migrator IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO truckly_stg_app;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE truckly_stg_migrator IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO truckly_stg_app;

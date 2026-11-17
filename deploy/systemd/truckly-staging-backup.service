@@ -1,0 +1,16 @@
+[Unit]
+Description=Truckly Staging Encrypted PostgreSQL Backup
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=-/etc/truckly-staging/backup.env
+ExecStart=/usr/local/sbin/truckly-staging-backup.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=truckly-staging-backup

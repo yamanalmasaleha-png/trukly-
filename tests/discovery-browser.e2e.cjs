@@ -241,41 +241,54 @@ class CdpClient {
   let chromeProfileDir = null;
 
   try {
-    await adminPool.query(`CREATE ROLE ${appRole} LOGIN PASSWORD '${appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`);
-    await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${appRole}`);
+    const migratorRole = `truckly_e2e_mig_${suffix}`;
+    const migratorPass = `mig_${suffix}`;
+    await adminPool.query(
+      `CREATE ROLE ${migratorRole} LOGIN PASSWORD '${migratorPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`
+    );
+    await adminPool.query(
+      `CREATE ROLE ${appRole} LOGIN PASSWORD '${appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`
+    );
+    await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${migratorRole}`);
 
+    const migratorDbUrl = buildDbUrl(pgCluster.adminUrl, {
+      user: migratorRole,
+      password: migratorPass,
+      database: dbName
+    });
     const appDbUrl = buildDbUrl(pgCluster.adminUrl, { user: appRole, password: appPass, database: dbName });
-    appPool = new Pool({ connectionString: appDbUrl, max: 6 });
 
-    // Apply all migrations 001..014
-    const migFiles = fs
-      .readdirSync(path.join(ROOT, 'migrations'))
-      .filter(f => /^\d{3}_.+\.sql$/.test(f))
-      .sort();
-    for (const f of migFiles) {
-      await appPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
-    }
+    // Apply all migrations 001..017 as migrator & grant DML to NOBYPASSRLS appRole
+    execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole], {
+      cwd: ROOT,
+      env: { ...process.env, MIGRATION_DATABASE_URL: migratorDbUrl },
+      stdio: 'pipe',
+      windowsHide: true
+    });
 
-    // Seed vendor memberships matching dev-server's simulated auth identities
-    await appPool.query(
-      `INSERT INTO platform_roles (user_id, role, granted_by) VALUES ('usr_platform_admin', 'platform_admin', 'bootstrap')`
-    );
-    await appPool.query(
-      `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by) VALUES
-         ('iniguez', 'usr_vendor_a_owner', 'owner', 'usr_platform_admin'),
-         ('iniguez', 'usr_vendor_a_staff', 'staff', 'usr_vendor_a_owner'),
-         ('mitote', 'usr_vendor_b_owner', 'owner', 'usr_platform_admin')`
-    );
+    appPool = new Pool({ connectionString: migratorDbUrl, max: 4 });
 
-    // Start local HTTP server backed by REAL PostgreSQL
+    // Start real standalone server (`server/index.js`) backed by NOBYPASSRLS PostgreSQL role
     const appPort = await getFreePort();
     const baseUrl = `http://127.0.0.1:${appPort}`;
-    serverProc = spawn(process.execPath, [path.join(ROOT, 'scripts', 'dev-server.cjs')], {
+    const authSecret = crypto.randomBytes(32).toString('hex');
+    const mailboxSecret = 'e2e_mbx_' + crypto.randomBytes(16).toString('hex');
+    const ownerEmail = 'iniguez-owner@staging.truckly.invalid';
+
+    serverProc = spawn(process.execPath, [path.join(ROOT, 'server', 'index.js')], {
       cwd: ROOT,
       env: {
         ...process.env,
+        HOST: '127.0.0.1',
         PORT: String(appPort),
-        DATABASE_URL: appDbUrl
+        DATABASE_URL: appDbUrl,
+        TRUCKLY_ENV: 'staging',
+        TRUCKLY_RELEASE_SHA: 'e2e-standalone',
+        TRUCKLY_AUTH_SECRET: authSecret,
+        TRUCKLY_AUTH_DELIVERY_MODE: 'staging_mailbox',
+        TRUCKLY_STAGING_MAILBOX_SECRET: mailboxSecret,
+        TRUCKLY_STAGING_ALLOWED_EMAIL_DOMAINS: 'staging.truckly.invalid',
+        TRUCKLY_PUSH_PROVIDER_MODE: 'disabled'
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
@@ -286,7 +299,7 @@ class CdpClient {
         const res = await httpGetJson(`${baseUrl}/api/trucks?summary=1`);
         return res.status === 200 && res.json.total === 59;
       },
-      { label: 'dev-server backed by PostgreSQL' }
+      { label: 'standalone server/index.js backed by PostgreSQL' }
     );
 
     // Launch real headless Chrome
@@ -399,30 +412,82 @@ class CdpClient {
     console.log('PASS [E2E 1/3]: Anonymous customer browser loaded all 59 unified listings from PostgreSQL');
 
     // =========================================================================
-    // STEP 2: Vendor A Owner signs in & publishes profile, location, and schedule via UI
+    // STEP 2: Vendor A Owner signs in through real `/login.html` Email OTP UI & publishes via Owner Mode
     // =========================================================================
-    await cdp.send(
-      'Page.addScriptToEvaluateOnNewDocument',
-      {
-        source: `try { localStorage.setItem('truckly_debug_role', 'vendor_a_owner'); } catch (e) {}`
-      },
-      ownerSession
+    await cdp.send('Page.navigate', { url: `${baseUrl}/login.html?next=/` }, ownerSession);
+    const loginPageInfo = await waitForCondition(
+      () =>
+        cdp.eval(
+          ownerSession,
+          `(() => {
+            const emailInput = document.getElementById('email');
+            const disclosure = document.getElementById('passkeyDisclosure');
+            if (!emailInput || !window.hatchable || !window.hatchable.auth) return null;
+            return {
+              disclosureVisible: Boolean(disclosure && !disclosure.hidden),
+              disclosureText: disclosure ? disclosure.textContent.trim() : ''
+            };
+          })()`
+        ),
+      { label: '/login.html loaded with standalone auth bridge' }
     );
-    await cdp.send(
-      'Network.setCookie',
-      {
-        name: 'truckly_debug_role',
-        value: 'vendor_a_owner',
-        url: baseUrl,
-        path: '/'
-      },
-      ownerSession
-    );
-    await cdp.send('Page.navigate', { url: `${baseUrl}/` }, ownerSession);
+    assert.equal(loginPageInfo.disclosureVisible, true, 'Passkey unavailability disclosure must be visible on /login.html');
+    assert(loginPageInfo.disclosureText.toLowerCase().includes('passkeys are currently unavailable'));
 
+    // Submit email on `/login.html`
+    await cdp.eval(
+      ownerSession,
+      `(async () => {
+        document.getElementById('email').value = ${JSON.stringify(ownerEmail)};
+        await send(new Event('submit', { cancelable: true }));
+      })()`
+    );
     await waitForCondition(
-      () => cdp.eval(ownerSession, `Boolean(window.trucklyReady && typeof trucks !== 'undefined' && trucks.length === 59)`),
-      { label: 'Owner browser initial load' }
+      () => cdp.eval(ownerSession, `document.getElementById('codeStep')?.hidden === false`),
+      { label: 'OTP code step shown on /login.html' }
+    );
+
+    // Retrieve 6-digit OTP via operator-secret-gated staging mailbox
+    const mbRes = await fetch(`${baseUrl}/api/auth/staging-mailbox`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Staging-Mailbox-Secret': mailboxSecret
+      },
+      body: JSON.stringify({ email: ownerEmail })
+    });
+    assert.equal(mbRes.status, 200);
+    const { code: ownerOtpCode } = await mbRes.json();
+
+    // Enter OTP code in `/login.html` -> establishes real `__Host-truckly_session` cookie & redirects to `/`
+    await cdp.eval(
+      ownerSession,
+      `(async () => {
+        document.getElementById('code').value = ${JSON.stringify(ownerOtpCode)};
+        await verify(new Event('submit', { cancelable: true }));
+      })()`
+    );
+
+    const signedInOwner = await waitForCondition(
+      () =>
+        cdp.eval(
+          ownerSession,
+          `(() => {
+            if (!location.pathname || location.pathname !== '/') return null;
+            if (!window.trucklyReady || typeof trucks === 'undefined' || trucks.length !== 59) return null;
+            if (!isSignedIn || !currentUser || !currentUser.id) return null;
+            return { id: currentUser.id, email: currentUser.email };
+          })()`
+        ),
+      { label: 'Owner redirected to / and authenticated via __Host-truckly_session' }
+    );
+    assert(signedInOwner.id.startsWith('usr_sa_'), 'Owner authenticated with standalone usr_sa_* user ID');
+
+    // Grant reviewed `owner` membership on `iniguez` to the newly created standalone user ID
+    await appPool.query(
+      `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by)
+       VALUES ('iniguez', $1, 'owner', 'e2e_bootstrap')`,
+      [signedInOwner.id]
     );
 
     // Open Owner Mode via UI click on brand button
