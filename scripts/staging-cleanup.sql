@@ -17,6 +17,7 @@ BEGIN
 END $$;
 
 SELECT set_config('app.can_moderate', 'true', true);
+SELECT set_config('app.pager_internal', 'true', true);
 
 DELETE FROM community_reviews
 WHERE title LIKE '[STG-E2E-%]%'
@@ -29,8 +30,18 @@ WHERE location LIKE '[STG-E2E-%]%'
 DELETE FROM pickup_pagers
 WHERE ticket LIKE 'STG-%';
 
+DELETE FROM truck_settings
+WHERE location LIKE '[STG-E2E-%]%';
+
 DELETE FROM owner_schedule
 WHERE location LIKE '[STG-E2E-%]%';
+
+UPDATE owner_profiles
+SET display_name = 'Tacos Iñiguez',
+    description = 'Staging Vendor A test profile',
+    accepting_bookings = true,
+    updated_at = now()
+WHERE truck_id = 'iniguez';
 
 DELETE FROM audit_logs
 WHERE action LIKE 'staging.%'

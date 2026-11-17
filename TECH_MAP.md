@@ -1172,19 +1172,22 @@ api/schedule/*
   Public schedule endpoint backed by active vendors + owner_schedule
 
 migrations/*
-  PostgreSQL schema history (001–014, including unified 59-place `vendors` catalog, truthful `truck_settings` location/expiry columns, `vendor_memberships`, `platform_roles`, `audit_logs`, booking integrity triggers, and `community_reviews` FORCE RLS + `community_public_posts` view)
+  PostgreSQL schema history (001–015, including unified 59-place `vendors` catalog, truthful `truck_settings` location/expiry columns, `vendor_memberships`, `platform_roles`, `audit_logs`, booking integrity triggers, `community_reviews` FORCE RLS + `community_public_posts` view, and `pager_notification_*` outbox/subscription/delivery/rate-limit tables with FORCE RLS)
 
 lib/*
-  Shared server-side authorization (`authz.js`), unified discovery read model (`discovery.js`), catalog/package terms (`catalog.js`), Pacific date validation (`dates.js`), and transaction helpers (`db-tx.js`) — kept outside `api/` so Hatchable does not register helpers as routes
+  Shared server-side authorization (`authz.js`), unified discovery read model (`discovery.js`), durable pager notifications (`pager-notifications.js`), RFC 8291/8292 Web Push crypto (`webpush-crypto.js`), catalog/package terms (`catalog.js`), Pacific date validation (`dates.js`), and transaction helpers (`db-tx.js`) — kept outside `api/` so Hatchable does not register helpers as routes
 
 docs/BACKEND_SECURITY_HARDENING.md
   P0 permission matrix, invariants, legacy quarantine rules, and staging rollout/rollback guide
 
 docs/HATCHABLE_STAGING_RUNBOOK.md
-  Hosted Hatchable staging verification gates (`G1`–`G6`) and operator runbook
+  Hosted Hatchable staging verification gates (`G1`–`G9`) and operator runbook
 
 docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md
   P1 unified discovery schema ownership, truthful location/schedule precedence, caching & rollback plan
+
+docs/PAGER_NOTIFICATIONS_RUNBOOK.md
+  Durable pager notification outbox, Web Push / native adapter contract, physical-device checklist & incident runbook
 
 docs/PHOTO_MENU_VERIFICATION.md
   Listing verification, address corrections, and photo/menu audit register
@@ -1193,13 +1196,19 @@ tests/listing-verification.cjs
   Zero-dependency Node regression & cross-API parity test suite
 
 tests/backend-hardening.integration.cjs
-  Real-PostgreSQL integration suite for P0-A RBAC, P0-B booking integrity/concurrency, and P0-C community RLS
+  Real-PostgreSQL integration suite for P0-A RBAC/revocation, P0-B booking integrity/locks, and P0-C community RLS
 
 tests/p1-unified-discovery.integration.cjs
-  Real-PostgreSQL integration suite for P1 unified 59-listing catalog, owner publishing, truthful locations/expiry, and Pacific DST/overnight schedule precedence
+  Real-PostgreSQL integration suite for P1 unified 59-listing catalog, clock-aware ETags, truthful locations/expiry, and Pacific DST/overnight schedule precedence
+
+tests/pager-notifications.integration.cjs
+  Real-PostgreSQL integration suite for pager notification migrations, capability auth, SSRF/CSRF, atomic outbox rollback, RFC 8291/8292 wire crypto, worker leases/retries, 410 scrubbing, and telemetry redaction
 
 tests/discovery-browser.e2e.cjs
   Real headless Chrome + real PostgreSQL browser E2E suite verifying owner publish -> customer discovery refresh parity
+
+tests/pager-notifications-browser.e2e.cjs
+  Real headless Chrome + real PostgreSQL browser E2E suite verifying sample pager isolation, real pager opt-in, Service Worker registration, `#pager-ref` routing, unsubscribe, and denied/unsupported fallbacks
 
 hatchable.toml
   Project/auth/data permission configuration (direct table access restricted to favorites & notification_settings)

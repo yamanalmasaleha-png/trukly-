@@ -1579,6 +1579,117 @@ function futurePacificDate(daysAhead = 12) {
     assert.equal((await rollbackPool.query('SELECT count(*)::int AS c FROM bookings')).rows[0].c, 2);
 
     console.log('PASS [6/6]: Two-tier rollback verified (Tier 1 write pause + Tier 2 actual 8bbbbe3 handlers on rolled-back PostgreSQL)');
+
+    // =========================================================================
+    // PART 7: Absent-Row Booking Concurrency Serialization & In-Tx Revocation
+    // =========================================================================
+    // 7a. Prove `FOR SHARE OF v` vs `FOR NO KEY UPDATE` on `vendors` prevents booking creation
+    //     when `owner_profiles` has NO existing row and an owner concurrently pauses bookings!
+    const absentProfileVendor = 'sunny';
+    const raceDate = futurePacificDate(21);
+    await cleanPool.query('DELETE FROM owner_profiles WHERE truck_id = $1', [absentProfileVendor]);
+    await cleanPool.query('DELETE FROM owner_schedule WHERE truck_id = $1', [absentProfileVendor]);
+
+    const lockClient = await cleanPool.connect();
+    try {
+      await lockClient.query('BEGIN');
+      // Simulate POST /api/owner/profile holding FOR NO KEY UPDATE on vendors('sunny') before inserting owner_profiles
+      await lockClient.query('SELECT id FROM vendors WHERE id = $1 FOR NO KEY UPDATE', [absentProfileVendor]);
+      await lockClient.query(
+        `INSERT INTO owner_profiles (truck_id, display_name, cuisine, accepting_bookings, updated_at)
+         VALUES ($1, 'Sunny Cafe & Tacos', 'Mexican', false, now())`,
+        [absentProfileVendor]
+      );
+
+      // Fire customer booking concurrently while owner transaction is in flight; commit owner pause after 90ms
+      const commitTimer = setTimeout(() => {
+        lockClient.query('COMMIT').catch(() => {});
+      }, 90);
+
+      const concurrentBookRes = await callApi('bookings/create.js', {
+        method: 'POST',
+        user: ACTORS.custA,
+        body: {
+          truck_id: absentProfileVendor,
+          package_id: 'dropin',
+          event_type: 'Office lunch',
+          event_date: raceDate,
+          guest_count: 25,
+          location: '100 Fourth St, Santa Rosa',
+          idempotency_key: 'absent-prof-race-1'
+        }
+      });
+      clearTimeout(commitTimer);
+      assert.equal(
+        concurrentBookRes.status,
+        409,
+        'concurrent booking waits on vendors lock and observes newly inserted accepting_bookings=false'
+      );
+    } finally {
+      lockClient.release();
+    }
+
+    // Same proof for absent `owner_schedule` row concurrently marked `unavailable`:
+    await cleanPool.query('UPDATE owner_profiles SET accepting_bookings = true WHERE truck_id = $1', [absentProfileVendor]);
+    const schedLockClient = await cleanPool.connect();
+    try {
+      await schedLockClient.query('BEGIN');
+      await schedLockClient.query('SELECT id FROM vendors WHERE id = $1 FOR NO KEY UPDATE', [absentProfileVendor]);
+      await schedLockClient.query(
+        `INSERT INTO owner_schedule (truck_id, service_date, status, updated_at)
+         VALUES ($1, $2, 'unavailable', now())`,
+        [absentProfileVendor, raceDate]
+      );
+
+      const commitSchedTimer = setTimeout(() => {
+        schedLockClient.query('COMMIT').catch(() => {});
+      }, 90);
+
+      const concurrentSchedBookRes = await callApi('bookings/create.js', {
+        method: 'POST',
+        user: ACTORS.custA,
+        body: {
+          truck_id: absentProfileVendor,
+          package_id: 'dropin',
+          event_type: 'Office lunch',
+          event_date: raceDate,
+          guest_count: 25,
+          location: '100 Fourth St, Santa Rosa',
+          idempotency_key: 'absent-sched-race-1'
+        }
+      });
+      clearTimeout(commitSchedTimer);
+      assert.equal(
+        concurrentSchedBookRes.status,
+        409,
+        'concurrent booking waits on vendors lock and observes newly inserted unavailable schedule'
+      );
+    } finally {
+      schedLockClient.release();
+    }
+
+    // 7b. In-transaction revocation check (`reverifyVendorMembershipInTx` & `reverifyModeratorInTx`)
+    const authzRevokeMod = await import(pathToFileURL(path.join(ROOT, 'lib', 'authz.js')).href);
+    const staleOwnerCtx = await authzRevokeMod.loadAccessContext({ user: ACTORS.vaOwner }, null, cleanPool);
+    assert.equal(staleOwnerCtx.memberships.has('iniguez'), true);
+
+    // Revoke membership in PostgreSQL AFTER `loadAccessContext` already ran
+    await cleanPool.query(
+      'DELETE FROM vendor_memberships WHERE vendor_id = $1 AND user_id = $2',
+      ['iniguez', ACTORS.vaOwner.id]
+    );
+    const txReverify = await authzRevokeMod.reverifyVendorMembershipInTx(cleanPool, staleOwnerCtx, 'iniguez', 'owner');
+    assert.equal(txReverify.ok, false, 'revoked membership denied inside transaction despite stale pre-tx context');
+    assert.equal(txReverify.status, 403);
+
+    const staleModCtx = await authzRevokeMod.loadAccessContext({ user: ACTORS.mod }, null, cleanPool);
+    assert.equal(staleModCtx.isModerator, true);
+    await cleanPool.query('DELETE FROM platform_roles WHERE user_id = $1', [ACTORS.mod.id]);
+    const txModReverify = await authzRevokeMod.reverifyModeratorInTx(cleanPool, staleModCtx);
+    assert.equal(txModReverify.ok, false, 'revoked moderator denied inside transaction despite stale pre-tx context');
+    assert.equal(txModReverify.status, 403);
+
+    console.log('PASS [7/7]: Absent-row booking concurrency locks and mid-request RBAC revocation verified');
     console.log('ALL REAL-POSTGRESQL BACKEND HARDENING INTEGRATION TESTS PASSED.');
   } finally {
     if (singleConnPool) await singleConnPool.end().catch(() => {});

@@ -21,12 +21,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify exact 27 Hatchable API route files (no stray helpers in api/)
+      - name: Verify exact 30 Hatchable API route files (no stray helpers or staging probes in api/)
         shell: bash
         run: |
           count=$(find api -type f -name '*.js' | wc -l | tr -d ' ')
           echo "Found $count route files in api/"
-          test "$count" = "27"
+          test "$count" = "30"
+          ! find api -type f -name '*probe*' -o -name '*debug*' | grep -q .
       - name: Check Hatchable API, shared lib, and staging probe ESM syntax
         shell: bash
         run: |
@@ -79,11 +80,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install pg client in isolated runner temp directory
+      - name: Install pinned pg client in isolated runner temp directory
         shell: bash
         run: |
           mkdir -p "$RUNNER_TEMP/pg-client"
-          npm --prefix "$RUNNER_TEMP/pg-client" install --no-save --no-audit --no-fund pg@8
+          npm --prefix "$RUNNER_TEMP/pg-client" install --no-save --no-audit --no-fund --save-exact pg@8.13.1
       - name: Run real-PostgreSQL backend hardening integration suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
@@ -99,8 +100,18 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/p1-unified-discovery.integration.cjs
+      - name: Run pager notifications outbox, RFC 8291/8292 crypto & migration PostgreSQL suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
+        run: node tests/pager-notifications.integration.cjs
       - name: Run real headless Chrome + PostgreSQL discovery browser E2E suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/discovery-browser.e2e.cjs
+      - name: Run real headless Chrome + PostgreSQL pager notification browser E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+          TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
+        run: node tests/pager-notifications-browser.e2e.cjs

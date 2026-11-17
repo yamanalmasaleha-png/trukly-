@@ -43,6 +43,16 @@ export default async function(req, res) {
     return res.status(404).json({ error: "Not found" });
   }
 
+  // Fail-closed server-side environment verification: refuse to run on production or unconfirmed environments!
+  const runtimeProjectId = String(process.env.HATCHABLE_PROJECT_ID || process.env.PROJECT_ID || "").trim();
+  const runtimeEnv = String(process.env.TRUCKLY_ENV || "").trim().toLowerCase();
+  if (runtimeProjectId === "proj_MEO518rmLLl0" || runtimeEnv !== "staging") {
+    return res.status(403).json({
+      error: "Refusing to execute staging runtime probe: server environment is not confirmed isolated staging (TRUCKLY_ENV=staging required; proj_MEO518rmLLl0 forbidden).",
+      code: "PRODUCTION_OR_UNCONFIRMED_ENVIRONMENT"
+    });
+  }
+
   const ctx = await loadAccessContext(req, auth, db);
   if (!ctx.authenticated || !ctx.isPlatformAdmin) {
     return res.status(403).json({ error: "Platform administrator required." });
@@ -114,7 +124,26 @@ export default async function(req, res) {
     "SELECT count(*)::int AS unapproved_visible FROM community_reviews WHERE status <> 'approved'"
   );
 
+  const { rows: notifRlsRows } = await db.query(
+    `SELECT
+       c.relrowsecurity AS rls_enabled,
+       c.relforcerowsecurity AS rls_forced
+     FROM pg_class c
+     JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+     WHERE c.relname = 'pager_notification_subscriptions'`
+  );
+  const { rows: notifLeakRows } = await db.query(
+    "SELECT count(*)::int AS subs_visible_without_guc FROM pager_notification_subscriptions"
+  );
+
   return res.json({
+    environment_identity: {
+      is_staging_confirmed: runtimeEnv === "staging",
+      is_production_project: runtimeProjectId === "proj_MEO518rmLLl0",
+      project_id_hash: runtimeProjectId
+        ? "sha256:" + crypto.createHash("sha256").update(runtimeProjectId).digest("hex").slice(0, 12)
+        : "unset"
+    },
     adapter: {
       has_transaction_fn: typeof db.transaction === "function",
       has_connect_fn: typeof db.connect === "function",
@@ -131,7 +160,10 @@ export default async function(req, res) {
     },
     gate5_db_role: {
       ...roleRows[0],
-      unapproved_visible_without_guc: leakCheck[0].unapproved_visible
+      unapproved_visible_without_guc: leakCheck[0].unapproved_visible,
+      notif_rls_enabled: Boolean(notifRlsRows[0]?.rls_enabled),
+      notif_rls_forced: Boolean(notifRlsRows[0]?.rls_forced),
+      notif_subs_visible_without_guc: notifLeakRows[0].subs_visible_without_guc
     }
   });
 }

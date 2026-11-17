@@ -6,7 +6,7 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 
 > **Reconciliation note:** This repository reconciles the full Hatchable **v77** text-source mirror and **Pickup Pager Demo** (PR #2) with the **Photo/Menu Verification** patch (PR #1) and client/API parity fixes — combining all **59 directory listings** (47 primary + 12 neighborhood additions), **27 Hatchable API functions**, and **10 SQL migrations** with both regression suites passing. Three pre-existing binary JPEGs (`public/assets/mitote.jpg`, `oak-hill-guide.jpg`, `retrograde-roasting.jpg`) remain excluded pending image-rights review and gracefully fall back in UI.
 
-> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), [docs/HATCHABLE_STAGING_RUNBOOK.md](./docs/HATCHABLE_STAGING_RUNBOOK.md), [docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](./docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
+> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), [docs/HATCHABLE_STAGING_RUNBOOK.md](./docs/HATCHABLE_STAGING_RUNBOOK.md), [docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](./docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md), [docs/PAGER_NOTIFICATIONS_RUNBOOK.md](./docs/PAGER_NOTIFICATIONS_RUNBOOK.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
 
 ## What this repository contains
 
@@ -16,50 +16,58 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 ├── TECH_MAP.md                       # Full architecture, route, DOM & schema guide
 ├── docs/
 │   ├── BACKEND_SECURITY_HARDENING.md # P0 RBAC permission matrix, booking/RLS invariants & rollout plan
-│   ├── HATCHABLE_STAGING_RUNBOOK.md  # Hosted Hatchable staging gates (G1–G6) & operator verification guide
+│   ├── HATCHABLE_STAGING_RUNBOOK.md  # Hosted Hatchable staging gates (G1–G9) & operator verification guide
 │   ├── P1_UNIFIED_DISCOVERY_ARCHITECTURE.md # Unified 59-place PostgreSQL read model, location/schedule precedence & cache contract
+│   ├── PAGER_NOTIFICATIONS_RUNBOOK.md # Durable pager push outbox, RFC 8291/8292 Web Push, native contract & incident runbook
 │   ├── PHOTO_MENU_VERIFICATION.md    # Vendor address, menu spotlight & photo-rights audit
 │   └── V77_PAGER_SOURCE_REVIEW.md    # Reconciled v77 & pager UX review notes
-├── hatchable.toml                    # Hatchable auth & table permission config (community_reviews restricted to API)
+├── hatchable.toml                    # Hatchable auth & table permission config (community_reviews & pager outbox restricted to API)
 ├── lib/                              # Shared backend helpers (outside api/ so Hatchable does not expose as routes)
-│   ├── authz.js                      # Trusted identity resolution, vendor RBAC, and redacted audit logging
+│   ├── authz.js                      # Trusted identity resolution, in-tx RBAC revocation checks, and redacted audit logging
 │   ├── catalog.js                    # Canonical 59-vendor registry & server-enforced booking package terms
 │   ├── dates.js                      # Real calendar date & America/Los_Angeles future-date validation
 │   ├── db-tx.js                      # Transaction wrapper for Hatchable db.transaction & node-postgres
-│   └── discovery.js                  # Unified PostgreSQL discovery read model, truthful location/expiry & Pacific schedule precedence
+│   ├── discovery.js                  # Unified PostgreSQL discovery read model, clock-aware ETag & Pacific schedule precedence
+│   ├── pager-notifications.js        # Capability subscriptions, SSRF/CSRF/rate limits, outbox enqueue & bounded lease worker
+│   └── webpush-crypto.js             # Standards-compliant RFC 8291 aes128gcm & RFC 8292 VAPID ES256 via native node:crypto
 ├── public/
 │   ├── index.html                    # Main mobile UI, modals, community, pager & Owner Mode markup
+│   ├── manifest.json                 # Standalone PWA manifest (required for iOS/iPadOS 16.4+ Home Screen Web Push)
+│   ├── sw.js                         # Zero-API-cache Web Push notification & click-routing service worker
 │   ├── app.js                        # Unified 59-place discovery client, truthful GPS distances, auth sync, bookings & Owner Mode
-│   ├── pager.js                      # Isolated customer pager demo + vendor-scoped staff kitchen queue
+│   ├── pager.js                      # Isolated customer pager demo + opt-in Web Push alerts + vendor-scoped kitchen queue
 │   ├── community.js                  # Approved-only community feed, author status & moderator queue UI
 │   ├── listing-highlights.js         # Sourced menu spotlights & unlicensed stock-photo guard
-│   ├── debug-admin.js                # Local developer/admin inspection workbench (never bypasses prod auth)
+│   ├── debug-admin.js                # Local developer/admin inspection workbench (redacts tokens/UUIDs; never bypasses prod auth)
 │   ├── theme.css                     # Full visual system and responsive layout
 │   ├── login.html                    # Hatchable email code + WebAuthn passkey sign-in
 │   ├── logo.svg
 │   └── build.json                    # Build/QA metadata
-├── api/                              # Exact 27 standalone Hatchable serverless endpoints (no helper files here)
+├── api/                              # Exact 30 standalone Hatchable serverless endpoints (no helper files here)
 │   ├── trucks.js                     # Unified 59-listing PostgreSQL Sonoma County discovery endpoint
 │   ├── trucks/                       # [id] detail, accent-folded search, nearby hubs, fail-closed availability
 │   ├── bookings/                     # Authenticated, Pacific-validated, idempotent booking create & user list
 │   ├── favorites/                    # Authenticated saved trucks
 │   ├── owner/                        # Vendor-scoped RBAC APIs (stats, profile, location, schedule, requests, bookings)
-│   ├── pager/                        # Public bearer status + vendor-scoped staff queue & ticket updates
+│   ├── pager/                        # Public status, capability subscriptions, bounded worker, admin telemetry & staff queue
 │   ├── community/                    # Public approved projection, author mine/post, moderator-only decisions
 │   ├── catalog/                      # Cities, 6 cuisines/categories, PostgreSQL-backed featured IDs
 │   ├── notifications/                # User nearby-alert preferences
 │   └── schedule/                     # Public daily schedule backed by active vendors + owner_schedule
-├── migrations/                       # PostgreSQL schema history (001–014)
+├── migrations/                       # PostgreSQL schema history (001–015)
 ├── scripts/
 │   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (supports DATABASE_URL or seed mock) — NEVER deploy
+│   ├── run-pager-worker.cjs          # Bounded notification delivery worker CLI (HTTPS trigger or direct DB mode)
 │   └── seed-sql-reader.cjs           # Local zero-dependency SQL seed reader for dev simulator & contract tests
 ├── tests/
 │   ├── pager-demo.test.cjs           # Isolated pager demo zero-network smoke test
 │   ├── listing-verification.cjs      # Zero-dependency Node catalog, UX & cross-API parity suite
-│   ├── backend-hardening.integration.cjs # Real-PostgreSQL P0 RBAC, booking concurrency, legacy & RLS suite
-│   ├── staging-hatchable-gates.cjs   # Hosted Hatchable staging gates (G1–G6) & local pre-flight validator
-│   ├── p1-unified-discovery.integration.cjs # Real-PostgreSQL P1 unified catalog, truthful location/expiry & DST schedule suite
-│   └── discovery-browser.e2e.cjs     # Real headless Chrome + real PostgreSQL owner-publish -> customer-refresh E2E test
+│   ├── backend-hardening.integration.cjs # Real-PostgreSQL P0 RBAC, absent-row booking locks, revocation & RLS suite
+│   ├── staging-hatchable-gates.cjs   # Hosted Hatchable staging gates (G1–G9) & local pre-flight validator
+│   ├── p1-unified-discovery.integration.cjs # Real-PostgreSQL P1 unified catalog, clock-aware ETags & DST schedule suite
+│   ├── pager-notifications.integration.cjs # Real-PostgreSQL pager outbox, RFC 8291/8292 crypto, leases, retries & RLS suite
+│   ├── discovery-browser.e2e.cjs     # Real headless Chrome + real PostgreSQL owner-publish -> customer-refresh E2E test
+│   └── pager-notifications-browser.e2e.cjs # Real headless Chrome + real PostgreSQL pager opt-in, SW, push & unsubscribe E2E test
 ├── truckly-v63.zip                   # Historical snapshot (retain)
 └── truckly-data.sql.gz               # Historical data backup (retain)
 ```
@@ -94,7 +102,9 @@ Run the real-PostgreSQL integration and headless Chromium E2E suites (requires P
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/backend-hardening.integration.cjs
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/staging-hatchable-gates.cjs --preflight-local
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/p1-unified-discovery.integration.cjs
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/pager-notifications.integration.cjs
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/discovery-browser.e2e.cjs
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/postgres node tests/pager-notifications-browser.e2e.cjs
 ```
 
 This verifies all 59 unified Sonoma County catalog listings, truthful location provenance & expiry (`illustrative_pin` never treated as measured GPS proximity), Pacific (`America/Los_Angeles`) schedule precedence across overnight windows and DST transitions, safe photo defaults (`verified: false` and `photo_rights_verified: false` until platform-confirmed), explicit `503` database-outage handling, and real browser owner-publish → customer-refresh synchronization.

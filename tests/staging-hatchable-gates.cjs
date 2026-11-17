@@ -91,7 +91,10 @@ async function runStagingSuite(cfg) {
     G3_identity_context_isolation: { status: 'BLOCKED', detail: 'Requires authenticated staging sessions' },
     G4_hosted_identity_and_authz: { status: 'BLOCKED', detail: 'Requires 7 staging persona cookies' },
     G5_database_security_role: { status: 'BLOCKED', detail: 'Requires staging runtime probe or Gate 5 SQL check' },
-    G6_direct_table_gateway: { status: 'BLOCKED', detail: 'Not yet run' }
+    G6_direct_table_gateway: { status: 'BLOCKED', detail: 'Not yet run' },
+    G7_unified_59_place_discovery: { status: 'BLOCKED', detail: 'Not yet run' },
+    G8_owner_publishing_to_customer: { status: 'BLOCKED', detail: 'Requires Vendor A owner + Customer sessions' },
+    G9_cache_refresh_and_outbox_rls: { status: 'BLOCKED', detail: 'Not yet run' }
   };
 
   const e2e = {
@@ -122,7 +125,11 @@ async function runStagingSuite(cfg) {
     } catch {
       json = null;
     }
-    return { status: res.status, json, text };
+    const respHeaders = {};
+    res.headers.forEach((v, k) => {
+      respHeaders[k.toLowerCase()] = v;
+    });
+    return { status: res.status, json, text, headers: respHeaders };
   }
 
   try {
@@ -141,10 +148,13 @@ async function runStagingSuite(cfg) {
       '/lib/dates.js',
       '/lib/db-tx.js',
       '/lib/discovery.js',
+      '/lib/pager-notifications.js',
+      '/lib/webpush-crypto.js',
       '/api/lib/authz',
       '/api/authz',
       '/scripts/dev-server.cjs',
-      '/scripts/seed-sql-reader.cjs'
+      '/scripts/seed-sql-reader.cjs',
+      '/scripts/run-pager-worker.cjs'
     ];
     const helperChecks = await Promise.all(forbiddenHelperPaths.map(p => reqJson(p)));
     const exposedHelper = forbiddenHelperPaths.find((_, i) => ![404, 403].includes(helperChecks[i].status));
@@ -209,6 +219,26 @@ async function runStagingSuite(cfg) {
       detail: 'Served /pager.js executed full demo lifecycle with 0 network calls or DB writes.'
     };
 
+    // ========================================================================
+    // GATE 7: Migration 014 & Unified 59-Place Discovery Parity (Public)
+    // ========================================================================
+    const g7List = await reqJson('/api/trucks?fresh=1');
+    const g7Search = await reqJson('/api/trucks/search?limit=100&fresh=1');
+    const g7DetailPrimary = await reqJson('/api/trucks/iniguez?fresh=1');
+    const g7DetailExtra = await reqJson('/api/trucks/coffee-crooks?fresh=1');
+    const g7Quarantined = await reqJson('/api/trucks/estrella');
+    assert.equal(g7List.status, 200);
+    assert.equal(g7List.json?.total, 59, 'Expected 59 unified Sonoma County listings');
+    assert.equal(g7List.json?.primary_total, 47, 'Expected 47 primary listings');
+    assert.equal(g7Search.json?.total, 59, 'Expected search to index all 59 unified listings');
+    assert.equal(g7DetailPrimary.status, 200);
+    assert.equal(g7DetailExtra.status, 200);
+    assert.equal(g7Quarantined.status, 404, 'Quarantined legacy ID must return 404');
+    gates.G7_unified_59_place_discovery = {
+      status: 'PASS',
+      detail: 'All 59 canonical listings (47 primary + 12 neighborhood) consistent across list, search & detail; quarantined IDs 404.'
+    };
+
     // Check whether all 7 authenticated persona cookies are provided
     const requiredCookies = [
       'customerA',
@@ -231,6 +261,9 @@ async function runStagingSuite(cfg) {
     // Optional Ephemeral Runtime Probe (`/_staging_gate_probe`) for Gates 2, 3, 5
     // ========================================================================
     let probeData = null;
+    if (!cfg.probeToken) {
+      throw new Error('STAGING_PROBE_TOKEN is required so staging environment identity is fail-closed before write gates run.');
+    }
     if (cfg.probeToken) {
       const probeRes = await reqJson('/api/_staging_gate_probe', {
         method: 'POST',
@@ -238,6 +271,13 @@ async function runStagingSuite(cfg) {
         headers: { 'x-staging-probe-token': cfg.probeToken },
         body: {}
       });
+      if (probeRes.status !== 200 || !probeRes.json) {
+        throw new Error(
+          `Staging runtime probe rejected execution (HTTP ${probeRes.status}): ${probeRes.json?.error || 'Ensure TRUCKLY_ENV=staging and STAGING_PROBE_TOKEN match on isolated staging.'}`
+        );
+      }
+      assert.equal(probeRes.json.environment_identity?.is_staging_confirmed, true, 'Server probe did not confirm TRUCKLY_ENV=staging');
+      assert.equal(probeRes.json.environment_identity?.is_production_project, false, 'Server probe detected forbidden production project ID');
       if (probeRes.status === 200 && probeRes.json) {
         probeData = probeRes.json;
         const g2 = probeData.gate2_transactions;
@@ -625,6 +665,57 @@ async function runStagingSuite(cfg) {
       detail: 'Denied author/vendor self-approval (403); moderator approved Post A and rejected Post B cleanly.'
     };
 
+    // ========================================================================
+    // GATE 8 & GATE 9: Owner Publishing Observed by Customer + Cache ETag / Outbox RLS
+    // ========================================================================
+    const prePubList = await reqJson('/api/trucks');
+    assert(prePubList.headers?.etag, 'Expected ETag header on /api/trucks');
+    const cond304 = await reqJson('/api/trucks', {
+      headers: { 'If-None-Match': prePubList.headers.etag }
+    });
+    assert.equal(cond304.status, 304, 'Expected 304 Not Modified on matching ETag before mutation');
+
+    const stgLocText = `${tag} Courthouse Square Live Test`;
+    const pubLocRes = await reqJson('/api/owner/location', {
+      method: 'POST',
+      cookie: cfg.cookies.vendorAOwner,
+      body: {
+        truck_id: 'iniguez',
+        location: stgLocText,
+        lat: 38.4404,
+        lng: -122.7141,
+        ttl_minutes: 60,
+        is_open: true
+      }
+    });
+    assert.equal(pubLocRes.status, 200);
+
+    // Separate customer session with prior ETag MUST receive 200 (not stale 304!) and see published location
+    const custAfterPub = await reqJson('/api/trucks', {
+      cookie: cfg.cookies.customerA,
+      headers: { 'If-None-Match': prePubList.headers.etag }
+    });
+    assert.equal(custAfterPub.status, 200, 'Stale ETag returned 304 after owner location publish');
+    const iniguezObserved = custAfterPub.json?.trucks?.find(t => t.id === 'iniguez');
+    assert.equal(iniguezObserved?.location, stgLocText);
+    assert.equal(iniguezObserved?.location_accuracy, 'owner_reported_coords');
+    assert.equal(iniguezObserved?.verified, false);
+
+    const custCoordsCheck = await reqJson('/api/trucks?lat=38.4404&lng=-122.7141');
+    assert(String(custCoordsCheck.headers?.['cache-control'] || '').includes('private'), 'Coordinate query must be private/no-store');
+
+    assert.equal(probeData.gate5_db_role?.notif_rls_forced, true, 'pager_notification_subscriptions FORCE RLS missing');
+    assert.equal(probeData.gate5_db_role?.notif_subs_visible_without_guc, 0, 'pager_notification_subscriptions leaked rows without GUC');
+
+    gates.G8_owner_publishing_to_customer = {
+      status: 'PASS',
+      detail: 'Vendor A owner published live GPS location; separate customer session immediately observed update with verified=false.'
+    };
+    gates.G9_cache_refresh_and_outbox_rls = {
+      status: 'PASS',
+      detail: 'ETag 304 before mutation, immediate 200 cache invalidation on owner publish, private no-store on coordinate queries, and FORCE RLS on notification tables.'
+    };
+
     // Optional E2E-5 hook when caller provides a write-pause toggle callback (used in pre-flight or MCP wrapper)
     if (typeof cfg.withWritePause === 'function') {
       await cfg.withWritePause('bookings,community', async () => {
@@ -778,6 +869,8 @@ export async function resolve(specifier, context, nextResolve) {
 
     const probeSecret = 'stg_probe_secret_' + crypto.randomBytes(12).toString('hex');
     process.env.TRUCKLY_STAGING_PROBE_TOKEN = probeSecret;
+    process.env.TRUCKLY_ENV = 'staging';
+    process.env.HATCHABLE_PROJECT_ID = 'proj_stg_local_preflight';
     const probeMod = await import(pathToFileURL(path.join(ROOT, 'scripts', 'staging-runtime-probe.template.js')).href);
 
     const routeCache = new Map();
@@ -832,6 +925,11 @@ export async function resolve(specifier, context, nextResolve) {
           const mockRes = {
             setHeader(k, v) { hdrs[k] = v; },
             status(c) { code = c; return this; },
+            end(b = '') {
+              res.writeHead(code, hdrs);
+              res.end(b);
+              return this;
+            },
             json(payload) {
               res.writeHead(code, hdrs);
               res.end(JSON.stringify(payload));
@@ -904,9 +1002,11 @@ export async function resolve(specifier, context, nextResolve) {
     assert.equal(remComm.rows[0].c, 0, 'staging-cleanup.sql left disposable community posts');
 
     console.log('MODE: LOCAL PRE-FLIGHT HARNESS VALIDATION (NOT HOSTED HATCHABLE)');
-    console.log('PASS: Production URL safety block, staging-seed.sql, staging-runtime-probe, G1..G6, E2E1..E2E6, and staging-cleanup.sql verified.');
+    console.log('PASS: Production URL/env fail-closed blocks, staging-seed.sql, staging-runtime-probe, G1..G9, E2E1..E2E6, and staging-cleanup.sql verified.');
   } finally {
     delete process.env.TRUCKLY_STAGING_PROBE_TOKEN;
+    delete process.env.TRUCKLY_ENV;
+    delete process.env.HATCHABLE_PROJECT_ID;
     if (httpServer) await new Promise(r => httpServer.close(r));
     if (appPool) await appPool.end().catch(() => {});
     await adminPool.end().catch(() => {});
@@ -937,7 +1037,8 @@ export async function resolve(specifier, context, nextResolve) {
             'STAGING_COOKIE_VENDOR_B_OWNER',
             'STAGING_COOKIE_MODERATOR',
             'STAGING_COOKIE_PLATFORM_ADMIN',
-            'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)'
+            'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)',
+            'STAGING_WORKER_SECRET (matching TRUCKLY_PAGER_WORKER_SECRET for Gate G9)'
           ]
         },
         null,

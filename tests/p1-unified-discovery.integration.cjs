@@ -815,6 +815,130 @@ const ACTORS = {
     );
 
     console.log('PASS [7/7]: PostgreSQL CHECK constraints enforce verification consistency and coordinate bounds');
+
+    // =========================================================================
+    // [8/8] Clock-Driven ETag Transitions, Query Variant Isolation, Pin Safety & Migration Rerun
+    // =========================================================================
+    // 8a. Clock-driven open/close transition changes catalog_version & ETag WITHOUT any DB write (no false 304!)
+    await appPool.query(`DELETE FROM owner_schedule WHERE truck_id = 'dogaday'`);
+    await appPool.query(`DELETE FROM truck_settings WHERE truck_id = 'dogaday'`);
+    const closedTime = new Date('2026-03-08T15:15:00.000Z'); // 08:15 PDT (dogaday closed)
+    const openTime = new Date('2026-03-08T15:45:00.000Z'); // 08:45 PDT (dogaday open)
+
+    const atClosed = await callApi('trucks.js', { testNow: closedTime });
+    assert.equal(atClosed.status, 200);
+    assert.ok(atClosed.headers.etag);
+
+    // Zero DB writes occur between 08:15 and 08:45; client sends 08:15 ETag at 08:45 -> MUST get 200, NOT 304!
+    const atOpenWithOldEtag = await callApi('trucks.js', {
+      headers: { 'if-none-match': atClosed.headers.etag },
+      testNow: openTime
+    });
+    assert.equal(atOpenWithOldEtag.status, 200, 'no false 304 across schedule open transition without DB write');
+    assert.notEqual(atOpenWithOldEtag.headers.etag, atClosed.headers.etag);
+    assert.notEqual(atOpenWithOldEtag.body.catalog_version, atClosed.body.catalog_version);
+
+    // 8b. Location expiry transition changes ETag WITHOUT any DB write (no false 304!)
+    const expLocPub = await callApi('owner/location.js', {
+      method: 'POST',
+      user: ACTORS.ownerA,
+      body: {
+        truck_id: 'iniguez',
+        location: 'Courthouse Square Live Lunch',
+        lat: 38.4404,
+        lng: -122.7141,
+        ttl_minutes: 30,
+        is_open: true,
+        opens_at: null,
+        closes_at: null
+      }
+    });
+    const expIso = new Date(expLocPub.body.expires_at);
+    const beforeExp = await callApi('trucks/[id].js', {
+      params: { id: 'iniguez' },
+      testNow: new Date(expIso.getTime() - 10 * 60 * 1000)
+    });
+    assert.equal(beforeExp.status, 200);
+    assert.equal(beforeExp.body.location_is_live, true);
+
+    const afterExpConditional = await callApi('trucks/[id].js', {
+      params: { id: 'iniguez' },
+      headers: { 'if-none-match': beforeExp.headers.etag },
+      testNow: new Date(expIso.getTime() + 60 * 1000)
+    });
+    assert.equal(afterExpConditional.status, 200, 'no false 304 after live location expires without DB write');
+    assert.equal(afterExpConditional.body.location_expired, true);
+    assert.equal(afterExpConditional.body.location, '460 Mission Blvd, Santa Rosa');
+
+    // 8c. Distinct ETags per route/query variant + private no-store on user-coordinate responses
+    const fullListRes = await callApi('trucks.js', { testNow: openTime });
+    const summaryRes = await callApi('trucks.js', { query: { summary: '1' }, testNow: openTime });
+    const searchTacos = await callApi('trucks/search.js', { query: { q: 'tacos' }, testNow: openTime });
+    const searchCoffee = await callApi('trucks/search.js', { query: { q: 'coffee' }, testNow: openTime });
+    const personalizedCoords = await callApi('trucks.js', {
+      query: { lat: '38.4404', lng: '-122.7141' },
+      testNow: openTime
+    });
+
+    assert.notEqual(fullListRes.headers.etag, summaryRes.headers.etag, 'summary=1 ETag never collides with full list');
+    assert.notEqual(searchTacos.headers.etag, searchCoffee.headers.etag, 'search query variants produce distinct ETags');
+    assert.equal(personalizedCoords.headers.etag, undefined, 'personalized coordinate response omits public ETag');
+    assert.equal(personalizedCoords.headers['cache-control'], 'private, no-store, max-age=0');
+
+    // 8d. Text-only & temporary-schedule location pin consistency (no stale default coordinates on new pop-up text!)
+    await callApi('owner/location.js', {
+      method: 'POST',
+      user: ACTORS.ownerA,
+      body: {
+        truck_id: 'iniguez',
+        location: 'Petaluma Fairgrounds Pop-Up',
+        ttl_minutes: 60,
+        is_open: true
+      }
+    });
+    const textPopUpDetail = await callApi('trucks/[id].js', {
+      params: { id: 'iniguez' },
+      testNow: new Date(Date.now() + 30 * 1000)
+    });
+    assert.equal(textPopUpDetail.body.location, 'Petaluma Fairgrounds Pop-Up');
+    assert.equal(textPopUpDetail.body.lat, null, 'text-only pop-up clears unrelated Santa Rosa default pin lat');
+    assert.equal(textPopUpDetail.body.lng, null, 'text-only pop-up clears unrelated Santa Rosa default pin lng');
+
+    // Temporary schedule stop (`lucha` on 2026-10-31 22:30 PDT at 'Mitote Halloween Night Lot' vs default 'Mitote Food Park / mobile schedule')
+    const tempSchedDetail = await callApi('trucks/[id].js', {
+      params: { id: 'lucha' },
+      testNow: new Date('2026-11-01T05:30:00.000Z')
+    });
+    assert.equal(tempSchedDetail.body.location_source, 'temporary_service');
+    assert.equal(tempSchedDetail.body.lat, null, 'un-geocoded temporary schedule stop does not reuse illustrative default pin');
+    assert.equal(tempSchedDetail.body.lng, null);
+
+    // 8e. Migration 014 rerun preserves platform-verified status, licensed photos, and verified coordinates
+    await appPool.query(
+      `UPDATE vendors
+       SET verified = true,
+           verification_status = 'business_confirmed',
+           photo_rights_verified = true,
+           photo = 'https://cdn.truckly.test/licensed/mitote-hero.jpg',
+           curated_location = '100 Sebastopol Rd, Suite A, Santa Rosa',
+           curated_lat = 38.43755,
+           curated_lng = -122.72895,
+           curated_location_accuracy = 'verified_coordinate',
+           blurb = 'Audited platform-verified description.'
+       WHERE id = 'mitote'`
+    );
+    await applyMigrations(appPool, ['014_unified_discovery_catalog.sql']);
+
+    const mitoteAfterRerun = await callApi('trucks/[id].js', { params: { id: 'mitote' }, testNow: openTime });
+    assert.equal(mitoteAfterRerun.body.verified, true, 'migration 014 rerun preserved verified=true');
+    assert.equal(mitoteAfterRerun.body.photo_rights_verified, true, 'migration 014 rerun preserved photo_rights_verified=true');
+    assert.equal(mitoteAfterRerun.body.photo, 'https://cdn.truckly.test/licensed/mitote-hero.jpg', 'licensed photo preserved');
+    assert.equal(mitoteAfterRerun.body.location_accuracy, 'verified_coordinate', 'verified_coordinate preserved');
+    assert.equal(mitoteAfterRerun.body.lat, 38.43755);
+    assert.equal(mitoteAfterRerun.body.location, '100 Sebastopol Rd, Suite A, Santa Rosa');
+    assert.equal(mitoteAfterRerun.body.blurb, 'Audited platform-verified description.');
+
+    console.log('PASS [8/8]: Zero-write clock/expiry ETag transitions, query-variant ETags, pin safety & migration rerun verified');
     console.log('\nALL P1 UNIFIED DISCOVERY POSTGRESQL INTEGRATION TESTS PASSED.');
   } finally {
     if (appPool) await appPool.end().catch(() => {});
