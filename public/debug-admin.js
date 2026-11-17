@@ -27,6 +27,13 @@
     });
   }
 
+  function redactDebugPath(rawUrl) {
+    return String(rawUrl || "")
+      .replace(/^https?:\/\/[^/]+/, "")
+      .replace(/([?&](?:code|token|unsubscribe_token|secret)=)[^&#]+/gi, "$1[REDACTED]")
+      .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "[UUID]");
+  }
+
   var state = {
     open: false,
     localSimulator: false,
@@ -143,7 +150,7 @@
       try {
         var res = await nativeFetch(input, opts);
         if (isApi) {
-          var cleanPath = urlStr.replace(/^https?:\/\/[^/]+/, "");
+          var cleanPath = redactDebugPath(urlStr);
           state.logs.unshift({
             method: String(method).toUpperCase(),
             path: cleanPath,
@@ -158,7 +165,7 @@
         if (isApi) {
           state.logs.unshift({
             method: String(method).toUpperCase(),
-            path: urlStr,
+            path: redactDebugPath(urlStr),
             status: 0,
             ms: Date.now() - t0
           });

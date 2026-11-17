@@ -4,9 +4,11 @@ import {
   loadAccessContext,
   authorizeVendorScope,
   authorizeVendorTarget,
+  reverifyVendorMembershipInTx,
   recordAuditLog,
   redactPagerTargetId,
-  isWritePaused
+  isWritePaused,
+  applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -14,7 +16,7 @@ export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
-  res.setHeader("Cache-Control", "no-store");
+  applyPrivateNoStoreHeaders(res);
 
   try {
     const ctx = await loadAccessContext(req, auth, db);
@@ -66,6 +68,11 @@ export default async function(req, res) {
     }
 
     const outcome = await withTransaction(db, async tx => {
+      const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "staff");
+      if (!verifiedAuthz.ok) {
+        return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
+      }
+
       const { rows: vendorRows } = await tx.query(
         `SELECT v.id, v.is_active, COALESCE(op.display_name, v.canonical_name) AS display_name
          FROM vendors v
@@ -92,7 +99,7 @@ export default async function(req, res) {
       if (created.length) {
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: authz.actorRole,
+          actorRole: verifiedAuthz.actorRole,
           vendorId: authz.vendorId,
           targetType: "pickup_pager",
           targetId: redactPagerTargetId(created[0].id),

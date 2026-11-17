@@ -1,5 +1,5 @@
 import { db, auth } from "hatchable";
-import { resolveIdentity, isWritePaused } from "../../lib/authz.js";
+import { resolveIdentity, isWritePaused, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
@@ -8,6 +8,7 @@ export const methods = ["POST"];
 const ALLOWED_KINDS = new Set(["review", "tip", "question", "whisper"]);
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   if (isWritePaused("community")) {
     return res.status(503).json({ error: "Community submissions are temporarily paused for maintenance." });
   }

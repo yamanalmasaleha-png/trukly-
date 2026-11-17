@@ -1,26 +1,31 @@
 import { db, auth } from "hatchable";
-import { resolveIdentity } from "../../lib/authz.js";
+import { resolveIdentity, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   const user = await resolveIdentity(req, auth);
   if (!user) return res.status(401).json({ error: "Sign in is required." });
 
-  if (req.method === "POST") {
-    const enabled = req.body?.nearby_enabled !== false;
-    const radius = Math.max(1, Math.min(30, +req.body?.radius_miles || 3));
-    const { rows } = await db.query(
-      "INSERT INTO notification_settings(user_id, nearby_enabled, radius_miles) VALUES($1, $2, $3) ON CONFLICT(user_id) DO UPDATE SET nearby_enabled = EXCLUDED.nearby_enabled, radius_miles = EXCLUDED.radius_miles, updated_at = now() RETURNING nearby_enabled, radius_miles, updated_at",
-      [user.id, enabled, radius]
-    );
-    return res.json(rows[0]);
-  }
+  try {
+    if (req.method === "POST") {
+      const enabled = req.body?.nearby_enabled !== false;
+      const radius = Math.max(1, Math.min(30, +req.body?.radius_miles || 3));
+      const { rows } = await db.query(
+        "INSERT INTO notification_settings(user_id, nearby_enabled, radius_miles) VALUES($1, $2, $3) ON CONFLICT(user_id) DO UPDATE SET nearby_enabled = EXCLUDED.nearby_enabled, radius_miles = EXCLUDED.radius_miles, updated_at = now() RETURNING nearby_enabled, radius_miles, updated_at",
+        [user.id, enabled, radius]
+      );
+      return res.json(rows[0]);
+    }
 
-  const { rows } = await db.query(
-    "SELECT nearby_enabled, radius_miles, updated_at FROM notification_settings WHERE user_id = $1",
-    [user.id]
-  );
-  return res.json(rows[0] || { nearby_enabled: true, radius_miles: 3 });
+    const { rows } = await db.query(
+      "SELECT nearby_enabled, radius_miles, updated_at FROM notification_settings WHERE user_id = $1",
+      [user.id]
+    );
+    return res.json(rows[0] || { nearby_enabled: true, radius_miles: 3 });
+  } catch {
+    return res.status(503).json({ error: "Notification settings are temporarily unavailable." });
+  }
 }

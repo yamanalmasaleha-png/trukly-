@@ -95,5 +95,5 @@ async function updatePagerStatus(id,status,button){button.disabled=true;try{awai
 async function copyPagerLink(id){try{await navigator.clipboard.writeText(pagerLink(id));document.getElementById('kitchenMessage').textContent='Pickup link copied.'}catch{document.getElementById('kitchenMessage').textContent='Select and copy the private link shown on the ticket.'}}
 setInterval(()=>{if(document.getElementById('pagerScreen').classList.contains('active')&&!document.hidden&&!pagerDemo)refreshPager()},8000);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){pagerClearDemoTimer();return}if(document.getElementById('pagerScreen').classList.contains('active')){if(pagerDemo)pagerScheduleDemo();else refreshPager()}});
-function loadPagerHash(){const code=new URLSearchParams(location.hash.slice(1)).get('pager');if(code){document.getElementById('pagerCode').value=code;openPager();joinPager()}}
+function loadPagerHash(){const code=new URLSearchParams(location.hash.slice(1)).get('pager');if(code){if(typeof history!=='undefined'&&typeof history.replaceState==='function'){try{history.replaceState(null,'',location.pathname+location.search)}catch{}}document.getElementById('pagerCode').value=code;openPager();joinPager()}}
 window.addEventListener('hashchange',loadPagerHash);loadPagerHash();

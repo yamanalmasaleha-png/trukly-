@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { db } from "hatchable";
 import { isValidCalendarDate, getPacificToday } from "../../lib/dates.js";
 import { applyDiscoveryCacheHeaders } from "../../lib/discovery.js";
@@ -35,14 +36,6 @@ export default async function(req, res) {
       [date]
     );
 
-    let maxMs = 0;
-    for (const r of rows) {
-      const ms = r.row_updated_at ? new Date(r.row_updated_at).getTime() : 0;
-      if (ms > maxMs) maxMs = ms;
-    }
-    const scheduleVersion = `s1:${date}:${maxMs}:${rows.length}`;
-    applyDiscoveryCacheHeaders(res, scheduleVersion, freshRequested);
-
     const events = rows.map(r => ({
       truck_id: r.truck_id,
       vendor: r.vendor,
@@ -51,6 +44,21 @@ export default async function(req, res) {
       closes: r.closes_at ? String(r.closes_at).slice(0, 5) : null,
       status: r.status
     }));
+
+    const digest = crypto
+      .createHash("sha256")
+      .update(JSON.stringify({ date, events }))
+      .digest("hex")
+      .slice(0, 20);
+    const scheduleVersion = `s2:${date}:${digest}:${events.length}`;
+    const etag = applyDiscoveryCacheHeaders(res, scheduleVersion, {
+      freshRequested,
+      variantKey: `schedule:date=${date}`
+    });
+
+    if (etag && !freshRequested && req.headers?.["if-none-match"] === etag && typeof res.end === "function") {
+      return res.status(304).end();
+    }
 
     return res.json({
       local_date: date,

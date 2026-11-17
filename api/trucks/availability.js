@@ -5,6 +5,9 @@ export const access = "public";
 export const methods = ["GET"];
 
 export default async function(req, res) {
+  if (typeof res?.setHeader === "function") {
+    res.setHeader("Cache-Control", "no-store, max-age=0");
+  }
   const id = typeof req.query?.truck_id === "string" ? req.query.truck_id.trim() : "";
   const date = typeof req.query?.date === "string" ? req.query.date.trim() : "";
 

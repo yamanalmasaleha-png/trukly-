@@ -191,7 +191,10 @@ ON CONFLICT (id) DO UPDATE SET
   listing_type = EXCLUDED.listing_type,
   popup = EXCLUDED.popup,
   extra = EXCLUDED.extra,
-  blurb = EXCLUDED.blurb,
+  blurb = CASE
+    WHEN vendors.verified = true THEN vendors.blurb
+    ELSE EXCLUDED.blurb
+  END,
   special_note = EXCLUDED.special_note,
   source_url = EXCLUDED.source_url,
   story_source_url = EXCLUDED.story_source_url,
@@ -202,12 +205,107 @@ ON CONFLICT (id) DO UPDATE SET
   rating = EXCLUDED.rating,
   reviews = EXCLUDED.reviews,
   featured = EXCLUDED.featured,
-  curated_location = EXCLUDED.curated_location,
-  curated_lat = EXCLUDED.curated_lat,
-  curated_lng = EXCLUDED.curated_lng,
-  curated_location_source = EXCLUDED.curated_location_source,
-  curated_location_accuracy = EXCLUDED.curated_location_accuracy,
-  curated_hours = EXCLUDED.curated_hours,
-  recurring_schedule = EXCLUDED.recurring_schedule,
+  curated_location = CASE
+    WHEN vendors.verified = true OR vendors.curated_location_accuracy = 'verified_coordinate' THEN vendors.curated_location
+    ELSE EXCLUDED.curated_location
+  END,
+  curated_lat = CASE
+    WHEN vendors.verified = true OR vendors.curated_location_accuracy = 'verified_coordinate' THEN vendors.curated_lat
+    ELSE EXCLUDED.curated_lat
+  END,
+  curated_lng = CASE
+    WHEN vendors.verified = true OR vendors.curated_location_accuracy = 'verified_coordinate' THEN vendors.curated_lng
+    ELSE EXCLUDED.curated_lng
+  END,
+  curated_location_source = CASE
+    WHEN vendors.verified = true OR vendors.curated_location_accuracy = 'verified_coordinate' THEN vendors.curated_location_source
+    ELSE EXCLUDED.curated_location_source
+  END,
+  curated_location_accuracy = CASE
+    WHEN vendors.verified = true OR vendors.curated_location_accuracy = 'verified_coordinate' THEN vendors.curated_location_accuracy
+    ELSE EXCLUDED.curated_location_accuracy
+  END,
+  curated_hours = CASE
+    WHEN vendors.verified = true THEN vendors.curated_hours
+    ELSE EXCLUDED.curated_hours
+  END,
+  recurring_schedule = CASE
+    WHEN vendors.verified = true THEN vendors.recurring_schedule
+    ELSE EXCLUDED.recurring_schedule
+  END,
+  photo = CASE
+    WHEN vendors.photo_rights_verified = true THEN vendors.photo
+    ELSE COALESCE(vendors.photo, EXCLUDED.photo)
+  END,
   event_bookable = EXCLUDED.event_bookable,
-  updated_at = now();
+  updated_at = now()
+WHERE (
+  vendors.sort_order,
+  vendors.canonical_name,
+  vendors.section,
+  vendors.cuisine,
+  vendors.emoji,
+  vendors.city,
+  vendors.listing_kind,
+  vendors.kind_label,
+  vendors.listing_type,
+  vendors.popup,
+  vendors.extra,
+  vendors.special_note,
+  vendors.source_url,
+  vendors.story_source_url,
+  vendors.checked_label,
+  vendors.price,
+  vendors.color,
+  vendors.tags,
+  vendors.rating,
+  vendors.reviews,
+  vendors.featured,
+  vendors.event_bookable
+) IS DISTINCT FROM (
+  EXCLUDED.sort_order,
+  EXCLUDED.canonical_name,
+  EXCLUDED.section,
+  EXCLUDED.cuisine,
+  EXCLUDED.emoji,
+  EXCLUDED.city,
+  EXCLUDED.listing_kind,
+  EXCLUDED.kind_label,
+  EXCLUDED.listing_type,
+  EXCLUDED.popup,
+  EXCLUDED.extra,
+  EXCLUDED.special_note,
+  EXCLUDED.source_url,
+  EXCLUDED.story_source_url,
+  EXCLUDED.checked_label,
+  EXCLUDED.price,
+  EXCLUDED.color,
+  EXCLUDED.tags,
+  EXCLUDED.rating,
+  EXCLUDED.reviews,
+  EXCLUDED.featured,
+  EXCLUDED.event_bookable
+)
+OR (
+  vendors.verified = false
+  AND vendors.curated_location_accuracy <> 'verified_coordinate'
+  AND (
+    vendors.blurb,
+    vendors.curated_location,
+    vendors.curated_lat,
+    vendors.curated_lng,
+    vendors.curated_location_source,
+    vendors.curated_location_accuracy,
+    vendors.curated_hours,
+    vendors.recurring_schedule
+  ) IS DISTINCT FROM (
+    EXCLUDED.blurb,
+    EXCLUDED.curated_location,
+    EXCLUDED.curated_lat,
+    EXCLUDED.curated_lng,
+    EXCLUDED.curated_location_source,
+    EXCLUDED.curated_location_accuracy,
+    EXCLUDED.curated_hours,
+    EXCLUDED.recurring_schedule
+  )
+);

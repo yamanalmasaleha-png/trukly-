@@ -18,6 +18,8 @@ export default async function(req, res) {
 
   const now = req._testNow instanceof Date ? req._testNow : new Date();
   const freshRequested = req.query?.fresh === "1";
+  const isSummary = req.query?.summary === "1";
+  const variantKey = isSummary ? "trucks:summary=1" : "trucks:full";
 
   try {
     const { listings, catalogVersion, localDate, timezone, updatedAt } = await loadDiscoveryCatalog(db, {
@@ -27,19 +29,23 @@ export default async function(req, res) {
 
     const counts = computeSectionCounts(listings);
     const primaryTotal = listings.filter(item => !item.extra).length;
-    applyDiscoveryCacheHeaders(res, catalogVersion, freshRequested);
+    const etag = applyDiscoveryCacheHeaders(res, catalogVersion, {
+      freshRequested,
+      personalized: coords.hasCoords,
+      variantKey
+    });
 
     if (
+      etag &&
       !freshRequested &&
       !coords.hasCoords &&
-      req.query?.summary !== "1" &&
-      req.headers?.["if-none-match"] === `"${catalogVersion}"` &&
+      req.headers?.["if-none-match"] === etag &&
       typeof res.end === "function"
     ) {
       return res.status(304).end();
     }
 
-    if (req.query?.summary === "1") {
+    if (isSummary) {
       return res.json({
         ok: CATALOG_SECTIONS.every(section => counts[section] >= 5),
         total: listings.length,

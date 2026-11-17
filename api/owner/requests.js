@@ -3,9 +3,10 @@ import {
   UUID_RE,
   loadAccessContext,
   authorizeVendorScope,
-  authorizeVendorTarget,
+  reverifyVendorMembershipInTx,
   recordAuditLog,
-  isWritePaused
+  isWritePaused,
+  applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { normalizeCalendarDate } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
@@ -14,6 +15,7 @@ export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
     if (!ctx.authenticated) {
@@ -49,11 +51,14 @@ export default async function(req, res) {
         const canonicalEventDate = normalizeCalendarDate(booking.event_date);
 
         let actorRole = "platform_admin";
-        if (!ctx.isPlatformAdmin) {
-          if (!booking.truck_id) {
+        if (!booking.truck_id) {
+          const verifiedAdmin = await reverifyVendorMembershipInTx(tx, ctx, null, "owner");
+          if (!verifiedAdmin.ok || verifiedAdmin.actorRole !== "platform_admin") {
             return { status: 403, body: { error: "Unassigned legacy bookings require platform administrator access." } };
           }
-          const authz = await authorizeVendorTarget(ctx, booking.truck_id, "owner", tx);
+          actorRole = "platform_admin";
+        } else {
+          const authz = await reverifyVendorMembershipInTx(tx, ctx, booking.truck_id, "owner");
           if (!authz.ok) {
             return { status: authz.status, body: { error: authz.error } };
           }
@@ -68,6 +73,8 @@ export default async function(req, res) {
         }
 
         if (targetStatus === "accepted" && booking.truck_id) {
+          // Lock vendor row FOR SHARE to serialize against concurrent schedule unavailability inserts (`FOR NO KEY UPDATE`).
+          await tx.query("SELECT id FROM vendors WHERE id = $1 FOR SHARE", [booking.truck_id]);
           const { rows: schedRows } = await tx.query(
             "SELECT status FROM owner_schedule WHERE truck_id = $1 AND service_date = $2 FOR SHARE",
             [booking.truck_id, canonicalEventDate]

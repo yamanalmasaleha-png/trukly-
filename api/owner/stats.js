@@ -1,10 +1,11 @@
 import { db, auth } from "hatchable";
-import { loadAccessContext, authorizeVendorScope } from "../../lib/authz.js";
+import { loadAccessContext, authorizeVendorScope, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 
 export const access = "user";
 export const methods = ["GET"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
     const scope = await authorizeVendorScope(ctx, req.query?.truck_id, db);

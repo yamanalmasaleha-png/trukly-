@@ -2,9 +2,11 @@ import { db, auth } from "hatchable";
 import {
   UUID_RE,
   loadAccessContext,
+  reverifyVendorMembershipInTx,
   recordAuditLog,
   redactPagerTargetId,
-  isWritePaused
+  isWritePaused,
+  applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -14,7 +16,7 @@ export const methods = ["POST"];
 const ALLOWED_PAGER_STATUSES = new Set(["cooking", "almost", "ready", "collected", "cancelled"]);
 
 export default async function(req, res) {
-  res.setHeader("Cache-Control", "no-store");
+  applyPrivateNoStoreHeaders(res);
 
   if (isWritePaused("pagers")) {
     return res.status(503).json({ error: "Pickup pager updates are temporarily paused for maintenance." });
@@ -51,11 +53,18 @@ export default async function(req, res) {
 
       const pager = rows[0];
       let actorRole = "platform_admin";
-      if (!ctx.isPlatformAdmin) {
-        if (!pager.vendor_id || !ctx.memberships.has(pager.vendor_id)) {
+      if (!pager.vendor_id) {
+        const verifiedAdmin = await reverifyVendorMembershipInTx(tx, ctx, null, "staff");
+        if (!verifiedAdmin.ok || verifiedAdmin.actorRole !== "platform_admin") {
           return { status: 403, body: { error: "You do not have permission for this pager ticket." } };
         }
-        actorRole = ctx.memberships.get(pager.vendor_id).role;
+        actorRole = "platform_admin";
+      } else {
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, pager.vendor_id, "staff");
+        if (!verifiedAuthz.ok) {
+          return { status: 403, body: { error: "You do not have permission for this pager ticket." } };
+        }
+        actorRole = verifiedAuthz.actorRole;
       }
 
       if (new Date(pager.expires_at) <= new Date() || ["collected", "cancelled"].includes(pager.status)) {

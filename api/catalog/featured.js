@@ -12,7 +12,15 @@ export default async function(req, res) {
     const { listings, catalogVersion, localDate, timezone } = await loadDiscoveryCatalog(db, { now });
     const featured = listings.filter(item => item.featured === true);
 
-    applyDiscoveryCacheHeaders(res, catalogVersion, freshRequested);
+    const etag = applyDiscoveryCacheHeaders(res, catalogVersion, {
+      freshRequested,
+      variantKey: "catalog:featured"
+    });
+
+    if (etag && !freshRequested && req.headers?.["if-none-match"] === etag && typeof res.end === "function") {
+      return res.status(304).end();
+    }
+
     return res.json({
       featured_ids: featured.map(item => item.id),
       featured: featured.map(item => ({

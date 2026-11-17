@@ -3,8 +3,10 @@ import {
   loadAccessContext,
   authorizeVendorTarget,
   authorizeVendorScope,
+  reverifyVendorMembershipInTx,
   recordAuditLog,
-  isWritePaused
+  isWritePaused,
+  applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { isValidCalendarDate, isValidTimeValue, getPacificToday, normalizeCalendarDate } from "../../lib/dates.js";
 import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
@@ -14,6 +16,7 @@ export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
     const pacificToday = getPacificToday();
@@ -56,7 +59,15 @@ export default async function(req, res) {
       }
       const location = typeof b.location === "string" && b.location.trim() ? b.location.trim() : null;
 
-      const saved = await withTransaction(db, async tx => {
+      const outcome = await withTransaction(db, async tx => {
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "staff");
+        if (!verifiedAuthz.ok) {
+          return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
+        }
+
+        // Coordinate against concurrent booking creation / acceptance (`FOR SHARE OF v`) even when no `owner_schedule` row exists yet.
+        await tx.query("SELECT id FROM vendors WHERE id = $1 FOR NO KEY UPDATE", [authz.vendorId]);
+
         const { rows } = await tx.query(
           `INSERT INTO owner_schedule (truck_id, service_date, opens_at, closes_at, location, status, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6, now())
@@ -75,17 +86,17 @@ export default async function(req, res) {
         };
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: authz.actorRole,
+          actorRole: verifiedAuthz.actorRole,
           vendorId: authz.vendorId,
           targetType: "owner_schedule",
           targetId: normalized.id,
           action: "schedule.upsert",
           metadata: { service_date: normalized.service_date, status }
         });
-        return normalized;
+        return { status: 200, body: normalized };
       });
 
-      return res.json(saved);
+      return res.status(outcome.status).json(outcome.body);
     }
 
     const scope = await authorizeVendorScope(ctx, req.query?.truck_id, db);

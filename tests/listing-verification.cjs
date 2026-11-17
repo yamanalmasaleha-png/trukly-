@@ -113,7 +113,7 @@ function makeEl(id,extra={}){
   assert.equal(result.primary_total,47,'expected 47 primary event-bookable listings');
   assert.equal(result.trucks.filter(t=>!t.extra).length,47,'47 primary records');
   assert.equal(result.trucks.filter(t=>t.extra).length,12,'12 reconciled v77 neighborhood records');
-  assert(typeof result.catalog_version==='string' && result.catalog_version.startsWith('v1:'),'catalog_version emitted');
+  assert(typeof result.catalog_version==='string' && result.catalog_version.startsWith('v2:'),'catalog_version emitted');
   const byId=Object.fromEntries(result.trucks.map(t=>[t.id,t]));
   assert.equal(byId.mitote.location,'100 Sebastopol Rd, Santa Rosa');
   assert.equal(byId.elroys.location,'1569 Sebastopol Rd, Santa Rosa');

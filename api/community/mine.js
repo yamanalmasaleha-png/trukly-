@@ -1,11 +1,12 @@
 import { db, auth } from "hatchable";
-import { resolveIdentity } from "../../lib/authz.js";
+import { resolveIdentity, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   const user = await resolveIdentity(req, auth);
   if (!user) {
     return res.status(401).json({ error: "Sign in to see your submissions." });

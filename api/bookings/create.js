@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { db, auth } from "hatchable";
 import { BOOKING_PACKAGES } from "../../lib/catalog.js";
-import { resolveIdentity, isWritePaused } from "../../lib/authz.js";
+import { resolveIdentity, isWritePaused, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -66,6 +66,7 @@ export function formatBookingResponse(row, replay = false) {
 }
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   if (isWritePaused("bookings")) {
     return res.status(503).json({ error: "New event booking inquiries are temporarily paused for maintenance." });
   }

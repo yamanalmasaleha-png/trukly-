@@ -46,7 +46,22 @@ export default async function(req, res) {
         )
       : pool;
 
-    applyDiscoveryCacheHeaders(res, catalogVersion, freshRequested);
+    const etag = applyDiscoveryCacheHeaders(res, catalogVersion, {
+      freshRequested,
+      personalized: coords.hasCoords,
+      variantKey: `search:q=${q}|limit=${limit}|extra=${includeExtra ? 1 : 0}`
+    });
+
+    if (
+      etag &&
+      !freshRequested &&
+      !coords.hasCoords &&
+      req.headers?.["if-none-match"] === etag &&
+      typeof res.end === "function"
+    ) {
+      return res.status(304).end();
+    }
+
     return res.json({
       query: raw.toLowerCase(),
       catalog_version: catalogVersion,

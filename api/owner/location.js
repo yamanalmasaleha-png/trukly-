@@ -1,5 +1,12 @@
 import { db, auth } from "hatchable";
-import { loadAccessContext, authorizeVendorTarget, recordAuditLog, isWritePaused } from "../../lib/authz.js";
+import {
+  loadAccessContext,
+  authorizeVendorTarget,
+  reverifyVendorMembershipInTx,
+  recordAuditLog,
+  isWritePaused,
+  applyPrivateNoStoreHeaders
+} from "../../lib/authz.js";
 import { isValidTimeValue } from "../../lib/dates.js";
 import { validateCoordinates, findForbiddenSelfElevationField } from "../../lib/discovery.js";
 import { withTransaction } from "../../lib/db-tx.js";
@@ -48,6 +55,7 @@ function resolveLocationExpiry(body, now = new Date()) {
 }
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
 
@@ -97,7 +105,12 @@ export default async function(req, res) {
       const locationAccuracy = coords.hasCoords ? "owner_reported_coords" : "owner_text_only";
       const observedAtIso = now.toISOString();
 
-      const saved = await withTransaction(db, async tx => {
+      const outcome = await withTransaction(db, async tx => {
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "staff");
+        if (!verifiedAuthz.ok) {
+          return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
+        }
+
         const { rows } = await tx.query(
           `INSERT INTO truck_settings (
              truck_id, location, lat, lng, location_source, location_accuracy,
@@ -136,7 +149,7 @@ export default async function(req, res) {
 
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: authz.actorRole,
+          actorRole: verifiedAuthz.actorRole,
           vendorId: authz.vendorId,
           targetType: "truck_settings",
           targetId: authz.vendorId,
@@ -147,10 +160,10 @@ export default async function(req, res) {
             expires_at: expiry.expiresAtIso
           }
         });
-        return rows[0];
+        return { status: 200, body: rows[0] };
       });
 
-      return res.json(saved);
+      return res.status(outcome.status).json(outcome.body);
     }
 
     const authz = await authorizeVendorTarget(ctx, req.query?.truck_id, "staff", db);

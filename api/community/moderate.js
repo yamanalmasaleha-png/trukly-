@@ -1,11 +1,19 @@
 import { db, auth } from "hatchable";
-import { UUID_RE, loadAccessContext, recordAuditLog, isWritePaused } from "../../lib/authz.js";
+import {
+  UUID_RE,
+  loadAccessContext,
+  reverifyModeratorInTx,
+  recordAuditLog,
+  isWritePaused,
+  applyPrivateNoStoreHeaders
+} from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
     if (!ctx.authenticated) {
@@ -48,6 +56,11 @@ export default async function(req, res) {
     }
 
     const outcome = await withTransaction(db, async tx => {
+      const verifiedMod = await reverifyModeratorInTx(tx, ctx);
+      if (!verifiedMod.ok) {
+        return { status: verifiedMod.status, body: { error: verifiedMod.error } };
+      }
+
       await tx.query(
         "SELECT set_config('app.can_moderate', 'true', true), set_config('app.user_id', $1, true)",
         [ctx.user.id]
@@ -74,7 +87,7 @@ export default async function(req, res) {
 
       await recordAuditLog(tx, {
         actorId: ctx.user.id,
-        actorRole,
+        actorRole: verifiedMod.actorRole,
         vendorId: locked[0].place_id || null,
         targetType: "community_review",
         targetId: id,

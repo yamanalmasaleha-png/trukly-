@@ -756,7 +756,7 @@ const ACTORS = {
     // [6/7] Freshness / Cache Headers (ETag, 304, ?fresh=1) & Explicit 503 Outages
     // =========================================================================
     const cachedCheck = await callApi('trucks.js', { testNow: fixedNow });
-    assert(cachedCheck.headers.etag && cachedCheck.headers.etag.startsWith('"v1:'));
+    assert(cachedCheck.headers.etag && cachedCheck.headers.etag.startsWith('"e2:'));
     assert.equal(cachedCheck.headers['cache-control'], 'public, max-age=0, s-maxage=5, stale-while-revalidate=10');
 
     const notModified = await callApi('trucks.js', {

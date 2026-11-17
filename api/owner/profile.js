@@ -1,5 +1,12 @@
 import { db, auth } from "hatchable";
-import { loadAccessContext, authorizeVendorTarget, recordAuditLog, isWritePaused } from "../../lib/authz.js";
+import {
+  loadAccessContext,
+  authorizeVendorTarget,
+  reverifyVendorMembershipInTx,
+  recordAuditLog,
+  isWritePaused,
+  applyPrivateNoStoreHeaders
+} from "../../lib/authz.js";
 import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -7,6 +14,7 @@ export const access = "user";
 export const methods = ["GET", "POST"];
 
 export default async function(req, res) {
+  applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
 
@@ -45,7 +53,15 @@ export default async function(req, res) {
       const cuisine = typeof b.cuisine === "string" && b.cuisine.trim() ? b.cuisine.trim() : null;
       const accepting = b.accepting_bookings !== false;
 
-      const saved = await withTransaction(db, async tx => {
+      const outcome = await withTransaction(db, async tx => {
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "owner");
+        if (!verifiedAuthz.ok) {
+          return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
+        }
+
+        // Coordinate against concurrent booking creation (`FOR SHARE OF v`) even when no `owner_profiles` row exists yet.
+        await tx.query("SELECT id FROM vendors WHERE id = $1 FOR NO KEY UPDATE", [authz.vendorId]);
+
         const { rows } = await tx.query(
           `INSERT INTO owner_profiles (truck_id, display_name, description, cuisine, accepting_bookings, updated_at)
            VALUES ($1, $2, $3, $4, $5, now())
@@ -60,17 +76,17 @@ export default async function(req, res) {
         );
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: authz.actorRole,
+          actorRole: verifiedAuthz.actorRole,
           vendorId: authz.vendorId,
           targetType: "owner_profile",
           targetId: authz.vendorId,
           action: "profile.update",
           metadata: { accepting_bookings: accepting }
         });
-        return rows[0];
+        return { status: 200, body: rows[0] };
       });
 
-      return res.json(saved);
+      return res.status(outcome.status).json(outcome.body);
     }
 
     const authz = await authorizeVendorTarget(ctx, req.query?.truck_id, "staff", db);

@@ -33,7 +33,22 @@ export default async function(req, res) {
       return res.status(404).json({ error: "Truck detail not found", catalog_route: "/api/trucks" });
     }
 
-    applyDiscoveryCacheHeaders(res, catalogVersion, freshRequested);
+    const etag = applyDiscoveryCacheHeaders(res, catalogVersion, {
+      freshRequested,
+      personalized: coords.hasCoords,
+      variantKey: `truck:${id}`
+    });
+
+    if (
+      etag &&
+      !freshRequested &&
+      !coords.hasCoords &&
+      req.headers?.["if-none-match"] === etag &&
+      typeof res.end === "function"
+    ) {
+      return res.status(304).end();
+    }
+
     return res.json({
       ...item,
       type: item.listing_type,

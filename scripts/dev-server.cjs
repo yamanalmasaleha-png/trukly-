@@ -139,8 +139,9 @@ const mockDb = {
     }
 
     if (/FROM vendor_memberships m JOIN vendors v/i.test(s)) {
+      const filterVendor = params.length >= 2 ? params[1] : null;
       const rows = store.vendor_memberships
-        .filter(m => m.user_id === params[0] && store.vendors.get(m.vendor_id)?.is_active)
+        .filter(m => m.user_id === params[0] && (!filterVendor || m.vendor_id === filterVendor) && store.vendors.get(m.vendor_id)?.is_active)
         .map(m => ({
           vendor_id: m.vendor_id,
           role: m.role,
@@ -148,6 +149,11 @@ const mockDb = {
         }))
         .sort((a, b) => a.vendor_id.localeCompare(b.vendor_id));
       return { rows, rowCount: rows.length };
+    }
+
+    if (/^SELECT id(?:, is_active)? FROM vendors WHERE id = \$1/i.test(s)) {
+      const v = store.vendors.get(params[0]);
+      return { rows: v ? [{ id: v.id, is_active: v.is_active }] : [], rowCount: v ? 1 : 0 };
     }
 
     if (/FROM vendors v LEFT JOIN owner_profiles op ON op\.truck_id = v\.id WHERE v\.id = \$1/i.test(s)) {
@@ -695,7 +701,15 @@ function resolveApiRoute(pathname) {
             approved_reviews: store.community_reviews.filter(c => c.status === 'approved').length,
             audit_logs: store.audit_logs.length
           },
-          pagers: store.pickup_pagers.slice(0, 5)
+          pagers: role === 'admin'
+            ? store.pickup_pagers.slice(0, 5).map(p => ({
+                pager_ref: 'sha256:' + crypto.createHash('sha256').update(String(p.id)).digest('hex').slice(0, 12),
+                vendor_id: p.vendor_id,
+                vendor: p.vendor,
+                ticket: p.ticket,
+                status: p.status
+              }))
+            : []
         }));
       }
 
