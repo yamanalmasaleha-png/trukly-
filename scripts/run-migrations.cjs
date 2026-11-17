@@ -70,25 +70,35 @@ function assertSafeIdentifier(ident, label) {
 
     let appliedCount = 0;
     for (const filename of files) {
-      const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf8');
-      const checksum = crypto.createHash('sha256').update(sql, 'utf8').digest('hex');
+      const rawSql = fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf8');
+      const normalizedSql = rawSql.replace(/\r\n/g, '\n');
+      const checksum = crypto.createHash('sha256').update(normalizedSql, 'utf8').digest('hex');
+      const rawChecksum = crypto.createHash('sha256').update(rawSql, 'utf8').digest('hex');
 
       const existing = await client.query(
         'SELECT checksum_sha256 FROM schema_migrations WHERE filename = $1',
         [filename]
       );
       if (existing.rows.length > 0) {
-        if (existing.rows[0].checksum_sha256 !== checksum) {
-          throw new Error(
-            `Migration checksum mismatch for already-applied migration ${filename}: expected ${existing.rows[0].checksum_sha256}, got ${checksum}`
-          );
+        const recorded = existing.rows[0].checksum_sha256;
+        if (recorded !== checksum && recorded !== rawChecksum) {
+          // Also check CRLF variant in case DB recorded historical CRLF blob before LF normalization
+          const crlfChecksum = crypto
+            .createHash('sha256')
+            .update(normalizedSql.replace(/\n/g, '\r\n'), 'utf8')
+            .digest('hex');
+          if (recorded !== crlfChecksum) {
+            throw new Error(
+              `Migration checksum mismatch for already-applied migration ${filename}: expected ${recorded}, got ${checksum}`
+            );
+          }
         }
         continue;
       }
 
       await client.query('BEGIN');
       try {
-        await client.query(sql);
+        await client.query(normalizedSql);
         await client.query(
           'INSERT INTO schema_migrations (filename, checksum_sha256) VALUES ($1, $2)',
           [filename, checksum]
