@@ -5,7 +5,8 @@
 # Activation checklist (ONLY after staging DNS `A`/`AAAA` resolves to VPS):
 #   1. Render `__STAGING_FQDN__` -> `/etc/nginx/sites-available/truckly-staging` (HTTP-only block first for webroot ACME,
 #      or issue cert via `certbot certonly --webroot -w /var/www/html -d <fqdn>` before enabling the `:443` server block).
-#   2. Set `TRUCKLY_PUBLIC_ORIGIN=https://<fqdn>` in `/etc/truckly-staging/staging.env` and restart `truckly-staging-api`.
+#   2. Set `TRUCKLY_PUBLIC_ORIGIN=https://<fqdn>` and `TRUCKLY_TRUST_PROXY=loopback` in `/etc/truckly-staging/staging.env`
+#      and restart `truckly-staging-api`.
 #   3. Symlink `/etc/nginx/sites-enabled/truckly-staging`, validate with `nginx -t`, then `systemctl reload nginx`.
 #   4. Configure `/etc/letsencrypt/renewal-hooks/deploy/truckly-nginx-reload.sh` (`nginx -t && systemctl reload nginx`).
 

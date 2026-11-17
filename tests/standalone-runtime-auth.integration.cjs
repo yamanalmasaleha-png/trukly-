@@ -826,6 +826,21 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     );
     assert.equal(rightmostResolved, '203.0.113.42', 'Trusted loopback proxy must prefer rightmost XFF hop over attacker-prepended hop');
 
+    // Regression DEF-VPS-03: `deploy/staging.env.example` must default to `TRUCKLY_TRUST_PROXY=none`
+    // prior to Nginx activation so loopback-only staging cannot have `X-Real-IP` / `X-Forwarded-For` spoofed.
+    const stagingEnvExample = fs.readFileSync(path.join(ROOT, 'deploy', 'staging.env.example'), 'utf8');
+    const nginxVhostTemplate = fs.readFileSync(path.join(ROOT, 'deploy', 'nginx', 'truckly-staging.conf.template'), 'utf8');
+    assert(
+      /^TRUCKLY_TRUST_PROXY=none$/m.test(stagingEnvExample),
+      'deploy/staging.env.example must default to TRUCKLY_TRUST_PROXY=none before Nginx reverse proxy activation'
+    );
+    assert(
+      nginxVhostTemplate.includes('TRUCKLY_TRUST_PROXY=loopback') &&
+        nginxVhostTemplate.includes('proxy_set_header X-Real-IP $remote_addr;') &&
+        nginxVhostTemplate.includes('proxy_set_header X-Forwarded-For $remote_addr;'),
+      'Nginx template must pair TRUCKLY_TRUST_PROXY=loopback with $remote_addr header overwrite'
+    );
+
     console.log('PASS [6/8]: Zero silent email auto-linking, CSRF/Origin/Fetch-Metadata 403s, and XFF spoofing resistance verified');
 
     // =========================================================================
