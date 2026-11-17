@@ -1689,7 +1689,234 @@ function futurePacificDate(daysAhead = 12) {
     assert.equal(txModReverify.ok, false, 'revoked moderator denied inside transaction despite stale pre-tx context');
     assert.equal(txModReverify.status, 403);
 
-    console.log('PASS [7/7]: Absent-row booking concurrency locks and mid-request RBAC revocation verified');
+    console.log('PASS [7/8]: Absent-row booking concurrency locks and mid-request RBAC revocation verified');
+
+    // =========================================================================
+    // PART 8: Concurrent Permission-Change Lock Serialization (`FOR SHARE`) &
+    //         Scoped / Fail-Closed `TRUCKLY_PAUSE_WRITES` Controls
+    // =========================================================================
+    // Restore vaOwner membership on `iniguez` before testing concurrent non-key updates
+    await cleanPool.query(
+      `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by)
+       VALUES ('iniguez', $1, 'owner', $2)
+       ON CONFLICT (vendor_id, user_id) DO UPDATE SET role = 'owner', granted_by = EXCLUDED.granted_by`,
+      [ACTORS.vaOwner.id, ACTORS.padmin.id]
+    );
+
+    // 8a. Vendor owner downgraded to `staff` (`UPDATE vendor_memberships SET role = 'staff'`)
+    //     during an owner-only write (`POST /api/owner/profile`).
+    //     Proves `FOR SHARE` blocks on the uncommitted non-key `UPDATE` (`FOR NO KEY UPDATE`)
+    //     and denies the write (`403`) once the downgrade commits.
+    const ownerDowngradeClient = await cleanPool.connect();
+    try {
+      await ownerDowngradeClient.query('BEGIN');
+      await ownerDowngradeClient.query(
+        `UPDATE vendor_memberships
+         SET role = 'staff', granted_by = $2
+         WHERE vendor_id = 'iniguez' AND user_id = $1`,
+        [ACTORS.vaOwner.id, ACTORS.padmin.id]
+      );
+
+      let profileSettledBeforeCommit = false;
+      const concurrentOwnerProfPromise = callApi('owner/profile.js', {
+        method: 'POST',
+        user: ACTORS.vaOwner,
+        body: {
+          truck_id: 'iniguez',
+          display_name: 'Unauthorized After Downgrade',
+          accepting_bookings: true
+        }
+      }).then(res => {
+        profileSettledBeforeCommit = true;
+        return res;
+      });
+
+      await new Promise(r => setTimeout(r, 60));
+      assert.equal(
+        profileSettledBeforeCommit,
+        false,
+        'FOR SHARE on vendor_memberships must block until uncommitted role downgrade commits'
+      );
+
+      await ownerDowngradeClient.query('COMMIT');
+      const downgradedProfRes = await concurrentOwnerProfPromise;
+      assert.equal(
+        downgradedProfRes.status,
+        403,
+        'owner-only write rejected after concurrent owner->staff downgrade committed'
+      );
+      const profAfterDowngrade = await cleanPool.query(
+        'SELECT display_name FROM owner_profiles WHERE truck_id = $1',
+        ['iniguez']
+      );
+      assert.notEqual(
+        profAfterDowngrade.rows[0]?.display_name,
+        'Unauthorized After Downgrade',
+        'downgraded actor did not mutate owner_profiles'
+      );
+    } finally {
+      ownerDowngradeClient.release();
+    }
+
+    // 8b. Platform administrator downgraded to `moderator` (`UPDATE platform_roles SET role = 'moderator'`)
+    //     during both an admin-only vendor write (`POST /api/owner/profile` on `sunny`) AND `GET /api/pager/telemetry`.
+    const tempAdminUser = { id: 'usr_temp_padmin_lock', email: 'temp-admin@sonoma.test' };
+    await cleanPool.query(
+      `INSERT INTO platform_roles (user_id, role, granted_by)
+       VALUES ($1, 'platform_admin', 'bootstrap')`,
+      [tempAdminUser.id]
+    );
+
+    const adminDowngradeClient = await cleanPool.connect();
+    try {
+      await adminDowngradeClient.query('BEGIN');
+      await adminDowngradeClient.query(
+        `UPDATE platform_roles SET role = 'moderator' WHERE user_id = $1`,
+        [tempAdminUser.id]
+      );
+
+      let adminWriteSettled = false;
+      let adminTelemetrySettled = false;
+
+      const adminWritePromise = callApi('owner/profile.js', {
+        method: 'POST',
+        user: tempAdminUser,
+        body: { truck_id: 'sunny', display_name: 'Downgraded Admin Write' }
+      }).then(res => {
+        adminWriteSettled = true;
+        return res;
+      });
+
+      const adminTelemetryPromise = callApi('pager/telemetry.js', {
+        method: 'GET',
+        user: tempAdminUser
+      }).then(res => {
+        adminTelemetrySettled = true;
+        return res;
+      });
+
+      await new Promise(r => setTimeout(r, 60));
+      assert.equal(adminWriteSettled, false, 'FOR SHARE on platform_roles blocks admin write during uncommitted downgrade');
+      assert.equal(adminTelemetrySettled, false, 'FOR SHARE on platform_roles blocks admin telemetry during uncommitted downgrade');
+
+      await adminDowngradeClient.query('COMMIT');
+      const [adminWriteRes, adminTelemetryRes] = await Promise.all([
+        adminWritePromise,
+        adminTelemetryPromise
+      ]);
+      assert.equal(adminWriteRes.status, 403, 'downgraded platform_admin denied vendor write');
+      assert.equal(adminTelemetryRes.status, 403, 'downgraded platform_admin denied admin telemetry');
+    } finally {
+      adminDowngradeClient.release();
+    }
+
+    // 8c. Vendor deactivation (`UPDATE vendors SET is_active = false`) during a vendor write (`POST /api/owner/location`)
+    const deactClient = await cleanPool.connect();
+    try {
+      await deactClient.query('BEGIN');
+      await deactClient.query(`UPDATE vendors SET is_active = false WHERE id = 'mitote'`);
+
+      let locSettledBeforeCommit = false;
+      const deactLocPromise = callApi('owner/location.js', {
+        method: 'POST',
+        user: ACTORS.vbOwner,
+        body: {
+          truck_id: 'mitote',
+          location: 'Deactivated Vendor Attempt',
+          is_open: true
+        }
+      }).then(res => {
+        locSettledBeforeCommit = true;
+        return res;
+      });
+
+      await new Promise(r => setTimeout(r, 60));
+      assert.equal(
+        locSettledBeforeCommit,
+        false,
+        'FOR SHARE on vendors blocks owner location write during uncommitted vendor deactivation'
+      );
+
+      await deactClient.query('COMMIT');
+      const deactLocRes = await deactLocPromise;
+      assert.equal(deactLocRes.status, 403, 'deactivated vendor write denied once deactivation commits');
+      const tsAfterDeact = await cleanPool.query(
+        'SELECT location FROM truck_settings WHERE truck_id = $1',
+        ['mitote']
+      );
+      assert.notEqual(tsAfterDeact.rows[0]?.location, 'Deactivated Vendor Attempt');
+    } finally {
+      deactClient.release();
+      await cleanPool.query(`UPDATE vendors SET is_active = true WHERE id = 'mitote'`);
+    }
+
+    // 8d. Membership deletion (`DELETE FROM vendor_memberships`) during a vendor write (`POST /api/pager/staff`)
+    const delMemClient = await cleanPool.connect();
+    try {
+      await delMemClient.query('BEGIN');
+      await delMemClient.query(
+        `DELETE FROM vendor_memberships WHERE vendor_id = 'iniguez' AND user_id = $1`,
+        [ACTORS.vaStaff.id]
+      );
+
+      let pagerSettledBeforeCommit = false;
+      const delMemPagerPromise = callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.vaStaff,
+        body: {
+          vendor_id: 'iniguez',
+          ticket: 'DEL-MEM-99',
+          request_key: crypto.randomUUID()
+        }
+      }).then(res => {
+        pagerSettledBeforeCommit = true;
+        return res;
+      });
+
+      await new Promise(r => setTimeout(r, 60));
+      assert.equal(
+        pagerSettledBeforeCommit,
+        false,
+        'FOR SHARE on vendor_memberships blocks staff pager creation during uncommitted membership deletion'
+      );
+
+      await delMemClient.query('COMMIT');
+      const delMemPagerRes = await delMemPagerPromise;
+      assert.equal(delMemPagerRes.status, 403, 'deleted membership denied pager creation once delete commits');
+      const checkDelPager = await cleanPool.query(
+        `SELECT count(*)::int AS c FROM pickup_pagers WHERE ticket = 'DEL-MEM-99'`
+      );
+      assert.equal(checkDelPager.rows[0].c, 0);
+    } finally {
+      delMemClient.release();
+    }
+
+    // 8e. Fail-closed `TRUCKLY_PAUSE_WRITES` on unrecognized scope token while preserving public reads
+    process.env.TRUCKLY_PAUSE_WRITES = 'unrecognized_typo_scope';
+    try {
+      assert.equal(authzRevokeMod.inspectWritePauseConfig().valid, false);
+      assert.equal(authzRevokeMod.isWritePaused('bookings'), true, 'invalid TRUCKLY_PAUSE_WRITES fails closed');
+      assert.equal(authzRevokeMod.isWritePaused('owner'), true, 'invalid TRUCKLY_PAUSE_WRITES fails closed');
+      const failClosedBook = await callApi('bookings/create.js', {
+        method: 'POST',
+        user: ACTORS.custA,
+        body: {
+          truck_id: 'mitote',
+          package_id: 'dropin',
+          event_type: 'Lunch',
+          event_date: futurePacificDate(25),
+          guest_count: 20,
+          location: 'Santa Rosa'
+        }
+      });
+      assert.equal(failClosedBook.status, 503, 'write rejected with 503 when TRUCKLY_PAUSE_WRITES is malformed');
+      const publicReadStillWorks = await callApi('community/list.js', { method: 'GET' });
+      assert.equal(publicReadStillWorks.status, 200, 'public reads remain available under fail-closed write pause');
+    } finally {
+      delete process.env.TRUCKLY_PAUSE_WRITES;
+    }
+
+    console.log('PASS [8/8]: Concurrent permission-change lock serialization (FOR SHARE) and fail-closed write-pause verified');
     console.log('ALL REAL-POSTGRESQL BACKEND HARDENING INTEGRATION TESTS PASSED.');
   } finally {
     if (singleConnPool) await singleConnPool.end().catch(() => {});

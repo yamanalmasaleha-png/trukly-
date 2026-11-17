@@ -85,7 +85,7 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/pg-client"
           npm --prefix "$RUNNER_TEMP/pg-client" install --no-save --no-audit --no-fund --save-exact pg@8.13.1
-      - name: Run real-PostgreSQL backend hardening integration suite
+      - name: Run real-PostgreSQL backend hardening & FOR SHARE permission-lock concurrency suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
@@ -100,7 +100,7 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules
         run: node tests/p1-unified-discovery.integration.cjs
-      - name: Run pager notifications outbox, RFC 8291/8292 crypto & migration PostgreSQL suite
+      - name: Run pager notifications outbox, worker lease fencing, pre-dispatch recheck, catch-up & config suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
           TRUCKLY_PG_NODE_MODULES: ${{ runner.temp }}/pg-client/node_modules

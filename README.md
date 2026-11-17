@@ -54,7 +54,7 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── catalog/                      # Cities, 6 cuisines/categories, PostgreSQL-backed featured IDs
 │   ├── notifications/                # User nearby-alert preferences
 │   └── schedule/                     # Public daily schedule backed by active vendors + owner_schedule
-├── migrations/                       # PostgreSQL schema history (001–015)
+├── migrations/                       # PostgreSQL schema history (001–016)
 ├── scripts/
 │   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (supports DATABASE_URL or seed mock) — NEVER deploy
 │   ├── run-pager-worker.cjs          # Bounded notification delivery worker CLI (HTTPS trigger or direct DB mode)
@@ -76,8 +76,8 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 
 - **Frontend:** plain HTML, CSS, and browser JavaScript; no bundler/build framework.
 - **Map:** Leaflet 1.9.4 with OpenStreetMap tiles loaded from CDN.
-- **Backend:** 27 standalone Hatchable server functions in `api/**/*.js` + shared modules in `lib/*.js`.
-- **Database:** PostgreSQL through Hatchable's `db` SDK (with additive migrations `001`–`013`, row-level locking, triggers, and `FORCE ROW LEVEL SECURITY` on `community_reviews`).
+- **Backend:** 30 standalone Hatchable server functions in `api/**/*.js` + shared modules in `lib/*.js`.
+- **Database:** PostgreSQL through Hatchable's `db` SDK (with additive migrations `001`–`016`, row-level `FOR SHARE`/`FOR NO KEY UPDATE` locking, triggers, and `FORCE ROW LEVEL SECURITY` on `community_reviews` and `pager_notification_*` tables).
 - **Auth & RBAC:** Hatchable hosted authentication (`/login.html`), server-side `vendor_memberships` (`owner` vs `staff`), `platform_roles` (`moderator` vs `platform_admin`), and redacted `audit_logs`.
 - **Hosting:** Hatchable.
 

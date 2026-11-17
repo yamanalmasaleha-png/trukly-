@@ -1172,7 +1172,7 @@ api/schedule/*
   Public schedule endpoint backed by active vendors + owner_schedule
 
 migrations/*
-  PostgreSQL schema history (001–015, including unified 59-place `vendors` catalog, truthful `truck_settings` location/expiry columns, `vendor_memberships`, `platform_roles`, `audit_logs`, booking integrity triggers, `community_reviews` FORCE RLS + `community_public_posts` view, and `pager_notification_*` outbox/subscription/delivery/rate-limit tables with FORCE RLS)
+  PostgreSQL schema history (001–016, including unified 59-place `vendors` catalog, truthful `truck_settings` location/expiry columns, `vendor_memberships`, `platform_roles`, `audit_logs`, booking integrity triggers, `community_reviews` FORCE RLS + `community_public_posts` view, and `pager_notification_*` outbox/subscription/claim-fenced delivery/rate-limit tables with FORCE RLS)
 
 lib/*
   Shared server-side authorization (`authz.js`), unified discovery read model (`discovery.js`), durable pager notifications (`pager-notifications.js`), RFC 8291/8292 Web Push crypto (`webpush-crypto.js`), catalog/package terms (`catalog.js`), Pacific date validation (`dates.js`), and transaction helpers (`db-tx.js`) — kept outside `api/` so Hatchable does not register helpers as routes

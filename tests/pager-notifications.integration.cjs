@@ -19,6 +19,7 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
+const { AsyncLocalStorage } = require('node:async_hooks');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -32,18 +33,20 @@ function requirePg() {
 
 const { Pool } = requirePg();
 
+const requestAls = new AsyncLocalStorage();
 let activeDb = null;
-let activeUser = null;
 
 globalThis.__TRUCKLY_NOTIF_TEST_HATCHABLE__ = {
   db: {
     query: (text, params) => {
-      if (!activeDb) throw new Error('No active PostgreSQL pool bound');
-      return activeDb.query(text, params);
+      const dbRef = requestAls.getStore()?.db || activeDb;
+      if (!dbRef) throw new Error('No active PostgreSQL pool bound');
+      return dbRef.query(text, params);
     },
     transaction: async fn => {
-      if (!activeDb) throw new Error('No active PostgreSQL pool bound');
-      const client = await activeDb.connect();
+      const dbRef = requestAls.getStore()?.db || activeDb;
+      if (!dbRef) throw new Error('No active PostgreSQL pool bound');
+      const client = await dbRef.connect();
       try {
         await client.query('BEGIN');
         const out = await fn(client);
@@ -60,7 +63,7 @@ globalThis.__TRUCKLY_NOTIF_TEST_HATCHABLE__ = {
     }
   },
   auth: {
-    getUser: async () => activeUser
+    getUser: async () => requestAls.getStore()?.user || null
   }
 };
 
@@ -99,14 +102,16 @@ async function callApi(
     headers = {},
     dbPool = null,
     testNow = null,
-    forceRollbackAfterEvent = false
+    testClock = null,
+    testHooks = null,
+    testLeaseSeconds = null,
+    testProviderTimeoutMs = null,
+    testWorkerId = null,
+    forceRollbackAfterEvent = false,
+    forceRollbackAfterCatchup = false
   } = {}
 ) {
   const mod = await loadRoute(relApiPath);
-  const prevDb = activeDb;
-  const prevUser = activeUser;
-  if (dbPool) activeDb = dbPool;
-  activeUser = user;
 
   let statusCode = 200;
   let jsonBody = undefined;
@@ -120,7 +125,13 @@ async function callApi(
     headers,
     ...(user ? { user } : {}),
     ...(testNow instanceof Date ? { _testNow: testNow } : {}),
-    ...(forceRollbackAfterEvent ? { _testForceRollbackAfterEvent: true } : {})
+    ...(typeof testClock === 'function' ? { _testClock: testClock } : {}),
+    ...(testHooks && typeof testHooks === 'object' ? { _testHooks: testHooks } : {}),
+    ...(typeof testLeaseSeconds === 'number' ? { _testLeaseSeconds: testLeaseSeconds } : {}),
+    ...(typeof testProviderTimeoutMs === 'number' ? { _testProviderTimeoutMs: testProviderTimeoutMs } : {}),
+    ...(typeof testWorkerId === 'string' ? { _testWorkerId: testWorkerId } : {}),
+    ...(forceRollbackAfterEvent ? { _testForceRollbackAfterEvent: true } : {}),
+    ...(forceRollbackAfterCatchup ? { _testForceRollbackAfterCatchup: true } : {})
   };
 
   const res = {
@@ -140,12 +151,7 @@ async function callApi(
     }
   };
 
-  try {
-    await mod.default(req, res);
-  } finally {
-    activeDb = prevDb;
-    activeUser = prevUser;
-  }
+  await requestAls.run({ db: dbPool || activeDb, user }, () => mod.default(req, res));
 
   return { status: statusCode, body: jsonBody, headers: resHeaders };
 }
@@ -387,7 +393,17 @@ const WORKER_SECRET = 'stg_worker_secret_' + crypto.randomBytes(16).toString('he
 
     assert.equal(notifLib.getPushProviderConfig().enabled, false, 'default unset provider mode remains disabled');
 
-    // Enable deterministic fake provider mode for backend tests
+    // Verify simulated modes fail closed unless TRUCKLY_ALLOW_TEST_PUSH_MODES=1 is explicitly set
+    delete process.env.TRUCKLY_ALLOW_TEST_PUSH_MODES;
+    process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'fake';
+    assert.equal(
+      notifLib.getPushProviderConfig().enabled,
+      false,
+      'fake provider mode must fail closed without TRUCKLY_ALLOW_TEST_PUSH_MODES=1'
+    );
+
+    // Enable deterministic fake provider mode explicitly for non-production test harness
+    process.env.TRUCKLY_ALLOW_TEST_PUSH_MODES = '1';
     process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'fake';
     assert.equal(notifLib.getPushProviderConfig().enabled, true);
 
@@ -977,10 +993,796 @@ const WORKER_SECRET = 'stg_worker_secret_' + crypto.randomBytes(16).toString('he
     assert.equal(cleanupRun.status, 200);
     assert(cleanupRun.body.cleanup.purged_deliveries >= 1, 'retention cleanup purged old terminal deliveries');
 
-    console.log('PASS [8/8]: Telemetry RBAC, strict secret/URL/UUID redaction, and 24h retention cleanup verified');
+    console.log('PASS [8/12]: Telemetry RBAC, strict secret/URL/UUID redaction, and 24h retention cleanup verified');
+
+    // =========================================================================
+    // [9/12] Worker Lease Ownership, Batch > Lease Bounds, Slow Providers & Fencing
+    // =========================================================================
+    process.env.TRUCKLY_ALLOW_TEST_PUSH_MODES = '1';
+    process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'fake';
+
+    // 9a. Batch of 12 slow deliveries (12 * 180ms = 2160ms) > 1000ms lease & 650ms execution budget:
+    //     Worker claims in small waves (`concurrency = 2`), stops cleanly at budget boundary
+    //     without leaving unclaimed items locked or ever dispatching on an expired lease,
+    //     and two parallel workers finish the remaining queue with zero duplicate sends.
+    const slowPagers = [];
+    for (let pIdx = 0; pIdx < 3; pIdx++) {
+      const sp = (
+        await callApi('pager/staff.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { vendor_id: 'iniguez', ticket: `SLOW-B-${pIdx}`, request_key: crypto.randomUUID() }
+        })
+      ).body.pager;
+      slowPagers.push(sp);
+      for (let sIdx = 0; sIdx < 4; sIdx++) {
+        const sk = createSubscriberKeys(webpushCrypto);
+        const subR = await callApi('pager/subscriptions.js', {
+          method: 'POST',
+          headers: { ...CLIENT_HEADERS, 'x-forwarded-for': `198.51.101.${pIdx * 10 + sIdx + 1}` },
+          body: {
+            code: sp.id,
+            subscription: {
+              endpoint: `https://fcm.googleapis.com/fcm/send/slow-b-${pIdx}-${sIdx}`,
+              keys: { p256dh: sk.p256dh, auth: sk.auth }
+            }
+          }
+        });
+        assert.equal(subR.status, 201);
+      }
+      await callApi('pager/update.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { id: sp.id, status: 'ready' }
+      });
+    }
+
+    const slowBatchCalls = [];
+    notifLib.setFakePushProviderForTests(async ctx => {
+      slowBatchCalls.push(ctx.deliveryId);
+      await new Promise(r => setTimeout(r, 180));
+      return { status: 201, provider: 'fake_slow' };
+    });
+
+    const boundedRun = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 12, concurrency: 2, execution_budget_ms: 600, cleanup: false },
+      testLeaseSeconds: 1,
+      testProviderTimeoutMs: 500
+    });
+    assert.equal(boundedRun.status, 200);
+    assert(boundedRun.body.claimed > 0 && boundedRun.body.claimed < 12, 'worker claimed only waves within execution budget');
+    assert.equal(boundedRun.body.delivered, boundedRun.body.claimed, 'every claimed wave item finished cleanly inside lease');
+    assert.equal(boundedRun.body.aborted_lease_expired, 0, 'zero sends attempted on expired leases');
+    assert.equal(boundedRun.body.budget_exhausted, true, 'execution budget stop reported');
+
+    // Drain remaining items with two concurrent workers
+    const [drainA, drainB] = await Promise.all([
+      callApi('pager/worker.js', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${WORKER_SECRET}` },
+        body: { batch_size: 12, concurrency: 3, execution_budget_ms: 8000, cleanup: false },
+        testLeaseSeconds: 5
+      }),
+      callApi('pager/worker.js', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${WORKER_SECRET}` },
+        body: { batch_size: 12, concurrency: 3, execution_budget_ms: 8000, cleanup: false },
+        testLeaseSeconds: 5
+      })
+    ]);
+    assert.equal(
+      boundedRun.body.delivered + drainA.body.delivered + drainB.body.delivered,
+      12,
+      'all 12 slow-batch deliveries completed across bounded waves'
+    );
+    assert.equal(slowBatchCalls.length, 12, 'exact 12 provider calls — zero duplicates from upfront batch over-claiming');
+    assert.equal(new Set(slowBatchCalls).size, 12);
+
+    // 9b. Old worker paused after claiming -> lease expires -> Worker-2 reclaims & delivers ->
+    //     Old worker resumes and confirms lease ownership before dispatch -> ZERO duplicate provider calls!
+    const takeoverPager = (
+      await callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { vendor_id: 'iniguez', ticket: 'TAKEOVER-1', request_key: crypto.randomUUID() }
+      })
+    ).body.pager;
+    const tkKeys = createSubscriberKeys(webpushCrypto);
+    await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.101.80' },
+      body: {
+        code: takeoverPager.id,
+        subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/takeover-1', keys: { p256dh: tkKeys.p256dh, auth: tkKeys.auth } }
+      }
+    });
+    let simTakeoverMs = Date.now();
+    await callApi('pager/update.js', {
+      method: 'POST',
+      user: ACTORS.staffA,
+      body: { id: takeoverPager.id, status: 'ready' },
+      testNow: new Date(simTakeoverMs)
+    });
+
+    let takeoverProviderCalls = 0;
+    notifLib.setFakePushProviderForTests(async () => {
+      takeoverProviderCalls++;
+      return { status: 201, provider: 'fake_takeover' };
+    });
+
+    const oldWorkerRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 1, concurrency: 1, cleanup: false },
+      testWorkerId: 'worker-old-stalled',
+      testLeaseSeconds: 2,
+      testClock: () => new Date(simTakeoverMs),
+      testHooks: {
+        onAfterClaim: async () => {
+          // Advance clock +5s past 2s lease while Worker-Old is paused before dispatch!
+          simTakeoverMs += 5000;
+          const worker2Res = await callApi('pager/worker.js', {
+            method: 'POST',
+            headers: { authorization: `Bearer ${WORKER_SECRET}` },
+            body: { batch_size: 1, concurrency: 1, cleanup: false },
+            testWorkerId: 'worker-new-owner',
+            testLeaseSeconds: 10,
+            testClock: () => new Date(simTakeoverMs)
+          });
+          assert.equal(worker2Res.body.claimed, 1, 'Worker-2 reclaimed expired lease');
+          assert.equal(worker2Res.body.delivered, 1, 'Worker-2 delivered notification');
+        }
+      }
+    });
+    assert.equal(oldWorkerRes.body.aborted_lease_lost, 1, 'Worker-Old detected superseded claim_token before dispatch');
+    assert.equal(oldWorkerRes.body.delivered, 0);
+    assert.equal(takeoverProviderCalls, 1, 'ZERO duplicate provider calls when superseded worker resumed before send');
+
+    // 9c. Stalled worker wakes up after its lease expired even before any second worker ran ->
+    //     refuses to send on an expired lease (`aborted_lease_expired === 1`, 0 provider calls)
+    const expLeasePager = (
+      await callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { vendor_id: 'iniguez', ticket: 'EXP-LEASE-1', request_key: crypto.randomUUID() }
+      })
+    ).body.pager;
+    const expKeys = createSubscriberKeys(webpushCrypto);
+    await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.101.81' },
+      body: {
+        code: expLeasePager.id,
+        subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/exp-lease-1', keys: { p256dh: expKeys.p256dh, auth: expKeys.auth } }
+      }
+    });
+    let simExpMs = Date.now();
+    await callApi('pager/update.js', {
+      method: 'POST',
+      user: ACTORS.staffA,
+      body: { id: expLeasePager.id, status: 'ready' },
+      testNow: new Date(simExpMs)
+    });
+
+    let expProviderCalls = 0;
+    notifLib.setFakePushProviderForTests(async () => {
+      expProviderCalls++;
+      return { status: 201 };
+    });
+
+    const stalledExpiredRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 1, concurrency: 1, cleanup: false },
+      testLeaseSeconds: 2,
+      testClock: () => new Date(simExpMs),
+      testHooks: {
+        onAfterClaim: async () => {
+          simExpMs += 5000;
+        }
+      }
+    });
+    assert.equal(stalledExpiredRes.body.aborted_lease_expired, 1, 'worker refused to initiate send on expired lease');
+    assert.equal(expProviderCalls, 0, 'zero provider calls on expired lease');
+
+    // Subsequent worker recovers and delivers cleanly
+    simExpMs += 1000;
+    const recoverExpRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 1, concurrency: 1, cleanup: false },
+      testLeaseSeconds: 10,
+      testClock: () => new Date(simExpMs)
+    });
+    assert.equal(recoverExpRes.body.delivered, 1);
+    assert.equal(expProviderCalls, 1);
+
+    // 9d. In-flight send/ack uncertainty vs fenced stale ack (`onBeforeAck`):
+    //     Worker-SlowNet already dispatched to provider (unavoidable in-flight call), then stalls past lease;
+    //     Worker-Recovery reclaims (`claim_token_2`) and delivers (`201`); Worker-SlowNet wakes up with a stale
+    //     `410` response -> fenced by `claim_token`, so it cannot overwrite `delivered` or scrub the subscription!
+    const fenceAckPager = (
+      await callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { vendor_id: 'iniguez', ticket: 'FENCE-ACK-1', request_key: crypto.randomUUID() }
+      })
+    ).body.pager;
+    const fenceKeys = createSubscriberKeys(webpushCrypto);
+    const fenceSub = (
+      await callApi('pager/subscriptions.js', {
+        method: 'POST',
+        headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.101.82' },
+        body: {
+          code: fenceAckPager.id,
+          subscription: { endpoint: 'https://fcm.googleapis.com/fcm/send/fence-ack-1', keys: { p256dh: fenceKeys.p256dh, auth: fenceKeys.auth } }
+        }
+      })
+    ).body;
+    let simFenceMs = Date.now();
+    await callApi('pager/update.js', {
+      method: 'POST',
+      user: ACTORS.staffA,
+      body: { id: fenceAckPager.id, status: 'ready' },
+      testNow: new Date(simFenceMs)
+    });
+
+    let fenceCallNum = 0;
+    notifLib.setFakePushProviderForTests(async () => {
+      fenceCallNum++;
+      // Call 1 (stale worker) returns 410; Call 2 (recovery worker) returns 201!
+      return fenceCallNum === 1 ? { status: 410 } : { status: 201 };
+    });
+
+    const fencedOldAckRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 1, concurrency: 1, cleanup: false },
+      testWorkerId: 'worker-slow-inflight',
+      testLeaseSeconds: 2,
+      testClock: () => new Date(simFenceMs),
+      testHooks: {
+        onBeforeAck: async () => {
+          simFenceMs += 5000;
+          const recAckRes = await callApi('pager/worker.js', {
+            method: 'POST',
+            headers: { authorization: `Bearer ${WORKER_SECRET}` },
+            body: { batch_size: 1, concurrency: 1, cleanup: false },
+            testWorkerId: 'worker-recovery-ack',
+            testLeaseSeconds: 10,
+            testClock: () => new Date(simFenceMs)
+          });
+          assert.equal(recAckRes.body.delivered, 1);
+        }
+      }
+    });
+    assert.equal(fencedOldAckRes.body.fenced_stale_acks, 1, 'stale worker ack fenced by superseded claim_token');
+    assert.equal(fencedOldAckRes.body.failed_permanent, 0);
+    assert.equal(fencedOldAckRes.body.invalidated_subscriptions, 0);
+
+    const verifyFenceSubStillActive = await callApi('pager/subscriptions.js', {
+      method: 'GET',
+      query: { subscription_id: fenceSub.subscription.id, unsubscribe_token: fenceSub.unsubscribe_token }
+    });
+    assert.equal(
+      verifyFenceSubStillActive.body.subscription.status,
+      'active',
+      'fenced stale 410 ack could not invalidate active subscription'
+    );
+
+    console.log('PASS [9/12]: Worker wave claiming, execution budget, lease takeover, and claim-token ack fencing verified');
+
+    // =========================================================================
+    // [10/12] Pre-Dispatch Live Eligibility Recheck & Copied-Material Tamper Proof
+    // =========================================================================
+    // Create 5 separate pagers + active subscriptions + ready transitions, claim all 5 in one wave,
+    // pause in `onAfterClaim`, tamper with in-memory claimed objects, invalidate all 5 via:
+    //   (1) customer unsubscribe, (2) ticket collected, (3) ticket cancelled,
+    //   (4) ready reverted to `almost`, and (5) pager expiry,
+    // then resume worker and assert ZERO provider calls!
+    const invCases = ['unsub', 'collected', 'cancelled', 'reverted', 'expired'];
+    const invFixtures = {};
+    for (let i = 0; i < invCases.length; i++) {
+      const kind = invCases[i];
+      const pgRow = (
+        await callApi('pager/staff.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { vendor_id: 'iniguez', ticket: `INV-${kind.toUpperCase()}`, request_key: crypto.randomUUID() }
+        })
+      ).body.pager;
+      const k = createSubscriberKeys(webpushCrypto);
+      const subRow = (
+        await callApi('pager/subscriptions.js', {
+          method: 'POST',
+          headers: { ...CLIENT_HEADERS, 'x-forwarded-for': `198.51.102.${10 + i}` },
+          body: {
+            code: pgRow.id,
+            subscription: {
+              endpoint: `https://fcm.googleapis.com/fcm/send/inv-${kind}`,
+              keys: { p256dh: k.p256dh, auth: k.auth }
+            }
+          }
+        })
+      ).body;
+      await callApi('pager/update.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { id: pgRow.id, status: 'ready' }
+      });
+      invFixtures[kind] = { pager: pgRow, sub: subRow, keys: k };
+    }
+
+    let preDispatchInvalidatedCalls = 0;
+    notifLib.setFakePushProviderForTests(async () => {
+      preDispatchInvalidatedCalls++;
+      return { status: 201 };
+    });
+
+    const preDispatchRun = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 5, concurrency: 5, cleanup: false },
+      testHooks: {
+        onAfterClaim: async claimedWave => {
+          assert.equal(claimedWave.length, 5, 'all 5 deliveries claimed before invalidation');
+
+          // Inject fake copied endpoint/key/status fields onto in-memory claimed objects
+          // to prove `prepareClaimForDispatch` ignores in-memory snapshots and queries PostgreSQL!
+          for (const c of claimedWave) {
+            c.endpoint_url = 'https://fcm.googleapis.com/fcm/send/copied-stale-bypass';
+            c.p256dh_key = invFixtures.unsub.keys.p256dh;
+            c.auth_secret = invFixtures.unsub.keys.auth;
+            c.sub_status = 'active';
+            c.pager_status = 'ready';
+          }
+
+          // 1. Customer unsubscribes
+          assert.equal(
+            (
+              await callApi('pager/subscriptions.js', {
+                method: 'DELETE',
+                headers: CLIENT_HEADERS,
+                body: {
+                  subscription_id: invFixtures.unsub.sub.subscription.id,
+                  unsubscribe_token: invFixtures.unsub.sub.unsubscribe_token
+                }
+              })
+            ).status,
+            200
+          );
+
+          // 2. Ticket becomes `collected`
+          assert.equal(
+            (
+              await callApi('pager/update.js', {
+                method: 'POST',
+                user: ACTORS.staffA,
+                body: { id: invFixtures.collected.pager.id, status: 'collected' }
+              })
+            ).status,
+            200
+          );
+
+          // 3. Ticket becomes `cancelled`
+          assert.equal(
+            (
+              await callApi('pager/update.js', {
+                method: 'POST',
+                user: ACTORS.staffA,
+                body: { id: invFixtures.cancelled.pager.id, status: 'cancelled' }
+              })
+            ).status,
+            200
+          );
+
+          // 4. Ready state reverted (`ready` -> `almost`)
+          assert.equal(
+            (
+              await callApi('pager/update.js', {
+                method: 'POST',
+                user: ACTORS.staffA,
+                body: { id: invFixtures.reverted.pager.id, status: 'almost' }
+              })
+            ).status,
+            200
+          );
+
+          // 5. Pager expires before pre-dispatch check
+          await appPool.query(
+            `UPDATE pickup_pagers SET expires_at = now() - interval '2 minutes' WHERE id = $1`,
+            [invFixtures.expired.pager.id]
+          );
+        }
+      }
+    });
+
+    assert.equal(preDispatchInvalidatedCalls, 0, 'ZERO provider calls for work invalidated between claim and dispatch');
+    assert.equal(preDispatchRun.body.delivered, 0);
+    assert.equal(preDispatchRun.body.suppressed, 5, 'all 5 invalidated claims suppressed/expired cleanly');
+
+    console.log('PASS [10/12]: Pre-dispatch live eligibility recheck & copied-material tamper resistance verified');
+
+    // =========================================================================
+    // [11/12] Ready-State Subscription Catch-Up, Rollback, Dedupe, Rotation & Races
+    // =========================================================================
+    let catchupProviderCalls = 0;
+    notifLib.setFakePushProviderForTests(async () => {
+      catchupProviderCalls++;
+      return { status: 201, provider: 'fake_catchup' };
+    });
+
+    // 11a. Subscribing to an ALREADY-ready ticket atomically enqueues catch-up; repeated refreshes do NOT storm
+    const readyFirstPager = (
+      await callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { vendor_id: 'iniguez', ticket: 'READY-FIRST-1', request_key: crypto.randomUUID() }
+      })
+    ).body.pager;
+    await callApi('pager/update.js', {
+      method: 'POST',
+      user: ACTORS.staffA,
+      body: { id: readyFirstPager.id, status: 'ready' }
+    });
+
+    // 11b. First verify atomic transaction rollback (`forceRollbackAfterCatchup`) leaves ZERO rows!
+    const rbCatchKeys = createSubscriberKeys(webpushCrypto);
+    const rbCatchRes = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.1' },
+      body: {
+        code: readyFirstPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-rollback',
+          keys: { p256dh: rbCatchKeys.p256dh, auth: rbCatchKeys.auth }
+        }
+      },
+      forceRollbackAfterCatchup: true
+    });
+    assert.equal(rbCatchRes.status, 503, 'forced failure after catch-up returns 503');
+
+    const checkRbCounts = await appPool.connect();
+    try {
+      await checkRbCounts.query('BEGIN');
+      await checkRbCounts.query("SELECT set_config('app.pager_internal', 'true', true)");
+      const subCnt = await checkRbCounts.query(
+        'SELECT count(*)::int AS c FROM pager_notification_subscriptions WHERE pager_id = $1',
+        [readyFirstPager.id]
+      );
+      const delCnt = await checkRbCounts.query(
+        'SELECT count(*)::int AS c FROM pager_notification_deliveries WHERE pager_id = $1',
+        [readyFirstPager.id]
+      );
+      await checkRbCounts.query('COMMIT');
+      assert.equal(subCnt.rows[0].c, 0, 'atomic rollback left zero subscriptions');
+      assert.equal(delCnt.rows[0].c, 0, 'atomic rollback left zero catch-up deliveries');
+    } finally {
+      checkRbCounts.release();
+    }
+
+    // Now succeed on already-ready ticket
+    const catchKeys1 = createSubscriberKeys(webpushCrypto);
+    const catchSub1 = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.2' },
+      body: {
+        code: readyFirstPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-ok-1',
+          keys: { p256dh: catchKeys1.p256dh, auth: catchKeys1.auth }
+        }
+      }
+    });
+    assert.equal(catchSub1.status, 201);
+    assert.equal(catchSub1.body.catchup.queued, true);
+    assert.equal(catchSub1.body.catchup.reason, 'ready_ticket_catchup');
+
+    // Immediate duplicate retry/refresh BEFORE worker runs -> must NOT enqueue a second delivery!
+    const dupBeforeSend = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.2' },
+      body: {
+        code: readyFirstPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-ok-1',
+          keys: { p256dh: catchKeys1.p256dh, auth: catchKeys1.auth }
+        }
+      }
+    });
+    assert.equal(dupBeforeSend.status, 201);
+    assert.equal(dupBeforeSend.body.catchup.queued, false);
+    assert.equal(dupBeforeSend.body.catchup.reason, 'already_enqueued_for_cycle');
+
+    const catchWorker1 = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 5, cleanup: false }
+    });
+    assert.equal(catchWorker1.body.delivered, 1);
+    assert.equal(catchupProviderCalls, 1);
+
+    // Refresh AFTER delivery -> `already_delivered_for_cycle`, 0 new pushes!
+    const dupAfterSend = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.2' },
+      body: {
+        code: readyFirstPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-ok-1',
+          keys: { p256dh: catchKeys1.p256dh, auth: catchKeys1.auth }
+        }
+      }
+    });
+    assert.equal(dupAfterSend.body.catchup.queued, false);
+    assert.equal(dupAfterSend.body.catchup.reason, 'already_delivered_for_cycle');
+
+    // Unsubscribe + re-subscribe same endpoint AFTER already delivered -> still `already_delivered_for_cycle`!
+    await callApi('pager/subscriptions.js', {
+      method: 'DELETE',
+      headers: CLIENT_HEADERS,
+      body: { subscription_id: dupAfterSend.body.subscription.id, code: readyFirstPager.id }
+    });
+    const resubAfterDelivered = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.2' },
+      body: {
+        code: readyFirstPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-ok-1',
+          keys: { p256dh: catchKeys1.p256dh, auth: catchKeys1.auth }
+        }
+      }
+    });
+    assert.equal(resubAfterDelivered.body.catchup.queued, false);
+    assert.equal(resubAfterDelivered.body.catchup.reason, 'already_delivered_for_cycle');
+
+    // Token rotation (`replaces_subscription_id`) after prior token was already delivered -> no duplicate alert!
+    const rotatedKeys = createSubscriberKeys(webpushCrypto);
+    const rotatedSub = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.3' },
+      body: {
+        code: readyFirstPager.id,
+        replaces_subscription_id: resubAfterDelivered.body.subscription.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/catchup-rotated-2',
+          keys: { p256dh: rotatedKeys.p256dh, auth: rotatedKeys.auth }
+        }
+      }
+    });
+    assert.equal(rotatedSub.status, 201);
+    assert.equal(rotatedSub.body.catchup.queued, false);
+    assert.equal(rotatedSub.body.catchup.reason, 'already_delivered_prior_token');
+
+    // 11c. Reactivation of an UNDELIVERED (`suppressed`) subscription on a ready ticket re-queues once
+    const reactPager = (
+      await callApi('pager/staff.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { vendor_id: 'iniguez', ticket: 'REACT-1', request_key: crypto.randomUUID() }
+      })
+    ).body.pager;
+    const reactKeys = createSubscriberKeys(webpushCrypto);
+    const reactSub0 = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.10' },
+      body: {
+        code: reactPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/react-1',
+          keys: { p256dh: reactKeys.p256dh, auth: reactKeys.auth }
+        }
+      }
+    });
+    await callApi('pager/update.js', {
+      method: 'POST',
+      user: ACTORS.staffA,
+      body: { id: reactPager.id, status: 'ready' }
+    });
+    // Unsubscribe before worker runs -> delivery becomes `suppressed` (`delivered_at IS NULL`)
+    await callApi('pager/subscriptions.js', {
+      method: 'DELETE',
+      headers: CLIENT_HEADERS,
+      body: {
+        subscription_id: reactSub0.body.subscription.id,
+        unsubscribe_token: reactSub0.body.unsubscribe_token
+      }
+    });
+    // Re-subscribe while still `ready` -> re-queues the undelivered alert!
+    const reactSub1 = await callApi('pager/subscriptions.js', {
+      method: 'POST',
+      headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.10' },
+      body: {
+        code: reactPager.id,
+        subscription: {
+          endpoint: 'https://fcm.googleapis.com/fcm/send/react-1',
+          keys: { p256dh: reactKeys.p256dh, auth: reactKeys.auth }
+        }
+      }
+    });
+    assert.equal(reactSub1.body.catchup.queued, true);
+    assert.equal(reactSub1.body.catchup.reason, 'reactivated_undelivered');
+    const reactWorker = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${WORKER_SECRET}` },
+      body: { batch_size: 5, cleanup: false }
+    });
+    assert.equal(reactWorker.body.delivered, 1);
+
+    // 11d. Concurrent `POST /api/pager/subscriptions` racing `POST /api/pager/update { status: 'ready' }`
+    //      produces EXACTLY 1 event and 1 delivery with zero missed or duplicate alerts!
+    for (let rIdx = 0; rIdx < 4; rIdx++) {
+      const racePager = (
+        await callApi('pager/staff.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { vendor_id: 'iniguez', ticket: `RACE-CR-${rIdx}`, request_key: crypto.randomUUID() }
+        })
+      ).body.pager;
+      const rk = createSubscriberKeys(webpushCrypto);
+
+      const [subRaceOut, updRaceOut] = await Promise.all([
+        callApi('pager/subscriptions.js', {
+          method: 'POST',
+          headers: { ...CLIENT_HEADERS, 'x-forwarded-for': `198.51.103.${30 + rIdx}` },
+          body: {
+            code: racePager.id,
+            subscription: {
+              endpoint: `https://fcm.googleapis.com/fcm/send/race-cr-${rIdx}`,
+              keys: { p256dh: rk.p256dh, auth: rk.auth }
+            }
+          }
+        }),
+        callApi('pager/update.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { id: racePager.id, status: 'ready' }
+        })
+      ]);
+      assert.equal(subRaceOut.status, 201);
+      assert.equal(updRaceOut.status, 200);
+
+      const raceDrain = await callApi('pager/worker.js', {
+        method: 'POST',
+        headers: { authorization: `Bearer ${WORKER_SECRET}` },
+        body: { batch_size: 5, cleanup: false }
+      });
+      assert.equal(raceDrain.body.delivered, 1, `concurrent sub + ready transition produced exact 1 delivery (iter ${rIdx})`);
+    }
+
+    // 11e. Collected, cancelled, and expired ready tickets reject subscriptions & enqueue zero catch-up work
+    for (const termState of ['collected', 'cancelled', 'expired']) {
+      const termPager = (
+        await callApi('pager/staff.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { vendor_id: 'iniguez', ticket: `TERM-${termState}`, request_key: crypto.randomUUID() }
+        })
+      ).body.pager;
+      await callApi('pager/update.js', {
+        method: 'POST',
+        user: ACTORS.staffA,
+        body: { id: termPager.id, status: 'ready' }
+      });
+      if (termState === 'expired') {
+        await appPool.query(`UPDATE pickup_pagers SET expires_at = now() - interval '5 minutes' WHERE id = $1`, [termPager.id]);
+      } else {
+        await callApi('pager/update.js', {
+          method: 'POST',
+          user: ACTORS.staffA,
+          body: { id: termPager.id, status: termState }
+        });
+      }
+      const tk = createSubscriberKeys(webpushCrypto);
+      const deniedCatchup = await callApi('pager/subscriptions.js', {
+        method: 'POST',
+        headers: { ...CLIENT_HEADERS, 'x-forwarded-for': '198.51.103.90' },
+        body: {
+          code: termPager.id,
+          subscription: {
+            endpoint: `https://fcm.googleapis.com/fcm/send/denied-${termState}`,
+            keys: { p256dh: tk.p256dh, auth: tk.auth }
+          }
+        }
+      });
+      assert.equal(deniedCatchup.status, 404, `${termState} ticket rejected subscription & catch-up`);
+    }
+
+    console.log('PASS [11/12]: Ready-state subscription catch-up, rollback, deduplication, token rotation & concurrent races verified');
+
+    // =========================================================================
+    // [12/12] Fail-Closed Configuration, Production Masquerade Blocks & Control Matrix
+    // =========================================================================
+    // 12a. Simulated modes (`fake`, `loopback_test`) CANNOT masquerade as production delivery
+    //      even if `TRUCKLY_ALLOW_TEST_PUSH_MODES=1` is set!
+    for (const simMode of ['fake', 'loopback_test']) {
+      process.env.TRUCKLY_ALLOW_TEST_PUSH_MODES = '1';
+      process.env.TRUCKLY_PUSH_PROVIDER_MODE = simMode;
+
+      process.env.TRUCKLY_ENV = 'production';
+      assert.equal(notifLib.getPushProviderConfig().enabled, false, `${simMode} blocked under TRUCKLY_ENV=production`);
+      assert.equal(notifLib.getPushProviderConfig().configValid, false);
+      delete process.env.TRUCKLY_ENV;
+
+      process.env.NODE_ENV = 'production';
+      assert.equal(notifLib.getPushProviderConfig().enabled, false, `${simMode} blocked under NODE_ENV=production`);
+      delete process.env.NODE_ENV;
+
+      process.env.HATCHABLE_PROJECT_ID = 'proj_MEO518rmLLl0';
+      assert.equal(notifLib.getPushProviderConfig().enabled, false, `${simMode} blocked on production project ID`);
+      delete process.env.HATCHABLE_PROJECT_ID;
+    }
+
+    // 12b. Invalid provider mode, invalid TRUCKLY_ENV, and incomplete webpush VAPID config fail closed
+    process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'invalid_provider_typo';
+    assert.equal(notifLib.getPushProviderConfig().enabled, false);
+    assert.equal(notifLib.getPushProviderConfig().configValid, false);
+
+    process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'webpush';
+    const savedPriv = process.env.TRUCKLY_VAPID_PRIVATE_KEY;
+    delete process.env.TRUCKLY_VAPID_PRIVATE_KEY;
+    assert.equal(notifLib.getPushProviderConfig().enabled, false, 'webpush without private key fails closed');
+    assert.equal(notifLib.getPushProviderConfig().configValid, false);
+    process.env.TRUCKLY_VAPID_PRIVATE_KEY = savedPriv;
+    assert.equal(notifLib.getPushProviderConfig().enabled, true, 'complete valid webpush config enables cleanly');
+
+    // 12c. Invalid boolean values on pause controls fail closed (pausing operations while keeping reads intact)
+    process.env.TRUCKLY_PUSH_PROVIDER_MODE = 'fake';
+    process.env.TRUCKLY_DISABLE_SUBSCRIPTIONS = 'yes_typo';
+    assert.equal(notifLib.isSubscriptionsDisabled(), true, 'invalid TRUCKLY_DISABLE_SUBSCRIPTIONS fails closed');
+    const badBoolTelem = await callApi('pager/telemetry.js', { user: ACTORS.admin });
+    assert.equal(badBoolTelem.body.controls.config_valid, false);
+    assert.equal(badBoolTelem.body.controls.subscriptions_paused, true);
+    // Public status read still works!
+    const statusDuringSubPause = await callApi('pager/status.js', {
+      method: 'GET',
+      query: { code: readyFirstPager.id },
+      headers: { 'x-forwarded-for': '198.51.103.99' }
+    });
+    assert.equal(statusDuringSubPause.status, 200, 'pager status read preserved during subscription pause');
+    assert.equal(statusDuringSubPause.body.notifications.enabled, false);
+    delete process.env.TRUCKLY_DISABLE_SUBSCRIPTIONS;
+
+    process.env.TRUCKLY_DISABLE_NOTIFICATION_DELIVERY = 'invalid_bool';
+    assert.equal(notifLib.isNotificationDeliveryDisabled(), true, 'invalid TRUCKLY_DISABLE_NOTIFICATION_DELIVERY fails closed');
+    delete process.env.TRUCKLY_DISABLE_NOTIFICATION_DELIVERY;
+
+    // 12d. Scoped `TRUCKLY_PAUSE_WRITES=notifications` pauses both subscriptions & worker delivery without pausing pager reads
+    process.env.TRUCKLY_PAUSE_WRITES = 'notifications';
+    assert.equal(notifLib.isSubscriptionsDisabled(), true);
+    assert.equal(notifLib.isNotificationDeliveryDisabled(), true);
+    delete process.env.TRUCKLY_PAUSE_WRITES;
+
+    // 12e. Worker `X-Worker-Secret` header parity & short-secret fail-closed check
+    const xHeaderWorkerRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { 'x-worker-secret': WORKER_SECRET },
+      body: { batch_size: 1, cleanup: false }
+    });
+    assert.equal(xHeaderWorkerRes.status, 200, 'X-Worker-Secret header accepted');
+
+    process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET = 'too_short';
+    const shortSecretRes = await callApi('pager/worker.js', {
+      method: 'POST',
+      headers: { authorization: 'Bearer too_short' },
+      body: {}
+    });
+    assert.equal(shortSecretRes.status, 503, 'worker fails closed with 503 when secret < 24 chars');
+    process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET = WORKER_SECRET;
+
+    notifLib.setFakePushProviderForTests(null);
+    console.log('PASS [12/12]: Fail-closed runtime configuration, production masquerade blocks, and pause control matrix verified');
     console.log('\nALL PAGER NOTIFICATION BACKEND & MIGRATION TESTS PASSED.');
   } finally {
     notifLib.setFakePushProviderForTests(null);
+    delete process.env.TRUCKLY_ALLOW_TEST_PUSH_MODES;
+    delete process.env.TRUCKLY_ENV;
+    delete process.env.NODE_ENV;
+    delete process.env.HATCHABLE_PROJECT_ID;
+    delete process.env.TRUCKLY_PAUSE_WRITES;
     delete process.env.TRUCKLY_PUSH_PROVIDER_MODE;
     delete process.env.TRUCKLY_VAPID_PUBLIC_KEY;
     delete process.env.TRUCKLY_VAPID_PRIVATE_KEY;

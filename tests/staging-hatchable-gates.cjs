@@ -1038,7 +1038,7 @@ export async function resolve(specifier, context, nextResolve) {
             'STAGING_COOKIE_MODERATOR',
             'STAGING_COOKIE_PLATFORM_ADMIN',
             'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)',
-            'STAGING_WORKER_SECRET (matching TRUCKLY_PAGER_WORKER_SECRET for Gate G9)'
+            'STAGING_WORKER_SECRET (matching TRUCKLY_NOTIFICATION_WORKER_SECRET for Gate G9)'
           ]
         },
         null,

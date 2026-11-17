@@ -281,6 +281,7 @@ class CdpClient {
         ...process.env,
         PORT: String(appPort),
         DATABASE_URL: appDbUrl,
+        TRUCKLY_ALLOW_TEST_PUSH_MODES: '1',
         TRUCKLY_PUSH_PROVIDER_MODE: 'loopback_test',
         TRUCKLY_VAPID_PUBLIC_KEY: vapid.publicKey,
         TRUCKLY_VAPID_PRIVATE_KEY: vapid.privateKey,

@@ -17,7 +17,7 @@
 //   2. Run `node tests/staging-hatchable-gates.cjs` with `STAGING_PROBE_TOKEN` and
 //      `STAGING_COOKIE_PLATFORM_ADMIN`.
 //   3. Delete `api/_staging_gate_probe.js` from the staging project and re-deploy staging
-//      so the final staging build matches the exact 27-route repository tree.
+//      so the final staging build matches the exact 30-route repository tree.
 
 import crypto from "node:crypto";
 import { db, auth } from "hatchable";

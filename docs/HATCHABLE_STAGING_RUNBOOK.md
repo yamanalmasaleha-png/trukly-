@@ -14,7 +14,7 @@ Inspection of the current workspace confirmed:
 ### Decisions & Access Required Before Provisioning Staging (Do Not Paste Secrets in Chat)
 1. **Isolated Staging Project Allocation:** Designate an existing isolated Hatchable staging project (`https://<staging>.hatchable.site`), **or** approve creating a disposable blank staging project after confirming any Hatchable account plan/billing impact.
 2. **Fail-Closed Environment Identity:** Configure `TRUCKLY_ENV=staging` on the staging project (never on production). Both `scripts/staging-runtime-probe.template.js` and `tests/staging-hatchable-gates.cjs` verify server-side `TRUCKLY_ENV=staging` and reject `proj_MEO518rmLLl0` before executing any write gates.
-3. **Zero Production Data Copy:** Populate staging strictly with migrations `001`–`015` and disposable `[STG-E2E-*]` test rows — never import production `bookings`, `pickup_pagers`, `community_reviews`, or push subscriptions.
+3. **Zero Production Data Copy:** Populate staging strictly with migrations `001`–`016` and disposable `[STG-E2E-*]` test rows — never import production `bookings`, `pickup_pagers`, `community_reviews`, or push subscriptions.
 4. **Disposable Test Personas:** Sign in 7 operator-controlled disposable test accounts on staging `/login.html` (`customer_a`, `customer_b`, `vendor_a_owner`, `vendor_a_staff`, `vendor_b_owner`, `moderator`, `platform_admin`) and store cookies in a local non-committed operator env file.
 
 ---
@@ -23,11 +23,11 @@ Inspection of the current workspace confirmed:
 
 ### Step 1 — Deploy Candidate Branch (`improve/p1-audit-and-pager-notifications`) to Isolated Staging
 1. Connect Hatchable CLI / MCP scoped strictly to the **isolated staging project** (confirm project ID is **not** `proj_MEO518rmLLl0`).
-2. Apply migrations `migrations/001`–`015` in order.
+2. Apply migrations `migrations/001`–`016` in order.
 3. Sync `hatchable.toml`, `lib/*.js`, `api/**/*.js` (**30** route files), and `public/**`. (**Never** upload `scripts/dev-server.cjs`, `scripts/seed-sql-reader.cjs`, `scripts/run-pager-worker.cjs`, or `tests/`.)
-4. Set staging environment variables:
+4. Set staging environment variables (redeploy staging whenever changing environment variables):
    - `TRUCKLY_ENV=staging`
-   - `TRUCKLY_PUSH_PROVIDER_MODE=disabled` (keep push delivery disabled during initial gate run; switch to `webpush` with staging VAPID keys only for designated physical-device push testing)
+   - `TRUCKLY_PUSH_PROVIDER_MODE=disabled` (keep push delivery disabled during initial gate run; switch to `webpush` with staging VAPID keys and `TRUCKLY_NOTIFICATION_WORKER_SECRET` only for designated physical-device push testing — never enable `fake` or `loopback_test` on hosted environments)
    - `TRUCKLY_STAGING_PROBE_TOKEN=<random-24+-char-secret>`
 5. Temporarily upload [`scripts/staging-runtime-probe.template.js`](../scripts/staging-runtime-probe.template.js) as **`api/_staging_gate_probe.js` on the staging project only**, deploy staging, and record the staging release SHA / ID.
 
