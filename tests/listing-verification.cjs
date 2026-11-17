@@ -427,7 +427,7 @@ function makeEl(id,extra={}){
   // 3. Cross-endpoint API parity & stale-data regression checks
   // (Full real-PostgreSQL RBAC, RLS, constraint, and concurrency tests live in tests/backend-hardening.integration.cjs and tests/p1-unified-discovery.integration.cjs)
 
-  // Ensure exact 27 Hatchable server function files (20 base + 3 pager + 4 community) and no legacy Austin strings
+  // Ensure exact 30 Hatchable server function files (20 base + 6 pager + 4 community) and no legacy Austin strings
   function listJs(dir){
     const out=[];
     for(const e of fs.readdirSync(dir,{withFileTypes:true})){
@@ -438,7 +438,7 @@ function makeEl(id,extra={}){
     return out;
   }
   const apiFiles=listJs('api');
-  assert.equal(apiFiles.length,27,'preserves all 27 v77 Hatchable function routes');
+  assert.equal(apiFiles.length,30,'preserves exact 30 Hatchable function routes (20 base + 6 pager + 4 community)');
   for(const f of apiFiles){
     const txt=fs.readFileSync(f,'utf8');
     assert(!txt.includes('Mueller Lake Park')&&!txt.includes("'estrella'"),'no legacy Austin defaults in '+f);

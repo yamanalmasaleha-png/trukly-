@@ -502,8 +502,12 @@ const mockDb = {
       store.pickup_pagers.unshift(row);
       return { rows: [row], rowCount: 1 };
     }
-    if (/FROM pickup_pagers WHERE id=\$1 AND expires_at>now\(\)/i.test(s)) {
-      const row = store.pickup_pagers.find(p => p.id === params[0] && new Date(p.expires_at) > new Date());
+    if (/^INSERT INTO pager_rate_limits/i.test(s)) {
+      return { rows: [{ hit_count: 1 }], rowCount: 1 };
+    }
+    if (/FROM pickup_pagers WHERE id\s*=\s*\$1 AND expires_at\s*>\s*(?:now\(\)|\$2)/i.test(s)) {
+      const cutoff = params[1] ? new Date(params[1]) : new Date();
+      const row = store.pickup_pagers.find(p => p.id === params[0] && new Date(p.expires_at) > cutoff);
       return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
     }
     if (/FROM pickup_pagers WHERE id = \$1/i.test(s)) {
@@ -522,13 +526,24 @@ const mockDb = {
       const rows = store.pickup_pagers.filter(p => new Date(p.expires_at) > now && !['collected', 'cancelled'].includes(p.status));
       return { rows, rowCount: rows.length };
     }
+    if (/^UPDATE pickup_pagers SET ready_notified_at = \$2/i.test(s)) {
+      const row = store.pickup_pagers.find(p => p.id === params[0]);
+      if (row) {
+        row.ready_notified_at = params[1];
+        row.ready_notify_count = params[2];
+      }
+      return { rows: row ? [row] : [], rowCount: row ? 1 : 0 };
+    }
     if (/^UPDATE pickup_pagers SET status = \$2/i.test(s)) {
       const row = store.pickup_pagers.find(p => p.id === params[0]);
       if (!row) return { rows: [], rowCount: 0 };
       row.status = params[1];
       row.updated_by = params[2];
-      row.updated_at = new Date().toISOString();
+      row.updated_at = params[3] || new Date().toISOString();
       return { rows: [row], rowCount: 1 };
+    }
+    if (/^INSERT INTO pager_notification_events/i.test(s)) {
+      return { rows: [{ id: crypto.randomUUID() }], rowCount: 1 };
     }
 
     if (/FROM community_public_posts/i.test(s)) {

@@ -9,6 +9,7 @@ import {
   applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
+import { handlePagerTransitionNotificationsInTx } from "../../lib/pager-notifications.js";
 
 export const access = "user";
 export const methods = ["POST"];
@@ -21,6 +22,8 @@ export default async function(req, res) {
   if (isWritePaused("pagers")) {
     return res.status(503).json({ error: "Pickup pager updates are temporarily paused for maintenance." });
   }
+
+  const now = req._testNow instanceof Date ? req._testNow : new Date();
 
   try {
     const ctx = await loadAccessContext(req, auth, db);
@@ -41,7 +44,7 @@ export default async function(req, res) {
 
     const outcome = await withTransaction(db, async tx => {
       const { rows } = await tx.query(
-        `SELECT id, vendor_id, vendor, ticket, status, expires_at
+        `SELECT id, vendor_id, vendor, ticket, status, expires_at, ready_notified_at, ready_notify_count
          FROM pickup_pagers
          WHERE id = $1
          FOR UPDATE`,
@@ -67,17 +70,24 @@ export default async function(req, res) {
         actorRole = verifiedAuthz.actorRole;
       }
 
-      if (new Date(pager.expires_at) <= new Date() || ["collected", "cancelled"].includes(pager.status)) {
+      if (new Date(pager.expires_at).getTime() <= now.getTime() || ["collected", "cancelled"].includes(pager.status)) {
         return { status: 404, body: { error: "This pager has ended or expired." } };
       }
 
       const { rows: updated } = await tx.query(
         `UPDATE pickup_pagers
-         SET status = $2, updated_by = $3, updated_at = now()
+         SET status = $2, updated_by = $3, updated_at = $4
          WHERE id = $1
          RETURNING id, vendor_id, vendor, ticket, status, updated_at, expires_at`,
-        [id, status, ctx.user.id]
+        [id, status, ctx.user.id, now.toISOString()]
       );
+
+      // Atomically enqueue ready outbox event (or suppress queued alerts on terminal/revert states)
+      const notificationMeta = await handlePagerTransitionNotificationsInTx(tx, {
+        pager,
+        nextStatus: status,
+        now
+      });
 
       await recordAuditLog(tx, {
         actorId: ctx.user.id,
@@ -89,11 +99,26 @@ export default async function(req, res) {
         metadata: {
           ticket: pager.ticket,
           from_status: pager.status,
-          to_status: status
+          to_status: status,
+          notification_event_created: notificationMeta.eventCreated,
+          notification_reason: notificationMeta.reason || null
         }
       });
 
-      return { status: 200, body: { pager: updated[0] } };
+      if (req._testForceRollbackAfterEvent === true) {
+        throw new Error("Simulated mid-transaction failure after outbox insert");
+      }
+
+      return {
+        status: 200,
+        body: {
+          pager: updated[0],
+          notification: {
+            event_created: notificationMeta.eventCreated,
+            queued_deliveries: notificationMeta.queuedDeliveries || 0
+          }
+        }
+      };
     });
 
     return res.status(outcome.status).json(outcome.body);
