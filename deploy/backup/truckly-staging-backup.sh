@@ -29,12 +29,12 @@ cleanup_raw() {
 trap cleanup_raw EXIT
 
 # 1. Consistent custom-format PostgreSQL dump via local peer postgres socket
+#    Redirect stdout as root so `BACKUP_DIR` remains 0700 root:root without granting directory write to `postgres`.
 runuser -u postgres -- pg_dump \
   --format=custom \
   --no-owner \
   --no-acl \
-  --dbname="${DB_NAME}" \
-  --file="${RAW_DUMP}"
+  --dbname="${DB_NAME}" > "${RAW_DUMP}"
 
 # 2. Sanity-check archive TOC readability before encryption (note: real restore verification is separate)
 pg_restore --list "${RAW_DUMP}" >/dev/null
