@@ -63,7 +63,9 @@ export default async function(req, res) {
         }
         actorRole = "platform_admin";
       } else {
-        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, pager.vendor_id, "staff");
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, pager.vendor_id, "staff", {
+          allowInactiveForAdmin: true
+        });
         if (!verifiedAuthz.ok) {
           return { status: 403, body: { error: "You do not have permission for this pager ticket." } };
         }

@@ -151,6 +151,13 @@ const mockDb = {
       return { rows, rowCount: rows.length };
     }
 
+    if (/FROM vendor_memberships WHERE user_id = \$1 AND vendor_id = \$2/i.test(s)) {
+      const rows = store.vendor_memberships
+        .filter(m => m.user_id === params[0] && m.vendor_id === params[1])
+        .map(m => ({ vendor_id: m.vendor_id, role: m.role }));
+      return { rows, rowCount: rows.length };
+    }
+
     if (/^SELECT id(?:, is_active)? FROM vendors WHERE id = \$1/i.test(s)) {
       const v = store.vendors.get(params[0]);
       return { rows: v ? [{ id: v.id, is_active: v.is_active }] : [], rowCount: v ? 1 : 0 };

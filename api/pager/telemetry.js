@@ -1,5 +1,9 @@
 import { db, auth } from "hatchable";
-import { loadAccessContext, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
+import {
+  loadAccessContext,
+  reverifyPlatformAdminInTx,
+  applyPrivateNoStoreHeaders
+} from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 import {
   enablePagerInternalContext,
@@ -28,6 +32,11 @@ export default async function(req, res) {
     const providerCfg = getPushProviderConfig();
 
     const stats = await withTransaction(db, async tx => {
+      const verifiedAdmin = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedAdmin.ok) {
+        return { authDenied: verifiedAdmin };
+      }
+
       await enablePagerInternalContext(tx);
 
       const delivRes = await tx.query(
@@ -74,6 +83,10 @@ export default async function(req, res) {
         recent_redacted_errors: errRes.rows
       };
     });
+
+    if (stats?.authDenied) {
+      return res.status(stats.authDenied.status).json({ error: stats.authDenied.error });
+    }
 
     return res.json({
       ok: true,

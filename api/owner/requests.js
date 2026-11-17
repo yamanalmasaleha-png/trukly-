@@ -58,7 +58,9 @@ export default async function(req, res) {
           }
           actorRole = "platform_admin";
         } else {
-          const authz = await reverifyVendorMembershipInTx(tx, ctx, booking.truck_id, "owner");
+          const authz = await reverifyVendorMembershipInTx(tx, ctx, booking.truck_id, "owner", {
+            allowInactiveForAdmin: true
+          });
           if (!authz.ok) {
             return { status: authz.status, body: { error: authz.error } };
           }

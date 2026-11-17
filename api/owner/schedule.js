@@ -60,13 +60,14 @@ export default async function(req, res) {
       const location = typeof b.location === "string" && b.location.trim() ? b.location.trim() : null;
 
       const outcome = await withTransaction(db, async tx => {
-        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "staff");
+        // Acquire FOR NO KEY UPDATE on `vendors` + FOR SHARE on `vendor_memberships`/`platform_roles` in one step
+        // to serialize both against permission downgrades/deactivations and against concurrent booking creation/acceptance (`FOR SHARE`).
+        const verifiedAuthz = await reverifyVendorMembershipInTx(tx, ctx, authz.vendorId, "staff", {
+          vendorLockMode: "NO KEY UPDATE"
+        });
         if (!verifiedAuthz.ok) {
           return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
         }
-
-        // Coordinate against concurrent booking creation / acceptance (`FOR SHARE OF v`) even when no `owner_schedule` row exists yet.
-        await tx.query("SELECT id FROM vendors WHERE id = $1 FOR NO KEY UPDATE", [authz.vendorId]);
 
         const { rows } = await tx.query(
           `INSERT INTO owner_schedule (truck_id, service_date, opens_at, closes_at, location, status, updated_at)
