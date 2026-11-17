@@ -1,6 +1,19 @@
 # Truckly Staging & Physical-Device Release Verification Report
 
-**Report Generated:** `2026-11-17T00:57:00-08:00` (`America/Los_Angeles` / `2026-11-17T08:57:00Z`)
+## Current Active Release Path — Standalone VPS Candidate (`614dc997e1b903c94948dc7ff13d02e51c434acd`)
+
+- **Current Executed VPS Verification Report:** **[`docs/VPS_RELEASE_VERIFICATION_REPORT.md`](./VPS_RELEASE_VERIFICATION_REPORT.md)**
+- **Active Branch & Verified Deployed Executable SHA:** `migrate/vps-standalone-staging` @ **`614dc997e1b903c94948dc7ff13d02e51c434acd`** (`120/120` deployed files SHA-256 matched against Git, composite manifest `3bef048c70e3deb353ed26441d9d0a481d91e680b696d3ce94c530f48d852c1d`; GitHub Actions Run `44180486982` `completed / success`)
+- **Current Release Decision (Standalone VPS Path):** **`BLOCKED`** *(all VPS loopback gates `G1`–`G9`, `VPS_G10`–`VPS_G11`, `E2E1`–`E2E6`, runtime/auth/dynamic-RBAC/CSRF/XFF-spoofing checks, `10.4h` `systemd` worker soak + live pause/drain + `SIGKILL` recovery, and GPG-encrypted backup + real `pg_restore` **PASSED** on `614dc997e1b903c94948dc7ff13d02e51c434acd`; remaining blockers on the VPS path are **only**: (1) staging hostname/DNS for Let's Encrypt HTTPS & public-origin browser login checks, (2) off-server backup destination, and (3) designated physical Android + iPhone `iOS 16.4+` Home Screen PWA devices for `PD-01`–`PD-18`. Hatchable staging is **no longer** required for the standalone VPS release path.)*
+- **Production Guard Status:** Hatchable production (`proj_MEO518rmLLl0` / `https://truckly.hatchable.site`), `origin/main`, and all existing VPS co-tenant services (`lifestyle-api` / `pm2-matt`, `velvet_key_db`, `qwen-worker`, `/usr/bin/node v18.19.1`, default Nginx `:80`) remain **untouched**.
+
+> **Historical Evidence Preservation Note:** The sections below preserve the original Hatchable-candidate verification record (`fa4e40affb574d3da5a98e4874b301ad5251e17c`, report commit `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13` on `improve/p1-audit-and-pager-notifications`) verbatim as historical evidence. None of the historical rows below are relabeled as VPS evidence; see [`docs/VPS_RELEASE_VERIFICATION_REPORT.md`](./VPS_RELEASE_VERIFICATION_REPORT.md) for all executed standalone VPS staging evidence.
+
+---
+
+## Historical Archive — Hatchable Candidate Verification Record (`fa4e40affb574d3da5a98e4874b301ad5251e17c`)
+
+**Historical Report Generated:** `2026-11-17T00:57:00-08:00` (`America/Los_Angeles` / `2026-11-17T08:57:00Z`)
 **Repository:** `https://github.com/yamanalmasaleha-png/trukly-/`
 **Production Guard Status:** `proj_MEO518rmLLl0` (`https://truckly.hatchable.site`) **UNTOUCHED** — zero production deploys, schema changes, data exports, or customer notifications occurred.
 
