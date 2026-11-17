@@ -1,0 +1,273 @@
+/* Truckly v76 — calm, consistent local-food palette. Loaded after every previous theme. */
+:root{
+  --cream:#F7F5ED;
+  --ink:#243C31;
+  --muted:#5D6D63;
+  --coral:#B26046;
+  --coral2:#C47D62;
+  --mustard:#DDBD7A;
+  --mint:#BFD5BC;
+  --white:#FFFDF8;
+  --shadow:0 6px 18px #20372B0C;
+  --trk-green:#234B3A;
+  --trk-sage:#E6EEE3;
+  --trk-paper:#FFFDF7;
+  --trk-border:#D7DED3;
+  --trk-soft:#F0F0E5;
+  --trk-rust:#A9543F;
+}
+body{background:var(--cream);color:var(--ink)}
+.topbar,.discovery-toolbar,.bottom-nav{background:var(--cream);border-color:var(--trk-border)}
+.topbar{box-shadow:0 2px 10px #233E3008}
+.brand{color:var(--trk-green)}
+.brand-mark{
+  background:var(--trk-green);color:#FFFDF6;
+  border-color:var(--trk-green);box-shadow:none;
+}
+.topbar .location-pill,.home-button,.pager-launch,.extra-filters summary,
+.discover-extras>summary,.community-extra-ideas>summary{
+  background:var(--trk-paper);color:var(--trk-green);border-color:var(--trk-border);
+  box-shadow:none;
+}
+.topbar .profile-menu .avatar{background:var(--trk-sage);border-color:var(--trk-border);color:var(--trk-green)}
+.search,.round-btn,.chip,.map-chip{
+  background:var(--trk-paper);border:1px solid var(--trk-border);box-shadow:none;color:var(--trk-green);
+}
+.search input{color:var(--ink)}
+.search input::placeholder{color:#768579;opacity:1}
+.chip.active,.map-chip.active,.extra-filters[open] summary{
+  background:var(--trk-green);border-color:var(--trk-green);color:#FFFDF7;
+}
+.map-chip.active{background:var(--trk-sage);border-color:#8FAB98;color:var(--trk-green)}
+.primary,.local-surprise,.community-entry button,.community-head-actions .community-new,
+.community-compose .primary,.community-empty button,
+.street-quiz-footer button,.street-mystery button,.street-mission button,
+.community-entry button,.community-filters button.active,
+#guidePassport #guideVisitForm .primary{
+  background:var(--trk-green);color:#FFFDF6;border-color:var(--trk-green);
+  box-shadow:none;
+}
+.secondary,.community-post-foot button,.guide-card-actions button,
+.passport-links button,.passport-visits button{
+  background:var(--trk-sage);color:var(--trk-green);border:1px solid var(--trk-border);
+  box-shadow:none;
+}
+.primary:hover,.community-entry button:hover,.local-surprise:hover{background:#315E49;color:#fffdf7}
+:where(button,a,input,select,textarea,summary):focus-visible{outline:3px solid var(--trk-rust);outline-offset:2px}
+/* A single calm navigation rather than six unrelated bright tiles. */
+.bottom-nav{border-top:1px solid var(--trk-border);box-shadow:0 -3px 12px #20372B08}
+.bottom-nav button,
+.bottom-nav button[data-screen="favorites"],
+.bottom-nav button[data-screen="bookings"],.bottom-nav .book-nav,.bottom-nav .guide-nav,.bottom-nav .surprise-nav{
+  --button-color:var(--trk-paper);--button-ink:var(--trk-green);
+  color:var(--trk-green);
+}
+.bottom-nav button>span,.bottom-nav .book-nav>span,
+.bottom-nav button[data-screen="favorites"]>span,
+.bottom-nav button[data-screen="bookings"]>span,
+.bottom-nav .surprise-nav>span,.bottom-nav .guide-nav>span{
+  background:var(--trk-paper);border:1px solid var(--trk-border);box-shadow:none;
+}
+.bottom-nav button.active{background:transparent;color:var(--trk-green)}
+.bottom-nav button.active>span,.bottom-nav .book-nav.active>span{
+  background:var(--trk-sage);border:2px solid var(--trk-green);box-shadow:none;
+}
+.bottom-nav button:hover>span{transform:none}
+/* No patterned wallpaper or rainbow-card stack in the directory. */
+.list-mode .truck-sheet{
+  background:var(--cream);
+  background-image:none;
+}
+.neighborhood-intro{gap:24px;margin:0 0 13px;padding:0}
+.intro-copy h1{color:var(--trk-green);letter-spacing:-1px}
+.intro-copy h1 em{color:var(--trk-green)}
+.intro-copy p{color:var(--muted)}
+.edition-label,.sheet-title small,.community-section-label,.street-kicker,
+.street-card-kicker,.guide-story-copy>small{color:var(--trk-rust)}
+.neighborhood-ribbon{border-color:var(--trk-border);color:var(--muted)}
+.community-entry{
+  background:var(--trk-sage);border:1px solid var(--trk-border);
+  box-shadow:none;border-radius:14px;
+}
+.community-entry h3{color:var(--trk-green)}
+.explore-kinds{margin:12px 0 12px;gap:9px}
+.explore-kinds button,.explore-kinds button:nth-child(2),.explore-kinds button:nth-child(3),
+.explore-kinds button:nth-child(4),.explore-kinds button:nth-child(5){
+  background:var(--trk-paper);border:1px solid var(--trk-border);
+  border-radius:13px;box-shadow:none;color:var(--trk-green);
+}
+.explore-kinds button.active{outline:2px solid var(--trk-green);outline-offset:0;background:var(--trk-sage)}
+.explore-kinds b{font-size:16px}
+.explore-kinds small{color:var(--muted)}
+.directory-note{color:var(--muted)}
+.sheet-title{margin:5px 0 13px}
+.sheet-title h2{color:var(--trk-green)}
+.handwritten{color:var(--trk-rust)}
+.truck-cards{gap:14px}
+.truck-card{
+  background:var(--trk-paper);border:1px solid var(--trk-border);
+  box-shadow:none;border-radius:15px;
+}
+.truck-card:hover{border-color:#89A594;box-shadow:none}
+.truck-info h3{color:var(--trk-green)}
+.truck-photo{border-radius:10px}
+.heart{color:var(--trk-rust);border-color:var(--trk-border);background:var(--trk-paper)}
+.heart.saved{background:var(--trk-green);border-color:var(--trk-green);color:#FFFDF7}
+.open-tag{background:var(--trk-sage);color:var(--trk-green);border-color:var(--trk-border)}
+.detail-link,.street-file-links a,.street-file-links button{color:var(--trk-rust)}
+.mode-switch{background:var(--trk-green);border-color:var(--trk-green);box-shadow:none}
+.mode-switch button.active{background:var(--trk-sage);color:var(--trk-green)}
+/* Keep all extra editorial activities, but put them below the useful food results. */
+.discover-extras{margin:26px 0 24px;border:1px solid var(--trk-border);border-radius:15px;background:var(--trk-paper);overflow:hidden}
+.discover-extras>summary{
+  display:flex;align-items:center;gap:13px;list-style:none;
+  padding:17px 20px;min-height:64px;cursor:pointer;
+  border:0;font-weight:700;
+}
+.discover-extras>summary::-webkit-details-marker{display:none}
+.discover-extras>summary::marker{content:''}
+.discover-extras>summary>span:first-child{font-size:23px;color:var(--trk-rust)}
+.discover-extras-label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.discover-extras-label strong{font:700 18px 'Fredoka',sans-serif}
+.discover-extras-label small{font-size:12px;color:var(--muted);font-weight:500}
+.discover-extras-caret{margin-left:auto;color:var(--trk-green);transition:transform .2s}
+.discover-extras[open] .discover-extras-caret{transform:rotate(180deg)}
+.discover-extras-content{padding:18px 22px 22px;border-top:1px solid var(--trk-border)}
+.discover-extras .flavor-crew{margin-top:14px}
+.crew-pal,.crew-farm,.crew-sweet,.crew-coffee,
+.coffee-corner,.street-paper,.smart-invite,.flavor-note{
+  background:var(--trk-paper);border-color:var(--trk-border);box-shadow:none;
+}
+.coffee-mini-grid button,.street-stories article{background:var(--trk-paper);border-color:var(--trk-border)}
+/* Community, whispers and passport use one hierarchy and neutral cards. */
+.community-head{border-color:var(--trk-border)}
+.community-head h1,.community-ideas h2,.community-feed-head h2{color:var(--trk-green)}
+.community-head-actions button,.community-shortcuts button,.community-shortcuts button:nth-child(2),
+.community-shortcuts button:nth-child(3),.community-explore button,
+.community-filters button,.community-filters input,.community-filters select,
+.community-post,.community-compose,.community-empty,.community-my-posts,
+.community-my-list>div{
+  background:var(--trk-paper);border-color:var(--trk-border);box-shadow:none;
+}
+.community-shortcuts button:hover,.community-explore button:hover{border-color:#8FAB98;background:var(--trk-sage)}
+.community-filters button.active{background:var(--trk-green);color:#FFFDF7;border-color:var(--trk-green)}
+.community-filters button[data-community-filter="whisper"]{background:var(--trk-paper);border-color:var(--trk-border);color:var(--trk-green)}
+.community-filters button[data-community-filter="whisper"].active{background:var(--trk-green);color:#FFFDF7}
+.community-kind,.community-status{background:var(--trk-sage);color:var(--trk-green)}
+.community-post h3,.community-shortcuts strong{color:var(--trk-green)}
+.community-post-about{color:var(--trk-rust)}
+.community-post .community-whisper-note{background:#F6EEDF;color:#6C543E}
+.community-compose{background:var(--trk-sage)}
+.community-success{background:var(--trk-sage);border-color:var(--trk-border);color:var(--trk-green)}
+.community-extra-ideas{margin:12px 0 8px;border:1px solid var(--trk-border);background:var(--trk-paper);border-radius:12px}
+.community-extra-ideas>summary{
+  min-height:45px;padding:11px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  list-style:none;font-size:13px;font-weight:700;cursor:pointer;border-radius:12px;
+}
+.community-extra-ideas>summary::-webkit-details-marker{display:none}
+.community-extra-ideas>summary::marker{content:''}
+.community-extra-ideas[open]>summary span{transform:rotate(180deg)}
+.community-extra-ideas .community-explore{padding:0 13px 10px;margin:6px 0 0}
+.street-section{
+  background:var(--trk-sage);border:1px solid var(--trk-border);
+  border-radius:18px;box-shadow:none;
+}
+.street-section::before{opacity:.25}
+.street-game,.street-mystery,.street-mission,.street-game-short,
+.street-file,.street-file:nth-child(2n),.street-file:nth-child(3n),
+.street-answers button,.street-intro .street-stamp{
+  background:var(--trk-paper);border-color:var(--trk-border);box-shadow:none;
+}
+.street-answers button.correct{background:var(--trk-sage);border-color:var(--trk-green)}
+.street-section-foot button{background:var(--trk-green);border-color:var(--trk-green);color:#FFFDF7}
+.street-file h3,.street-game h3{color:var(--trk-green)}
+.guides-hero,#guidesScreen .guides-hero{background:var(--trk-sage);border-color:var(--trk-border);box-shadow:none}
+.guides-sticker{background:var(--trk-paper);border-color:var(--trk-border)}
+#guidesScreen .guides-tabs button{border-color:var(--trk-border);background:var(--trk-paper);color:var(--trk-green)}
+#guidesScreen .guides-tabs button.active{background:var(--trk-green);color:#FFFDF7}
+.guide-story,.guide-story:nth-child(2),.guide-story:nth-child(3),.guide-story:nth-child(4),
+.guide-photo-form,.guide-photo-intro,.dish-photo{
+  background:var(--trk-paper);border-color:var(--trk-border);
+}
+.guide-story aside{background:var(--trk-sage);border-color:var(--trk-green)}
+#guidePassport .passport-hero{background:var(--trk-sage);border-color:var(--trk-border);box-shadow:none}
+#guidePassport .passport-challenges{background:var(--trk-paper);border-color:var(--trk-border)}
+#guidePassport .passport-panel,#guidePassport .passport-badge,
+#guidePassport .passport-badge.locked,#guidePassport .passport-stats div{
+  background:var(--trk-paper);border-color:var(--trk-border);
+}
+#guidePassport .passport-badge.unlocked{background:var(--trk-sage)}
+#guidePassport .passport-visits li{background:var(--trk-soft)}
+#guidePassport .passport-progress span{background:var(--trk-green)}
+#guidePassport .challenge-count{background:var(--trk-sage);color:var(--trk-green)}
+/* Accessible, compact mobile. The map/list selector and food rows remain scrollable. */
+@media(max-width:749px){
+  .topbar{background:var(--cream)}
+  .list-mode .truck-sheet{background:var(--cream)}
+  .neighborhood-intro{margin:0 0 12px;padding:0}
+  .intro-copy h1{font-size:29px;line-height:1.08;letter-spacing:-.6px;margin:0 0 6px}
+  .intro-copy p{font-size:12px;line-height:1.45;margin:6px 0 10px;max-width:440px}
+  .edition-label{font-size:9px;margin-bottom:7px}
+  .character-hero{display:none}
+  .local-surprise{min-height:38px;padding:8px 11px;font-size:12px;border-radius:9px;gap:7px}
+  .community-entry{padding:11px 13px;margin:9px 0 13px;gap:8px;flex-direction:row;align-items:center}
+  .community-entry h3{font-size:14px;line-height:1.2;margin:0}
+  .community-entry p{display:none}
+  .community-entry button{min-width:102px;min-height:39px;padding:7px 8px;font-size:11px;flex:none;border-radius:9px}
+  .explore-kinds{
+    display:flex;grid-template-columns:none;flex-wrap:nowrap;gap:8px;
+    overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding:2px 1px 7px;
+    margin:10px 0 5px;
+  }
+  .explore-kinds::-webkit-scrollbar{display:none}
+  .explore-kinds button,.explore-kinds button:first-child{
+    flex:0 0 auto;width:auto;min-height:43px;
+    display:inline-flex;flex-direction:row;align-items:center;justify-content:center;
+    gap:7px;padding:8px 12px;
+    border-radius:11px;white-space:nowrap;
+  }
+  .explore-kinds button>span{font-size:17px;line-height:1}
+  .explore-kinds b{font-size:13px}
+  .explore-kinds small,.explore-kinds button:first-child small{display:none}
+  .directory-note{font-size:10px;line-height:1.35;margin:5px 0 10px}
+  .sheet-title{margin:3px 0 10px}
+  .sheet-title h2{font-size:21px}
+  .sheet-title small{font-size:9px}
+  .handwritten{display:none}
+  .flavor-guide{display:none}
+  .truck-cards{gap:11px}
+  .truck-card{border-radius:13px;padding:11px;gap:10px}
+  .truck-info h3{font-size:17px;line-height:1.25;min-height:0}
+  .truck-info .meta,.truck-info .distance{font-size:12px;line-height:1.4}
+  .truck-info .detail-link{font-size:12px;min-height:38px}
+  .discover-extras{margin:20px 0}
+  .discover-extras>summary{padding:12px 13px;min-height:58px;gap:9px}
+  .discover-extras-label strong{font-size:16px}
+  .discover-extras-label small{font-size:11px}
+  .discover-extras-content{padding:14px 13px}
+  .discover-extras .flavor-crew{grid-template-columns:1fr 1fr}
+  #communityScreen .community-ideas{padding:12px 0 0}
+  #communityScreen .community-shortcuts button{min-height:116px;flex-basis:193px}
+  #communityScreen .community-shortcuts{gap:8px}
+  #communityScreen .street-section{padding:16px 13px}
+  #communityScreen .street-game{padding:15px}
+  #communityScreen .street-intro h2{font-size:25px}
+  #guidePassport .passport-hero,#guidePassport .passport-panel{padding:17px}
+  .page-screen{background:var(--cream)}
+}
+@media(max-width:359px){
+  .community-entry h3{font-size:13px}
+  .community-entry button{font-size:10px;min-width:94px}
+  .intro-copy h1{font-size:25px}
+}
+/* v77: one-word terracotta accents, not another decorative banner. */
+:root{--brand-pop:#A9543F}
+.brand-pop{color:var(--brand-pop);font-style:normal;font-weight:700}
+#neighborhoodHeading .brand-pop,
+#communityScreen .community-head h1 .brand-pop,
+#guidesScreen .guides-hero h1 .brand-pop,
+#smartInvite .brand-pop{color:var(--brand-pop);font-weight:700}
+@media(max-width:749px){
+ #neighborhoodHeading{max-width:100%;text-wrap:balance}
+ #communityScreen .community-head h1,#guidesScreen .guides-hero h1{text-wrap:balance}
+}

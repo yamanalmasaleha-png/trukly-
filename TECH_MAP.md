@@ -127,22 +127,52 @@ discoverScreen
 favoritesScreen
 bookingsScreen
 ownerScreen
+profileMenu
+profileAvatar
+profileHeading
+profileSub
+authSignInLink
+authSignOutBtn
 map
 mapMode
 listMode
 searchInput
 filters
 openNow
+openHoursNote
+mapEmpty
 distanceText
 nearbyCount
 truckSheet
 truckCards
+nearbyAlertToggle
+nearbyAlertRadius
+nearbyAlertMeta
 favoriteGrid
 bookingList
+ownerModeBanner
+ownerTruckSelect
+ownerTitle
+ownerSubtitle
+ownerStatusPill
+statTotalRequests
+statPendingRequests
+statAcceptedRequests
 ownerLocation
+ownerScheduleDate
+ownerScheduleWeekday
+ownerOpensAt
+ownerClosesAt
+ownerIsOpen
+ownerScheduleList
 ownerPhotoGrid
 ownerRequests
 ownerRequestCount
+ownerProfileModal
+ownerProfileName
+ownerProfileCuisine
+ownerProfileBio
+ownerAcceptingBookings
 detailModal
 detailContent
 bookingModal
@@ -153,98 +183,74 @@ eventDate
 guestCount
 eventLocation
 eventNote
+bookingError
+bookingSubmitBtn
 distanceModal
 distanceRange
 rangeValue
 toast
 ```
 
-If you rename an ID in `index.html`, search `public/app.js` for all references and update them together.
+If you rename an ID in `index.html`, search `public/app.js` and `public/listing-highlights.js` for all references and update them together.
 
 ### Key interaction contracts
 
-- Brand button opens owner mode.
+- Brand button opens owner mode (`loadOwnerDashboard()` runs on navigation to `ownerScreen`).
 - Map/List are separate modes.
-- Search runs client-side on the loaded catalog.
+- Search runs accent-insensitively client-side on the loaded catalog.
 - Cuisine filter buttons use `data-cuisine`.
 - Bottom navigation calls global functions in `app.js`.
 - Booking package radios use fixed values:
-  - `dropin`
-  - `party`
-  - `festival`
+  - `dropin` ($750, max 50)
+  - `party` ($1500, max 100)
+  - `festival` ($2900, max 250)
 
-These values must stay aligned with `api/bookings/create.js`.
+These values must stay aligned with `api/bookings/create.js` and `PACKAGES` in `public/app.js`.
 
 ---
 
 # 4. Frontend behavior
 
-## public/app.js
+## public/app.js & public/listing-highlights.js
 
-This is the main browser controller.
+`public/app.js` is the main browser controller, complemented by `public/listing-highlights.js` (loaded immediately after `app.js`), which wraps `cardHTML` and `openDetail` to render sourced menu spotlights and strip unlicensed stock photos.
 
-It owns:
-- map initialization
-- frontend state
-- API loading
-- fallback data
-- localStorage cache
-- marker creation
-- filters
+`public/app.js` owns:
+- map initialization and GPS Haversine distance recalculation (`locateMe()`)
+- frontend state and Sonoma offline fallback catalog
+- `localStorage` cache and safe JSON parsing
+- marker creation and Open Now published-hours filtering (`openHoursNote` + `mapEmpty` banner)
 - Map/List state
-- truck selection
-- truck detail rendering
-- favorites
-- booking UI
-- owner-mode interactions
-- location requests
-- Surprise Me
-- toasts
-- screen navigation
-
-### Important global state
-
-Current architecture uses globals such as:
-
-```js
-let trucks = [...]
-let map
-let markers = {}
-let activeCuisine = 'All'
-let openOnly = false
-let maxDistance = 30
-let selectedTruck = ...
-```
-
-Treat these as shared mutable state.
+- truck selection and detail rendering (`esc()` HTML escaping throughout)
+- hybrid guest/authenticated sync for favorites, bookings, and nearby alert settings
+- booking package validation, `/api/trucks/availability` date checks, and server error surfacing
+- Owner Mode controller (`loadOwnerDashboard()`, live admin API persistence vs. non-admin Preview Mode)
+- Surprise Me, toasts, and screen navigation
 
 ### Startup path
 
-Conceptually:
+Conceptually (`init()` is deferred one microtask so `listing-highlights.js` wraps `cardHTML`/`openDetail` first):
 
 ```text
 init()
   -> initialize Leaflet
-  -> wire cuisine buttons
-  -> load localStorage cache if available
+  -> wire cuisine buttons & default event date (+7 days)
+  -> load localStorage catalog cache if available
   -> fetch /api/trucks
-  -> replace fallback catalog with live catalog
+  -> replace fallback catalog with live catalog (& recompute GPS distances if located)
   -> applyFilters()
   -> renderFavorites()
   -> renderBookings()
-  -> loadOwnerRequests()
+  -> syncAuthAndUserData() (probes /api/favorites/list; syncs favorites, bookings & alert settings when signed in)
 ```
+
+(`loadOwnerDashboard()` is invoked lazily when opening `ownerScreen` rather than on initial customer startup.)
 
 ### Catalog behavior
 
-The file contains old fallback prototype records.
-
-Important:
-- these are not the intended source of truth
-- the live Sonoma catalog comes from `GET /api/trucks`
-- fallback records only matter when the API or cache is unavailable
-
-A future cleanup should replace the fallback records with a minimal Sonoma-compatible fallback dataset.
+`public/app.js` starts with 6 Sonoma County offline fallback records (`mitote`, `elroys`, `xies`, `dinos`, `fruta`, `holy-chile`, all marked `verified: false`, `photo: null`, `is_demo: true`).
+- The live 47-record Sonoma catalog comes from `GET /api/trucks`.
+- Fallback records only appear when both `GET /api/trucks` and cached `truckly_catalog` are unavailable.
 
 ### localStorage keys
 
@@ -254,9 +260,13 @@ Known client-side storage includes:
 truckly_favs
 truckly_bookings
 truckly_catalog
+truckly_notify
+truckly_owner_truck_id
+truckly_owner_profile
+truckly_owner_schedule
 ```
 
-Changing these keys can effectively reset user-local state.
+Changing these keys can reset user-local or preview-mode state.
 
 ---
 
@@ -439,29 +449,29 @@ File:
 `api/trucks/[id].js`
 
 Purpose:
-Small detail lookup for a limited set of known records.
+Detail lookup synced across all 47 primary records (`name`, `cuisine`, `emoji`, `city`, `location`, `type`, `hours`, `price`, `tags`, `verified`, `verification_status`).
 
 Access:
 public
 
-Caveat:
-This endpoint does not currently mirror the full `api/trucks.js` catalog. Most detail UI is rendered from the already-loaded catalog instead.
+Parity:
+Guarded by `tests/listing-verification.cjs` against `api/trucks.js`.
 
 ---
 
-## GET /api/trucks/search?q=...
+## GET /api/trucks/search?q=...&limit=...
 
 File:
 `api/trucks/search.js`
 
 Purpose:
-Server-side name search.
+Accent-insensitive server-side search across all 47 primary records (`name`, `cuisine`, `tags`, `city`, `location`).
 
 Access:
 public
 
-Caveat:
-It currently contains its own hard-coded name list, so it can drift from `api/trucks.js`.
+Parity:
+Guarded by `tests/listing-verification.cjs` against `api/trucks.js`.
 
 ---
 
@@ -471,12 +481,10 @@ File:
 `api/trucks/nearby.js`
 
 Purpose:
-Returns nearest regional hubs.
+Returns nearest regional Sonoma County hubs sorted by Haversine mileage (`Santa Rosa`, `Rohnert Park`, `Cotati`, `Petaluma`, `Sonoma`). Used by `locateMe()` to label the user's area while client-side Haversine recalculates per-listing distances.
 
 Access:
 public
-
-This endpoint does not currently return the full live catalog sorted by actual truck distance.
 
 ---
 
@@ -486,7 +494,7 @@ File:
 `api/trucks/availability.js`
 
 Purpose:
-Checks owner schedule records.
+Checks `owner_schedule` records and returns `requestable: false` when an owner has marked `status = 'unavailable'` for that date. Checked live by the booking modal when a specific truck is selected.
 
 Access:
 public
@@ -503,21 +511,21 @@ Database:
 File:
 `api/catalog/cities.js`
 
-Returns known service-area cities and center coordinates.
+Returns known service-area cities and center coordinates (synced with `api/trucks/nearby.js`).
 
 ## GET /api/catalog/cuisines
 
 File:
 `api/catalog/cuisines.js`
 
-Returns cuisine/category metadata.
+Returns all 6 cuisine/category metadata entries (`Mexican`, `Burgers`, `Hot Dogs`, `Global`, `Sweets`, `Markets`).
 
 ## GET /api/catalog/featured
 
 File:
 `api/catalog/featured.js`
 
-Returns a short list of featured truck IDs.
+Returns featured truck IDs (verified to exist in `api/trucks.js`).
 
 ---
 
@@ -673,15 +681,16 @@ File:
 Access:
 public
 
-Current implementation contains a hard-coded Ross Street date map.
+Database:
+`owner_schedule` (with `LEFT JOIN owner_profiles`)
 
-Treat this endpoint as time-sensitive and stale unless refreshed.
+Queries scheduled service rows (`status <> 'unavailable'`) for today's `America/Los_Angeles` date (or optional `?date=YYYY-MM-DD`). Gracefully returns `events: []` if no rows are scheduled.
 
 ---
 
 # 13. Owner/admin API map
 
-All owner routes currently use Hatchable admin access.
+All owner routes use Hatchable `admin` access. When a non-admin visitor opens `ownerScreen`, `public/app.js` detects the `401/403` on `/api/owner/stats` and switches to explicit **Preview mode** (local device storage only).
 
 ## GET / POST /api/owner/location
 
@@ -692,10 +701,7 @@ Table:
 `truck_settings`
 
 Purpose:
-Read/update current location.
-
-Important caveat:
-The implementation currently defaults to truck ID `estrella`, a legacy prototype identifier.
+Read/update parked `location` (plus optional `is_open`, `opens_at`, `closes_at`) for `?truck_id=...` / `body.truck_id` (defaults to `owner-truck`, Sonoma County fallback `"Ross Street, Downtown Santa Rosa"`, `is_open: false`).
 
 ---
 
@@ -708,7 +714,7 @@ Table:
 `owner_profiles`
 
 Purpose:
-Read/update owner listing profile.
+Read/update owner listing profile (wired to `#ownerProfileModal`).
 
 Fields:
 - truck_id
@@ -728,7 +734,7 @@ Table:
 `owner_schedule`
 
 Purpose:
-Create/update service schedule entries and list upcoming schedules.
+Create/update service schedule entries (`YYYY-MM-DD`, `opens_at`, `closes_at`, `location`, `status` in `scheduled | unavailable`) and list upcoming schedules (with optional `?truck_id=...` filter).
 
 ---
 
@@ -745,7 +751,7 @@ GET:
 returns pending requests.
 
 POST:
-updates request status to:
+validates UUID format and updates request status to:
 - accepted
 - declined
 
@@ -760,7 +766,7 @@ Table:
 `bookings`
 
 Purpose:
-Admin booking history and filtering.
+Admin booking history and status filtering (`Pending`, `Accepted`, `All` tabs in `ownerScreen`).
 
 ---
 
@@ -772,13 +778,10 @@ File:
 Table:
 `bookings`
 
-Returns:
+Returns live operational counts rendered in `.owner-stats`:
 - total_requests
 - pending
 - accepted
-
-Note:
-The richer owner dashboard stats shown in the frontend include prototype values that are not all sourced from this endpoint.
 
 ---
 
@@ -976,69 +979,39 @@ An LLM modifying Truckly should preserve these unless the user explicitly asks o
 
 ---
 
-# 17. Known inconsistencies to watch
+# 17. Known caveats & deployment checkpoints
 
-These are especially important for another LLM because they can cause false assumptions.
+These are especially important for another LLM or developer before deploying or extending Truckly.
 
-## 17.1 Legacy fallback catalog
+## 17.1 Reconciled v77 source & binary asset note
 
-`public/app.js` begins with older prototype records from Austin-style locations.
-
-The live catalog replaces them via `GET /api/trucks`.
-
-Do not use the fallback dataset as evidence of current product geography.
-
-Recommended future fix:
-replace it with a small Sonoma-compatible offline fallback.
+This repository reconciles the Hatchable **v77** source mirror (59 total listings: 47 primary in `api/trucks.js` + 12 `neighborhoodAdditions` in `public/app.js`, 27 API routes, 10 migrations, Pickup Pager demo, Community/Street Whispers, and Local Guides/Passport) with the photo/menu verification safeguards (`docs/PHOTO_MENU_VERIFICATION.md` and `docs/V77_PAGER_SOURCE_REVIEW.md`). Three pre-existing binary JPEGs (`public/assets/mitote.jpg`, `oak-hill-guide.jpg`, `retrograde-roasting.jpg`) are intentionally omitted pending image-rights confirmation and degrade cleanly in the UI.
 
 ---
 
-## 17.2 Duplicate catalog knowledge
+## 17.2 Code-maintained catalog & standalone function constraint
 
-Truck/vendor names appear in multiple places:
-- `api/trucks.js`
-- `api/trucks/search.js`
-- `api/trucks/[id].js`
-- cached data in browser localStorage
-
-This can create drift.
+Every `.js` file under `api/` is treated by Hatchable as a serverless route (currently **27** functions). Do not place shared helper `.js` files inside `api/`.
+Because the 47-record primary catalog is still maintained in code rather than PostgreSQL, `api/trucks.js`, `api/trucks/[id].js`, `api/trucks/search.js`, and `api/catalog/cuisines.js` are kept in lockstep and enforced by `node tests/listing-verification.cjs` (alongside `node tests/pager-demo.test.cjs`).
 
 Recommended future architecture:
-one database-backed truck table with search/detail endpoints derived from it.
+migrate the catalog into a PostgreSQL `trucks` table and derive `/api/trucks`, `/api/trucks/[id]`, and `/api/trucks/search` from SQL queries.
 
 ---
 
-## 17.3 Hard-coded schedules
+## 17.3 Verification & photo licensing rules
 
-Ross Street dates exist in:
-- `api/trucks.js`
-- `api/schedule/today.js`
-
-These are time-bound.
-
-Do not present these as current without refreshing the data.
+Per `docs/PHOTO_MENU_VERIFICATION.md`:
+- Keep `verified: false` and `photo_rights_verified: false` unless independently verified with the vendor.
+- Do not use generic stock photography (e.g. Unsplash) to represent named vendors (`public/listing-highlights.js` strips unlicensed photos and renders illustrative icons + sourced menu spotlights).
+- Owner photo uploads in `#ownerPhotoGrid` currently preview locally via `FileReader`; persistent cloud storage + rights sign-off are not yet wired.
 
 ---
 
-## 17.4 Prototype owner interactions
+## 17.4 Hybrid guest / signed-in & Preview Mode state
 
-Some owner UI actions only trigger toast messages.
-
-Examples may include:
-- Edit menu
-- Notify followers
-- Save schedule portions
-- photo management beyond preview
-
-Do not assume these are fully persisted just because the UI button exists.
-
----
-
-## 17.5 Client/server duplicate state
-
-Favorites and bookings have both browser-local and API-backed behavior.
-
-Before changing persistence, inspect both frontend and API flows.
+- **Customers:** Guests use `localStorage` (`truckly_favs`, `truckly_bookings`, `truckly_notify`). Signed-in users sync against `/api/favorites/*`, `/api/bookings/list`, and `/api/notifications/settings`.
+- **Owners:** Admin sessions read/write `/api/owner/*` in PostgreSQL. Non-admin sessions display `#ownerModeBanner` and operate in local **Preview mode** without faking server writes.
 
 ---
 
@@ -1173,18 +1146,13 @@ After meaningful changes, verify:
 
 # 21. Architecture roadmap ideas
 
-These are not current requirements, but are the highest-value cleanup opportunities.
+These are not current requirements, but are the highest-value next-stage opportunities:
 
-1. Move catalog records into PostgreSQL.
-2. Create a single source of truth for trucks, categories, schedules, and search.
-3. Replace legacy fallback catalog with Sonoma-compatible offline data.
-4. Normalize user favorites/booking state so browser and server do not diverge.
-5. Add schema/API tests.
-6. Add basic end-to-end smoke tests.
-7. Add a true owner/truck relationship rather than hard-coded owner IDs.
-8. Replace hard-coded schedule maps with database schedule rows.
-9. Add real image storage instead of external/hard-coded assets.
-10. Add an explicit environment/config file strategy.
+1. Rebase/reconcile this `v64` review branch with the live Hatchable `v77` export (59 listings).
+2. Move catalog records into a PostgreSQL `trucks` table so `/api/trucks`, `/api/trucks/[id]`, and `/api/trucks/search` query a single SQL source.
+3. Add a multi-tenant `user_id <-> truck_id` ownership relationship (replacing single-role admin ownership).
+4. Add licensed vendor photo upload + cloud storage + image-rights sign-off workflow.
+5. Add Playwright/browser visual smoke tests alongside `tests/listing-verification.cjs`.
 
 Do not implement these automatically unless requested.
 
@@ -1194,19 +1162,25 @@ Do not implement these automatically unless requested.
 
 ```text
 public/index.html
-  UI structure and screen markup
+  UI structure, modals, and Owner Mode markup
 
 public/theme.css
   Visual system, spacing, responsive layout
 
 public/app.js
-  Browser state, map behavior, filters, navigation, modals
+  Browser state, map/GPS behavior, filters, hybrid auth sync, bookings, Owner Mode controller
+
+public/listing-highlights.js
+  Sourced menu spotlights and unlicensed stock-photo removal
+
+public/login.html
+  Email code + WebAuthn passkey authentication UI
 
 api/trucks.js
-  Main catalog source
+  Canonical 47-listing Sonoma County catalog source
 
 api/trucks/*
-  Search/detail/nearby/availability helpers
+  Synced detail, accent-folded search, nearby hubs, and date availability endpoints
 
 api/bookings/*
   Customer event booking flow
@@ -1218,16 +1192,22 @@ api/notifications/*
   Nearby notification preferences
 
 api/owner/*
-  Owner/admin operational endpoints
+  Owner/admin operational endpoints (stats, profile, location, schedule, requests, bookings)
 
 api/catalog/*
-  Static discovery metadata
+  Cities, 6 cuisines/categories, and featured metadata
 
 api/schedule/*
-  Public schedule helper
+  Public schedule endpoint backed by owner_schedule
 
 migrations/*
-  PostgreSQL schema history
+  PostgreSQL schema history (001–007)
+
+docs/PHOTO_MENU_VERIFICATION.md
+  Listing verification, address corrections, and photo/menu audit register
+
+tests/listing-verification.cjs
+  Zero-dependency Node regression & cross-API parity test suite
 
 hatchable.toml
   Project/auth/data permission configuration

@@ -1,1 +1,15 @@
-export const access="public";export const methods=["GET"];export default async function(req,res){res.json({cuisines:[{id:"Mexican",label:"Mexican",emoji:"🌮",minimum:5},{id:"Burgers",label:"Smash burgers",emoji:"🍔",minimum:5},{id:"Hot Dogs",label:"Hot dogs",emoji:"🌭",minimum:5},{id:"Global",label:"Global flavors",emoji:"🥟",minimum:5},{id:"Sweets",label:"Sweets",emoji:"🍦",minimum:5}]})}
+export const access = "public";
+export const methods = ["GET"];
+
+export default async function(req, res) {
+  res.json({
+    cuisines: [
+      { id: "Mexican", label: "Mexican", emoji: "🌮", minimum: 5 },
+      { id: "Burgers", label: "Smash burgers", emoji: "🍔", minimum: 5 },
+      { id: "Hot Dogs", label: "Hot dogs", emoji: "🌭", minimum: 5 },
+      { id: "Global", label: "Global flavors", emoji: "🥟", minimum: 5 },
+      { id: "Sweets", label: "Sweets", emoji: "🍦", minimum: 5 },
+      { id: "Markets", label: "Market vendors", emoji: "🧺", minimum: 5 }
+    ]
+  });
+}

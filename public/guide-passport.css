@@ -1,0 +1,35 @@
+/* Local Guides Food Passport — retro Sonoma color system. */
+.bottom-nav{grid-template-columns:repeat(6,minmax(0,1fr));gap:3px}
+.bottom-nav .guide-nav{--button-color:#cdebbd;--button-ink:#28593d}
+.bottom-nav .guide-nav>span{background:var(--button-color)}
+.passport-hero{background:#e1eab7;border:2px solid #214b3b;border-radius:22px;padding:24px;display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:18px;box-shadow:5px 5px 0 #e1b561;margin-bottom:20px}
+.passport-hero small,.passport-challenges small{font-size:11px;letter-spacing:1.3px;font-weight:700;color:#31583d}
+.passport-hero h2{font-size:32px;margin:10px 0}.passport-hero p{max-width:540px;margin-bottom:16px}
+.passport-level{font-weight:800;color:#214b3b;margin:16px 0 6px}.passport-progress{height:12px;background:#fff8e7;border:1px solid #214b3b44;border-radius:99px;overflow:hidden;margin-bottom:8px}
+.passport-progress span{display:block;height:100%;background:#bc432d;border-radius:99px;transition:width .3s}
+.passport-stats{display:flex;flex-direction:column;justify-content:center;gap:8px}.passport-stats div{background:#fff9e9;border:1px solid #214b3b33;border-radius:14px;padding:10px 14px}
+.passport-stats b{display:block;font:700 26px 'Fredoka',sans-serif;line-height:1.1}.passport-stats span{font-size:12px;color:#52604c}
+.passport-challenges{background:#f5cc69;border:1px solid #214b3b66;border-radius:18px;padding:20px 22px;margin:18px 0;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.passport-challenges h3{font-size:23px;margin:4px 0}.passport-challenges p{margin:0;font-size:14px}.challenge-count{flex:none;padding:12px;background:#fff9e9;border-radius:12px;font-weight:800;color:#214b3b}
+.passport-panel{padding:22px;border:1px solid #214b3b40;border-radius:20px;background:#fffaf0;margin:18px 0}
+.passport-title h3{font-size:25px;margin:0}.passport-title p{font-size:14px;color:#52604c;margin:6px 0 16px}
+#guideVisitForm{display:grid;grid-template-columns:1fr;max-width:660px;gap:8px}
+#guideVisitForm label{margin:8px 0 0;font-weight:700}
+#guideVisitForm select,#guideVisitForm input{margin:0;width:100%}
+#guideVisitForm .primary{margin-top:10px;max-width:300px;background:#285c43}
+#guideActionMessage{font-size:14px;color:#285c43;font-weight:700;margin:8px 0 0}
+.passport-badges{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.passport-badge{display:flex;gap:10px;background:#f1efd9;border:1px dashed #214b3b60;border-radius:16px;padding:16px;align-items:flex-start}
+.passport-badge.unlocked{background:#d7ecd1;border:1px solid #285c4355}
+.badge-symbol{font-size:27px;display:grid;place-items:center;background:#fff8e7;border-radius:12px;min-width:46px;height:46px}
+.passport-badge h3{font-size:16px;margin:2px 0 4px}.passport-badge p{font-size:12px;line-height:1.35;margin:0 0 8px;color:#52604c}.passport-badge small{font-size:12px;font-weight:800;color:#285c43}
+.passport-badge.locked{opacity:.78}
+.passport-visits{padding:0;margin:10px 0;list-style:none;display:grid;gap:8px}
+.passport-visits li{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;background:#f8eed5;border-radius:12px}
+.passport-visits li>div{min-width:0}.passport-visits strong,.passport-visits small{display:block}.passport-visits small{font-size:12px;color:#52604c;overflow-wrap:anywhere;margin-top:3px}
+.passport-visits button,.passport-links button{min-height:44px;border:1px solid #214b3b40;border-radius:10px;background:#d5e8c4;padding:9px 12px;font-weight:700;font-size:13px}
+.passport-visits .passport-empty{color:#52604c;font-size:14px}
+.passport-links{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.passport-privacy{font-size:12px;color:#52604c;line-height:1.6}
+@media(max-width:900px){.passport-badges{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:749px){.bottom-nav{padding-inline:4px;gap:1px}.bottom-nav button{min-width:0}.bottom-nav button>span,.bottom-nav .book-nav span{width:36px;height:32px;font-size:21px}.bottom-nav small{font-size:10px;line-height:1.1;white-space:normal;text-align:center;max-width:63px}.passport-hero{grid-template-columns:1fr;padding:18px}.passport-hero h2{font-size:28px}.passport-stats{flex-direction:row;gap:6px}.passport-stats div{flex:1;text-align:center;padding:10px 5px}.passport-stats b{font-size:24px}.passport-stats span{font-size:10px}.passport-badges{grid-template-columns:1fr}.passport-challenges{padding:16px}.passport-challenges h3{font-size:21px}.challenge-count{font-size:12px;padding:9px}.passport-panel{padding:16px}}
+@media(max-width:359px){.bottom-nav small{font-size:9px}.bottom-nav button>span,.bottom-nav .book-nav span{width:32px;height:30px}.passport-challenges{flex-direction:column;align-items:start}}

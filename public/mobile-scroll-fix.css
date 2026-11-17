@@ -1,0 +1,167 @@
+/* v75: compact iPhone chrome + comfortable nested scrolling. Loaded after all older themes. */
+.page-screen,
+.list-mode .truck-sheet {
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;
+}
+.extra-filters{grid-column:1;grid-row:3;min-width:0;position:relative;align-self:center}
+.extra-filters summary{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:42px;padding:9px 13px;border:1px solid #214b3b50;
+  border-radius:11px;background:#fffaf0;color:#214b3b;
+  font-size:13px;font-weight:800;list-style:none;cursor:pointer;
+}
+.extra-filters summary::-webkit-details-marker{display:none}
+.extra-filters summary::marker{content:''}
+.extra-filters[open] summary{background:#dce8ce}
+.extra-filters summary:focus-visible{outline:3px solid #214b3b;outline-offset:2px}
+.extra-filters .map-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 0}
+.extra-filters .map-chip{min-height:40px}
+.discovery-toolbar .nearby-count{grid-column:2;grid-row:3;justify-self:end;align-self:center;margin:0;max-width:150px;text-align:right}
+@media(max-width:749px){
+  :root{--header:calc(58px + env(safe-area-inset-top,0px));--nav:72px}
+  .topbar{
+    position:fixed;height:var(--header);
+    display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:space-between;
+    gap:7px;
+    padding:env(safe-area-inset-top,0px) 12px 0;
+    grid-template-columns:none;grid-template-rows:none;
+    background:#fff5de;
+  }
+  .topbar .brand{
+    order:1;grid-column:auto;grid-row:auto;
+    flex:0 0 auto;
+    justify-self:auto;gap:6px;font-size:21px;
+    min-height:42px;
+    white-space:nowrap;
+  }
+  .topbar .brand-mark{width:33px;height:33px;border-radius:10px;font-size:20px}
+  .topbar .location-pill{
+    order:2;grid-column:auto;grid-row:auto;
+    flex:1 1 90px;
+    max-width:132px;min-width:0;min-height:39px;
+    padding:5px 8px;margin:0;
+    align-items:center;justify-content:center;gap:4px;
+    border-radius:10px;font-size:12px;
+  }
+  .topbar .location-pill span:first-child{font-size:18px}
+  .topbar .location-pill b{font-size:12px}
+  .topbar .header-actions{
+    order:3;grid-column:auto;grid-row:auto;
+    flex:0 0 auto;display:flex;align-items:center;gap:6px;justify-self:auto;
+  }
+  .topbar .header-actions .guides-launch,
+  .topbar .header-actions .home-button{display:none}
+  .topbar .header-actions .pager-launch{
+    display:flex;min-width:38px;width:38px;height:38px;min-height:38px;
+    padding:6px;justify-content:center;border-radius:10px;
+  }
+  .topbar .header-actions .profile-menu .avatar{
+    display:grid;width:38px;height:38px;min-height:38px;
+    font-size:13px;
+  }
+  .topbar .profile-dropdown{right:0;z-index:2000}
+  /* Search is always visible; the optional filters expand only on demand. */
+  #discoverScreen .discovery-toolbar{
+    display:grid;grid-template-columns:minmax(0,1fr) auto;
+    grid-auto-rows:auto;
+    gap:6px 10px;
+    padding:8px 12px;
+    align-items:center;
+  }
+  #discoverScreen .discovery-toolbar .search-row{grid-column:1/-1;grid-row:1;min-height:42px;gap:8px}
+  #discoverScreen .discovery-toolbar .search{height:42px;min-height:42px;padding:0 11px;gap:7px}
+  #discoverScreen .discovery-toolbar .search input{height:40px;font-size:14px}
+  #discoverScreen .discovery-toolbar .search>span{font-size:22px}
+  #discoverScreen .discovery-toolbar .round-btn{height:42px;width:42px;font-size:22px}
+  #discoverScreen .discovery-toolbar .filters{
+    grid-column:1/-1;grid-row:2;
+    display:flex;flex-wrap:nowrap;gap:7px;
+    padding:1px 0 3px;overflow-x:auto;overflow-y:hidden;
+    min-height:36px;max-width:100%;scrollbar-width:none;
+  }
+  #discoverScreen .discovery-toolbar .filters::-webkit-scrollbar{display:none}
+  #discoverScreen .discovery-toolbar .chip{
+    min-height:32px;
+    padding:6px 10px;font-size:12px;line-height:1.15;
+    white-space:nowrap;border-radius:100px;
+  }
+  #discoverScreen .discovery-toolbar .extra-filters{
+    grid-column:1;grid-row:3;min-height:31px;
+  }
+  #discoverScreen .discovery-toolbar .extra-filters summary{min-height:31px;padding:5px 11px;font-size:12px}
+  #discoverScreen .discovery-toolbar .extra-filters .map-actions{grid-column:auto;gap:7px;margin:7px 0 2px}
+  #discoverScreen .discovery-toolbar .extra-filters .map-chip{min-height:34px;padding:7px 11px;font-size:12px}
+  #discoverScreen .discovery-toolbar .nearby-count{
+    grid-column:2;grid-row:3;
+    justify-self:end;max-width:116px;
+    font-size:11px;line-height:1.25;
+    margin:0;text-align:right;
+  }
+  /* The map/list control was consuming one full row as a flex child. */
+  #discoverScreen.list-mode .mode-switch{
+    min-height:0;margin:5px 0 6px;
+    padding:3px;gap:3px;border-radius:11px;
+  }
+  #discoverScreen .mode-switch button{
+    min-height:34px;min-width:67px;font-size:12px;padding:5px 10px;
+  }
+  #discoverScreen.list-mode .truck-sheet{
+    min-height:0;overflow-y:auto;overscroll-behavior-y:contain;
+    padding-top:19px;padding-bottom:28px;
+  }
+  .page-screen{padding-top:calc(var(--header) + 15px);padding-bottom:calc(var(--nav) + var(--safe) + 18px)}
+  /* Community content should be encountered early, rather than after stacked giant cards. */
+  #communityScreen .community-head{
+    display:flex;flex-direction:column;align-items:stretch;
+    padding:0 0 15px;gap:10px;
+  }
+  #communityScreen .community-head h1{
+    font-size:27px;line-height:1.08;margin:6px 0 7px;
+  }
+  #communityScreen .community-head p{
+    font-size:13px;line-height:1.45;margin:0;
+    max-width:520px;
+  }
+  #communityScreen .community-head-actions{display:flex;flex-direction:row;gap:9px}
+  #communityScreen .community-head-actions button{min-height:40px;padding:8px 10px;font-size:12px}
+  #communityScreen .community-ideas{padding:16px 0 2px}
+  #communityScreen .community-ideas h2{font-size:22px;margin:0 0 11px}
+  #communityScreen .community-shortcuts{
+    display:flex;flex-wrap:nowrap;gap:10px;
+    overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;
+    padding:1px 0 9px;
+  }
+  #communityScreen .community-shortcuts button{
+    flex:0 0 210px;min-height:130px;
+    scroll-snap-align:start;padding:14px;
+    justify-content:flex-start;gap:6px;
+  }
+  #communityScreen .community-shortcuts strong{font-size:14px}
+  #communityScreen .community-shortcuts small{font-size:12px;line-height:1.35}
+  #communityScreen .community-explore{
+    display:flex;flex-wrap:nowrap;gap:8px;
+    margin:10px 0 16px;padding-bottom:7px;
+    overflow-x:auto;overflow-y:hidden;
+  }
+  #communityScreen .community-explore button{
+    flex:0 0 auto;min-height:40px;
+    padding:7px 12px;font-size:12px;white-space:nowrap;
+  }
+  #communityScreen .street-section{
+    margin-top:15px;
+  }
+}
+@media(max-width:390px){
+  .topbar{gap:5px;padding-inline:9px}
+  .topbar .brand{font-size:19px;gap:5px}
+  .topbar .brand-mark{width:31px;height:31px}
+  .topbar .location-pill{max-width:106px;padding:4px 5px;font-size:11px}
+  .topbar .header-actions{gap:4px}
+  .topbar .header-actions .pager-launch{width:36px;height:36px;min-width:36px;min-height:36px}
+  .topbar .header-actions .profile-menu .avatar{width:36px;height:36px;min-height:36px}
+}
+@media(max-width:359px){
+  .topbar .location-pill{flex:0 0 38px;max-width:38px;min-width:38px}
+  .topbar .location-pill #locationLabel,.topbar .location-pill b{display:none}
+}

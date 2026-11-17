@@ -1,0 +1,47 @@
+name: Truckly Source Review
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - review/v77-pager-demo-and-source-sync
+      - reconcile/v77-pager-ux-and-debug-workbench
+
+permissions:
+  contents: read
+
+jobs:
+  pager-and-source-syntax:
+    name: Pager demo + source syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Hatchable API module syntax
+        shell: bash
+        run: |
+          find api -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
+            echo "Checking $f"
+            node --check --input-type=module < "$f"
+          done
+      - name: Check browser script syntax
+        shell: bash
+        run: |
+          find public -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+      - name: Pager demo safety smoke test
+        run: node tests/pager-demo.test.cjs
+  catalog-compatibility:
+    name: Reconciled catalog & UX safeguards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run listing, UX, API parity & Owner Mode checks
+        run: node tests/listing-verification.cjs

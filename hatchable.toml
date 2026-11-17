@@ -10,3 +10,8 @@ write = "own"
 [db.tables.notification_settings]
 read = "own"
 write = "own"
+
+[db.tables.community_reviews]
+read = "public"
+write = "own"
+owner_column = "author_id"
