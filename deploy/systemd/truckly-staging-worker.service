@@ -23,7 +23,10 @@ CPUQuota=30%
 TasksMax=32
 
 # Hardened service sandboxing
+UMask=0077
 NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true

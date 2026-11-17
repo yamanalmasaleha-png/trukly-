@@ -440,11 +440,23 @@ async function runLocalPreflight() {
       assert.equal(v.status, 'PASS', `E2E ${k} did not PASS: ${v.detail}`);
     }
 
-    // Run `scripts/staging-cleanup.sql` via `appPool` (`NOBYPASSRLS` runtime role!) and verify cleanup
+    // Verify `appPool` (`NOBYPASSRLS` runtime role) CANNOT delete or update append-only `audit_logs` (`REV-05`)
+    await assert.rejects(
+      () => appPool.query("DELETE FROM audit_logs WHERE action LIKE 'staging.%'"),
+      /permission denied for table audit_logs/i,
+      'Runtime app role must not have DELETE privilege on audit_logs'
+    );
+    await assert.rejects(
+      () => appPool.query('SELECT count(*) FROM schema_migrations'),
+      /permission denied for table schema_migrations/i,
+      'Runtime app role must not have privileges on schema_migrations'
+    );
+
+    // Run `scripts/staging-cleanup.sql` via `migratorPool` (schema owner) and verify cleanup
     const cleanupSql = fs
       .readFileSync(path.join(ROOT, 'scripts', 'staging-cleanup.sql'), 'utf8')
       .replace("-- SET LOCAL app.confirm_staging = 'true';", "SET LOCAL app.confirm_staging = 'true';");
-    await appPool.query(cleanupSql);
+    await migratorPool.query(cleanupSql);
 
     // Also verify `appPool` bare `SELECT` sees 0 rows in all `auth_*` tables (`FORCE ROW LEVEL SECURITY`)
     const bareAuthLeak = await appPool.query(

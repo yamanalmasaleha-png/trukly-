@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS auth_otp_challenges (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_auth_otp_challenges_active_email
-  ON auth_otp_challenges (email_normalized, created_at DESC)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_otp_one_active_per_email
+  ON auth_otp_challenges (email_normalized)
   WHERE consumed_at IS NULL AND invalidated_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_auth_otp_challenges_expires

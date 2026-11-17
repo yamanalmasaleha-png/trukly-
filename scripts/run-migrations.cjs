@@ -108,7 +108,8 @@ function assertSafeIdentifier(ident, label) {
       await client.query(
         `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${safeRole}`
       );
-      await client.query(`REVOKE INSERT, UPDATE, DELETE ON schema_migrations FROM ${safeRole}`);
+      await client.query(`REVOKE ALL ON schema_migrations FROM ${safeRole}`);
+      await client.query(`REVOKE UPDATE, DELETE ON audit_logs FROM ${safeRole}`);
       await client.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${safeRole}`);
       console.log(JSON.stringify({ event: 'app_role_grants_verified', app_role: safeRole }));
     }

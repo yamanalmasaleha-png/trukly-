@@ -422,10 +422,14 @@ export function createStandaloneServer({
           if (method !== 'POST') {
             return sendJsonResponse(res, 404, { error: 'Not found' });
           }
+          if (process.env.TRUCKLY_ALLOW_REMOTE_STAGING_MAILBOX !== '1' && !isLoopbackIp(req.socket?.remoteAddress)) {
+            return sendJsonResponse(res, 404, { error: 'Not found' });
+          }
           const body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
           const out = await readProtectedStagingMailboxCode(dbAdapter, req, { email: body.email });
           if (!out.ok) {
-            return sendJsonResponse(res, out.status, { error: out.error });
+            const hdrs = out.retryAfterSeconds ? { 'Retry-After': String(out.retryAfterSeconds) } : {};
+            return sendJsonResponse(res, out.status, { error: out.error }, hdrs);
           }
           return sendJsonResponse(res, out.status, out.body);
         }
@@ -512,30 +516,32 @@ export function createStandaloneServer({
           parsedBody = await readBoundedJsonBody(req, maxJsonBytes);
         }
 
-        // Resolve server-side session cookie (never trusting client identity fields)
-        const sess = await resolveSessionFromRequest(dbAdapter, req);
-        if (sess.refreshedCookieHeader) {
-          appendSetCookie(res, sess.refreshedCookieHeader);
-        }
-
+        // Resolve server-side session cookie ONLY on `access === 'user'` routes so public
+        // cacheable endpoints (`Cache-Control: public`) never incur session DB queries or emit `Set-Cookie`.
+        let verifiedUser = null;
         if (route.access === 'user') {
           applyPrivateNoStoreHeaders(res);
+          const sess = await resolveSessionFromRequest(dbAdapter, req);
+          if (sess.refreshedCookieHeader) {
+            appendSetCookie(res, sess.refreshedCookieHeader);
+          }
           if (!sess.authenticated || !sess.user) {
             return sendJsonResponse(res, 401, {
               error: 'Sign in is required.',
               login_url: '/login.html?next=/'
             });
           }
+          verifiedUser = sess.user;
         }
 
         req.query = parseQueryObject(parsedUrl.searchParams);
         req.params = params;
         req.body = parsedBody;
-        bindVerifiedRequestUser(req, sess.authenticated ? sess.user : null);
+        bindVerifiedRequestUser(req, verifiedUser);
 
         const resAdapter = createHandlerResponseAdapter(res);
         await runWithRequestContext(
-          { db: dbAdapter, user: sess.authenticated ? sess.user : null },
+          { db: dbAdapter, user: verifiedUser },
           () => route.handler(req, resAdapter)
         );
         if (!res.writableEnded) {
@@ -582,6 +588,12 @@ export function createStandaloneServer({
       if (err instanceof BodyParseError) {
         if (err.status === 413) {
           res.setHeader('Connection', 'close');
+          req.pause?.();
+          res.once('finish', () => {
+            try {
+              req.socket?.destroy();
+            } catch {}
+          });
         }
         return sendJsonResponse(res, err.status, { error: err.message, code: err.code });
       }

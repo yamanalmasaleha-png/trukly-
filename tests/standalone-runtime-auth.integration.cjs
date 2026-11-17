@@ -200,6 +200,38 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     assert.equal(migRun2.code, 0, `Idempotent migration re-run failed: ${migRun2.stderr}`);
     assert(migRun2.stdout.includes('"newly_applied":0'), 'Expected 0 newly applied migrations on re-run');
 
+    // Upgrade migration test: pre-existing `001`..`016` database (without `schema_migrations`) upgraded cleanly to `017`
+    const upgDbName = `sa_upg_${suffix}`;
+    await adminPool.query(`CREATE DATABASE ${upgDbName} OWNER ${migratorRole}`);
+    const upgUrl = (() => {
+      const u = new URL(pgCluster.adminUrl);
+      u.username = migratorRole;
+      u.password = migratorPass;
+      u.pathname = '/' + upgDbName;
+      return u.toString();
+    })();
+    const upgPool = new Pool({ connectionString: upgUrl, max: 2 });
+    try {
+      const legacyFiles = fs
+        .readdirSync(path.join(ROOT, 'migrations'))
+        .filter(f => /^\d{3}_.+\.sql$/.test(f) && !f.startsWith('017_'))
+        .sort();
+      for (const f of legacyFiles) {
+        await upgPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
+      }
+      await upgPool.query("INSERT INTO favorites (user_id, truck_id) VALUES ('usr_pre_017', 'mitote')");
+      const upgRun = await runChildExpectExit(
+        [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole],
+        { ...process.env, MIGRATION_DATABASE_URL: upgUrl }
+      );
+      assert.equal(upgRun.code, 0, `Upgrade migration 001..016 -> 017 failed: ${upgRun.stderr}`);
+      const preservedFav = await upgPool.query("SELECT count(*)::int AS c FROM favorites WHERE user_id = 'usr_pre_017'");
+      assert.equal(preservedFav.rows[0].c, 1, 'Pre-existing data must be preserved across 017 upgrade');
+    } finally {
+      await upgPool.end().catch(() => {});
+      await adminPool.query(`DROP DATABASE IF EXISTS ${upgDbName}`).catch(() => {});
+    }
+
     // Startup guard 1a: Refuse to start in `staging` when connected as PostgreSQL superuser
     const superuserBoot = await runChildExpectExit(
       [path.join(ROOT, 'server', 'index.js')],
@@ -550,7 +582,60 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     });
     assert.equal(expiredSessUse.status, 401, 'Expired session must be rejected immediately');
 
-    console.log('PASS [5/8]: __Host- cookie flags, session fixation rotation, logout revocation, and DB session expiry verified');
+    // Regression REV-04a: Concurrent `POST /api/auth/start` for the same email leaves exact 1 active challenge
+    const concStartEmail = `conc-start-${suffix}@${allowedDomain}`;
+    const concStarts = await Promise.all(
+      Array.from({ length: 4 }, () => postAuth('start', { email: concStartEmail }))
+    );
+    assert(concStarts.every(r => r.status === 200), 'Concurrent valid OTP starts should succeed cleanly');
+    await migratorPool.query('BEGIN');
+    await migratorPool.query("SELECT set_config('app.auth_internal', 'true', true)");
+    const activeChCount = await migratorPool.query(
+      `SELECT count(*)::int AS c FROM auth_otp_challenges
+       WHERE email_normalized = $1 AND consumed_at IS NULL AND invalidated_at IS NULL`,
+      [concStartEmail]
+    );
+    await migratorPool.query('COMMIT');
+    assert.equal(activeChCount.rows[0].c, 1, 'Expected exact 1 active OTP challenge after concurrent start race');
+
+    // Regression REV-04b: Disabled account returns 403 on verify WITHOUT updating `last_login_at` & revokes active sessions
+    const disEmail = `disabled-${suffix}@${allowedDomain}`;
+    assert.equal((await postAuth('start', { email: disEmail })).status, 200);
+    const disCode1 = await getStagingOtp(disEmail);
+    const disLogin1 = await postAuth('verify', { email: disEmail, code: disCode1 });
+    assert.equal(disLogin1.status, 200);
+    const disCookie1 = extractSessionCookie(disLogin1).cookiePair;
+
+    await migratorPool.query('BEGIN');
+    await migratorPool.query("SELECT set_config('app.auth_internal', 'true', true)");
+    const beforeDisableTs = (
+      await migratorPool.query('SELECT last_login_at FROM auth_users WHERE email_normalized = $1', [disEmail])
+    ).rows[0].last_login_at;
+    await migratorPool.query("UPDATE auth_users SET disabled_at = now() WHERE email_normalized = $1", [disEmail]);
+    await migratorPool.query('COMMIT');
+
+    assert.equal(
+      (await fetch(`${baseUrl}/api/favorites/list`, { headers: { Cookie: disCookie1 } })).status,
+      401,
+      'Disabled user existing session must immediately return 401'
+    );
+    assert.equal((await postAuth('start', { email: disEmail })).status, 200);
+    const disCode2 = await getStagingOtp(disEmail);
+    const disVerify2 = await postAuth('verify', { email: disEmail, code: disCode2 });
+    assert.equal(disVerify2.status, 403, 'Disabled user OTP verify must return 403');
+    await migratorPool.query('BEGIN');
+    await migratorPool.query("SELECT set_config('app.auth_internal', 'true', true)");
+    const afterDisableTs = (
+      await migratorPool.query('SELECT last_login_at FROM auth_users WHERE email_normalized = $1', [disEmail])
+    ).rows[0].last_login_at;
+    await migratorPool.query('COMMIT');
+    assert.equal(
+      new Date(afterDisableTs).getTime(),
+      new Date(beforeDisableTs).getTime(),
+      'Disabled account verify must not advance last_login_at'
+    );
+
+    console.log('PASS [5/8]: __Host- cookie flags, session rotation, logout, expiry, concurrent OTP start lock & disabled-user guard verified');
 
     // =========================================================================
     // [6/8] No Silent Legacy Email Auto-Linking + CSRF Rejection + Proxy XFF Spoofing Resistance
@@ -588,6 +673,80 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       await fetch(`${baseUrl}/api/bookings/list`, { headers: { Cookie: legacyCookie } })
     ).json();
     assert.equal(noInheritedBookings.bookings.length, 0, 'New standalone user must NOT inherit old Hatchable bookings by email');
+
+    // Regression REV-01: Public cacheable `/api/trucks` MUST NOT emit `Set-Cookie` even when browser sends
+    // a session cookie inside its sliding-renewal half-life, whereas `access: 'user'` routes DO renew it.
+    await migratorPool.query('BEGIN');
+    await migratorPool.query("SELECT set_config('app.auth_internal', 'true', true)");
+    await migratorPool.query(
+      "UPDATE auth_sessions SET expires_at = now() + interval '2 days' WHERE user_id = $1 AND revoked_at IS NULL",
+      [legacyLoginBody.user.id]
+    );
+    await migratorPool.query('COMMIT');
+
+    const publicWithHalfLifeCookie = await fetch(`${baseUrl}/api/trucks?summary=1`, {
+      headers: { Cookie: legacyCookie }
+    });
+    assert.equal(publicWithHalfLifeCookie.status, 200);
+    assert.equal(
+      extractSessionCookie(publicWithHalfLifeCookie).rawHeader,
+      '',
+      'Public cacheable route /api/trucks must never emit Set-Cookie'
+    );
+    const userWithHalfLifeCookie = await fetch(`${baseUrl}/api/favorites/list`, {
+      headers: { Cookie: legacyCookie }
+    });
+    assert.equal(userWithHalfLifeCookie.status, 200);
+    assert(
+      extractSessionCookie(userWithHalfLifeCookie).cookiePair.startsWith('__Host-truckly_session='),
+      'Authenticated user route must renew sliding-window cookie past half-life'
+    );
+
+    // Regression REV-02: Insecure HTTP Referer on non-loopback host & TRUCKLY_PUBLIC_ORIGIN mismatch -> 403
+    const { verifySameOriginMutationRequest } = await import(
+      pathToFileURL(path.join(ROOT, 'lib', 'standalone-auth.js')).href
+    );
+    const savedEnvForCsrf = process.env.TRUCKLY_ENV;
+    const savedPubOrigin = process.env.TRUCKLY_PUBLIC_ORIGIN;
+    try {
+      process.env.TRUCKLY_ENV = 'staging';
+      delete process.env.TRUCKLY_PUBLIC_ORIGIN;
+      const insecureRefCheck = verifySameOriginMutationRequest({
+        headers: {
+          host: 'staging.truckly.invalid',
+          referer: 'http://staging.truckly.invalid/login.html',
+          'content-type': 'application/json'
+        }
+      });
+      assert.equal(insecureRefCheck.ok, false);
+      assert.equal(insecureRefCheck.code, 'CSRF_INSECURE_REFERER');
+
+      process.env.TRUCKLY_PUBLIC_ORIGIN = 'https://staging.truckly.invalid';
+      const mismatchedHostCheck = verifySameOriginMutationRequest({
+        headers: {
+          host: 'other-vhost.invalid',
+          origin: 'https://other-vhost.invalid',
+          'content-type': 'application/json'
+        }
+      });
+      assert.equal(mismatchedHostCheck.ok, false);
+      assert.equal(mismatchedHostCheck.code, 'CSRF_HOST_MISMATCH');
+    } finally {
+      if (savedEnvForCsrf === undefined) delete process.env.TRUCKLY_ENV;
+      else process.env.TRUCKLY_ENV = savedEnvForCsrf;
+      if (savedPubOrigin === undefined) delete process.env.TRUCKLY_PUBLIC_ORIGIN;
+      else process.env.TRUCKLY_PUBLIC_ORIGIN = savedPubOrigin;
+    }
+
+    // Regression REV-05: Runtime `appPool` role cannot DELETE/UPDATE `audit_logs` or SELECT `schema_migrations`
+    await assert.rejects(
+      () => appPool.query("DELETE FROM audit_logs WHERE actor_id = 'nobody'"),
+      /permission denied for table audit_logs/i
+    );
+    await assert.rejects(
+      () => appPool.query('SELECT count(*) FROM schema_migrations'),
+      /permission denied for table schema_migrations/i
+    );
 
     // CSRF rejection checks across Origin, Sec-Fetch-Site, Referer, and Content-Type
     const hostHdr = `127.0.0.1:${serverPort}`;

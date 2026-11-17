@@ -1,6 +1,13 @@
 # Host-specific Nginx virtual host for Truckly Isolated Staging.
 # Never uses `server_name _;` or `default_server` so existing `/etc/nginx/sites-enabled/lifestyle-api`
 # default HTTP routing on port 80 remains completely undisturbed.
+#
+# Activation checklist (ONLY after staging DNS `A`/`AAAA` resolves to VPS):
+#   1. Render `__STAGING_FQDN__` -> `/etc/nginx/sites-available/truckly-staging` (HTTP-only block first for webroot ACME,
+#      or issue cert via `certbot certonly --webroot -w /var/www/html -d <fqdn>` before enabling the `:443` server block).
+#   2. Set `TRUCKLY_PUBLIC_ORIGIN=https://<fqdn>` in `/etc/truckly-staging/staging.env` and restart `truckly-staging-api`.
+#   3. Symlink `/etc/nginx/sites-enabled/truckly-staging`, validate with `nginx -t`, then `systemctl reload nginx`.
+#   4. Configure `/etc/letsencrypt/renewal-hooks/deploy/truckly-nginx-reload.sh` (`nginx -t && systemctl reload nginx`).
 
 server {
     listen 80;
@@ -32,19 +39,44 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "same-origin" always;
-
-    # Prevent search engines from indexing isolated staging
     add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
 
     client_max_body_size 64k;
 
-    # Block internal supervisor worker & debug endpoints from public internet
+    # Block internal supervisor worker, operator staging mailbox & diagnostic endpoints from public internet
     location = /api/pager/worker {
         return 403;
     }
 
+    location = /api/auth/staging-mailbox {
+        return 404;
+    }
+
+    location = /api/_staging_gate_probe {
+        return 404;
+    }
+
     location ^~ /__debug {
         return 404;
+    }
+
+    # Explicit non-cached Service Worker delivery (repeats server-level security headers per Nginx add_header rules)
+    location = /sw.js {
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Service-Worker-Allowed "/" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "same-origin" always;
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
     }
 
     location / {

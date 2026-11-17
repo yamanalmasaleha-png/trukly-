@@ -29,7 +29,7 @@ cleanup_raw() {
 trap cleanup_raw EXIT
 
 # 1. Consistent custom-format PostgreSQL dump via local peer postgres socket
-sudo -u postgres pg_dump \
+runuser -u postgres -- pg_dump \
   --format=custom \
   --no-owner \
   --no-acl \
