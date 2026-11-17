@@ -343,7 +343,11 @@ class CdpClient {
     await cdp.send('Page.enable', {}, sessionId);
     await cdp.send('Runtime.enable', {}, sessionId);
     await cdp.send('Network.enable', {}, sessionId);
-    await cdp.send('Network.setBlockedURLs', { urls: ['*://tile.openstreetmap.org/*'] }, sessionId);
+    await cdp.send(
+      'Network.setBlockedURLs',
+      { urls: ['*://tile.openstreetmap.org/*', '*://unpkg.com/*'] },
+      sessionId
+    );
 
     // Track any `/api/pager/*` requests fired by the browser
     const pagerApiCalls = [];

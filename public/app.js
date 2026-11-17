@@ -291,12 +291,20 @@ async function refreshDiscoveryCatalog({ fresh = false, announce = false } = {})
 }
 
 async function init() {
-  map = L.map('map', { zoomControl: false, attributionControl: true }).setView([38.43, -122.70], 11);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19
-  }).addTo(map);
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  if (typeof L !== 'undefined' && typeof L.map === 'function') {
+    try {
+      map = L.map('map', { zoomControl: false, attributionControl: true }).setView([38.43, -122.70], 11);
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+    } catch {
+      map = null;
+    }
+  } else {
+    map = null;
+  }
 
   document.querySelectorAll('[data-cuisine]').forEach(b => {
     b.onclick = () => chooseCuisine(b.dataset.cuisine);
@@ -341,16 +349,18 @@ async function init() {
   renderBookings();
   syncAuthAndUserData();
 
-  map.whenReady(() => {
-    map.invalidateSize();
-    setTimeout(() => map.invalidateSize(), 250);
-  });
-  map.on('zoomend', () => applyFilters());
-  const mapWrap = document.querySelector('.map-wrap');
-  if (mapWrap && typeof ResizeObserver !== 'undefined') {
-    new ResizeObserver(() => map.invalidateSize()).observe(mapWrap);
+  if (map) {
+    map.whenReady(() => {
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 250);
+    });
+    map.on('zoomend', () => applyFilters());
+    const mapWrap = document.querySelector('.map-wrap');
+    if (mapWrap && typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => map.invalidateSize()).observe(mapWrap);
+    }
+    window.addEventListener('orientationchange', () => setTimeout(() => map.invalidateSize(), 250));
   }
-  window.addEventListener('orientationchange', () => setTimeout(() => map.invalidateSize(), 250));
 }
 
 function foldText(s) {
@@ -418,33 +428,35 @@ function detailHoursNote(t) {
 }
 
 function applyFilters() {
-  if (!map) return;
   const show = filtered();
-  Object.values(markers).forEach(m => map.removeLayer(m));
-  markers = {};
-
-  const pinLimit = map.getZoom() >= 14 ? 18 : (activeCuisine === 'All' ? 10 : 14);
+  const zoomLevel = map && typeof map.getZoom === 'function' ? map.getZoom() : 11;
+  const pinLimit = zoomLevel >= 14 ? 18 : (activeCuisine === 'All' ? 10 : 14);
   const pinList = show
     .filter(hasCoords)
     .sort((a, b) => (b.id === selectedTruck) - (a.id === selectedTruck) || (Number(b.open === true) - Number(a.open === true)) || ((a.distance ?? 999) - (b.distance ?? 999)))
     .slice(0, pinLimit);
 
-  pinList.forEach(t => {
-    const badge = pinStatusBadge(t);
-    const icon = L.divIcon({
-      className: '',
-      html: `<div class="truck-pin ${t.id === selectedTruck ? 'selected' : ''}" style="--pin:${esc(t.color)}"><span>${esc(t.emoji)}</span><b>${badge}</b></div>`,
-      iconSize: [58, 58],
-      iconAnchor: [24, 48]
-    });
-    const m = L.marker([t.lat, t.lng], { icon })
-      .addTo(map)
-      .on('click', () => {
-        selectTruck(t.id);
-        openDetail(t.id);
+  if (map && typeof L !== 'undefined') {
+    Object.values(markers).forEach(m => map.removeLayer(m));
+    markers = {};
+
+    pinList.forEach(t => {
+      const badge = pinStatusBadge(t);
+      const icon = L.divIcon({
+        className: '',
+        html: `<div class="truck-pin ${t.id === selectedTruck ? 'selected' : ''}" style="--pin:${esc(t.color)}"><span>${esc(t.emoji)}</span><b>${badge}</b></div>`,
+        iconSize: [58, 58],
+        iconAnchor: [24, 48]
       });
-    markers[t.id] = m;
-  });
+      const m = L.marker([t.lat, t.lng], { icon })
+        .addTo(map)
+        .on('click', () => {
+          selectTruck(t.id);
+          openDetail(t.id);
+        });
+      markers[t.id] = m;
+    });
+  }
 
   const isListMode = document.getElementById('discoverScreen').classList.contains('list-mode');
   document.getElementById('nearbyCount').textContent = `${show.length} ${show.length === 1 ? 'place' : 'places'}${isListMode ? ' to explore' : ' · ' + pinList.length + ' on map'}`;
@@ -819,7 +831,7 @@ function locateMe() {
       userCoords = { lat: p.coords.latitude, lng: p.coords.longitude };
       recomputeDistances();
 
-      if (map) {
+      if (map && typeof L !== 'undefined') {
         const userIcon = L.divIcon({
           className: '',
           html: '<div class="user-pin" title="Your location"></div>',

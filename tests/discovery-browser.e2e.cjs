@@ -348,11 +348,12 @@ class CdpClient {
     await cdp.send('Runtime.enable', {}, ownerSession);
     await cdp.send('Network.enable', {}, ownerSession);
 
-    // Block external OSM map tile image requests so headless E2E never touches external internet or waits on tiles
+    // Block external CDN/tile requests so headless E2E never depends on third-party internet availability
+    // and simultaneously verifies graceful map-CDN degradation (DEF-03).
     for (const sess of [customerSession, ownerSession]) {
       await cdp.send(
         'Network.setBlockedURLs',
-        { urls: ['*://tile.openstreetmap.org/*'] },
+        { urls: ['*://tile.openstreetmap.org/*', '*://unpkg.com/*'] },
         sess
       );
     }
