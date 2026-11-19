@@ -15,6 +15,7 @@
     "dev:simulator": "node scripts/dev-server.cjs",
     "test:smoke": "node tests/pager-demo.test.cjs",
     "test:parity": "node tests/listing-verification.cjs",
+    "test:deploy": "node tests/install-staging-release.test.cjs",
     "test:standalone": "node tests/standalone-runtime-auth.integration.cjs",
     "test:hardening": "node tests/backend-hardening.integration.cjs",
     "test:discovery": "node tests/p1-unified-discovery.integration.cjs",

@@ -12,6 +12,7 @@
 //      BITESHARK_PUSH_PROVIDER_MODE="webpush" \
 //      node scripts/run-pager-worker.cjs --direct-db
 
+const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -87,6 +88,14 @@ function sleepInterruptible(ms) {
 
 (async () => {
   const opts = parseArgs(process.argv);
+  const releaseSha = readCliEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'local';
+  const releaseDir = (() => {
+    try {
+      return fs.realpathSync(path.resolve(__dirname, '..'));
+    } catch {
+      return path.resolve(__dirname, '..');
+    }
+  })();
 
   if (!opts.directDb && opts.url) {
     const secret = readCliEnvCompat('NOTIFICATION_WORKER_SECRET', { securityCritical: true });
@@ -95,6 +104,17 @@ function sleepInterruptible(ms) {
         'BITESHARK_NOTIFICATION_WORKER_SECRET (or legacy TRUCKLY_NOTIFICATION_WORKER_SECRET, >= 24 chars) is required for remote worker invocation.'
       );
     }
+
+    console.log(
+      JSON.stringify({
+        level: 'info',
+        event: 'worker_supervisor_started',
+        mode: 'http_supervisor',
+        release_sha: releaseSha,
+        release_dir: releaseDir,
+        continuous: opts.continuous
+      })
+    );
 
     let tick = 0;
     while (!stopRequested && (opts.continuous || tick < opts.maxTicks)) {
@@ -116,7 +136,7 @@ function sleepInterruptible(ms) {
           if (!opts.continuous) {
             throw new Error(msg);
           }
-          console.error(JSON.stringify({ level: 'error', event: 'worker_tick_http_error', tick, status: res.status, error: payload.error || 'failed' }));
+          console.error(JSON.stringify({ level: 'error', event: 'worker_tick_http_error', tick, release_sha: releaseSha, status: res.status, error: payload.error || 'failed' }));
         } else if (
           !opts.continuous ||
           (payload.claimed || 0) > 0 ||
@@ -126,7 +146,7 @@ function sleepInterruptible(ms) {
           tick === 1 ||
           tick % 30 === 0
         ) {
-          console.log(JSON.stringify({ tick, duration_ms: Date.now() - startedAt, ...payload }));
+          console.log(JSON.stringify({ tick, release_sha: releaseSha, duration_ms: Date.now() - startedAt, ...payload }));
         }
       } catch (err) {
         if (!opts.continuous) throw err;

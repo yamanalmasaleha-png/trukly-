@@ -115,7 +115,7 @@ Before installing anything on the VPS, an explicit line-by-line review of the st
 - **Same-origin updates (`https://staging.biteshark.live` in-place upgrade):** Internal cookie (`__Host-truckly_session`), `localStorage` keys (`truckly_favs`, `truckly_catalog_v2`, `truckly_notify`, `truckly_owner_truck_id`, `truckly_owner_profile`, `truckly_owner_schedule`, `truckly_guide_passport_v1`, `truckly_pager_subs_v1`), IndexedDB database (`truckly-dish-notebook-v1`), custom CSRF client headers (`X-BiteShark-Client` + legacy `X-Truckly-Client`), and service-worker postMessage types (`BITESHARK_OPEN_PAGER_REF` + `TRUCKLY_OPEN_PAGER_REF`) are preserved so active sessions, saved spots, cached directory snapshots, tasting-notebook photos, and pager tap routing survive an in-place deploy with zero data loss or duplicate storage.
 - **Cross-origin boundary (mandatory disclosure):** Browser `localStorage`, IndexedDB, `__Host-` cookies, WebAuthn passkeys, and Web Push `PushSubscription` endpoints are bound by the browser's Same-Origin Policy (`scheme + host + port`). Data stored previously on `https://truckly.hatchable.site` or `https://staging.biteshark.live` **does not transfer automatically** to `https://biteshark.live` (or between staging and production).
 
-### 5.3 Stable Internal VPS Resource Names & Reproducible Single-SHA Deployment
+### 5.3 Stable Internal VPS Resource Names, Trust-Before-Execution Install & Verified Rollback
 
 To prevent orphaned units, competing ports, or unnecessary database rebuilds on `172.233.140.74`, existing staging system identifiers (`truckly-stg` user, `/srv/truckly-staging`, `/etc/truckly-staging`, PostgreSQL database `truckly_staging`, roles `truckly_stg_migrator` & `truckly_stg_app`, and `systemd` units `truckly-staging-{api,worker,backup}`) are intentionally retained for staging.
 
@@ -123,15 +123,30 @@ To prevent orphaned units, competing ports, or unnecessary database rebuilds on 
    ```bash
    node scripts/build-linux-release-tarball.cjs --ref <40-hex-commit-sha> --out-dir ./artifacts
    ```
-2. **Upload tarball + `.sha256` to `/tmp` on `172.233.140.74` and install atomically:**
+2. **Upload tarball to `/tmp` on `172.233.140.74`, verify SHA-256 & archive member safety BEFORE extracting anything, then run the locked installer:**
    ```bash
-   sudo bash deploy/install-staging-release.sh \
-     --sha <40-hex-commit-sha> \
-     --tarball /tmp/biteshark-<sha12>.tar.gz \
-     --sha256-file /tmp/biteshark-<sha12>.tar.gz.sha256
+   # Establish archive trust against the pinned release SHA-256 BEFORE extracting or executing any file from the archive:
+   EXPECTED_SHA="<40-hex-commit-sha>"
+   EXPECTED_TARBALL_SHA256="<64-hex-sha256-from-reviewed-release>"
+   TARBALL="/tmp/biteshark-${EXPECTED_SHA:0:12}.tar.gz"
+
+   echo "${EXPECTED_TARBALL_SHA256}  ${TARBALL}" | sha256sum -c -
+   ! tar -tzvf "${TARBALL}" | awk '{print substr($1,1,1), $NF}' | grep -E '^[lhcbdp]| (^|/)\.\.(/|$)| ^/'
+
+   install -m 0700 /dev/null /tmp/install-staging-release.sh
+   tar -xzOf "${TARBALL}" deploy/install-staging-release.sh > /tmp/install-staging-release.sh
+
+   bash /tmp/install-staging-release.sh \
+     --sha "${EXPECTED_SHA}" \
+     --tarball "${TARBALL}" \
+     --expected-sha256 "${EXPECTED_TARBALL_SHA256}"
+   rm -f /tmp/install-staging-release.sh "${TARBALL}"
    ```
-3. **Instant reversal / rollback to prior verified release directory:**
+3. **Application vs Database Rollback Separation:**
+   - `deploy/install-staging-release.sh` acquires an exclusive deployment lock (`flock`), keeps Web Push disabled during installation unless `--allow-live-push` is explicitly passed, verifies existing release directories byte-for-byte before reuse, and automatically restores `/srv/truckly-staging/current` + `/etc/truckly-staging/staging.env` (`0640`) and verifies recovery of **both** `truckly-staging-api` and `truckly-staging-worker` if env update, symlink activation, API restart, worker restart, API readiness/release-SHA check, worker CWD/active check, co-tenant check, public HTTPS asset check, or holding-page check fails (`exit 1` on verified rollback; `exit 4` if rollback recovery itself fails).
+   - **Important limitation:** Symlink/env rollback (`--rollback-to <40-hex-sha>`) reverses **application code and `staging.env` only** — it does **not** reverse already-committed PostgreSQL DDL/DML migrations. (For `working/biteshark-vps`, all 17 SQL migration checksums `001`–`017` are identical to `614dc997e1b903c94948dc7ff13d02e51c434acd`, so `newly_applied` is `0`.)
    ```bash
-   sudo bash deploy/install-staging-release.sh --rollback-to 614dc997e1b903c94948dc7ff13d02e51c434acd
+   sudo bash /srv/truckly-staging/current/deploy/install-staging-release.sh \
+     --rollback-to 614dc997e1b903c94948dc7ff13d02e51c434acd
    ```
 
