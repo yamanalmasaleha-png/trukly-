@@ -1,8 +1,8 @@
 {
-  "name": "truckly",
+  "name": "biteshark",
   "version": "1.0.0",
   "private": true,
-  "description": "Truckly Sonoma County food discovery, event inquiries, pickup pagers, and standalone Node/PostgreSQL runtime",
+  "description": "BiteShark Sonoma County food discovery, event inquiries, pickup pagers, and standalone Node/PostgreSQL runtime",
   "type": "module",
   "engines": {
     "node": ">=22.0.0"
@@ -11,6 +11,7 @@
     "start": "node server/index.js",
     "worker": "node scripts/run-pager-worker.cjs",
     "migrate": "node scripts/run-migrations.cjs",
+    "build:release": "node scripts/build-linux-release-tarball.cjs",
     "dev:simulator": "node scripts/dev-server.cjs",
     "test:smoke": "node tests/pager-demo.test.cjs",
     "test:parity": "node tests/listing-verification.cjs",

@@ -1,5 +1,5 @@
 [Unit]
-Description=Truckly Isolated Staging Pager Notification Outbox Worker
+Description=BiteShark Isolated Staging Pager Notification Outbox Worker (truckly-staging-worker)
 After=network.target postgresql.service truckly-staging-api.service
 Requires=truckly-staging-api.service
 

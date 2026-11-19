@@ -34,10 +34,10 @@ Truckly has **no native Android or iOS app project** (`android/`, `ios/`, Gradle
    - Marks `status = 'unsubscribed'`, **immediately scrubs** `endpoint_url`, `p256dh_key`, `auth_secret`, and `device_token` to `NULL` (enforced by PostgreSQL constraint `pager_sub_material_scrubbed_chk`), and suppresses any `queued`, `retry_scheduled`, or claimed-but-not-yet-dispatched (`status = 'processing' AND dispatched_at IS NULL`) deliveries.
 3. **Zero Bearer-UUID Exposure in Push Payloads, URLs, or Logs:**
    - Outbox and encrypted push payloads contain only `{ version, event_type, title, body, vendor, ticket, collapse_key, event_id, subscription_id, open_url: "/#pager-ref=<subscription_id>" }`.
-   - The raw private pager bearer UUID (`pickup_pagers.id`) **never** appears in `pager_notification_events.payload`, Web Push ciphertext, notification click URLs, `audit_logs`, `/api/pager/telemetry`, or [`public/debug-admin.js`](../public/debug-admin.js).
+   - The raw private pager bearer UUID (`pickup_pagers.id`) **never** appears in `pager_notification_events.payload`, Web Push ciphertext, notification click URLs, `audit_logs`, `/api/pager/telemetry`, or [`scripts/dev-workbench/debug-admin.js`](../scripts/dev-workbench/debug-admin.js).
    - When a customer opens `/#pager=<uuid>` or `/#pager-ref=<subscription_id>`, [`public/pager.js`](../public/pager.js) immediately scrubs `location.hash` from the browser address bar via `history.replaceState`.
 4. **CSRF, SSRF & Rate-Limit Protections:**
-   - **CSRF:** Browser `POST`/`DELETE` mutations require `X-Truckly-Client: web-pager-v1` and pass `Sec-Fetch-Site` + `Origin`/`Host` same-origin checks (`403` otherwise).
+   - **CSRF:** Browser `POST`/`DELETE` mutations require `X-BiteShark-Client: web-pager-v1` (or legacy alias `X-Truckly-Client: web-pager-v1`) and pass `Sec-Fetch-Site` + `Origin`/`Host` same-origin checks (`403` otherwise).
    - **SSRF:** Only `https:` port `443` URLs on allowlisted push domains (`fcm.googleapis.com`, `*.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`, plus optional server env `TRUCKLY_PUSH_ALLOWED_HOSTS`) with validated on-curve P-256 `p256dh` (65 bytes) and `auth` (16 bytes) keys are accepted. IP literals, credentials, fragments, and path traversals are rejected (`400`).
    - **Rate Limits (`pager_rate_limits`):** Stateless PostgreSQL fixed-window buckets rate-limit:
      - `GET /api/pager/status`: **`90` requests / `60s`** per hashed client IP (`pager_status_client`).

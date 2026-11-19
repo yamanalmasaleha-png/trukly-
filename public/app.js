@@ -269,7 +269,9 @@ async function refreshDiscoveryCatalog({ fresh = false, announce = false } = {})
         applyFilters();
         renderFavorites();
         if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
-          window.dispatchEvent(new CustomEvent('truckly:catalog-updated', { detail: { catalog_version: catalogVersion, total: trucks.length } }));
+          const detail = { catalog_version: catalogVersion, total: trucks.length };
+          window.dispatchEvent(new CustomEvent('biteshark:catalog-updated', { detail }));
+          window.dispatchEvent(new CustomEvent('truckly:catalog-updated', { detail }));
         }
         if (announce) toast('Discovery directory refreshed');
         return true;
@@ -1113,7 +1115,7 @@ async function submitBooking(e) {
     toast(payload.idempotent_replay ? 'Inquiry already received — showing your existing request.' : 'Inquiry sent! Pending vendor review.');
     showScreen('bookings');
   } catch {
-    const msg = 'Could not reach Truckly right now. Check your connection and retry — duplicate sends are protected.';
+    const msg = 'Could not reach BiteShark right now. Check your connection and retry — duplicate sends are protected.';
     setBookingError(msg);
     toast(msg);
   } finally {
@@ -1727,10 +1729,10 @@ async function saveOwnerProfile(e) {
 async function shareOwnerLocation() {
   const location = (document.getElementById('ownerLocation')?.value || '').trim() || 'Sonoma County';
   const name = ownerProfile.display_name || 'Our food truck';
-  const shareText = `${name} is parked at ${location} — find us on Truckly!`;
+  const shareText = `${name} is parked at ${location} — find us on BiteShark!`;
   try {
     if (navigator.share) {
-      await navigator.share({ title: name, text: shareText, url: window.location?.origin || 'https://truckly.hatchable.site' });
+      await navigator.share({ title: name, text: shareText, url: window.location?.origin || 'https://biteshark.live' });
       return;
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1793,7 +1795,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-window.trucklyReady = (document.readyState === 'loading'
+window.bitesharkReady = window.trucklyReady = (document.readyState === 'loading'
   ? new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once: true }))
   : Promise.resolve()
 ).then(init);

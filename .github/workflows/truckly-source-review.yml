@@ -1,4 +1,4 @@
-name: Truckly Source Review
+name: BiteShark Source & Runtime Verification
 on:
   pull_request:
   push:
@@ -9,6 +9,7 @@ on:
       - harden/**
       - improve/**
       - migrate/**
+      - working/**
 
 permissions:
   contents: read
@@ -43,6 +44,11 @@ jobs:
             echo "Checking $f"
             node --check "$f"
           done
+      - name: Check deployment shell scripts syntax
+        shell: bash
+        run: |
+          bash -n deploy/install-staging-release.sh
+          bash -n deploy/backup/truckly-staging-backup.sh
       - name: Pager demo safety smoke test
         run: node tests/pager-demo.test.cjs
 
@@ -115,3 +121,57 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/pager-notifications-browser.e2e.cjs
+      - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
+        shell: bash
+        env:
+          PGPASSWORD: postgres_ci_password
+        run: |
+          set -euo pipefail
+          ART_DIR="$(mktemp -d)"
+          INSTALL_DIR="$(mktemp -d)"
+          META="$(node scripts/build-linux-release-tarball.cjs --ref HEAD --out-dir "$ART_DIR")"
+          echo "$META"
+          TARBALL="$(node -e 'console.log(JSON.parse(process.argv[1]).tarball_path)' "$META")"
+          SHA="$(node -e 'console.log(JSON.parse(process.argv[1]).commit_sha)' "$META")"
+          (cd "$ART_DIR" && sha256sum -c "$(basename "$TARBALL").sha256")
+          tar -xzf "$TARBALL" -C "$INSTALL_DIR"
+          ! find "$INSTALL_DIR" -maxdepth 3 \( -name '.env*' -o -name 'debug-admin.js' -o -name 'dev-server.cjs' -o -name 'tests' \) | grep -q .
+          (cd "$INSTALL_DIR" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
+          psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE bs_clean_mig LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS PASSWORD 'mig_pw_ci_linux';
+          CREATE ROLE bs_clean_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS PASSWORD 'app_pw_ci_linux';
+          CREATE DATABASE bs_clean_linux OWNER bs_clean_mig TEMPLATE template0;
+          SQL
+          (
+            cd "$INSTALL_DIR"
+            MIGRATION_DATABASE_URL="postgres://bs_clean_mig:mig_pw_ci_linux@127.0.0.1:5432/bs_clean_linux" \
+              node scripts/run-migrations.cjs --app-role bs_clean_app
+          )
+          PORT=4199 \
+          HOST=127.0.0.1 \
+          DATABASE_URL="postgres://bs_clean_app:app_pw_ci_linux@127.0.0.1:5432/bs_clean_linux" \
+          BITESHARK_ENV=staging \
+          BITESHARK_RELEASE_SHA="$SHA" \
+          BITESHARK_PUBLIC_ORIGIN="https://staging.biteshark.live" \
+          BITESHARK_TRUST_PROXY=none \
+          BITESHARK_AUTH_SECRET="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
+          BITESHARK_AUTH_DELIVERY_MODE=disabled \
+            node "$INSTALL_DIR/server/index.js" &
+          SRV_PID=$!
+          trap 'kill -TERM "$SRV_PID" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 15); do
+            if curl -fsS http://127.0.0.1:4199/api/healthz >/tmp/bs_health.json 2>/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          grep -q "\"status\":\"ok\"" /tmp/bs_health.json
+          grep -q "\"release_sha\":\"$SHA\"" /tmp/bs_health.json
+          curl -fsS http://127.0.0.1:4199/ | grep -q "BiteShark"
+          curl -fsS http://127.0.0.1:4199/manifest.json | grep -q "\"short_name\": \"BiteShark\""
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4199/icon-192.png)" = "200"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4199/debug-admin.js)" = "404"
+          kill -TERM "$SRV_PID"
+          wait "$SRV_PID"
+          trap - EXIT
+          rm -rf "$ART_DIR" "$INSTALL_DIR" /tmp/bs_health.json

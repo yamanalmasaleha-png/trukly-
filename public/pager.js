@@ -121,7 +121,7 @@ function buildPagerPushSectionHtml(p){
     return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="ended"><strong>Order complete</strong><small>Background pickup alerts for this ticket have ended.</small></div>';
   }
   if(isIosNeedsHomeScreen()){
-    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="ios-install-required"><strong>📱 Want a lock-screen alert on iPhone?</strong><small>Tap Share → <b>Add to Home Screen</b>, then open Truckly from your Home Screen icon. Otherwise keep this page open for live updates.</small></div>';
+    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="ios-install-required"><strong>📱 Want a lock-screen alert on iPhone?</strong><small>Tap Share → <b>Add to Home Screen</b>, then open BiteShark from your Home Screen icon. Otherwise keep this page open for live updates.</small></div>';
   }
   if(!hasBrowserPushSupport()){
     return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="unsupported"><strong>Live page updates active</strong><small>Background notifications aren’t supported in this browser. Keep this page open (updates every ~8s) or use the ready sound above.</small></div>';
@@ -270,7 +270,7 @@ async function subscribePagerPush(){
       cache:'no-store',
       headers:{
         'Content-Type':'application/json',
-        'X-Truckly-Client':'web-pager-v1'
+        'X-BiteShark-Client':'web-pager-v1'
       },
       body:JSON.stringify(reqPayload)
     });
@@ -308,7 +308,7 @@ async function unsubscribePagerPush(){
         cache:'no-store',
         headers:{
           'Content-Type':'application/json',
-          'X-Truckly-Client':'web-pager-v1'
+          'X-BiteShark-Client':'web-pager-v1'
         },
         body:JSON.stringify({
           subscription_id:saved.subscription_id,
@@ -423,7 +423,7 @@ function pagerToggleAutoplay(){
   if(!pagerDemo)return;
   pagerDemoAuto=!pagerDemoAuto;
   pagerClearDemoTimer();
-  renderPager({vendor:'Truckly Test Kitchen',ticket:'24',status:pagerStatus||'cooking'});
+  renderPager({vendor:'BiteShark Test Kitchen',ticket:'24',status:pagerStatus||'cooking'});
   if(pagerDemoAuto)pagerScheduleDemo();
 }
 
@@ -443,7 +443,7 @@ function pagerLeaveDemo(){
 function demoPagerStep(status){
   if(!pagerDemo||!pagerDemoStages.includes(status))return;
   pagerClearDemoTimer();
-  renderPager({vendor:'Truckly Test Kitchen',ticket:'24',status:status});
+  renderPager({vendor:'BiteShark Test Kitchen',ticket:'24',status:status});
   if(status!=='collected')pagerScheduleDemo();
 }
 
@@ -580,7 +580,7 @@ window.addEventListener('online',()=>{
 if(typeof navigator!=='undefined'&&navigator.serviceWorker&&typeof navigator.serviceWorker.addEventListener==='function'){
   navigator.serviceWorker.addEventListener('message',event=>{
     const msg=event?.data;
-    if(!msg||msg.type!=='TRUCKLY_OPEN_PAGER_REF')return;
+    if(!msg||(msg.type!=='BITESHARK_OPEN_PAGER_REF'&&msg.type!=='TRUCKLY_OPEN_PAGER_REF'))return;
     const resolved=resolveTokenBySubscriptionRef(msg.subscription_id);
     if(resolved){
       pagerClearDemoTimer();

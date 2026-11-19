@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#214b3b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="description" content="Find your next good food spot in Sonoma County. Explore food trucks, market vendors, and neighborhood flavors with Truckly."><title>Truckly — Good food. Word gets around.</title>
-  <link rel="manifest" href="/manifest.json"><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/logo.svg">
+  <meta name="theme-color" content="#214b3b"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="BiteShark"><meta name="application-name" content="BiteShark"><meta name="description" content="Find your next good food spot in Sonoma County. Explore food trucks, market vendors, and neighborhood flavors with BiteShark."><title>BiteShark — Good food. Word gets around.</title>
+  <link rel="manifest" href="/manifest.json"><link rel="icon" href="/logo.svg" type="image/svg+xml"><link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png"><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://unpkg.com"><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/theme.css">
   <link rel="stylesheet" href="/neighborhood.css">
@@ -19,12 +19,11 @@
   <link rel="stylesheet" href="/street-whispers.css">
   <link rel="stylesheet" href="/mobile-scroll-fix.css">
   <link rel="stylesheet" href="/color-calm.css">
-  <link rel="stylesheet" href="/debug-admin.css">
 </head>
 <body>
 <div id="app">
   <header class="topbar">
-    <button class="brand" onclick="showScreen('owner')" aria-label="Truckly owner mode"><span class="brand-mark">T</span><span>truckly</span></button>
+    <button class="brand" onclick="showScreen('owner')" aria-label="BiteShark owner mode"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="56" cy="9" r="10" fill="var(--cream)"/><circle cx="50" cy="17" r="6.5" fill="var(--cream)"/><path d="M12 44 C 18 24, 29 13, 42 11 C 38 22, 38 33, 44 44 Z" fill="currentColor"/><path d="M8 44 Q 20 39, 32 44 T 56 44 L 56 51 Q 44 55, 32 51 T 8 51 Z" fill="#f3c14f"/></svg></span><span>BiteShark</span></button>
     <button class="location-pill" onclick="locateMe()"><span>⌖</span><span id="locationLabel">Sonoma County</span><b>⌄</b></button>
     <div class="header-actions">
       <button class="guides-launch" onclick="openLocalGuides()" aria-label="Local guides"><span data-doodle="paper" aria-hidden="true"></span><span class="guides-label">Local guides</span></button>
@@ -63,9 +62,9 @@
       <aside class="truck-sheet" id="truckSheet">
         <section class="neighborhood-intro" aria-labelledby="neighborhoodHeading">
           <div class="intro-copy"><span class="edition-label">THE SONOMA COUNTY FOOD FINDER</span><h1 id="neighborhoodHeading">Good food.<br><span class="brand-pop">Word</span> gets around.</h1><p>Find the spot. Know the story. Bring your appetite.</p><button class="local-surprise" onclick="surpriseMe()"><span aria-hidden="true">🎲</span> Put me onto a good spot <span aria-hidden="true">↗</span></button></div>
-          <div class="character-hero" aria-label="Truckly flavor crew"><span class="character-bubble" id="characterHeroSlogan">Small truck. Big flavor energy.</span><div data-truck-character="taco"></div><span class="character-name">Meet Tito · your flavor scout</span></div>
+          <div class="character-hero" aria-label="BiteShark flavor crew"><span class="character-bubble" id="characterHeroSlogan">Small truck. Big flavor energy.</span><div data-truck-character="taco"></div><span class="character-name">Meet Tito · your flavor scout</span></div>
         </section>
-        <aside class="community-entry" aria-label="Truckly Local Community"><div><h3>💬 Your neighbors know the good spots.</h3><p>Explore honest reviews, share local tips, and ask the community what to try next.</p></div><button type="button" onclick="openCommunity()">Explore Community →</button></aside>
+        <aside class="community-entry" aria-label="BiteShark Local Community"><div><h3>💬 Your neighbors know the good spots.</h3><p>Explore honest reviews, share local tips, and ask the community what to try next.</p></div><button type="button" onclick="openCommunity()">Explore Community →</button></aside>
         <section class="explore-kinds" aria-label="Explore by kind">
           <button data-kind="All" class="active" aria-pressed="true" onclick="chooseKind('All')"><span>✳</span><b>All spots</b><small>Follow your appetite</small></button>
           <button data-kind="Pop-ups" aria-pressed="false" onclick="chooseKind('Pop-ups')"><span>🎪</span><b>Pop-ups</b><small>Catch the next stop</small></button>
@@ -87,7 +86,7 @@
             <button class="crew-pal crew-coffee" onclick="chooseKind('Coffee')"><span class="crew-art" data-truck-character="coffee" aria-hidden="true"></span><span class="crew-copy"><b>Brew</b><span>Espresso yourself. Take the local route.</span><small>Find your coffee corner ↗</small></span></button>
           </section>
           <section class="coffee-corner" aria-labelledby="coffeeHeading"><div class="coffee-corner-copy"><span class="paper-kicker"><span data-doodle="coffee" aria-hidden="true"></span> THE COFFEE CORNER</span><h2 id="coffeeHeading">A little buzz.<br>A lot of local character.</h2><p>For the cup you turn the car around for. Meet the cafés, roasters, and market pours giving your morning its own story.</p><button class="primary" onclick="chooseKind('Coffee')">Explore coffee spots ↗</button></div><div class="coffee-mini-grid"><button onclick="openDetail('coffee-crooks')"><span data-doodle="coffee" aria-hidden="true"></span><b>Crooks Coffee</b><span>Dessert energy. Espresso intentions.</span><small>Crème brûlée latte on the menu · Santa Rosa</small></button><button onclick="openDetail('coffee-retrograde')"><span data-doodle="spark" aria-hidden="true"></span><b>Retrograde</b><span>Your morning, freshly roasted.</span><small>In-house roasting · Sebastopol</small></button></div></section>
-          <section class="street-paper" aria-labelledby="streetHeading"><div class="street-paper-head"><span data-doodle="paper" aria-hidden="true"></span><div><small>THE TRUCKLY TOWN CRIER</small><h2 id="streetHeading">Word on the street.</h2></div><span class="paper-edition">FLAVOR EDITION<br>EXTRA! EXTRA!</span></div><p class="paper-intro">Playful headlines. Real reasons to explore. These are Truckly’s editorial notes, with links to the businesses behind the stories.</p><div class="street-stories">
+          <section class="street-paper" aria-labelledby="streetHeading"><div class="street-paper-head"><span data-doodle="paper" aria-hidden="true"></span><div><small>THE BITESHARK TOWN CRIER</small><h2 id="streetHeading">Word on the street.</h2></div><span class="paper-edition">FLAVOR EDITION<br>EXTRA! EXTRA!</span></div><p class="paper-intro">Playful headlines. Real reasons to explore. These are BiteShark’s editorial notes, with links to the businesses behind the stories.</p><div class="street-stories">
             <article><small>THE COFFEE FILES</small><h3>The latte came dressed for dessert.</h3><p>Crooks lists a crème brûlée latte alongside Mexican mocha and café con miele. The tough part is picking your cup.</p><button onclick="openDetail('coffee-crooks')">Meet Crooks Coffee ↗</button><a href="https://shadyraveninc.com/menu" target="_blank" rel="noopener">Menu source</a></article>
             <article><small>LOCAL ROOTS</small><h3>Same town. A whole coffee origin story.</h3><p>Avid began as Acre Coffee in Petaluma in 2011. The name changed in 2021; its Sonoma County roots are part of the story.</p><button onclick="openDetail('coffee-avid-petaluma')">Explore Avid’s first café ↗</button><a href="https://avidcoffee.com/pages/learn" target="_blank" rel="noopener">Business story</a></article>
             <article><small>THE DELICIOUS DETOUR</small><h3>Breaking: the grocery run found a barn.</h3><p>Oak Hill Farm’s Red Barn Store brings seasonal produce and regional pantry goods into a century-old barn. Bring your curiosity. Maybe a tote.</p><button onclick="openDetail('farm-oakhill')">Take the farm-stand detour ↗</button><a href="https://www.oakhillfarm.net/the-red-barn-store" target="_blank" rel="noopener">Farm source</a></article>
@@ -128,7 +127,7 @@
     </section>
     <section class="street-section" aria-labelledby="streetSectionTitle">
       <div class="street-intro">
-        <div><span class="street-kicker">🕵️ THE TRUCKLY WHISPER FILES · LOCAL FOOD ONLY</span><h2 id="streetSectionTitle">Word on the street.</h2><p>Little-known food details, a mystery pick, and playful clues from around Sonoma County. Our published finds have source links; community whispers are unconfirmed until checked.</p></div>
+        <div><span class="street-kicker">🕵️ THE BITESHARK WHISPER FILES · LOCAL FOOD ONLY</span><h2 id="streetSectionTitle">Word on the street.</h2><p>Little-known food details, a mystery pick, and playful clues from around Sonoma County. Our published finds have source links; community whispers are unconfirmed until checked.</p></div>
         <div class="street-stamp" aria-hidden="true">TOP SECRET<br>(NOT REALLY) ✳</div>
       </div>
       <div class="street-games">
@@ -184,11 +183,11 @@
   </main>
 
   <main id="guidesScreen" class="screen page-screen">
-    <section class="guides-hero"><div><small>THE TRUCKLY LOCAL CLUB</small><h1>Collect <span class="brand-pop">bites.</span><br>Earn stories.</h1><p>Find it. Try it. Stamp it. Your town is the adventure.</p></div><div class="guides-sticker"><span data-doodle="paper" aria-hidden="true"></span><b>GOOD FINDS<br>LIVE HERE</b><span>Curiosity encouraged.</span></div></section>
+    <section class="guides-hero"><div><small>THE BITESHARK LOCAL CLUB</small><h1>Collect <span class="brand-pop">bites.</span><br>Earn stories.</h1><p>Find it. Try it. Stamp it. Your town is the adventure.</p></div><div class="guides-sticker"><span data-doodle="paper" aria-hidden="true"></span><b>GOOD FINDS<br>LIVE HERE</b><span>Curiosity encouraged.</span></div></section>
     <div class="guides-tabs" role="group" aria-label="Local guides views"><button data-guide-tab="passport" onclick="showGuidesTab('passport')">🏅 Passport</button><button data-guide-tab="stories" onclick="showGuidesTab('stories')">📖 Stories</button><button data-guide-tab="photos" onclick="showGuidesTab('photos')">📷 Photos</button></div>
     <aside class="community-entry" aria-label="Local Community"><div><h3>💬 Meet the local food community</h3><p>Read reviews, swap neighborhood tips, or ask other food lovers for recommendations.</p></div><button type="button" onclick="openCommunity()">Explore Community →</button></aside>
     <section id="guidePassportSection" aria-label="Local Guides achievements and food passport"><div id="guidePassport"></div></section>
-    <div id="guideStories"><p class="guide-source-note">Truckly’s editorial field notes, based on the linked sources. Photos show the venue or craft named in each caption.</p><div id="guideStoryGrid" class="guide-story-grid"></div></div>
+    <div id="guideStories"><p class="guide-source-note">BiteShark’s editorial field notes, based on the linked sources. Photos show the venue or craft named in each caption.</p><div id="guideStoryGrid" class="guide-story-grid"></div></div>
     <div id="guidePhotoSection" hidden><section class="guide-photo-intro"><div><small>YOUR PERSONAL TASTING NOTEBOOK</small><h2>That bite deserves a memory.</h2><p>Add a dish photo and the detail that made it special. Your photos and captions are stored only in this browser on this device. They are not uploaded or shared, and clearing browser data removes them.</p></div><span data-truck-character="sweet" aria-hidden="true"></span></section>
       <form class="guide-photo-form" onsubmit="saveDishPhoto(event)"><div class="form-row"><label>Vendor or place<select id="dishPhotoVendor" required></select></label><label>Dish or memorable detail<input id="dishPhotoCaption" required maxlength="160" placeholder="The smoky salsa. The perfect crema."></label></div><label>Your photo · JPEG, PNG, or WebP · up to 5 MB<input id="dishPhotoFile" type="file" accept="image/jpeg,image/png,image/webp" required></label><button id="dishPhotoSave" class="primary">Save to my photo notebook</button><p class="smart-note">Up to 12 photos on this device. Choose photos you took or have permission to use.</p></form>
       <p id="dishPhotoMessage" role="status"></p><div id="dishPhotoGrid" class="dish-photo-grid"></div>
@@ -309,5 +308,4 @@
 <script src="/guide-passport.js"></script>
 <script src="/community.js"></script>
 <script src="/street-whispers.js"></script>
-<script src="/debug-admin.js"></script>
 </body></html>

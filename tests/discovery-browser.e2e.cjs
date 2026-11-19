@@ -282,13 +282,13 @@ class CdpClient {
         HOST: '127.0.0.1',
         PORT: String(appPort),
         DATABASE_URL: appDbUrl,
-        TRUCKLY_ENV: 'staging',
-        TRUCKLY_RELEASE_SHA: 'e2e-standalone',
-        TRUCKLY_AUTH_SECRET: authSecret,
-        TRUCKLY_AUTH_DELIVERY_MODE: 'staging_mailbox',
-        TRUCKLY_STAGING_MAILBOX_SECRET: mailboxSecret,
-        TRUCKLY_STAGING_ALLOWED_EMAIL_DOMAINS: 'staging.truckly.invalid',
-        TRUCKLY_PUSH_PROVIDER_MODE: 'disabled'
+        BITESHARK_ENV: 'staging',
+        BITESHARK_RELEASE_SHA: 'e2e-biteshark-standalone',
+        BITESHARK_AUTH_SECRET: authSecret,
+        BITESHARK_AUTH_DELIVERY_MODE: 'staging_mailbox',
+        BITESHARK_STAGING_MAILBOX_SECRET: mailboxSecret,
+        BITESHARK_STAGING_ALLOWED_EMAIL_DOMAINS: 'staging.truckly.invalid',
+        BITESHARK_PUSH_PROVIDER_MODE: 'disabled'
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
@@ -380,12 +380,18 @@ class CdpClient {
         const state = await cdp.eval(
           customerSession,
           `(() => {
-            if (!window.trucklyReady || typeof trucks === 'undefined' || trucks.length !== 59) return null;
+            if (!window.bitesharkReady || !window.trucklyReady || typeof trucks === 'undefined' || trucks.length !== 59) return null;
             const iniguez = trucks.find(t => t.id === 'iniguez');
             const crooks = trucks.find(t => t.id === 'coffee-crooks');
             const cardsHtml = document.getElementById('truckCards')?.innerHTML || '';
-            if (!cardsHtml.includes('Tacos Iñiguez')) return null;
+            const brandBtn = document.querySelector('.topbar .brand');
+            if (!cardsHtml.includes('Tacos Iñiguez') || !brandBtn) return null;
             return {
+              docTitle: document.title,
+              brandText: brandBtn.textContent.trim(),
+              brandAria: brandBtn.getAttribute('aria-label') || '',
+              hasBrandSvg: Boolean(brandBtn.querySelector('.brand-mark svg')),
+              hasDebugGlobal: typeof window.trucklyDebug !== 'undefined',
               total: trucks.length,
               hasLegacyMergeFn: typeof window.mergeNeighborhoodAdditions !== 'undefined',
               nearbyText: document.getElementById('nearbyCount')?.textContent || '',
@@ -402,6 +408,11 @@ class CdpClient {
       { label: 'Customer initial 59-listing render' }
     );
 
+    assert.equal(initialCustomerState.docTitle, 'BiteShark — Good food. Word gets around.');
+    assert.equal(initialCustomerState.brandText, 'BiteShark');
+    assert.equal(initialCustomerState.brandAria, 'BiteShark owner mode');
+    assert.equal(initialCustomerState.hasBrandSvg, true, 'BiteShark inline SVG brand mark rendered');
+    assert.equal(initialCustomerState.hasDebugGlobal, false, 'debug workbench absent from standalone runtime');
     assert.equal(initialCustomerState.total, 59);
     assert.equal(initialCustomerState.hasLegacyMergeFn, false, 'mergeNeighborhoodAdditions removed from browser');
     assert(initialCustomerState.nearbyText.includes('59 places'));
@@ -409,6 +420,42 @@ class CdpClient {
     assert.equal(initialCustomerState.iniguezLoc, '460 Mission Blvd, Santa Rosa');
     assert.equal(initialCustomerState.iniguezDist, null, 'no fabricated distance in browser');
     assert.equal(initialCustomerState.crooksExtra, true);
+
+    // Verify manifest, raster icons (200 image/png), and absence of debug controls (404) over HTTP
+    const manifestHttp = await httpGetJson(`${baseUrl}/manifest.json`);
+    assert.equal(manifestHttp.status, 200);
+    assert.equal(manifestHttp.json.short_name, 'BiteShark');
+    for (const iconPath of ['/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-touch-icon.png', '/badge-96.png']) {
+      const iconRes = await fetch(`${baseUrl}${iconPath}`);
+      assert.equal(iconRes.status, 200, `${iconPath} must return 200`);
+      assert.equal(iconRes.headers.get('content-type'), 'image/png', `${iconPath} must serve image/png`);
+    }
+    const debugAssetRes = await fetch(`${baseUrl}/debug-admin.js`);
+    assert.equal(debugAssetRes.status, 404, '/debug-admin.js must return 404 in standalone runtime');
+
+    // Verify same-origin `localStorage` (`truckly_favs` & `truckly_catalog_v2`) survives reload seamlessly
+    await cdp.eval(customerSession, `localStorage.setItem('truckly_favs', JSON.stringify(['mitote'])); true;`);
+    await cdp.send('Page.reload', {}, customerSession);
+    const persistedFavState = await waitForCondition(
+      () =>
+        cdp.eval(
+          customerSession,
+          `(() => {
+            if (!window.bitesharkReady || typeof favs === 'undefined' || trucks.length !== 59) return null;
+            showScreen('favorites');
+            const favHtml = document.getElementById('favoriteGrid')?.innerHTML || '';
+            if (!favHtml.includes('Mitote Food Park')) return null;
+            showScreen('discover');
+            return {
+              hasMitoteFav: favs.has('mitote'),
+              cachedSnapshotPresent: Boolean(localStorage.getItem('truckly_catalog_v2'))
+            };
+          })()`
+        ),
+      { label: 'Same-origin localStorage favorites continuity' }
+    );
+    assert.equal(persistedFavState.hasMitoteFav, true);
+    assert.equal(persistedFavState.cachedSnapshotPresent, true);
     console.log('PASS [E2E 1/3]: Anonymous customer browser loaded all 59 unified listings from PostgreSQL');
 
     // =========================================================================
@@ -424,6 +471,9 @@ class CdpClient {
             const disclosure = document.getElementById('passkeyDisclosure');
             if (!emailInput || !window.hatchable || !window.hatchable.auth) return null;
             return {
+              loginTitle: document.title,
+              backText: document.getElementById('returnLink')?.textContent?.trim() || '',
+              hasLoginSvg: Boolean(document.querySelector('.login-logo svg')),
               disclosureVisible: Boolean(disclosure && !disclosure.hidden),
               disclosureText: disclosure ? disclosure.textContent.trim() : ''
             };
@@ -431,6 +481,9 @@ class CdpClient {
         ),
       { label: '/login.html loaded with standalone auth bridge' }
     );
+    assert.equal(loginPageInfo.loginTitle, 'Sign in · BiteShark');
+    assert(loginPageInfo.backText.includes('Back to BiteShark'));
+    assert.equal(loginPageInfo.hasLoginSvg, true);
     assert.equal(loginPageInfo.disclosureVisible, true, 'Passkey unavailability disclosure must be visible on /login.html');
     assert(loginPageInfo.disclosureText.toLowerCase().includes('passkeys are currently unavailable'));
 
@@ -633,7 +686,23 @@ class CdpClient {
     assert.equal(customerRefreshed.isConfirmedService, true);
     assert.equal(customerRefreshed.open, true);
 
-    console.log('PASS [E2E 3/3]: Customer refreshed discovery — list card and detail modal match published owner updates');
+    // Verify Owner browser logout revokes session cleanly
+    const loggedOutState = await cdp.eval(
+      ownerSession,
+      `(async () => {
+        await signOutUser();
+        const sessRes = await fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' });
+        const sessJson = await sessRes.json();
+        return {
+          authenticated: sessJson.authenticated,
+          heading: document.getElementById('profileHeading')?.textContent || ''
+        };
+      })()`
+    );
+    assert.equal(loggedOutState.authenticated, false, 'Owner session revoked after signOutUser()');
+    assert.equal(loggedOutState.heading, 'Guest mode');
+
+    console.log('PASS [E2E 3/3]: Customer refreshed discovery, BiteShark branding/icons, same-origin storage & logout verified');
     console.log('\nREAL BROWSER + REAL POSTGRESQL DISCOVERY E2E PASSED.');
   } finally {
     if (cdp) cdp.close();

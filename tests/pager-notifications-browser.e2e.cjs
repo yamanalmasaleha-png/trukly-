@@ -484,7 +484,15 @@ class CdpClient {
     assert.equal(demoResult.hasPushPanelInCooking, false, 'demo pager renders zero push prompts');
     assert.equal(demoResult.hasPushPanelInReady, false, 'demo ready stage renders zero push prompts');
     assert(demoResult.readyHtml.includes('PLAY MODE · NOT A REAL ORDER'));
+    assert(demoResult.readyHtml.includes('BiteShark Test Kitchen'));
+    assert(!demoResult.readyHtml.includes('Truckly Test Kitchen'));
     assert.equal(pagerApiCalls.length, 0, 'sample pager demo triggered zero /api/pager/* requests');
+    const swScriptRes = await fetch(`${baseUrl}/sw.js`);
+    const swScriptBody = await swScriptRes.text();
+    assert.equal(swScriptRes.status, 200);
+    assert(swScriptBody.includes('BiteShark · Order Ready for Pickup'));
+    assert(swScriptBody.includes("icon: '/icon-192.png'") && swScriptBody.includes("badge: '/badge-96.png'"));
+    assert(swScriptBody.includes("type: 'BITESHARK_OPEN_PAGER_REF'"));
     console.log('PASS [E2E 1/4]: Sample pager demo remains 100% isolated with zero backend/push activity');
 
     // =========================================================================

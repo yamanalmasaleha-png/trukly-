@@ -689,7 +689,7 @@ const WORKER_SECRET = 'stg_worker_secret_' + crypto.randomBytes(16).toString('he
     const decryptedJsonStr = webpushCrypto.decryptWebPushPayload(captured.body, wireKeys.ecdh, wireKeys.authSecret);
     assert(!decryptedJsonStr.includes(wirePager.id), 'raw private pager UUID NEVER appears in push ciphertext');
     const decryptedPayload = JSON.parse(decryptedJsonStr);
-    assert.equal(decryptedPayload.title, 'Order Ready for Pickup');
+    assert.equal(decryptedPayload.title, 'BiteShark · Order Ready for Pickup');
     assert(decryptedPayload.body.includes('WIRE-77'));
     assert.equal(decryptedPayload.subscription_id, wireSubRes.body.subscription.id);
     assert.equal(decryptedPayload.open_url, `/#pager-ref=${wireSubRes.body.subscription.id}`);

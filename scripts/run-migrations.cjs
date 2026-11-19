@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Idempotent SQL Migration Runner for Truckly Standalone Deployments
+// Idempotent SQL Migration Runner for BiteShark Standalone Deployments
 //
 // Tracks applied migrations + SHA-256 checksums in `schema_migrations` and executes
 // unapplied `migrations/NNN_*.sql` files in lexical order inside individual transactions.
-// Optionally transfers table ownership to `--app-owner <role>` or grants DML to `--app-role <role>`.
+// Optionally grants DML to `--app-role <role>`.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,11 +12,25 @@ const crypto = require('node:crypto');
 const ROOT = path.resolve(__dirname, '..');
 const MIGRATIONS_DIR = path.join(ROOT, 'migrations');
 
+function readCliEnvCompat(suffix, { securityCritical = false } = {}) {
+  const bsVal = String(process.env[`BITESHARK_${suffix}`] || '').trim();
+  const trVal = String(process.env[`TRUCKLY_${suffix}`] || '').trim();
+  if (bsVal && trVal && bsVal !== trVal) {
+    if (securityCritical) {
+      throw new Error(
+        `Conflicting values supplied for BITESHARK_${suffix} and legacy alias TRUCKLY_${suffix}; align or remove the duplicate variable.`
+      );
+    }
+    return bsVal;
+  }
+  return bsVal || trVal || '';
+}
+
 function requirePg() {
   try {
     return require('pg');
   } catch {
-    const extraBase = process.env.TRUCKLY_PG_NODE_MODULES;
+    const extraBase = readCliEnvCompat('PG_NODE_MODULES');
     if (extraBase) {
       return require(path.join(extraBase, 'pg'));
     }
@@ -26,7 +40,7 @@ function requirePg() {
 
 function parseArgs(argv) {
   const opts = {
-    appRole: process.env.TRUCKLY_DB_APP_ROLE || ''
+    appRole: readCliEnvCompat('DB_APP_ROLE', { securityCritical: true })
   };
   for (let i = 2; i < argv.length; i++) {
     if (argv[i] === '--app-role' && argv[i + 1]) {

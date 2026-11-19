@@ -1,5 +1,5 @@
 [Unit]
-Description=Truckly Isolated Staging HTTP & PostgreSQL API Server
+Description=BiteShark Isolated Staging HTTP & PostgreSQL API Server (truckly-staging-api)
 After=network.target postgresql.service
 Wants=postgresql.service
 

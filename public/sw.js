@@ -1,4 +1,4 @@
-// Truckly Pickup Pager Web Push Service Worker
+// BiteShark Pickup Pager Web Push Service Worker
 //
 // Security & Privacy Guarantees:
 //   1. Registers ZERO `fetch` caching interceptors — `/api/*` and private responses
@@ -29,7 +29,7 @@ self.addEventListener('push', event => {
 
   const title = typeof data.title === 'string' && data.title.trim()
     ? data.title.trim().slice(0, 80)
-    : 'Order Ready for Pickup';
+    : 'BiteShark · Order Ready for Pickup';
 
   const body = typeof data.body === 'string' && data.body.trim()
     ? data.body.trim().slice(0, 180)
@@ -42,9 +42,9 @@ self.addEventListener('push', event => {
 
   const options = {
     body,
-    icon: '/logo.svg',
-    badge: '/logo.svg',
-    tag: typeof data.collapse_key === 'string' && data.collapse_key ? data.collapse_key : 'truckly-pager-ready',
+    icon: '/icon-192.png',
+    badge: '/badge-96.png',
+    tag: typeof data.collapse_key === 'string' && data.collapse_key ? data.collapse_key : 'biteshark-pager-ready',
     renotify: false,
     requireInteraction: true,
     data: {
@@ -78,7 +78,7 @@ self.addEventListener('notificationclick', event => {
           const clientOrigin = new URL(client.url).origin;
           if (clientOrigin === self.location.origin) {
             client.postMessage({
-              type: 'TRUCKLY_OPEN_PAGER_REF',
+              type: 'BITESHARK_OPEN_PAGER_REF',
               subscription_id: subscriptionId,
               event_id: notifData.event_id || null
             });

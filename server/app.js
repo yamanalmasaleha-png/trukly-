@@ -9,6 +9,7 @@ import {
 } from 'hatchable';
 import { applyPrivateNoStoreHeaders } from '../lib/authz.js';
 import { isLoopbackIp, stampTrustedClientIp } from '../lib/client-ip.js';
+import { readEnvCompat, assertNoSecurityEnvConflicts } from '../lib/env-compat.js';
 import {
   startEmailOtpChallenge,
   verifyEmailOtpChallenge,
@@ -259,12 +260,26 @@ function resolveSafePublicFile(realPublicRoot, rawPathname) {
   };
 }
 
+function readSafeSecurityFlag(suffix) {
+  try {
+    return readEnvCompat(suffix, { securityCritical: true }) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function createStandaloneServer({
   dbAdapter,
   publicDir = DEFAULT_PUBLIC_DIR,
-  releaseSha = process.env.TRUCKLY_RELEASE_SHA || process.env.GITHUB_SHA || 'unknown',
-  trustProxy = process.env.TRUCKLY_TRUST_PROXY || 'none',
-  maxJsonBytes = Number(process.env.TRUCKLY_MAX_JSON_BYTES || DEFAULT_MAX_JSON_BYTES),
+  releaseSha = readEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'unknown',
+  trustProxy = (() => {
+    try {
+      return readEnvCompat('TRUST_PROXY', { securityCritical: true, defaultValue: 'none' });
+    } catch {
+      return 'none';
+    }
+  })(),
+  maxJsonBytes = Number(readEnvCompat('MAX_JSON_BYTES') || DEFAULT_MAX_JSON_BYTES),
   logger = console
 } = {}) {
   if (!dbAdapter || typeof dbAdapter.query !== 'function' || typeof dbAdapter.connect !== 'function') {
@@ -297,6 +312,8 @@ export function createStandaloneServer({
     if (req.headers) {
       delete req.headers['x-truckly-debug-role'];
       delete req.headers['X-Truckly-Debug-Role'];
+      delete req.headers['x-biteshark-debug-role'];
+      delete req.headers['X-BiteShark-Debug-Role'];
     }
     bindVerifiedRequestUser(req, null);
     stampTrustedClientIp(req, { trustProxy });
@@ -310,7 +327,7 @@ export function createStandaloneServer({
 
     let parsedUrl;
     try {
-      parsedUrl = new URL(rawUrl, 'http://truckly.internal');
+      parsedUrl = new URL(rawUrl, 'http://biteshark.internal');
     } catch {
       applyPrivateNoStoreHeaders(res);
       return sendJsonResponse(res, 400, { error: 'Malformed request URL.' });
@@ -326,18 +343,22 @@ export function createStandaloneServer({
           return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET' });
         }
         try {
+          assertNoSecurityEnvConflicts();
+          const runtimeEnv = readEnvCompat('ENV', { securityCritical: true, defaultValue: 'local' }).toLowerCase();
           await dbAdapter.query('SELECT 1 AS ok');
           return sendJsonResponse(res, 200, {
             status: 'ok',
             db: 'ready',
-            env: String(process.env.TRUCKLY_ENV || 'local').trim().toLowerCase(),
+            env: runtimeEnv,
             release_sha: releaseSha,
             domain_routes: REGISTERED_DOMAIN_ROUTE_COUNT
           });
-        } catch {
+        } catch (healthErr) {
+          const isConflict = healthErr?.code === 'ENV_ALIAS_CONFLICT';
           return sendJsonResponse(res, 503, {
             status: 'degraded',
-            db: 'unavailable',
+            db: isConflict ? 'ready_or_unchecked' : 'unavailable',
+            ...(isConflict ? { config: 'conflict' } : {}),
             release_sha: releaseSha
           });
         }
@@ -422,7 +443,7 @@ export function createStandaloneServer({
           if (method !== 'POST') {
             return sendJsonResponse(res, 404, { error: 'Not found' });
           }
-          if (process.env.TRUCKLY_ALLOW_REMOTE_STAGING_MAILBOX !== '1' && !isLoopbackIp(req.socket?.remoteAddress)) {
+          if (!readSafeSecurityFlag('ALLOW_REMOTE_STAGING_MAILBOX') && !isLoopbackIp(req.socket?.remoteAddress)) {
             return sendJsonResponse(res, 404, { error: 'Not found' });
           }
           const body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
@@ -440,8 +461,13 @@ export function createStandaloneServer({
       // 3. Narrow Staging-Only Runtime Verification Probe (`/api/_staging_gate_probe`)
       if (pathname === '/api/_staging_gate_probe') {
         applyPrivateNoStoreHeaders(res);
-        const env = String(process.env.TRUCKLY_ENV || '').trim().toLowerCase();
-        const probeEnabled = env === 'staging' && process.env.TRUCKLY_ENABLE_STAGING_PROBE === '1';
+        let probeEnabled = false;
+        try {
+          const env = readEnvCompat('ENV', { securityCritical: true }).toLowerCase();
+          probeEnabled = env === 'staging' && readEnvCompat('ENABLE_STAGING_PROBE', { securityCritical: true }) === '1';
+        } catch {
+          probeEnabled = false;
+        }
         if (!probeEnabled) {
           return sendJsonResponse(res, 404, { error: 'Not found' });
         }
@@ -494,7 +520,7 @@ export function createStandaloneServer({
         }
 
         // Restrict `/api/pager/worker` to loopback supervisor sockets unless explicitly overridden
-        if (route.loopbackWorkerOnly && process.env.TRUCKLY_ALLOW_REMOTE_WORKER !== '1') {
+        if (route.loopbackWorkerOnly && !readSafeSecurityFlag('ALLOW_REMOTE_WORKER')) {
           if (!isLoopbackIp(req.socket?.remoteAddress)) {
             applyPrivateNoStoreHeaders(res);
             return sendJsonResponse(res, 403, { error: 'Worker endpoint is restricted to local supervisor.' });

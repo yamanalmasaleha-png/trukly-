@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Truckly Production-Suitable Standalone HTTP & PostgreSQL Server Entrypoint
+// BiteShark Production-Suitable Standalone HTTP & PostgreSQL Server Entrypoint
 //
 // Security invariants:
 //   - Binds to loopback (`127.0.0.1:4100`) by default so external traffic enters only via TLS Nginx.
-//   - Fails closed on startup in `staging` / `production` if `DATABASE_URL`, `TRUCKLY_AUTH_SECRET`,
-//     or a valid `TRUCKLY_AUTH_DELIVERY_MODE` is missing or unsafe.
+//   - Fails closed on startup in `staging` / `production` if `DATABASE_URL`, `BITESHARK_AUTH_SECRET`
+//     (or `TRUCKLY_AUTH_SECRET`), a valid `BITESHARK_AUTH_DELIVERY_MODE`, or conflicting security-critical
+//     `BITESHARK_*` / `TRUCKLY_*` aliases are supplied.
 //   - Configures `pg.types` OID 1082 (`DATE`) to preserve exact `YYYY-MM-DD` calendar strings
 //     without timezone shifting.
 //   - Drains in-flight HTTP requests and closes the PostgreSQL connection pool cleanly on SIGTERM/SIGINT.
@@ -12,6 +13,7 @@
 import pg from 'pg';
 import { createStandaloneServer } from './app.js';
 import { getAuthSecret, inspectAuthDeliveryConfig } from '../lib/standalone-auth.js';
+import { readEnvCompat, assertNoSecurityEnvConflicts } from '../lib/env-compat.js';
 
 const { Pool, types } = pg;
 
@@ -19,17 +21,19 @@ const { Pool, types } = pg;
 types.setTypeParser(1082, val => String(val));
 
 function validateStartupEnvironment() {
-  const env = String(process.env.TRUCKLY_ENV || 'local').trim().toLowerCase();
+  assertNoSecurityEnvConflicts();
+
+  const env = readEnvCompat('ENV', { securityCritical: true, defaultValue: 'local' }).toLowerCase();
   const dbUrl = String(process.env.DATABASE_URL || '').trim();
   if (!dbUrl) {
-    throw new Error('DATABASE_URL is required to start Truckly standalone server.');
+    throw new Error('DATABASE_URL is required to start BiteShark standalone server.');
   }
 
   if (String(process.env.HATCHABLE_PROJECT_ID || '').trim() === 'proj_MEO518rmLLl0') {
     throw new Error('Refusing to start standalone server with Hatchable production project identifier.');
   }
 
-  // Validates `TRUCKLY_AUTH_SECRET` (>= 32 chars mandatory in staging/production)
+  // Validates `BITESHARK_AUTH_SECRET` / `TRUCKLY_AUTH_SECRET` (>= 32 chars mandatory in staging/production)
   getAuthSecret();
 
   const authDelivery = inspectAuthDeliveryConfig();
@@ -43,8 +47,8 @@ function validateStartupEnvironment() {
     throw new Error(`Invalid PORT: ${process.env.PORT}`);
   }
 
-  const poolMax = Math.max(2, Math.min(20, Number(process.env.TRUCKLY_DB_POOL_MAX || 8)));
-  const releaseSha = String(process.env.TRUCKLY_RELEASE_SHA || process.env.GITHUB_SHA || 'local').trim();
+  const poolMax = Math.max(2, Math.min(20, Number(readEnvCompat('DB_POOL_MAX') || 8)));
+  const releaseSha = String(readEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'local').trim();
 
   return { env, dbUrl, host, port, poolMax, releaseSha };
 }
@@ -149,7 +153,7 @@ async function main() {
   process.on('SIGINT', () => handleSignal('SIGINT'));
   if (typeof process.send === 'function') {
     process.on('message', msg => {
-      if (msg === 'truckly:graceful-shutdown') {
+      if (msg === 'biteshark:graceful-shutdown' || msg === 'truckly:graceful-shutdown') {
         handleSignal('IPC_SHUTDOWN');
       }
     });

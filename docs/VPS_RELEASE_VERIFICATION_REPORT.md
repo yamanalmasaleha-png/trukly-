@@ -8,6 +8,8 @@
 **Historical Hatchable Baseline Record (Preserved Separately):** [`docs/RELEASE_VERIFICATION_REPORT.md`](./RELEASE_VERIFICATION_REPORT.md#historical-archive--hatchable-candidate-verification-record-fa4e40affb574d3da5a98e4874b301ad5251e17c) (`fa4e40affb574d3da5a98e4874b301ad5251e17c` / report `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13`)
 **Production & Co-Tenant Guard Status:** Hatchable production (`proj_MEO518rmLLl0` / `https://truckly.hatchable.site`), `origin/main` (`4836520029e91e952fb1817595ee961c67514e6a`), and all existing VPS co-tenant workloads (`lifestyle-api` / `pm2-matt`, `velvet_key_db` / `velvet_key_user`, `qwen-worker`, `/usr/bin/node v18.19.1`, default Nginx `:80` routing, `/root/.pm2`, SSH, and `ufw`) remained **untouched and healthy**.
 
+> **BiteShark Naming & Candidate Branch Transition Note (`2026-11-19`):** Subsequent to the live Truckly-branded VPS verification recorded below on `migrate/vps-standalone-staging` (`614dc997e1b903c94948dc7ff13d02e51c434acd` / docs `74c0a7e81ca44a26fd668baf84b3a640563a762c`), dedicated candidate branch **`working/biteshark-vps`** renamed the application's public identity to **BiteShark** and added reproducible single-SHA installation tooling (`deploy/install-staging-release.sh`, `scripts/build-linux-release-tarball.cjs`, `lib/env-compat.js`). Future VPS staging installations should deploy from **`working/biteshark-vps`**; all evidence below remains preserved accurately as executed on `614dc997e1b903c94948dc7ff13d02e51c434acd` prior to installing the BiteShark rename on the host.
+
 ---
 
 ## 1. Release decision

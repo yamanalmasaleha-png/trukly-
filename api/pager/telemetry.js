@@ -9,6 +9,7 @@ import {
   enablePagerInternalContext,
   inspectNotificationRuntimeConfig
 } from "../../lib/pager-notifications.js";
+import { readEnvCompat } from "../../lib/env-compat.js";
 
 export const access = "user";
 export const methods = ["GET"];
@@ -91,7 +92,7 @@ export default async function(req, res) {
     return res.json({
       ok: true,
       observed_at: nowIso,
-      release_sha: process.env.TRUCKLY_RELEASE_SHA || process.env.GITHUB_SHA || "local-dev",
+      release_sha: readEnvCompat("RELEASE_SHA") || process.env.GITHUB_SHA || "local-dev",
       controls: runtimeControls,
       ...stats
     });

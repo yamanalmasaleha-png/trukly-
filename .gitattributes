@@ -10,3 +10,20 @@
 *.json text eol=lf
 *.toml text eol=lf
 *.yml text eol=lf
+*.svg text eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff2 binary
+*.gz binary
+*.zip binary
+
+# Exclude development-only simulator, debug workbench, CI workflows, and test suites from release tarballs (`git archive`)
+.github export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+scripts/dev-server.cjs export-ignore
+scripts/dev-workbench export-ignore
+tests export-ignore

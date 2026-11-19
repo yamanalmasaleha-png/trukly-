@@ -1,1 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="9" y="9" width="82" height="82" rx="27" fill="#ff6b5f" transform="rotate(-4 50 50)"/><path d="M27 37h46v12H57v30H43V49H27z" fill="white"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="BiteShark">
+  <defs>
+    <mask id="bs-bite">
+      <rect width="100" height="100" fill="#fff"/>
+      <circle cx="86" cy="18" r="13" fill="#000"/>
+      <circle cx="77" cy="11" r="7" fill="#000"/>
+      <circle cx="92" cy="28" r="7" fill="#000"/>
+    </mask>
+  </defs>
+  <rect x="8" y="8" width="84" height="84" rx="26" fill="#ff6b5f" mask="url(#bs-bite)"/>
+  <path d="M24 68c9 0 13-19 29-39-3 13-1 25 6 33 6-2 12-1 17 6H24z" fill="#fffaf0"/>
+  <path d="M22 75c8-4 16-4 24 0s16 4 24 0 10-3 14-1" fill="none" stroke="#214b3b" stroke-width="5.5" stroke-linecap="round"/>
+</svg>

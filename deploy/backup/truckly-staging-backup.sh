@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Truckly Isolated Staging Consistent Database Backup + AES-256 Encryption + Off-Server Sync
-# Backs up ONLY `truckly_staging` (never touches unrelated databases without explicit authorization).
+# BiteShark Isolated Staging Consistent Database Backup + AES-256 Encryption + Off-Server Sync
+# Backs up ONLY `truckly_staging` (retains existing internal DB/directory names; never touches unrelated databases).
 
 set -euo pipefail
 umask 077
 
-BACKUP_DIR="${TRUCKLY_BACKUP_DIR:-/var/backups/truckly-staging}"
-RETENTION_DAYS="${TRUCKLY_BACKUP_RETENTION_DAYS:-7}"
-PASSPHRASE_FILE="${TRUCKLY_BACKUP_PASSPHRASE_FILE:-/etc/truckly-staging/backup.passphrase}"
-DB_NAME="${TRUCKLY_BACKUP_DB_NAME:-truckly_staging}"
-OFFSITE_CMD="${TRUCKLY_BACKUP_OFFSITE_CMD:-}"
+BACKUP_DIR="${BITESHARK_BACKUP_DIR:-${TRUCKLY_BACKUP_DIR:-/var/backups/truckly-staging}}"
+RETENTION_DAYS="${BITESHARK_BACKUP_RETENTION_DAYS:-${TRUCKLY_BACKUP_RETENTION_DAYS:-7}}"
+PASSPHRASE_FILE="${BITESHARK_BACKUP_PASSPHRASE_FILE:-${TRUCKLY_BACKUP_PASSPHRASE_FILE:-/etc/truckly-staging/backup.passphrase}}"
+DB_NAME="${BITESHARK_BACKUP_DB_NAME:-${TRUCKLY_BACKUP_DB_NAME:-truckly_staging}}"
+OFFSITE_CMD="${BITESHARK_BACKUP_OFFSITE_CMD:-${TRUCKLY_BACKUP_OFFSITE_CMD:-}}"
 
 if [[ ! -s "${PASSPHRASE_FILE}" ]]; then
   echo '{"level":"fatal","event":"backup_missing_passphrase_file"}' >&2

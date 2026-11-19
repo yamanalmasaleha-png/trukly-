@@ -1,12 +1,16 @@
-# Truckly (Reconciled v77 + Pager Demo & Listing Audit)
+# BiteShark (Standalone VPS Candidate · Formerly Truckly)
 
-Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café discovery + event-booking app focused on Sonoma County (Santa Rosa, Petaluma, Sebastopol, Glen Ellen, Rohnert Park, and Sonoma). Users can discover nearby spots, explore neighborhood guides & Food Passport badges, read/submit moderated community tips & whispers, try the interactive **Pickup Pager** demo, save favorites, and request a truck for an event. Truck owners have an operational dashboard for live location, schedules, listing profile, marketing promo cards, pickup pager tickets, community moderation, and booking requests.
+BiteShark is a mobile-first food-truck, market-vendor, farm-stand, and café discovery + event-booking + pickup-pager web app focused on Sonoma County (Santa Rosa, Petaluma, Sebastopol, Glen Ellen, Rohnert Park, and Sonoma). Users can discover nearby spots, explore neighborhood guides & Food Passport badges, read/submit moderated community tips & whispers, try the interactive **Pickup Pager** demo, save favorites, and request a truck for an event. Vendors have an operational dashboard for live location, schedules, listing profile, marketing promo cards, pickup pager tickets, community moderation, and booking requests.
 
-**Live app:** https://truckly.hatchable.site
+- **Active VPS installation candidate branch:** `working/biteshark-vps` (derived from reviewed standalone VPS branch `migrate/vps-standalone-staging` @ `74c0a7e81ca44a26fd668baf84b3a640563a762c`).
+- **Intended domains (`172.233.140.74`):**
+  - **Staging:** `https://staging.biteshark.live`
+  - **Canonical main URL (currently holding page until production release is separately authorized):** `https://biteshark.live` (`https://www.biteshark.live` `301` → `https://biteshark.live`)
+- **Historical Hatchable app (preserved / untouched):** `https://truckly.hatchable.site`
 
-> **Reconciliation note:** This repository reconciles the full Hatchable **v77** text-source mirror and **Pickup Pager Demo** (PR #2) with the **Photo/Menu Verification** patch (PR #1) and client/API parity fixes — combining all **59 directory listings** (47 primary + 12 neighborhood additions), **27 Hatchable API functions**, and **10 SQL migrations** with both regression suites passing. Three pre-existing binary JPEGs (`public/assets/mitote.jpg`, `oak-hill-guide.jpg`, `retrograde-roasting.jpg`) remain excluded pending image-rights review and gracefully fall back in UI.
+> **Naming & origin transition note:** Public user-facing branding on `working/biteshark-vps` is **BiteShark**. To preserve seamless in-place staging upgrades and avoid unnecessary migrations, internal compatibility identifiers (`__Host-truckly_session`, `truckly_*` same-origin `localStorage` keys, `truckly-dish-notebook-v1` IndexedDB, `truckly-stg` Linux user/systemd units, `truckly_staging` PostgreSQL DB/roles, and legacy `TRUCKLY_*` environment variable aliases alongside primary `BITESHARK_*` names via [`lib/env-compat.js`](./lib/env-compat.js)) are intentionally retained and documented. Browser storage, cookies, passkeys, and Web Push subscriptions are browser-origin-scoped and **do not transfer automatically** across different origins (e.g., from `truckly.hatchable.site` to `staging.biteshark.live` or `biteshark.live`).
 
-> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), [docs/HATCHABLE_STAGING_RUNBOOK.md](./docs/HATCHABLE_STAGING_RUNBOOK.md), [docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](./docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md), [docs/PAGER_NOTIFICATIONS_RUNBOOK.md](./docs/PAGER_NOTIFICATIONS_RUNBOOK.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
+> For an AI/LLM or new developer: read this README first, then read [TECH_MAP.md](./TECH_MAP.md), [docs/STANDALONE_VPS_RUNTIME_AND_AUTH.md](./docs/STANDALONE_VPS_RUNTIME_AND_AUTH.md), [docs/BACKEND_SECURITY_HARDENING.md](./docs/BACKEND_SECURITY_HARDENING.md), [docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](./docs/P1_UNIFIED_DISCOVERY_ARCHITECTURE.md), [docs/PAGER_NOTIFICATIONS_RUNBOOK.md](./docs/PAGER_NOTIFICATIONS_RUNBOOK.md), [docs/VPS_RELEASE_VERIFICATION_REPORT.md](./docs/VPS_RELEASE_VERIFICATION_REPORT.md), and [docs/PHOTO_MENU_VERIFICATION.md](./docs/PHOTO_MENU_VERIFICATION.md) before editing code.
 
 ## What this repository contains
 
@@ -45,10 +49,14 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   ├── pager.js                      # Isolated customer pager demo + opt-in Web Push alerts + vendor-scoped kitchen queue
 │   ├── community.js                  # Approved-only community feed, author status & moderator queue UI
 │   ├── listing-highlights.js         # Sourced menu spotlights & unlicensed stock-photo guard
-│   ├── debug-admin.js                # Local developer/admin inspection workbench (redacts tokens/UUIDs; never bypasses prod auth)
 │   ├── theme.css                     # Full visual system and responsive layout
-│   ├── login.html                    # Hatchable email code + WebAuthn passkey sign-in
-│   ├── logo.svg
+│   ├── login.html                    # BiteShark 6-digit email OTP sign-in
+│   ├── logo.svg                      # BiteShark vector mark
+│   ├── icon-192.png                  # 192x192 PWA & Web Push notification icon
+│   ├── icon-512.png                  # 512x512 PWA install icon (purpose: any)
+│   ├── icon-maskable-512.png         # 512x512 Android adaptive maskable icon
+│   ├── apple-touch-icon.png          # 180x180 opaque iOS Home Screen icon
+│   ├── badge-96.png                  # 96x96 monochrome alpha Web Push notification badge
 │   └── build.json                    # Build/QA metadata
 ├── api/                              # Exact 30 standalone Hatchable serverless endpoints (no helper files here)
 │   ├── trucks.js                     # Unified 59-listing PostgreSQL Sonoma County discovery endpoint
@@ -63,7 +71,9 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 │   └── schedule/                     # Public daily schedule backed by active vendors + owner_schedule
 ├── migrations/                       # PostgreSQL schema history (001–017, including standalone auth_users/sessions)
 ├── scripts/
-│   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (supports DATABASE_URL or seed mock) — NEVER deploy
+│   ├── build-linux-release-tarball.cjs # Off-host deterministic Linux release archive & SHA-256 builder (export-ignore verified)
+│   ├── dev-server.cjs                # LOCAL DEV ONLY preview simulator (excluded from release tarballs) — NEVER deploy
+│   ├── dev-workbench/                # Local-only developer debug workbench injected only by dev-server.cjs (excluded from public/ & tarballs)
 │   ├── run-migrations.cjs            # Checksum-verified idempotent PostgreSQL migration runner (001–017)
 │   ├── run-pager-worker.cjs          # Bounded & supervised notification delivery worker CLI
 │   └── seed-sql-reader.cjs           # Local zero-dependency SQL seed reader for dev simulator & contract tests
@@ -84,12 +94,12 @@ Truckly is a mobile-first food-truck, market-vendor, farm-stand, and café disco
 
 ## Stack
 
-- **Frontend:** plain HTML, CSS, and browser JavaScript; no bundler/build framework.
+- **Frontend:** plain HTML, CSS, and browser JavaScript (`public/`); no bundler/build framework; installable PWA manifest + raster/SVG icon set (`logo.svg`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `badge-96.png`).
 - **Map:** Leaflet 1.9.4 with OpenStreetMap tiles loaded from CDN.
-- **Backend:** 30 standalone Hatchable server functions in `api/**/*.js` + shared modules in `lib/*.js`.
-- **Database:** PostgreSQL through Hatchable's `db` SDK (with additive migrations `001`–`016`, row-level `FOR SHARE`/`FOR NO KEY UPDATE` locking, triggers, and `FORCE ROW LEVEL SECURITY` on `community_reviews` and `pager_notification_*` tables).
-- **Auth & RBAC:** Hatchable hosted authentication (`/login.html`), server-side `vendor_memberships` (`owner` vs `staff`), `platform_roles` (`moderator` vs `platform_admin`), and redacted `audit_logs`.
-- **Hosting:** Hatchable.
+- **Backend:** Production-suitable standalone Node 22 HTTP server (`server/index.js`, `server/app.js`, `server/routes.js`) serving the exact 30 route handlers in `api/**/*.js` + shared modules in `lib/*.js` (`lib/env-compat.js` provides `BITESHARK_*` primary env vars with fail-closed `TRUCKLY_*` alias support).
+- **Database:** PostgreSQL 16+ via `packages/hatchable-adapter` (`pg@8.23.1`, additive migrations `001`–`017`, row-level `FOR SHARE`/`FOR NO KEY UPDATE` locking, triggers, and `FORCE ROW LEVEL SECURITY` on `community_reviews`, `pager_notification_*`, and `auth_*` tables under restricted `NOSUPERUSER NOBYPASSRLS` application role).
+- **Auth & RBAC:** Standalone RFC 4226 HOTP 6-digit email verification + HttpOnly `__Host-truckly_session` cookies (`/login.html`, `lib/standalone-auth.js`), server-side `vendor_memberships` (`owner` vs `staff`), `platform_roles` (`moderator` vs `platform_admin`), and redacted `audit_logs`.
+- **Hosting:** Standalone Linux VPS (`172.233.140.74`, Nginx TLS + loopback Node 22 + PostgreSQL 16 + `systemd` supervised API, worker & encrypted backup timer). Candidate installation branch: `working/biteshark-vps`.
 
 ## Local preview & verification checks
 

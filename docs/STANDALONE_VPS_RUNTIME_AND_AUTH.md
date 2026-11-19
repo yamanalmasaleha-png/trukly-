@@ -1,11 +1,12 @@
-# Truckly Standalone Node Runtime, PostgreSQL Adapter & Authentication Architecture
+# BiteShark Standalone Node Runtime, PostgreSQL Adapter & Authentication Architecture (Formerly Truckly)
 
 ## 1. Scope & Baseline Lineage
 
-- **Executable baseline:** `fa4e40affb574d3da5a98e4874b301ad5251e17c`
-- **Verification report baseline:** `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13` (documentation-only commit on `docs/RELEASE_VERIFICATION_REPORT.md`)
-- **Feature freeze:** Product features remain frozen. This architecture provides runtime portability off Hatchable (`server/index.js`, `packages/hatchable-adapter`), safe server-side authentication (`migrations/017_standalone_auth_and_sessions.sql`, `lib/standalone-auth.js`, `public/auth-client.js`), bounded deployment templates (`deploy/`), and VPS staging verification (`tests/vps-staging-gates.cjs`).
-- **Developer simulator isolation:** `scripts/dev-server.cjs` remains a local-only developer preview facility and is **never** deployed. `server/index.js` exposes zero `/__debug/*` routes and strips/ignores `x-truckly-debug-role` and `truckly_debug_role`.
+- **Active VPS installation candidate branch:** `working/biteshark-vps` (branched from `migrate/vps-standalone-staging` @ `74c0a7e81ca44a26fd668baf84b3a640563a762c`, executable base `614dc997e1b903c94948dc7ff13d02e51c434acd`)
+- **Historical Hatchable executable baseline:** `fa4e40affb574d3da5a98e4874b301ad5251e17c`
+- **Historical verification report baseline:** `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13` (documentation-only commit on `docs/RELEASE_VERIFICATION_REPORT.md`)
+- **Feature freeze & BiteShark public rename:** Product features remain frozen. On `working/biteshark-vps`, all active user-facing branding is **BiteShark**, paired with runtime portability off Hatchable (`server/index.js`, `packages/hatchable-adapter`), safe server-side authentication (`migrations/017_standalone_auth_and_sessions.sql`, `lib/standalone-auth.js`, `public/auth-client.js`), environment alias compatibility (`lib/env-compat.js`), bounded deployment templates & single-SHA installer (`deploy/`), and VPS staging verification (`tests/vps-staging-gates.cjs`).
+- **Developer simulator isolation:** `scripts/dev-server.cjs` and `scripts/dev-workbench/debug-admin.{js,css}` are local-only developer preview facilities excluded from `public/` and excluded from Linux release archives via `.gitattributes` `export-ignore`. `server/index.js` exposes zero `/__debug/*` or `/debug-admin.*` routes and strips/ignores `x-biteshark-debug-role`, `x-truckly-debug-role`, and `truckly_debug_role`.
 
 ---
 
@@ -91,4 +92,46 @@ Before installing anything on the VPS, an explicit line-by-line review of the st
 | `REV-03` | Protected Staging Mailbox Boundary (`server/app.js`, `lib/standalone-auth.js`, `deploy/nginx/truckly-staging.conf.template`) | `/api/auth/staging-mailbox` relied solely on `X-Staging-Mailbox-Secret` without a loopback socket guard, per-IP rate limit, or explicit Nginx `404` rule. | Restricted `/api/auth/staging-mailbox` to loopback sockets by default (`TRUCKLY_ALLOW_REMOTE_STAGING_MAILBOX !== '1'`), added per-IP `staging_mailbox_ip` rate limiting, and added explicit `404` blocks for `/api/auth/staging-mailbox` and `/api/_staging_gate_probe` in Nginx template. |
 | `REV-04` | Concurrent OTP Start, Disabled Accounts & Session Bounds (`migrations/017`, `lib/standalone-auth.js`) | Concurrent `POST /api/auth/start` calls for the same email could insert two active unconsumed challenges under `READ COMMITTED`; `verifyEmailOtpChallenge` updated `last_login_at` before checking `disabled_at` and allowed unbounded active sessions per user. | Added partial unique index `idx_auth_otp_one_active_per_email` + `pg_advisory_xact_lock`, checked `disabled_at` (`FOR UPDATE` + session revocation) before mutating `auth_users`, guarded `timingSafeEqual` buffer length, and bounded active sessions at `MAX_ACTIVE_SESSIONS_PER_USER = 10`. Verified in `[5/8]`. |
 | `REV-05` | Least-Privilege DB Grants & Socket Hygiene (`scripts/run-migrations.cjs`, `server/app.js`) | `run-migrations.cjs` left `UPDATE, DELETE` granted to the runtime app role on append-only `audit_logs` and `SELECT` on `schema_migrations`; `413` responses did not tear down streaming sockets on `finish`. | Revoked `UPDATE, DELETE ON audit_logs` and `ALL ON schema_migrations` from `--app-role`, destroyed oversized `413` sockets on `finish`, and hardened `systemd` units (`UMask=0077`, empty `CapabilityBoundingSet=`). Verified in `[6/8]` and `vps-staging-gates.cjs`. |
-| `DEF-VPS-03` | Loopback Proxy Trust Default (`deploy/staging.env.example`, `deploy/nginx/truckly-staging.conf.template`) | `deploy/staging.env.example` defaulted `TRUCKLY_TRUST_PROXY=loopback` before the Nginx reverse proxy was active to overwrite `X-Real-IP: $remote_addr` and `X-Forwarded-For: $remote_addr`, allowing loopback/tunneled callers on `127.0.0.1:4100` to rotate `X-Real-IP` / `X-Forwarded-For`. | Changed `deploy/staging.env.example` default to `TRUCKLY_TRUST_PROXY=none` and paired `TRUCKLY_TRUST_PROXY=loopback` strictly with Nginx vhost activation in `deploy/nginx/truckly-staging.conf.template` (`614dc99`). Verified in `[6/8]` and live VPS Stage 1. |
+| `DEF-VPS-03` | Loopback Proxy Trust Default (`deploy/staging.env.example`, `deploy/nginx/truckly-staging.conf.template`) | `deploy/staging.env.example` defaulted `TRUCKLY_TRUST_PROXY=loopback` before the Nginx reverse proxy was active to overwrite `X-Real-IP: $remote_addr` and `X-Forwarded-For: $remote_addr`, allowing loopback/tunneled callers on `127.0.0.1:4100` to rotate `X-Real-IP` / `X-Forwarded-For`. | Changed `deploy/staging.env.example` default to `BITESHARK_TRUST_PROXY=none` (`TRUCKLY_TRUST_PROXY=none`) and paired `loopback` strictly with Nginx vhost activation (`614dc99`). Verified in `[6/8]` and live VPS Stage 1. |
+
+---
+
+## 5. BiteShark Compatibility, Cross-Origin Boundaries & Reproducible Single-SHA Deployment (`working/biteshark-vps`)
+
+### 5.1 Environment Variable Precedence & Fail-Closed Conflict Detection (`lib/env-compat.js`)
+
+`working/biteshark-vps` introduces `BITESHARK_*` as the primary configuration prefix while supporting existing `TRUCKLY_*` variables on already-provisioned staging hosts:
+
+1. **Single-set resolution:** If only `BITESHARK_<KEY>` is non-empty, it is used; if only `TRUCKLY_<KEY>` is non-empty, `TRUCKLY_<KEY>` is used seamlessly.
+2. **Matching dual-set resolution:** If both `BITESHARK_<KEY>` and `TRUCKLY_<KEY>` are set to identical trimmed values, that value is used.
+3. **Conflicting security-critical values fail closed:** If both `BITESHARK_<KEY>` and `TRUCKLY_<KEY>` are set to **different** non-empty values on any security-critical setting (`ENV`, `PUBLIC_ORIGIN`, `TRUST_PROXY`, `PLATFORM_ADMIN_IDS`, `PAUSE_WRITES`, `AUTH_SECRET`, `AUTH_DELIVERY_MODE`, `ALLOW_TEST_MAILBOX_IN_TESTS`, `ALLOW_REMOTE_STAGING_MAILBOX`, `STAGING_MAILBOX_SECRET`, `STAGING_ALLOWED_EMAIL_DOMAINS`, `STAGING_ALLOWED_EMAILS`, `AUTH_EMAIL_API_KEY`, `AUTH_EMAIL_FROM`, `AUTH_EMAIL_API_URL`, `NOTIFICATION_WORKER_SECRET`, `ALLOW_REMOTE_WORKER`, `PUSH_PROVIDER_MODE`, `ALLOW_TEST_PUSH_MODES`, `VAPID_*`, `DISABLE_SUBSCRIPTIONS`, `DISABLE_NOTIFICATION_DELIVERY`, `PUSH_ALLOWED_HOSTS`, `ENABLE_NATIVE_PUSH`, `ENABLE_STAGING_PROBE`, `STAGING_PROBE_TOKEN`), `readEnvCompat(..., { securityCritical: true })` throws `EnvAliasConflictError` without logging secret values:
+   - `server/index.js` refuses to start (`STARTUP_ERROR` / `ENV_ALIAS_CONFLICT`).
+   - `GET /api/healthz` returns `503` (`status: "degraded", config: "conflict"`).
+   - `isWritePaused()` fails closed (`true`, pausing mutations), `resolveTrustedClientIp()` fails closed (`trustProxy = 'none'`), and push/auth/worker/probe endpoints fail closed (`503` / `404` / loopback-only).
+4. **Non-security tuning settings** (`RELEASE_SHA`, `MAX_JSON_BYTES`, `DB_POOL_MAX`, `WORKER_DB_POOL_MAX`, `PG_NODE_MODULES`): `BITESHARK_<KEY>` takes explicit precedence over `TRUCKLY_<KEY>`.
+
+### 5.2 Same-Origin Storage Continuity vs Cross-Origin Non-Transfer
+
+- **Same-origin updates (`https://staging.biteshark.live` in-place upgrade):** Internal cookie (`__Host-truckly_session`), `localStorage` keys (`truckly_favs`, `truckly_catalog_v2`, `truckly_notify`, `truckly_owner_truck_id`, `truckly_owner_profile`, `truckly_owner_schedule`, `truckly_guide_passport_v1`, `truckly_pager_subs_v1`), IndexedDB database (`truckly-dish-notebook-v1`), custom CSRF client headers (`X-BiteShark-Client` + legacy `X-Truckly-Client`), and service-worker postMessage types (`BITESHARK_OPEN_PAGER_REF` + `TRUCKLY_OPEN_PAGER_REF`) are preserved so active sessions, saved spots, cached directory snapshots, tasting-notebook photos, and pager tap routing survive an in-place deploy with zero data loss or duplicate storage.
+- **Cross-origin boundary (mandatory disclosure):** Browser `localStorage`, IndexedDB, `__Host-` cookies, WebAuthn passkeys, and Web Push `PushSubscription` endpoints are bound by the browser's Same-Origin Policy (`scheme + host + port`). Data stored previously on `https://truckly.hatchable.site` or `https://staging.biteshark.live` **does not transfer automatically** to `https://biteshark.live` (or between staging and production).
+
+### 5.3 Stable Internal VPS Resource Names & Reproducible Single-SHA Deployment
+
+To prevent orphaned units, competing ports, or unnecessary database rebuilds on `172.233.140.74`, existing staging system identifiers (`truckly-stg` user, `/srv/truckly-staging`, `/etc/truckly-staging`, PostgreSQL database `truckly_staging`, roles `truckly_stg_migrator` & `truckly_stg_app`, and `systemd` units `truckly-staging-{api,worker,backup}`) are intentionally retained for staging.
+
+1. **Build deterministic Linux tarball off-host (never copy Windows `node_modules`):**
+   ```bash
+   node scripts/build-linux-release-tarball.cjs --ref <40-hex-commit-sha> --out-dir ./artifacts
+   ```
+2. **Upload tarball + `.sha256` to `/tmp` on `172.233.140.74` and install atomically:**
+   ```bash
+   sudo bash deploy/install-staging-release.sh \
+     --sha <40-hex-commit-sha> \
+     --tarball /tmp/biteshark-<sha12>.tar.gz \
+     --sha256-file /tmp/biteshark-<sha12>.tar.gz.sha256
+   ```
+3. **Instant reversal / rollback to prior verified release directory:**
+   ```bash
+   sudo bash deploy/install-staging-release.sh --rollback-to 614dc997e1b903c94948dc7ff13d02e51c434acd
+   ```
+

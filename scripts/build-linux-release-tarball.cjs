@@ -1,0 +1,111 @@
+#!/usr/bin/env node
+// Off-Host Deterministic Linux Release Tarball Builder for BiteShark (`working/biteshark-vps`)
+//
+// Produces a clean `biteshark-<sha12>.tar.gz` and `<tarball>.sha256` from an exact Git commit
+// using `git archive` (honoring `.gitattributes` `export-ignore` so tests, CI workflows, and
+// local simulator/debug workbench files are excluded and zero host `node_modules` or `.env`
+// files ever enter the archive).
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+
+const ROOT = path.resolve(__dirname, '..');
+
+function parseArgs(argv) {
+  const opts = {
+    ref: 'HEAD',
+    outDir: path.join(os.tmpdir(), 'biteshark-release-artifacts')
+  };
+  for (let i = 2; i < argv.length; i++) {
+    if (argv[i] === '--ref' && argv[i + 1]) opts.ref = argv[++i];
+    else if (argv[i] === '--out-dir' && argv[i + 1]) opts.outDir = path.resolve(argv[++i]);
+  }
+  return opts;
+}
+
+const opts = parseArgs(process.argv);
+const fullSha = execFileSync('git', ['rev-parse', '--verify', `${opts.ref}^{commit}`], {
+  cwd: ROOT,
+  encoding: 'utf8'
+}).trim();
+
+if (!/^[0-9a-f]{40}$/.test(fullSha)) {
+  throw new Error(`Invalid resolved commit SHA: ${fullSha}`);
+}
+
+fs.mkdirSync(opts.outDir, { recursive: true });
+const shortSha = fullSha.slice(0, 12);
+const baseName = `biteshark-${shortSha}.tar.gz`;
+const tarballPath = path.join(opts.outDir, baseName);
+const sha256Path = `${tarballPath}.sha256`;
+
+execFileSync('git', ['archive', '--format=tar.gz', `--output=${tarballPath}`, fullSha], {
+  cwd: ROOT,
+  stdio: 'inherit'
+});
+
+// Inspect archived member list via `git archive --list` or `tar -tzf` to guarantee zero forbidden paths
+const archivedEntries = execFileSync('tar', ['-tzf', tarballPath], {
+  cwd: ROOT,
+  encoding: 'utf8'
+})
+  .split(/\r?\n/)
+  .filter(Boolean);
+
+const forbiddenMatches = archivedEntries.filter(
+  entry =>
+    /(^|\/)\.env(\.|$)/i.test(entry) ||
+    entry.startsWith('node_modules/') ||
+    entry.startsWith('.github/') ||
+    entry.startsWith('tests/') ||
+    entry.includes('debug-admin.') ||
+    entry.includes('dev-server.cjs')
+);
+
+if (forbiddenMatches.length > 0) {
+  fs.rmSync(tarballPath, { force: true });
+  throw new Error(`Forbidden files found in release archive: ${forbiddenMatches.join(', ')}`);
+}
+
+for (const requiredEntry of [
+  'package.json',
+  'package-lock.json',
+  'server/index.js',
+  'server/app.js',
+  'public/index.html',
+  'public/manifest.json',
+  'public/icon-192.png',
+  'public/icon-512.png',
+  'public/apple-touch-icon.png',
+  'scripts/run-migrations.cjs',
+  'scripts/run-pager-worker.cjs',
+  'deploy/install-staging-release.sh'
+]) {
+  if (!archivedEntries.includes(requiredEntry)) {
+    throw new Error(`Required release file missing from archive: ${requiredEntry}`);
+  }
+}
+
+const bytes = fs.readFileSync(tarballPath);
+const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+fs.writeFileSync(sha256Path, `${sha256}  ${baseName}\n`, 'utf8');
+
+console.log(
+  JSON.stringify(
+    {
+      ok: true,
+      commit_sha: fullSha,
+      tarball_name: baseName,
+      tarball_path: tarballPath,
+      sha256_path: sha256Path,
+      sha256,
+      size_bytes: bytes.length,
+      entry_count: archivedEntries.length
+    },
+    null,
+    2
+  )
+);

@@ -700,6 +700,13 @@ function resolveApiRoute(pathname) {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
       const pathname = url.pathname;
 
+      if (pathname === '/__debug/debug-admin.js' || pathname === '/__debug/debug-admin.css') {
+        const wbFile = path.join(__dirname, 'dev-workbench', path.basename(pathname));
+        const ext = path.extname(wbFile).toLowerCase();
+        res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
+        return fs.createReadStream(wbFile).pipe(res);
+      }
+
       if (pathname === '/__debug/state') {
         const role = getRequestRole(req);
         if (req.method === 'POST') {
@@ -800,6 +807,13 @@ function resolveApiRoute(pathname) {
         return res.end('Not found');
       }
       const ext = path.extname(safePath).toLowerCase();
+      if (relPath === 'index.html') {
+        let html = fs.readFileSync(safePath, 'utf8');
+        html = html.replace('</head>', '  <link rel="stylesheet" href="/__debug/debug-admin.css">\n</head>');
+        html = html.replace('</body>', '<script src="/__debug/debug-admin.js"></script>\n</body>');
+        res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
+        return res.end(html);
+      }
       res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
       fs.createReadStream(safePath).pipe(res);
     } catch (err) {

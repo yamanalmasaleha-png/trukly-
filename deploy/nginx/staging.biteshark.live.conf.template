@@ -1,0 +1,109 @@
+# BiteShark isolated staging vhost (`https://staging.biteshark.live`).
+#
+# Co-tenant & security invariants on 172.233.140.74:
+#   - Install at `/etc/nginx/sites-available/staging.biteshark.live` and symlink as
+#     `/etc/nginx/sites-enabled/z-staging.biteshark.live` (prefixed `z-` so `/etc/nginx/sites-enabled/lifestyle-api`
+#     remains the first-loaded default `:80` host without editing `lifestyle-api`).
+#   - Proxies strictly to loopback `http://127.0.0.1:4100`.
+#   - Overwrites `X-Real-IP` and `X-Forwarded-For` from `$remote_addr` (pair with `BITESHARK_TRUST_PROXY=loopback`
+#     or `TRUCKLY_TRUST_PROXY=loopback` and `BITESHARK_PUBLIC_ORIGIN=https://staging.biteshark.live` in
+#     `/etc/truckly-staging/staging.env`).
+#   - Blocks internal worker, staging mailbox, staging gate probe, dotfiles, and debug paths at the edge.
+#   - HSTS uses `max-age=31536000` WITHOUT `includeSubDomains` or `preload`.
+
+server {
+    listen 80;
+    server_name staging.biteshark.live;
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://staging.biteshark.live$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name staging.biteshark.live;
+    server_tokens off;
+
+    ssl_certificate /etc/letsencrypt/live/biteshark.live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/biteshark.live/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:BiteSharkTLS:2m;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+
+    client_max_body_size 64k;
+
+    location ~ /\.(?!well-known) {
+        return 404;
+    }
+
+    # Block internal supervisor worker, operator staging mailbox & diagnostic endpoints from public internet
+    location = /api/pager/worker {
+        return 403;
+    }
+
+    location = /api/auth/staging-mailbox {
+        return 404;
+    }
+
+    location = /api/_staging_gate_probe {
+        return 404;
+    }
+
+    location ^~ /__debug {
+        return 404;
+    }
+
+    location = /debug-admin.js {
+        return 404;
+    }
+
+    location = /debug-admin.css {
+        return 404;
+    }
+
+    # Explicit non-cached Service Worker delivery (repeats server-level security headers per Nginx add_header rules)
+    location = /sw.js {
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Service-Worker-Allowed "/" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "same-origin" always;
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+}

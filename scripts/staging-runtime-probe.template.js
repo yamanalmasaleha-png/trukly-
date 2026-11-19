@@ -26,6 +26,7 @@
 import crypto from "node:crypto";
 import { db, auth } from "hatchable";
 import { loadAccessContext, applyPrivateNoStoreHeaders } from "../lib/authz.js";
+import { readEnvCompat, EnvAliasConflictError } from "../lib/env-compat.js";
 import { withTransaction } from "../lib/db-tx.js";
 import {
   toBase64Url,
@@ -76,7 +77,17 @@ function runWebPushCryptoSelfTest() {
 export default async function(req, res) {
   applyPrivateNoStoreHeaders(res);
 
-  const expectedToken = process.env.TRUCKLY_STAGING_PROBE_TOKEN || "";
+  let expectedToken = "";
+  let runtimeEnv = "";
+  try {
+    expectedToken = readEnvCompat("STAGING_PROBE_TOKEN", { securityCritical: true });
+    runtimeEnv = readEnvCompat("ENV", { securityCritical: true }).toLowerCase();
+  } catch (err) {
+    if (err instanceof EnvAliasConflictError) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    throw err;
+  }
   const suppliedToken = String(req.headers?.["x-staging-probe-token"] || "");
   if (!timingSafeMatch(expectedToken, suppliedToken)) {
     return res.status(404).json({ error: "Not found" });
@@ -84,10 +95,9 @@ export default async function(req, res) {
 
   // Fail-closed server-side environment verification: refuse to run on production or unconfirmed environments!
   const runtimeProjectId = String(process.env.HATCHABLE_PROJECT_ID || process.env.PROJECT_ID || "").trim();
-  const runtimeEnv = String(process.env.TRUCKLY_ENV || "").trim().toLowerCase();
   if (runtimeProjectId === "proj_MEO518rmLLl0" || runtimeEnv !== "staging") {
     return res.status(403).json({
-      error: "Refusing to execute staging runtime probe: server environment is not confirmed isolated staging (TRUCKLY_ENV=staging required; proj_MEO518rmLLl0 forbidden).",
+      error: "Refusing to execute staging runtime probe: server environment is not confirmed isolated staging (BITESHARK_ENV=staging / TRUCKLY_ENV=staging required; proj_MEO518rmLLl0 forbidden).",
       code: "PRODUCTION_OR_UNCONFIRMED_ENVIRONMENT"
     });
   }
@@ -252,7 +262,7 @@ export default async function(req, res) {
       project_id_hash: runtimeProjectId
         ? "sha256:" + crypto.createHash("sha256").update(runtimeProjectId).digest("hex").slice(0, 12)
         : "unset",
-      release_sha: process.env.TRUCKLY_RELEASE_SHA || process.env.GITHUB_SHA || "unset",
+      release_sha: readEnvCompat("RELEASE_SHA") || process.env.GITHUB_SHA || "unset",
       node_version: process.version
     },
     adapter: {

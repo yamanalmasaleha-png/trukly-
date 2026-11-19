@@ -1,19 +1,33 @@
 #!/usr/bin/env node
-// Bounded & Supervised Pager Notification Worker Runner
+// Bounded & Supervised BiteShark Pager Notification Worker Runner
 //
 // Modes:
 //   1. Loopback / HTTPS Supervisor Mode (recommended for systemd `truckly-staging-worker.service` or cron):
-//      TRUCKLY_WORKER_URL="http://127.0.0.1:4100/api/pager/worker" \
-//      TRUCKLY_NOTIFICATION_WORKER_SECRET="<secret>" \
+//      BITESHARK_WORKER_URL="http://127.0.0.1:4100/api/pager/worker" \
+//      BITESHARK_NOTIFICATION_WORKER_SECRET="<secret>" \
 //      node scripts/run-pager-worker.cjs --continuous --interval-ms 10000
 //
 //   2. Direct PostgreSQL Batch Mode (for one-shot CI / incident recovery):
 //      DATABASE_URL="postgres://..." \
-//      TRUCKLY_PUSH_PROVIDER_MODE="webpush" \
+//      BITESHARK_PUSH_PROVIDER_MODE="webpush" \
 //      node scripts/run-pager-worker.cjs --direct-db
 
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+
+function readCliEnvCompat(suffix, { securityCritical = false, defaultValue = '' } = {}) {
+  const bsVal = String(process.env[`BITESHARK_${suffix}`] || '').trim();
+  const trVal = String(process.env[`TRUCKLY_${suffix}`] || '').trim();
+  if (bsVal && trVal && bsVal !== trVal) {
+    if (securityCritical) {
+      throw new Error(
+        `Conflicting values supplied for BITESHARK_${suffix} and legacy alias TRUCKLY_${suffix}; align or remove the duplicate variable.`
+      );
+    }
+    return bsVal;
+  }
+  return bsVal || trVal || defaultValue;
+}
 
 function parseArgs(argv) {
   const out = {
@@ -23,7 +37,7 @@ function parseArgs(argv) {
     maxTicks: 1,
     intervalMs: 0,
     cleanupEveryTicks: 30,
-    url: process.env.TRUCKLY_WORKER_URL || ''
+    url: readCliEnvCompat('WORKER_URL', { securityCritical: true })
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -75,9 +89,11 @@ function sleepInterruptible(ms) {
   const opts = parseArgs(process.argv);
 
   if (!opts.directDb && opts.url) {
-    const secret = String(process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET || '').trim();
+    const secret = readCliEnvCompat('NOTIFICATION_WORKER_SECRET', { securityCritical: true });
     if (secret.length < 24) {
-      throw new Error('TRUCKLY_NOTIFICATION_WORKER_SECRET (>= 24 chars) is required for remote worker invocation.');
+      throw new Error(
+        'BITESHARK_NOTIFICATION_WORKER_SECRET (or legacy TRUCKLY_NOTIFICATION_WORKER_SECRET, >= 24 chars) is required for remote worker invocation.'
+      );
     }
 
     let tick = 0;
@@ -133,18 +149,20 @@ function sleepInterruptible(ms) {
   }
 
   if (!process.env.DATABASE_URL) {
-    throw new Error('Provide either TRUCKLY_WORKER_URL (for HTTP/HTTPS mode) or DATABASE_URL with --direct-db.');
+    throw new Error(
+      'Provide either BITESHARK_WORKER_URL / TRUCKLY_WORKER_URL (for HTTP/HTTPS mode) or DATABASE_URL with --direct-db.'
+    );
   }
 
-  const extraNodeModules = process.env.TRUCKLY_PG_NODE_MODULES;
+  const extraNodeModules = readCliEnvCompat('PG_NODE_MODULES');
   const { Pool } = extraNodeModules ? require(path.join(extraNodeModules, 'pg')) : require('pg');
 
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: Math.max(2, Math.min(6, Number(process.env.TRUCKLY_WORKER_DB_POOL_MAX || 4))),
+    max: Math.max(2, Math.min(6, Number(readCliEnvCompat('WORKER_DB_POOL_MAX') || 4))),
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    application_name: `truckly-worker-${process.env.TRUCKLY_ENV || 'local'}`
+    application_name: `truckly-worker-${readCliEnvCompat('ENV', { securityCritical: true, defaultValue: 'local' })}`
   });
   const dbAdapter = {
     query: (text, params) => pool.query(text, params),

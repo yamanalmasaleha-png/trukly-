@@ -129,13 +129,14 @@ function makeEl(id,extra={}){
 
   const app=fs.readFileSync(join('public','app.js'),'utf8');
   const highlight=fs.readFileSync(join('public','listing-highlights.js'),'utf8');
-  const debugAdmin=fs.readFileSync(join('public','debug-admin.js'),'utf8');
+  const debugAdmin=fs.readFileSync(join('scripts','dev-workbench','debug-admin.js'),'utf8');
   const html=fs.readFileSync(join('public','index.html'),'utf8');
   const loginHtml=fs.readFileSync(join('public','login.html'),'utf8');
   new Function(app);new Function(highlight);new Function(debugAdmin);
   assert(!app.includes('neighborhoodAdditions')&&!app.includes('mergeNeighborhoodAdditions'),'client-side duplicate neighborhoodAdditions catalog removed');
   assert(html.includes('/listing-highlights.js'),'listing visual enhancement is actually loaded');
-  assert(html.includes('/debug-admin.js')&&html.includes('/debug-admin.css'),'admin/debug workbench assets wired');
+  assert(!html.includes('/debug-admin.js')&&!html.includes('/debug-admin.css'),'development debug workbench controls excluded from public/index.html');
+  assert(!fs.existsSync(join('public','debug-admin.js'))&&!fs.existsSync(join('public','debug-admin.css')),'development debug workbench files absent from public/ release directory');
   assert(!html.includes('>JM</summary>'),'hardcoded JM avatar removed');
   assert(html.includes('id="authSignInLink"')&&html.includes('id="mapEmpty"')&&html.includes('id="bookingError"'),'new UX elements wired in HTML');
   assert(loginHtml.includes('id="returnLink"'),'login page includes back link');
@@ -649,5 +650,70 @@ function makeEl(id,extra={}){
   const filteredBookingsRes=await invoke(ownerBookingsApi,{user:{id:'usr_owner_dinos'},query:{status:'accepted'}});
   assert.equal(filteredBookingsRes.body.bookings[0].status,'accepted');
 
-  console.log('PASS: 59 unified Sonoma County listings, truthful distances, safe photo defaults, JS syntax, UI flows, cross-API parity, 503 outage guards, and Owner Mode wiring');
+  // 5. BiteShark public branding, PWA manifest/icons, release hygiene & deployment template parity
+  const manifestRaw=fs.readFileSync(join('public','manifest.json'),'utf8');
+  const manifest=JSON.parse(manifestRaw);
+  const swJs=fs.readFileSync(join('public','sw.js'),'utf8');
+  const smartJs=fs.readFileSync(join('public','smart.js'),'utf8');
+  const pagerJs=fs.readFileSync(join('public','pager.js'),'utf8');
+  const localGuidesJs=fs.readFileSync(join('public','local-guides.js'),'utf8');
+  const logoSvg=fs.readFileSync(join('public','logo.svg'),'utf8');
+
+  for(const [name,content] of [
+    ['public/index.html',html],
+    ['public/login.html',loginHtml],
+    ['public/manifest.json',manifestRaw],
+    ['public/sw.js',swJs],
+    ['public/smart.js',smartJs]
+  ]){
+    assert(!/truc?kly/i.test(content),`${name} must contain zero Truckly/Trukly strings`);
+  }
+  assert(html.includes('<title>BiteShark — Good food. Word gets around.</title>'),'index.html BiteShark title');
+  assert(html.includes('aria-label="BiteShark owner mode"')&&html.includes('<span>BiteShark</span>'),'header brand mark shows BiteShark');
+  assert(!html.includes('<span class="brand-mark">T</span>'),'old T brand mark replaced');
+  assert(loginHtml.includes('<title>Sign in · BiteShark</title>')&&loginHtml.includes('← Back to BiteShark'),'login.html BiteShark branding');
+  assert(!loginHtml.includes('<div class="login-logo">T</div>'),'old login T mark replaced');
+  assert(swJs.includes('BiteShark · Order Ready for Pickup')&&swJs.includes("icon: '/icon-192.png'")&&swJs.includes("badge: '/badge-96.png'")&&swJs.includes("type: 'BITESHARK_OPEN_PAGER_REF'"),'sw.js BiteShark push branding & raster icons');
+  assert(pagerJs.includes('BiteShark Test Kitchen')&&!pagerJs.includes('Truckly Test Kitchen'),'pager demo uses BiteShark Test Kitchen');
+  assert(pagerJs.includes("'X-BiteShark-Client':'web-pager-v1'")&&pagerJs.includes("msg.type!=='BITESHARK_OPEN_PAGER_REF'&&msg.type!=='TRUCKLY_OPEN_PAGER_REF'"),'pager.js sends X-BiteShark-Client and accepts both SW message types');
+  assert(app.includes('Could not reach BiteShark right now')&&app.includes('find us on BiteShark!'),'app.js BiteShark user-facing messages');
+  assert(app.includes("'truckly_favs'")&&app.includes("'truckly_catalog_v2'")&&localGuidesJs.includes("'truckly-dish-notebook-v1'"),'same-origin browser storage keys intentionally preserved');
+  assert(logoSvg.includes('<svg')&&!logoSvg.includes('>T<'),'logo.svg is a code-native BiteShark vector mark');
+
+  assert.equal(manifest.short_name,'BiteShark');
+  assert(manifest.name.startsWith('BiteShark — '),'manifest name starts with BiteShark');
+  assert.equal(manifest.display,'standalone');
+
+  function inspectPng(relFile){
+    const buf=fs.readFileSync(join('public',relFile));
+    const sig=buf.subarray(0,8).toString('hex');
+    assert.equal(sig,'89504e470d0a1a0a',`${relFile} must have valid PNG signature`);
+    assert.equal(buf.subarray(12,16).toString('ascii'),'IHDR',`${relFile} must start with IHDR chunk`);
+    return {width:buf.readUInt32BE(16),height:buf.readUInt32BE(20),colorType:buf[25],bytes:buf.length};
+  }
+  const png180=inspectPng('apple-touch-icon.png');
+  assert.equal(png180.width,180);assert.equal(png180.height,180);assert.equal(png180.colorType,2,'apple-touch-icon.png opaque RGB');
+  const png192=inspectPng('icon-192.png');
+  assert.equal(png192.width,192);assert.equal(png192.height,192);
+  const png512=inspectPng('icon-512.png');
+  assert.equal(png512.width,512);assert.equal(png512.height,512);
+  const pngMask=inspectPng('icon-maskable-512.png');
+  assert.equal(pngMask.width,512);assert.equal(pngMask.height,512);
+  const pngBadge=inspectPng('badge-96.png');
+  assert.equal(pngBadge.width,96);assert.equal(pngBadge.height,96);assert.equal(pngBadge.colorType,6,'badge-96.png RGBA alpha');
+
+  const publicFiles=fs.readdirSync(join('public'));
+  assert(!publicFiles.some(f=>f.startsWith('.env')||f.includes('debug-admin')||f.includes('dev-server')),'no secrets or development controls in public/');
+
+  const holdingHtml=fs.readFileSync(join('deploy','holding','index.html'),'utf8');
+  assert(holdingHtml.includes('BiteShark is coming soon.')&&!/login|staging|truckly/i.test(holdingHtml),'minimal BiteShark holding page');
+  const rootNginx=fs.readFileSync(join('deploy','nginx','biteshark.live.conf.template'),'utf8').replace(/^\s*#.*$/gm,'');
+  const stgNginx=fs.readFileSync(join('deploy','nginx','staging.biteshark.live.conf.template'),'utf8').replace(/^\s*#.*$/gm,'');
+  assert(rootNginx.includes('return 301 https://biteshark.live$request_uri;')&&!rootNginx.includes('includeSubDomains')&&!rootNginx.includes('preload'),'biteshark.live canonical redirect & safe HSTS');
+  assert(stgNginx.includes('server_name staging.biteshark.live;')&&stgNginx.includes('proxy_pass http://127.0.0.1:4100;')&&!stgNginx.includes('includeSubDomains')&&!stgNginx.includes('preload'),'staging.biteshark.live loopback proxy & safe HSTS');
+  assert(fs.existsSync(join('deploy','install-staging-release.sh')),'single-SHA staging release installer exists');
+  const ciYaml=fs.readFileSync(join('.github','workflows','truckly-source-review.yml'),'utf8');
+  assert(ciYaml.includes('- working/**'),'GitHub Actions workflow triggers on working/** branches');
+
+  console.log('PASS: 59 unified Sonoma County listings, BiteShark branding & raster icons, release asset hygiene, truthful distances, safe photo defaults, JS syntax, UI flows, cross-API parity, 503 outage guards, and Owner Mode wiring');
 })().catch(e=>{console.error(e);process.exitCode=1;});

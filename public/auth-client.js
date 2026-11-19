@@ -1,8 +1,8 @@
-/* Truckly Standalone Authentication Client Bridge
+/* BiteShark Standalone Authentication Client Bridge
  *
  * Replaces Hatchable's browser auth dependency with real same-origin HTTP requests
  * to `/api/auth/{start,verify,session,logout}` backed by HttpOnly `__Host-truckly_session`
- * cookies and PostgreSQL session records.
+ * cookies (preserved internal cookie name for same-origin session continuity) and PostgreSQL session records.
  *
  * Security & Scope Guarantees:
  *   - Never fabricates or caches unverified client-side sessions.
@@ -24,7 +24,7 @@
       cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
-        'X-Truckly-Client': AUTH_CLIENT_HEADER
+        'X-BiteShark-Client': AUTH_CLIENT_HEADER
       },
       body: JSON.stringify(payload || {})
     });
@@ -89,6 +89,7 @@
     }
   };
 
+  window.bitesharkAuth = standaloneAuthClient;
   window.trucklyAuth = standaloneAuthClient;
   window.hatchable = Object.assign({}, window.hatchable || {}, {
     auth: standaloneAuthClient

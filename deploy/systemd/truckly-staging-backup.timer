@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Encrypted Backup Timer for Truckly Staging Database
+Description=Daily Encrypted Backup Timer for BiteShark Staging Database (truckly_staging)
 
 [Timer]
 OnCalendar=*-*-* 09:40:00 UTC

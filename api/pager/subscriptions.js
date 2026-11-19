@@ -79,7 +79,7 @@ export default async function(req, res) {
         subscriptions_paused: subDisabled,
         vapid_public_key: enabled ? providerCfg.vapidPublicKey : null,
         ios_pwa_requirement:
-          "On iPhone/iPad (iOS/iPadOS 16.4+), add Truckly to your Home Screen and open it from the Home Screen icon to enable background Web Push alerts.",
+          "On iPhone/iPad (iOS/iPadOS 16.4+), add BiteShark to your Home Screen and open it from the Home Screen icon to enable background Web Push alerts.",
         subscription
       });
     }

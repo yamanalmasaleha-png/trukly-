@@ -1,14 +1,14 @@
-# Truckly Technical Map
+# BiteShark Technical Map (Formerly Truckly)
 
-This file is an architecture and editing guide for humans and LLM agents working on Truckly.
+This file is an architecture and editing guide for humans and LLM agents working on BiteShark (`working/biteshark-vps`).
 
-Read this together with `README.md` before making changes.
+Read this together with [`README.md`](./README.md) and [`docs/STANDALONE_VPS_RUNTIME_AND_AUTH.md`](./docs/STANDALONE_VPS_RUNTIME_AND_AUTH.md) before making changes.
 
 ---
 
 # 1. System overview
 
-Truckly is a mobile-first food-truck discovery and event-booking web app hosted on Hatchable.
+BiteShark is a mobile-first Sonoma County food-truck, market, farm-stand, and café discovery, event-inquiry, and pickup-pager web app running on a standalone Node 22 + PostgreSQL 16 Linux VPS (`server/index.js` behind TLS Nginx on `172.233.140.74`, candidate branch `working/biteshark-vps`), while preserving compatibility with the 30-route `api/**/*.js` handler contract originally built on Hatchable.
 
 High-level flow:
 
@@ -52,11 +52,10 @@ That means API response shapes and DOM IDs are important integration contracts.
 
 ## Hosting
 
-The live project runs on Hatchable:
-
-```text
-https://truckly.hatchable.site
-```
+- **Active standalone VPS staging:** `https://staging.biteshark.live` (`172.233.140.74`)
+- **Canonical main domain (holding page until production release is separately authorized):** `https://biteshark.live` (`https://www.biteshark.live` redirects to `https://biteshark.live`)
+- **Candidate installation branch:** `working/biteshark-vps`
+- **Historical Hatchable deployment (untouched):** `https://truckly.hatchable.site` (`proj_MEO518rmLLl0`)
 
 ## Frontend runtime
 

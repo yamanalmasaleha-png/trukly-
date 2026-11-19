@@ -1,13 +1,14 @@
-# Host-specific Nginx virtual host for Truckly Isolated Staging.
+# Generic host-specific Nginx virtual host template for BiteShark Isolated Staging
+# (for the concrete `staging.biteshark.live` template see `deploy/nginx/staging.biteshark.live.conf.template`).
 # Never uses `server_name _;` or `default_server` so existing `/etc/nginx/sites-enabled/lifestyle-api`
 # default HTTP routing on port 80 remains completely undisturbed.
 #
-# Activation checklist (ONLY after staging DNS `A`/`AAAA` resolves to VPS):
-#   1. Render `__STAGING_FQDN__` -> `/etc/nginx/sites-available/truckly-staging` (HTTP-only block first for webroot ACME,
-#      or issue cert via `certbot certonly --webroot -w /var/www/html -d <fqdn>` before enabling the `:443` server block).
-#   2. Set `TRUCKLY_PUBLIC_ORIGIN=https://<fqdn>` and `TRUCKLY_TRUST_PROXY=loopback` in `/etc/truckly-staging/staging.env`
+# Activation checklist (ONLY after staging DNS `A` resolves to VPS):
+#   1. Render `__STAGING_FQDN__` -> `/etc/nginx/sites-available/<fqdn>`.
+#   2. Set `BITESHARK_PUBLIC_ORIGIN=https://<fqdn>` (or `TRUCKLY_PUBLIC_ORIGIN=https://<fqdn>`) and
+#      `BITESHARK_TRUST_PROXY=loopback` (or `TRUCKLY_TRUST_PROXY=loopback`) in `/etc/truckly-staging/staging.env`
 #      and restart `truckly-staging-api`.
-#   3. Symlink `/etc/nginx/sites-enabled/truckly-staging`, validate with `nginx -t`, then `systemctl reload nginx`.
+#   3. Symlink `/etc/nginx/sites-enabled/z-<fqdn>` (sorted after `lifestyle-api`), validate with `nginx -t`, then `systemctl reload nginx`.
 #   4. Configure `/etc/letsencrypt/renewal-hooks/deploy/truckly-nginx-reload.sh` (`nginx -t && systemctl reload nginx`).
 
 server {

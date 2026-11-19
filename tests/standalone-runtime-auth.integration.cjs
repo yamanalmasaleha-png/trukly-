@@ -826,20 +826,111 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     );
     assert.equal(rightmostResolved, '203.0.113.42', 'Trusted loopback proxy must prefer rightmost XFF hop over attacker-prepended hop');
 
-    // Regression DEF-VPS-03: `deploy/staging.env.example` must default to `TRUCKLY_TRUST_PROXY=none`
+    // Regression DEF-VPS-03: `deploy/staging.env.example` must default to `BITESHARK_TRUST_PROXY=none` (or `TRUCKLY_TRUST_PROXY=none`)
     // prior to Nginx activation so loopback-only staging cannot have `X-Real-IP` / `X-Forwarded-For` spoofed.
     const stagingEnvExample = fs.readFileSync(path.join(ROOT, 'deploy', 'staging.env.example'), 'utf8');
     const nginxVhostTemplate = fs.readFileSync(path.join(ROOT, 'deploy', 'nginx', 'truckly-staging.conf.template'), 'utf8');
     assert(
-      /^TRUCKLY_TRUST_PROXY=none$/m.test(stagingEnvExample),
-      'deploy/staging.env.example must default to TRUCKLY_TRUST_PROXY=none before Nginx reverse proxy activation'
+      /^(BITESHARK|TRUCKLY)_TRUST_PROXY=none$/m.test(stagingEnvExample),
+      'deploy/staging.env.example must default to BITESHARK_TRUST_PROXY=none before Nginx reverse proxy activation'
     );
     assert(
-      nginxVhostTemplate.includes('TRUCKLY_TRUST_PROXY=loopback') &&
+      nginxVhostTemplate.includes('TRUST_PROXY=loopback') &&
         nginxVhostTemplate.includes('proxy_set_header X-Real-IP $remote_addr;') &&
         nginxVhostTemplate.includes('proxy_set_header X-Forwarded-For $remote_addr;'),
-      'Nginx template must pair TRUCKLY_TRUST_PROXY=loopback with $remote_addr header overwrite'
+      'Nginx template must pair TRUST_PROXY=loopback with $remote_addr header overwrite'
     );
+
+    // BiteShark `BITESHARK_*` primary env + legacy `TRUCKLY_*` alias precedence & fail-closed conflict checks
+    const {
+      readEnvCompat,
+      EnvAliasConflictError,
+      assertNoSecurityEnvConflicts
+    } = await import(pathToFileURL(path.join(ROOT, 'lib', 'env-compat.js')).href);
+    const { isWritePaused } = await import(pathToFileURL(path.join(ROOT, 'lib', 'authz.js')).href);
+
+    assert.equal(
+      readEnvCompat('PUBLIC_ORIGIN', {
+        securityCritical: true,
+        envObj: { BITESHARK_PUBLIC_ORIGIN: 'https://staging.biteshark.live' }
+      }),
+      'https://staging.biteshark.live',
+      'Primary BITESHARK_* variable resolves cleanly'
+    );
+    assert.equal(
+      readEnvCompat('PUBLIC_ORIGIN', {
+        securityCritical: true,
+        envObj: { TRUCKLY_PUBLIC_ORIGIN: 'https://staging.biteshark.live' }
+      }),
+      'https://staging.biteshark.live',
+      'Legacy TRUCKLY_* alias resolves cleanly when BITESHARK_* is unset'
+    );
+    assert.equal(
+      readEnvCompat('PUBLIC_ORIGIN', {
+        securityCritical: true,
+        envObj: {
+          BITESHARK_PUBLIC_ORIGIN: 'https://staging.biteshark.live',
+          TRUCKLY_PUBLIC_ORIGIN: 'https://staging.biteshark.live'
+        }
+      }),
+      'https://staging.biteshark.live',
+      'Identical BITESHARK_* and TRUCKLY_* values do not conflict'
+    );
+    assert.throws(
+      () =>
+        readEnvCompat('AUTH_SECRET', {
+          securityCritical: true,
+          envObj: {
+            BITESHARK_AUTH_SECRET: 'a'.repeat(32),
+            TRUCKLY_AUTH_SECRET: 'b'.repeat(32)
+          }
+        }),
+      err => err instanceof EnvAliasConflictError && err.code === 'ENV_ALIAS_CONFLICT',
+      'Conflicting security-critical BITESHARK_* vs TRUCKLY_* values must throw EnvAliasConflictError'
+    );
+    assert.throws(
+      () =>
+        assertNoSecurityEnvConflicts({
+          BITESHARK_TRUST_PROXY: 'loopback',
+          TRUCKLY_TRUST_PROXY: 'none'
+        }),
+      err => err instanceof EnvAliasConflictError
+    );
+
+    // Conflicting `PAUSE_WRITES` fails closed (pauses writes)
+    process.env.BITESHARK_PAUSE_WRITES = 'none';
+    process.env.TRUCKLY_PAUSE_WRITES = 'bookings';
+    try {
+      assert.equal(isWritePaused('bookings'), true, 'Conflicting PAUSE_WRITES must fail closed (pause writes)');
+    } finally {
+      delete process.env.BITESHARK_PAUSE_WRITES;
+      delete process.env.TRUCKLY_PAUSE_WRITES;
+    }
+
+    // `server/index.js` refuses to start when security-critical `BITESHARK_*` and `TRUCKLY_*` conflict
+    const conflictBoot = await runChildExpectExit([path.join(ROOT, 'server', 'index.js')], {
+      ...process.env,
+      PORT: String(await getFreePort()),
+      DATABASE_URL: appUrl,
+      BITESHARK_ENV: 'staging',
+      TRUCKLY_ENV: 'staging',
+      BITESHARK_AUTH_SECRET: '1'.repeat(64),
+      TRUCKLY_AUTH_SECRET: '2'.repeat(64),
+      BITESHARK_AUTH_DELIVERY_MODE: 'disabled'
+    });
+    assert.notEqual(conflictBoot.code, 0, 'server/index.js must refuse startup on conflicting AUTH_SECRET');
+    assert(conflictBoot.stderr.includes('ENV_ALIAS_CONFLICT'), 'Expected ENV_ALIAS_CONFLICT code on startup refusal');
+
+    // Verify `X-BiteShark-Client: web-auth-v1` header works on `/api/auth/start`
+    const bsClientRes = await fetch(`${baseUrl}/api/auth/start`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-BiteShark-Client': 'web-auth-v1'
+      },
+      body: JSON.stringify({ email: `bs-header-check@${allowedDomain}` })
+    });
+    assert.equal(bsClientRes.status, 200, 'X-BiteShark-Client header must be accepted on /api/auth/start');
 
     console.log('PASS [6/8]: Zero silent email auto-linking, CSRF/Origin/Fetch-Metadata 403s, and XFF spoofing resistance verified');
 

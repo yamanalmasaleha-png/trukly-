@@ -8,6 +8,7 @@ import {
   WORKER_LEASE_SECONDS,
   runNotificationWorkerBatch
 } from "../../lib/pager-notifications.js";
+import { readEnvCompat, EnvAliasConflictError } from "../../lib/env-compat.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -30,7 +31,18 @@ function timingSafeSecretEqual(expected, supplied) {
 export default async function(req, res) {
   applyPrivateNoStoreHeaders(res);
 
-  const expectedSecret = String(process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET || "").trim();
+  let expectedSecret = "";
+  try {
+    expectedSecret = readEnvCompat("NOTIFICATION_WORKER_SECRET", { securityCritical: true });
+  } catch (err) {
+    if (err instanceof EnvAliasConflictError) {
+      return res.status(503).json({
+        error: "Notification worker secret configuration is conflicted.",
+        code: "WORKER_NOT_CONFIGURED"
+      });
+    }
+    throw err;
+  }
   if (expectedSecret.length < 24) {
     return res.status(503).json({
       error: "Notification worker secret is not configured.",

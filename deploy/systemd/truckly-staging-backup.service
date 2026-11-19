@@ -1,5 +1,5 @@
 [Unit]
-Description=Truckly Staging Encrypted PostgreSQL Backup
+Description=BiteShark Staging Encrypted PostgreSQL Backup (truckly-staging-backup)
 After=network-online.target postgresql.service
 Wants=network-online.target
 

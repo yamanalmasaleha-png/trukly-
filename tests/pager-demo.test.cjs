@@ -44,6 +44,8 @@ run('startPagerDemo()');
 assert.equal(run('pagerDemo'),true);
 assert.equal(run('pagerStatus'),'cooking');
 assert.match(element('pagerDisplay').innerHTML,/PLAY MODE · NOT A REAL ORDER/);
+assert.match(element('pagerDisplay').innerHTML,/BiteShark Test Kitchen/);
+assert(!element('pagerDisplay').innerHTML.includes('Truckly Test Kitchen'), 'demo uses BiteShark Test Kitchen branding');
 assert.match(element('pagerDisplay').innerHTML,/2 smash burgers \+ crispy fries/);
 assert.equal(timers.size,1,'automatic preview schedules its next step');
 
