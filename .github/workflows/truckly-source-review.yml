@@ -55,6 +55,8 @@ jobs:
         run: node tests/vps-platform-contract.test.cjs
       - name: Pager demo safety smoke test
         run: node tests/pager-demo.test.cjs
+      - name: Map provider allowlist, HTTPS & fail-safe config unit suite
+        run: node tests/map-resilience.test.cjs
 
   catalog-compatibility:
     name: Reconciled catalog & UX safeguards
@@ -153,6 +155,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/feature-controls-browser.e2e.cjs
+      - name: Run real headless Chrome + PostgreSQL BiteShark Map Tile Referrer, Provider Config & Outage Resilience E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/map-resilience-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         shell: bash
         env:

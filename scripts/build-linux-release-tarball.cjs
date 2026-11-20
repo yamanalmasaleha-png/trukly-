@@ -83,6 +83,7 @@ for (const requiredEntry of [
   'lib/admin-governance.js',
   'lib/age-policy.js',
   'lib/feature-controls.js',
+  'lib/map-config.js',
   'lib/request-context.js',
   'public/index.html',
   'public/admin.html',

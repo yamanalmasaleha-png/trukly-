@@ -48,6 +48,19 @@
   <main id="discoverScreen" class="screen active list-mode">
     <section class="map-wrap">
       <div id="map"></div>
+      <div id="mapFallback" class="map-fallback" role="region" aria-labelledby="mapFallbackTitle" hidden>
+        <div class="map-fallback-card">
+          <p id="mapFallbackStatus" class="sr-only" role="status" aria-live="polite"></p>
+          <span class="map-fallback-kicker">MAP UNAVAILABLE</span>
+          <h2 id="mapFallbackTitle">Map view isn’t available right now</h2>
+          <p id="mapFallbackCopy">Map tiles could not be loaded right now. All Sonoma County food spots, search, filters, and saved places remain ready in List view.</p>
+          <div class="map-fallback-actions">
+            <button type="button" class="primary" id="mapFallbackListBtn" onclick="continueInListFromMapFallback()">Continue in List view</button>
+            <button type="button" class="secondary" id="mapFallbackRetryBtn" onclick="retryInteractiveMap()">Retry map</button>
+          </div>
+          <p id="mapFallbackHint" class="map-fallback-hint" hidden></p>
+        </div>
+      </div>
       <div class="mode-switch" role="group" aria-label="Choose map or list view"><button id="mapMode" aria-pressed="false" onclick="setMode('map')">Map</button><button id="listMode" class="active" aria-pressed="true" onclick="setMode('list')">List</button></div>
       <div class="discovery-toolbar">
         <div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search local food spots" placeholder="Find your next “you have to try this”…" oninput="applyFilters()"></label><button class="round-btn" onclick="locateMe()" aria-label="Find my location">⌖</button></div>

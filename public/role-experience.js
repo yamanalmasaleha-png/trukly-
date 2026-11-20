@@ -16,10 +16,16 @@
     myIssues: [],
     selectedIssueId: null,
     features: {},
+    mapConfig: null,
     featuresLoaded: false,
     featuresTrusted: true,
     featuresPollSeconds: 60
   };
+
+  var resolveInitialFeatures = null;
+  var initialFeaturesReadyPromise = new Promise(function (resolve) {
+    resolveInitialFeatures = resolve;
+  });
 
   function rxEsc(val) {
     return String(val == null ? '' : val).replace(/[&<>"']/g, function (c) {
@@ -1447,7 +1453,22 @@
       }
     }
 
-    // 8. Re-render active real pager push box if open
+    // 8. Interactive Discovery Map (`interactive_map`)
+    var mapHidden = isFeatureHidden('interactive_map') || Boolean(rxState.featuresLoaded && rxState.mapConfig && rxState.mapConfig.enabled === false);
+    var modeSwitch = document.querySelector('#discoverScreen .mode-switch');
+    var mapModeBtn = document.getElementById('mapMode');
+    if (modeSwitch) {
+      modeSwitch.hidden = mapHidden;
+    }
+    if (mapModeBtn) {
+      mapModeBtn.hidden = mapHidden;
+      mapModeBtn.disabled = mapHidden;
+    }
+    if (typeof window.bitesharkSyncInteractiveMapControl === 'function') {
+      try { window.bitesharkSyncInteractiveMapControl(); } catch (_e) {}
+    }
+
+    // 9. Re-render active real pager push box if open
     if (typeof pagerCurrentRendered !== 'undefined' && pagerCurrentRendered && typeof renderPager === 'function' && typeof pagerToken !== 'undefined' && pagerToken) {
       try { renderPager(pagerCurrentRendered); } catch (_e) {}
     }
@@ -1469,6 +1490,9 @@
         var data = await res.json().catch(function () { return null; });
         if (res.ok && data && data.features && typeof data.features === 'object') {
           rxState.features = data.features;
+          if (data.map && typeof data.map === 'object') {
+            rxState.mapConfig = data.map;
+          }
           rxState.featuresLoaded = true;
           rxState.featuresTrusted = data.config_trusted !== false;
           if (Number(data.propagation_poll_seconds) >= 15) {
@@ -1480,6 +1504,10 @@
         // Keep last known feature map; server enforces authoritative gates on all mutations
       } finally {
         featureRefreshInFlight = null;
+        if (resolveInitialFeatures) {
+          resolveInitialFeatures(rxState);
+          resolveInitialFeatures = null;
+        }
       }
     })();
     return featureRefreshInFlight;
@@ -1520,6 +1548,9 @@
     isAvailable: isFeatureAvailable,
     isHidden: isFeatureHidden,
     getMessage: getFeatureMessage,
+    getMapConfig: function () { return rxState.mapConfig; },
+    isLoaded: function () { return Boolean(rxState.featuresLoaded); },
+    waitUntilReady: function () { return initialFeaturesReadyPromise; },
     refresh: refreshFeatureControls,
     syncDom: applyFeatureControlsToDom
   };

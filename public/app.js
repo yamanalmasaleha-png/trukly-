@@ -292,20 +292,494 @@ async function refreshDiscoveryCatalog({ fresh = false, announce = false } = {})
   return false;
 }
 
-async function init() {
-  if (typeof L !== 'undefined' && typeof L.map === 'function') {
-    try {
-      map = L.map('map', { zoomControl: false, attributionControl: true }).setView([38.43, -122.70], 11);
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19
-      }).addTo(map);
-      L.control.zoom({ position: 'bottomright' }).addTo(map);
-    } catch {
-      map = null;
+const CLIENT_ALLOWLISTED_TILE_HOSTS = {
+  osm_standard: ['tile.openstreetmap.org'],
+  stadia_osm_bright: ['tiles.stadiamaps.com', 'tiles-eu.stadiamaps.com'],
+  mapbox_streets: ['api.mapbox.com'],
+  maptiler_streets: ['api.maptiler.com'],
+  loopback_test: ['127.0.0.1', 'localhost']
+};
+
+const DEFAULT_BROWSER_MAP_CONFIG = {
+  enabled: true,
+  config_valid: true,
+  provider_id: 'osm_standard',
+  provider_label: 'OpenStreetMap Standard',
+  tile_url_template: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  allowed_hosts: ['tile.openstreetmap.org'],
+  attribution_html:
+    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+  min_zoom: 3,
+  max_zoom: 19,
+  referrer_policy: 'origin'
+};
+
+let activeTileLayer = null;
+let activeMapTileTemplate = null;
+let mapLifecycleBound = false;
+const activeTileTimers = new Set();
+const mapRuntimeState = {
+  unavailable: false,
+  failureReason: null,
+  waveId: 0,
+  startedCount: 0,
+  pendingCount: 0,
+  loadedCount: 0,
+  errorCount: 0,
+  lastRetryAt: 0,
+  retryInFlight: false,
+  cooldownTimer: null
+};
+
+function clearActiveTileTimers() {
+  activeTileTimers.forEach(tId => clearTimeout(tId));
+  activeTileTimers.clear();
+}
+
+function teardownActiveTileLayer({ abortPendingImages = false } = {}) {
+  mapRuntimeState.waveId += 1;
+  mapRuntimeState.pendingCount = 0;
+  clearActiveTileTimers();
+
+  if (activeTileLayer) {
+    if (
+      abortPendingImages &&
+      activeTileLayer._container &&
+      typeof activeTileLayer._container.querySelectorAll === 'function'
+    ) {
+      activeTileLayer._container.querySelectorAll('img').forEach(img => {
+        try {
+          if (!img.complete) img.removeAttribute('src');
+        } catch {}
+      });
+    }
+    if (map && typeof map.removeLayer === 'function') {
+      try {
+        map.removeLayer(activeTileLayer);
+      } catch {}
+    }
+    activeTileLayer = null;
+    activeMapTileTemplate = null;
+  }
+}
+
+function isLocalLoopbackPage() {
+  const host =
+    typeof window !== 'undefined' && window.location && typeof window.location.hostname === 'string'
+      ? window.location.hostname.toLowerCase()
+      : '';
+  return host === '127.0.0.1' || host === 'localhost';
+}
+
+function validateClientMapConfig(rawCfg) {
+  if (!rawCfg || typeof rawCfg !== 'object') {
+    return { valid: false, errorCode: 'MISSING_MAP_CONFIG' };
+  }
+  if (rawCfg.enabled === false || rawCfg.config_valid === false) {
+    return {
+      valid: false,
+      disabled: rawCfg.config_valid !== false,
+      errorCode: rawCfg.status_reason || 'MAP_DISABLED'
+    };
+  }
+
+  const providerId = typeof rawCfg.provider_id === 'string' ? rawCfg.provider_id.trim() : '';
+  const allowedHosts = Object.prototype.hasOwnProperty.call(CLIENT_ALLOWLISTED_TILE_HOSTS, providerId)
+    ? CLIENT_ALLOWLISTED_TILE_HOSTS[providerId]
+    : null;
+  if (!allowedHosts) {
+    return { valid: false, errorCode: 'UNAPPROVED_CLIENT_MAP_PROVIDER' };
+  }
+  if (providerId === 'loopback_test' && !isLocalLoopbackPage()) {
+    return { valid: false, errorCode: 'LOOPBACK_PROVIDER_FORBIDDEN' };
+  }
+
+  const tpl = typeof rawCfg.tile_url_template === 'string' ? rawCfg.tile_url_template.trim() : '';
+  if (
+    !tpl ||
+    tpl.length > 512 ||
+    /[\s<>"'`\\]/.test(tpl) ||
+    !tpl.includes('{z}') ||
+    !tpl.includes('{x}') ||
+    !tpl.includes('{y}')
+  ) {
+    return { valid: false, errorCode: 'INVALID_CLIENT_TILE_TEMPLATE' };
+  }
+
+  const braceTokens = [];
+  const braceRe = /\{([^}]+)\}/g;
+  let bm;
+  while ((bm = braceRe.exec(tpl)) !== null) {
+    braceTokens.push(bm[1]);
+  }
+  for (let i = 0; i < braceTokens.length; i += 1) {
+    const tokenName = braceTokens[i];
+    if (tokenName !== 'z' && tokenName !== 'x' && tokenName !== 'y' && tokenName !== 'r') {
+      return { valid: false, errorCode: 'UNAPPROVED_TILE_PLACEHOLDER' };
+    }
+  }
+
+  const probe = tpl
+    .replace(/\{z\}/g, '11')
+    .replace(/\{x\}/g, '326')
+    .replace(/\{y\}/g, '791')
+    .replace(/\{r\}/g, '');
+
+  if (providerId === 'loopback_test') {
+    const m = /^https?:\/\/(127\.0\.0\.1|localhost):(\d{1,5})(\/[^\s#]*)?$/i.exec(probe);
+    if (!m) {
+      return { valid: false, errorCode: 'INVALID_LOOPBACK_TILE_URL' };
     }
   } else {
+    const m = /^https:\/\/([a-z0-9.-]+)(\/[^\s#]*)?$/i.exec(probe);
+    if (!m || !allowedHosts.includes(m[1].toLowerCase())) {
+      return { valid: false, errorCode: 'UNAPPROVED_CLIENT_TILE_HOST' };
+    }
+  }
+
+  const minZoom = Number.isInteger(Number(rawCfg.min_zoom)) ? Number(rawCfg.min_zoom) : 3;
+  const maxZoom = Number.isInteger(Number(rawCfg.max_zoom)) ? Number(rawCfg.max_zoom) : 19;
+  if (minZoom < 0 || minZoom > 18 || maxZoom < 1 || maxZoom > 22 || minZoom > maxZoom) {
+    return { valid: false, errorCode: 'INVALID_CLIENT_ZOOM_RANGE' };
+  }
+
+  const attribution =
+    typeof rawCfg.attribution_html === 'string' && rawCfg.attribution_html.trim()
+      ? rawCfg.attribution_html
+      : DEFAULT_BROWSER_MAP_CONFIG.attribution_html;
+
+  return {
+    valid: true,
+    provider_id: providerId,
+    tile_url_template: tpl,
+    attribution_html: attribution,
+    min_zoom: minZoom,
+    max_zoom: maxZoom,
+    referrer_policy: 'origin'
+  };
+}
+
+function isInteractiveMapDisabledByControl() {
+  const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+  if (!fc) return false;
+  if (typeof fc.isHidden === 'function' && fc.isHidden('interactive_map')) {
+    return true;
+  }
+  const mc = typeof fc.getMapConfig === 'function' ? fc.getMapConfig() : null;
+  if (mc && mc.enabled === false && mc.config_valid !== false) {
+    return true;
+  }
+  return false;
+}
+
+function getValidatedBrowserMapConfig() {
+  if (
+    typeof window !== 'undefined' &&
+    window.__BITESHARK_TEST_MAP_CONFIG &&
+    isLocalLoopbackPage()
+  ) {
+    return validateClientMapConfig(window.__BITESHARK_TEST_MAP_CONFIG);
+  }
+  const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+  if (fc && typeof fc.getMapConfig === 'function') {
+    const serverCfg = fc.getMapConfig();
+    if (serverCfg) {
+      return validateClientMapConfig(serverCfg);
+    }
+  }
+  return validateClientMapConfig(DEFAULT_BROWSER_MAP_CONFIG);
+}
+
+function showMapFallbackUI({ title, copy, statusText, showRetry = true, hint = '' } = {}) {
+  mapRuntimeState.unavailable = true;
+  mapRuntimeState.retryInFlight = false;
+  const wrap = typeof document.querySelector === 'function' ? document.querySelector('.map-wrap') : null;
+  if (wrap && wrap.classList) wrap.classList.add('is-map-unavailable');
+
+  const fb = document.getElementById('mapFallback');
+  const titleEl = document.getElementById('mapFallbackTitle');
+  const copyEl = document.getElementById('mapFallbackCopy');
+  const statusEl = document.getElementById('mapFallbackStatus');
+  const retryBtn = document.getElementById('mapFallbackRetryBtn');
+  const hintEl = document.getElementById('mapFallbackHint');
+
+  if (titleEl && title) titleEl.textContent = title;
+  if (copyEl && copy) copyEl.textContent = copy;
+  if (statusEl) statusEl.textContent = statusText || copy || title || 'Map is unavailable right now.';
+  if (retryBtn) retryBtn.hidden = !showRetry;
+  if (hintEl) {
+    hintEl.textContent = hint || '';
+    hintEl.hidden = !hint;
+  }
+  if (fb) fb.hidden = false;
+}
+
+function hideMapFallbackUI() {
+  mapRuntimeState.unavailable = false;
+  const wrap = typeof document.querySelector === 'function' ? document.querySelector('.map-wrap') : null;
+  if (wrap && wrap.classList) wrap.classList.remove('is-map-unavailable');
+  const fb = document.getElementById('mapFallback');
+  const hintEl = document.getElementById('mapFallbackHint');
+  const statusEl = document.getElementById('mapFallbackStatus');
+  if (fb) fb.hidden = true;
+  if (hintEl) {
+    hintEl.textContent = '';
+    hintEl.hidden = true;
+  }
+  if (statusEl) statusEl.textContent = '';
+}
+
+function shouldTriggerMapTileOutage() {
+  const { startedCount, pendingCount, loadedCount, errorCount } = mapRuntimeState;
+  // Never disable the map on a single failed tile
+  if (errorCount < 3) {
+    if (startedCount >= 2 && pendingCount === 0 && loadedCount === 0 && errorCount >= 2) {
+      return true;
+    }
+    return false;
+  }
+  const settled = loadedCount + errorCount;
+  return loadedCount === 0 || errorCount / Math.max(1, settled) >= 0.6;
+}
+
+function enterMapTileOutage(reason) {
+  mapRuntimeState.failureReason = reason || 'tile_error';
+  teardownActiveTileLayer({ abortPendingImages: true });
+  showMapFallbackUI({
+    title: 'Map view isn’t available right now',
+    copy: 'Map tiles could not be loaded from the map provider. Your Sonoma County food directory, search, filters, and saved places remain ready in List view.',
+    statusText: 'Map is unavailable right now. Continue in List view or retry the map.',
+    showRetry: true
+  });
+}
+
+function syncUserMarkerOnMap() {
+  if (!map || !userCoords || typeof L === 'undefined' || typeof L.divIcon !== 'function') return;
+  const userIcon = L.divIcon({
+    className: '',
+    html: '<div class="user-pin" title="Your location"></div>',
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+  if (userMarker && typeof userMarker.setLatLng === 'function') {
+    userMarker.setLatLng([userCoords.lat, userCoords.lng]);
+  } else if (typeof L.marker === 'function') {
+    userMarker = L.marker([userCoords.lat, userCoords.lng], { icon: userIcon }).addTo(map);
+  }
+}
+
+function attachApprovedTileLayer(cfg) {
+  teardownActiveTileLayer({ abortPendingImages: true });
+
+  const currentWave = ++mapRuntimeState.waveId;
+  mapRuntimeState.startedCount = 0;
+  mapRuntimeState.pendingCount = 0;
+  mapRuntimeState.loadedCount = 0;
+  mapRuntimeState.errorCount = 0;
+  mapRuntimeState.failureReason = null;
+
+  if (typeof map.setMinZoom === 'function') map.setMinZoom(cfg.min_zoom);
+  if (typeof map.setMaxZoom === 'function') map.setMaxZoom(cfg.max_zoom);
+
+  const tileTimeoutMs = Math.max(
+    350,
+    Number((typeof window !== 'undefined' && window.__BITESHARK_MAP_TILE_TIMEOUT_MS) || 8000)
+  );
+
+  const layer = L.tileLayer(cfg.tile_url_template, {
+    attribution: cfg.attribution_html,
+    minZoom: cfg.min_zoom,
+    maxZoom: cfg.max_zoom,
+    referrerPolicy: 'origin'
+  });
+
+  if (layer && typeof layer.on === 'function') {
+    const clearTileTimer = tileEl => {
+      if (tileEl && tileEl.__bsTileTimer) {
+        clearTimeout(tileEl.__bsTileTimer);
+        activeTileTimers.delete(tileEl.__bsTileTimer);
+        tileEl.__bsTileTimer = null;
+      }
+    };
+
+    const recordTileFailure = (tileEl, reason) => {
+      if (currentWave !== mapRuntimeState.waveId) return;
+      if (tileEl && tileEl.__bsSettled) return;
+      if (tileEl) tileEl.__bsSettled = true;
+      clearTileTimer(tileEl);
+      if (mapRuntimeState.pendingCount > 0) mapRuntimeState.pendingCount -= 1;
+      mapRuntimeState.errorCount += 1;
+      if (shouldTriggerMapTileOutage()) {
+        enterMapTileOutage(reason);
+      }
+    };
+
+    layer.on('tileloadstart', ev => {
+      if (currentWave !== mapRuntimeState.waveId) return;
+      const tileEl = ev && ev.tile ? ev.tile : null;
+      mapRuntimeState.startedCount += 1;
+      mapRuntimeState.pendingCount += 1;
+      if (tileEl) {
+        tileEl.__bsSettled = false;
+        const timerId = setTimeout(() => {
+          activeTileTimers.delete(timerId);
+          if (currentWave !== mapRuntimeState.waveId) return;
+          if (tileEl && !tileEl.__bsSettled) {
+            try {
+              tileEl.removeAttribute('src');
+            } catch {}
+            recordTileFailure(tileEl, 'tile_timeout');
+          }
+        }, tileTimeoutMs);
+        tileEl.__bsTileTimer = timerId;
+        activeTileTimers.add(timerId);
+      }
+    });
+
+    layer.on('tileload', ev => {
+      if (currentWave !== mapRuntimeState.waveId) return;
+      const tileEl = ev && ev.tile ? ev.tile : null;
+      if (tileEl && tileEl.__bsSettled) return;
+      if (tileEl) tileEl.__bsSettled = true;
+      clearTileTimer(tileEl);
+      if (mapRuntimeState.pendingCount > 0) mapRuntimeState.pendingCount -= 1;
+      mapRuntimeState.loadedCount += 1;
+      mapRuntimeState.retryInFlight = false;
+    });
+
+    layer.on('tileerror', ev => {
+      const tileEl = ev && ev.tile ? ev.tile : null;
+      recordTileFailure(tileEl, 'tile_error');
+    });
+  }
+
+  layer.addTo(map);
+  activeTileLayer = layer;
+  activeMapTileTemplate = cfg.tile_url_template;
+  syncUserMarkerOnMap();
+}
+
+function bindMapResizeAndZoomListeners() {
+  if (!map || mapLifecycleBound) return;
+  mapLifecycleBound = true;
+  if (typeof map.whenReady === 'function') {
+    map.whenReady(() => {
+      if (map && typeof map.invalidateSize === 'function') {
+        map.invalidateSize();
+        setTimeout(() => {
+          if (map && typeof map.invalidateSize === 'function') map.invalidateSize();
+        }, 250);
+      }
+    });
+  }
+  if (typeof map.on === 'function') {
+    map.on('zoomend', () => applyFilters());
+  }
+  const mapWrap = typeof document.querySelector === 'function' ? document.querySelector('.map-wrap') : null;
+  if (mapWrap && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      if (map && !mapRuntimeState.unavailable && typeof map.invalidateSize === 'function') {
+        map.invalidateSize();
+      }
+    }).observe(mapWrap);
+  }
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+    window.addEventListener('orientationchange', () =>
+      setTimeout(() => {
+        if (map && !mapRuntimeState.unavailable && typeof map.invalidateSize === 'function') {
+          map.invalidateSize();
+        }
+      }, 250)
+    );
+  }
+}
+
+function ensureMapInitialized({ forceRetry = false } = {}) {
+  if (isInteractiveMapDisabledByControl()) {
+    teardownActiveTileLayer({ abortPendingImages: true });
+    hideMapFallbackUI();
+    return false;
+  }
+
+  const cfg = getValidatedBrowserMapConfig();
+  if (!cfg.valid) {
+    teardownActiveTileLayer({ abortPendingImages: true });
+    showMapFallbackUI({
+      title: 'Map view isn’t available right now',
+      copy: 'Interactive map configuration is currently unavailable. All Sonoma County food spots, search, filters, and saved places remain ready in List view.',
+      statusText: 'Map configuration is unavailable. Continue in List view.',
+      showRetry: false
+    });
+    return false;
+  }
+
+  if (typeof L === 'undefined' || typeof L.map !== 'function' || typeof L.tileLayer !== 'function') {
     map = null;
+    mapRuntimeState.failureReason = 'leaflet_missing';
+    showMapFallbackUI({
+      title: 'Map view isn’t available right now',
+      copy: 'Interactive map scripts could not be loaded right now. All Sonoma County food spots, search, filters, and saved places remain ready in List view.',
+      statusText: 'Map scripts could not be loaded. Continue in List view or retry the map.',
+      showRetry: true
+    });
+    return false;
+  }
+
+  if (!map) {
+    try {
+      map = L.map('map', {
+        zoomControl: false,
+        attributionControl: true,
+        minZoom: cfg.min_zoom,
+        maxZoom: cfg.max_zoom
+      }).setView([38.43, -122.70], 11);
+      if (L.control && typeof L.control.zoom === 'function') {
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+      }
+      bindMapResizeAndZoomListeners();
+    } catch {
+      map = null;
+      mapRuntimeState.failureReason = 'leaflet_init_failed';
+      showMapFallbackUI({
+        title: 'Map view isn’t available right now',
+        copy: 'Interactive map could not be initialized on this device right now. Continue browsing all Sonoma County food listings in List view.',
+        statusText: 'Map could not be initialized. Continue in List view or retry the map.',
+        showRetry: true
+      });
+      return false;
+    }
+  }
+
+  if (!activeTileLayer || forceRetry || activeMapTileTemplate !== cfg.tile_url_template) {
+    hideMapFallbackUI();
+    attachApprovedTileLayer(cfg);
+  } else if (!mapRuntimeState.unavailable) {
+    hideMapFallbackUI();
+  }
+
+  return true;
+}
+
+if (typeof window !== 'undefined') {
+  window.bitesharkSyncInteractiveMapControl = function () {
+    const discover = document.getElementById('discoverScreen');
+    if (isInteractiveMapDisabledByControl()) {
+      teardownActiveTileLayer({ abortPendingImages: true });
+      hideMapFallbackUI();
+      if (discover && !discover.classList.contains('list-mode')) {
+        setMode('list');
+      }
+    }
+  };
+}
+
+async function init() {
+  const discoverEl = document.getElementById('discoverScreen');
+  const startsInListMode = Boolean(
+    discoverEl && discoverEl.classList && discoverEl.classList.contains('list-mode')
+  );
+  if (!startsInListMode && !isInteractiveMapDisabledByControl()) {
+    ensureMapInitialized();
   }
 
   document.querySelectorAll('[data-cuisine]').forEach(b => {
@@ -350,19 +824,6 @@ async function init() {
   renderFavorites();
   renderBookings();
   syncAuthAndUserData();
-
-  if (map) {
-    map.whenReady(() => {
-      map.invalidateSize();
-      setTimeout(() => map.invalidateSize(), 250);
-    });
-    map.on('zoomend', () => applyFilters());
-    const mapWrap = document.querySelector('.map-wrap');
-    if (mapWrap && typeof ResizeObserver !== 'undefined') {
-      new ResizeObserver(() => map.invalidateSize()).observe(mapWrap);
-    }
-    window.addEventListener('orientationchange', () => setTimeout(() => map.invalidateSize(), 250));
-  }
 }
 
 function foldText(s) {
@@ -516,11 +977,12 @@ function openTruck(id) {
 
 function extraCard(t) {
   const isSaved = favs.has(t.id);
+  const isSelected = t.id === selectedTruck;
   const safeId = esc(t.id);
   const tagLabel = t.is_confirmed_service && t.open === true
     ? `● LIVE · ${t.kind || 'Local'}`
     : (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today' ? '○ CLOSED TODAY' : (t.kind || 'Local'));
-  return `<article class="truck-card" onclick="openDetail('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span><span class="open-tag">${esc(tagLabel)}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta">${esc(t.cuisine)} · ${esc(t.city)}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Hours &amp; details ↗</button></div></article>`;
+  return `<article class="truck-card${isSelected ? ' selected-card' : ''}" onclick="openDetail('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span><span class="open-tag">${esc(tagLabel)}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta">${esc(t.cuisine)} · ${esc(t.city)}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Hours &amp; details ↗</button></div></article>`;
 }
 
 function extraDetail(t) {
@@ -541,16 +1003,18 @@ function cardHTML(t) {
   if (t.extra) return extraCard(t);
   const openTag = cardOpenBadge(t);
   const isSaved = favs.has(t.id);
+  const isSelected = t.id === selectedTruck;
   const safeId = esc(t.id);
-  return `<article class="truck-card" onclick="openTruck('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}<span class="open-tag">${openTag}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta"><span class="rating">${t.verified && t.rating ? `★ ${esc(t.rating)}` : 'Menu & info'}</span> ${t.verified && t.reviews ? `(${esc(t.reviews)}) · ` : ''}${esc(t.cuisine)}${t.price ? ' · ' + esc(t.price) : ''}</div><div class="meta city-meta">${esc(t.city || 'Sonoma County')} · ${esc(t.listing_type || t.availability || '')}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Get the lowdown →</button></div></article>`;
+  return `<article class="truck-card${isSelected ? ' selected-card' : ''}" onclick="openTruck('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}<span class="open-tag">${openTag}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta"><span class="rating">${t.verified && t.rating ? `★ ${esc(t.rating)}` : 'Menu & info'}</span> ${t.verified && t.reviews ? `(${esc(t.reviews)}) · ` : ''}${esc(t.cuisine)}${t.price ? ' · ' + esc(t.price) : ''}</div><div class="meta city-meta">${esc(t.city || 'Sonoma County')} · ${esc(t.listing_type || t.availability || '')}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Get the lowdown →</button></div></article>`;
 }
 
 function selectTruck(id) {
   selectedTruck = id;
   const t = trucks.find(x => x.id === id);
-  if (!t || !map || !hasCoords(t)) return;
-  const offset = window.innerWidth < 750 ? 0.006 : 0;
-  map.flyTo([+t.lat + offset, +t.lng], 15, { duration: 0.55 });
+  if (t && map && !mapRuntimeState.unavailable && hasCoords(t)) {
+    const offset = window.innerWidth < 750 ? 0.006 : 0;
+    map.flyTo([+t.lat + offset, +t.lng], 15, { duration: 0.55 });
+  }
   applyFilters();
   document.querySelectorAll('.truck-card').forEach(c => c.classList.toggle('selected-card', c.getAttribute('onclick')?.includes(`'${id}'`)));
 }
@@ -812,14 +1276,114 @@ function setDistance(v) {
 }
 
 function setMode(mode) {
-  document.getElementById('mapMode').setAttribute('aria-pressed', String(mode === 'map'));
-  document.getElementById('listMode').setAttribute('aria-pressed', String(mode === 'list'));
+  if (mode === 'map' && isInteractiveMapDisabledByControl()) {
+    mode = 'list';
+  }
+
+  const mapBtn = document.getElementById('mapMode');
+  const listBtn = document.getElementById('listMode');
   const discover = document.getElementById('discoverScreen');
-  discover.classList.toggle('list-mode', mode === 'list');
-  document.getElementById('mapMode').classList.toggle('active', mode === 'map');
-  document.getElementById('listMode').classList.toggle('active', mode === 'list');
+  if (mapBtn) {
+    mapBtn.setAttribute('aria-pressed', String(mode === 'map'));
+    mapBtn.classList.toggle('active', mode === 'map');
+  }
+  if (listBtn) {
+    listBtn.setAttribute('aria-pressed', String(mode === 'list'));
+    listBtn.classList.toggle('active', mode === 'list');
+  }
+  if (discover) {
+    discover.classList.toggle('list-mode', mode === 'list');
+  }
+
+  if (mode === 'map') {
+    const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+    if (
+      fc &&
+      typeof fc.isLoaded === 'function' &&
+      !fc.isLoaded() &&
+      typeof fc.waitUntilReady === 'function'
+    ) {
+      Promise.race([fc.waitUntilReady(), new Promise(resolve => setTimeout(resolve, 2000))]).then(() => {
+        if (!discover || discover.classList.contains('list-mode')) return;
+        if (isInteractiveMapDisabledByControl()) {
+          setMode('list');
+          return;
+        }
+        ensureMapInitialized();
+        applyFilters();
+        if (map && !mapRuntimeState.unavailable && typeof map.invalidateSize === 'function') {
+          setTimeout(() => map.invalidateSize(), 40);
+        }
+      });
+      return;
+    }
+
+    ensureMapInitialized();
+    applyFilters();
+    if (map && !mapRuntimeState.unavailable && typeof map.invalidateSize === 'function') {
+      setTimeout(() => map.invalidateSize(), 40);
+    }
+    return;
+  }
+
   applyFilters();
-  if (mode === 'map' && map) setTimeout(() => map.invalidateSize(), 40);
+}
+
+function continueInListFromMapFallback() {
+  setMode('list');
+  const listBtn = document.getElementById('listMode');
+  if (listBtn && typeof listBtn.focus === 'function') {
+    listBtn.focus();
+  }
+}
+
+function retryInteractiveMap() {
+  if (isInteractiveMapDisabledByControl()) {
+    setMode('list');
+    return;
+  }
+
+  const cooldownMs = Math.max(
+    400,
+    Number((typeof window !== 'undefined' && window.__BITESHARK_MAP_RETRY_COOLDOWN_MS) || 4000)
+  );
+  const now = Date.now();
+  const elapsed = now - mapRuntimeState.lastRetryAt;
+
+  if (mapRuntimeState.retryInFlight || (mapRuntimeState.lastRetryAt > 0 && elapsed < cooldownMs)) {
+    const remainingSec = Math.max(1, Math.ceil((cooldownMs - Math.max(0, elapsed)) / 1000));
+    const retryMsg = `Please wait ${remainingSec}s before retrying the map.`;
+    const hintEl = document.getElementById('mapFallbackHint');
+    const statusEl = document.getElementById('mapFallbackStatus');
+    const retryBtn = document.getElementById('mapFallbackRetryBtn');
+    if (hintEl) {
+      hintEl.textContent = retryMsg;
+      hintEl.hidden = false;
+    }
+    if (statusEl) statusEl.textContent = retryMsg;
+    if (retryBtn) {
+      retryBtn.disabled = true;
+      if (mapRuntimeState.cooldownTimer) clearTimeout(mapRuntimeState.cooldownTimer);
+      mapRuntimeState.cooldownTimer = setTimeout(() => {
+        retryBtn.disabled = false;
+        if (hintEl) hintEl.hidden = true;
+      }, Math.max(200, cooldownMs - Math.max(0, elapsed)));
+    }
+    return;
+  }
+
+  mapRuntimeState.lastRetryAt = now;
+  mapRuntimeState.retryInFlight = true;
+  const retryBtn = document.getElementById('mapFallbackRetryBtn');
+  if (retryBtn) retryBtn.disabled = false;
+  const statusEl = document.getElementById('mapFallbackStatus');
+  if (statusEl) statusEl.textContent = 'Retrying map…';
+
+  ensureMapInitialized({ forceRetry: true });
+  applyFilters();
+  if (map && !mapRuntimeState.unavailable && typeof map.invalidateSize === 'function') {
+    setTimeout(() => map.invalidateSize(), 40);
+  }
 }
 
 function showScreen(name) {

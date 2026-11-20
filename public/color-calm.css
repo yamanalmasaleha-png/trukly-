@@ -273,3 +273,114 @@ body{background:var(--cream);color:var(--ink)}
  #neighborhoodHeading{max-width:100%;text-wrap:balance}
  #communityScreen .community-head h1,#guidesScreen .guides-hero h1{text-wrap:balance}
 }
+/* Map resilience, visible attribution, and accessible outage fallback controls */
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+#discoverScreen:not(.list-mode) .mode-switch{
+  bottom:42px;
+}
+#map .leaflet-control-attribution{
+  background:rgba(255,253,248,0.94);
+  color:var(--ink);
+  font-size:11px;
+  line-height:1.35;
+  padding:2px 8px;
+  border-top-left-radius:8px;
+  border-top:1px solid var(--trk-border);
+  border-left:1px solid var(--trk-border);
+  width:max-content;
+  max-width:calc(100vw - 12px);
+}
+#map .leaflet-control-attribution a{
+  color:var(--trk-green);
+  font-weight:600;
+  text-decoration:underline;
+}
+#map .leaflet-bottom .leaflet-control-zoom{
+  margin-bottom:52px;
+}
+.map-wrap.is-map-unavailable #map,
+.map-wrap.is-map-unavailable #mapEmpty,
+.list-mode .map-fallback{
+  display:none!important;
+}
+.map-fallback{
+  order:2;
+  flex:1;
+  min-height:0;
+  width:100%;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  display:grid;
+  place-items:center;
+  padding:20px 16px 96px;
+  background:linear-gradient(180deg,var(--trk-sage) 0%,var(--cream) 100%);
+}
+.map-fallback-card{
+  width:min(100%,460px);
+  background:var(--trk-paper);
+  border:1px solid var(--trk-border);
+  border-radius:18px;
+  padding:22px 20px;
+  box-shadow:var(--shadow);
+  text-align:left;
+}
+.map-fallback-kicker{
+  display:inline-block;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:1.2px;
+  color:var(--trk-rust);
+  margin-bottom:4px;
+}
+.map-fallback-card h2{
+  color:var(--trk-green);
+  font-size:24px;
+  margin:2px 0 8px;
+}
+.map-fallback-card p{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+  margin:0 0 16px;
+}
+.map-fallback-actions{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.map-fallback-actions button{
+  min-height:46px;
+  padding:11px 14px;
+  font-size:14px;
+}
+.map-fallback-hint{
+  margin:12px 0 0!important;
+  font-size:13px!important;
+  color:var(--trk-rust)!important;
+  font-weight:600;
+}
+@media(max-width:749px){
+  #discoverScreen:not(.list-mode) .mode-switch{
+    bottom:44px;
+  }
+  #map .leaflet-bottom .leaflet-control-zoom{
+    margin-bottom:54px;
+  }
+  .map-fallback{
+    padding:14px 12px 92px;
+  }
+  .map-fallback-card{
+    padding:18px 16px;
+    border-radius:16px;
+  }
+  .map-fallback-card h2{
+    font-size:20px;
+  }
+  .map-fallback-actions{
+    grid-template-columns:1fr;
+    gap:8px;
+  }
+}
