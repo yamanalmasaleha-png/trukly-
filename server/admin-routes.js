@@ -2898,6 +2898,9 @@ export async function handleGovernanceApiRequest({
     }
 
     const outcome = await withTransaction(dbAdapter, async tx => {
+      // Serialize concurrent platform-role mutations before acquiring `FOR SHARE` on `platform_roles`
+      // so `FOR UPDATE OF pr` below can never deadlock (`40P01`) across concurrent Top admins.
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('biteshark_platform_roles_mutation'))");
       const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
       if (!verifiedTop.ok) return { status: verifiedTop.status, body: { error: verifiedTop.error } };
       await enableAdminTxGuards(tx, ctx);
@@ -3021,6 +3024,7 @@ export async function handleGovernanceApiRequest({
     }
 
     const outcome = await withTransaction(dbAdapter, async tx => {
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('biteshark_platform_roles_mutation'))");
       const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
       if (!verifiedTop.ok) return { status: verifiedTop.status, body: { error: verifiedTop.error } };
       await enableAdminTxGuards(tx, ctx);
