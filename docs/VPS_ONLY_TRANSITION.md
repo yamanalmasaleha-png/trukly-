@@ -21,3 +21,24 @@ No historical hosted project, DNS, VPS service, deployed code, credentials, data
 ## Verification
 
 Local execution results and exact-head Linux CI must be reviewed before deployment. Local checks use disposable PostgreSQL and simulated push delivery; they do not prove physical-device push. Production approval, legal sign-off, offsite backup/restore evidence and physical-device gates remain open independently.
+
+### Checks executed during this transition
+
+Local Windows Node 24.19 / disposable PostgreSQL 18.7 / headless Chrome 157:
+
+| Check | Result |
+| --- | --- |
+| Locked dependency install and new adapter resolution | PASS |
+| JavaScript syntax, pager demo, 59-listing parity, VPS platform contract | PASS |
+| OTP/email diagnostics and standalone runtime/auth | PASS (8/8 each) |
+| Backend security / discovery | PASS (8/8 each) |
+| Pager notification database suite | PASS (12/12, simulated provider) |
+| Admin governance / legal readiness | PASS (7/7 and 10/10) |
+| Discovery / pager / admin / legal browser suites | PASS (3/3, 4/4, 5/5, 5/5) |
+| VPS preflight after shared-module import correction | PASS (11 gates + 6 E2E flows) |
+| Release archive hygiene and Bash syntax | PASS |
+| Windows installer harness | PARTIAL: scenarios 1–6 passed; worker-crash expected-phase assertion failed under Git Bash |
+
+Linux Node 22 / PostgreSQL 16 verification is provided by GitHub Actions. The installer step passed on `d08133393dbdeb8137a7164900ef9263e88e6f3d` in run [44721459713](https://github.com/yamanalmasaleha-png/trukly-/actions/runs/44721459713); that overall run failed later in VPS preflight because the shared gate module needed its `node:vm` import restored. That import was restored and the local VPS preflight rerun successfully. Review the final commit's own complete CI run before deployment; do not treat the earlier failed overall run as green.
+
+The tests caught and corrected an editing-time UTF-8 issue in test source and updated historical rollback fixtures for the new import name. No applied migration or database data was rewritten.

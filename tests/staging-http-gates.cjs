@@ -1,5 +1,6 @@
 // Shared VPS staging HTTP assertions. Run tests/vps-staging-gates.cjs.
 const crypto = require('node:crypto');
+const vm = require('node:vm');
 const assert = require('node:assert/strict');
 
 const FORBIDDEN_PROD_HOSTS = new Set([
