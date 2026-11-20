@@ -1094,12 +1094,12 @@ activate_and_verify_release() {
     if [[ -f "${RELEASE_DIR}/public/icon-192.png" ]]; then
       local pub_html pub_manifest icon_code dbg_code
       pub_html="$(curl -fsS --max-time 5 "${PUBLIC_STAGING_URL}/" 2>/dev/null || true)"
-      if ! printf '%s' "${pub_html}" | grep -q "BiteShark"; then
+      if [[ "${pub_html}" != *"BiteShark"* ]]; then
         VERIFICATION_DETAIL="public_staging_index_missing_biteshark"
         return 1
       fi
       pub_manifest="$(curl -fsS --max-time 5 "${PUBLIC_STAGING_URL}/manifest.json" 2>/dev/null || true)"
-      if ! printf '%s' "${pub_manifest}" | grep -q '"short_name": "BiteShark"'; then
+      if [[ "${pub_manifest}" != *'"short_name": "BiteShark"'* ]]; then
         VERIFICATION_DETAIL="public_staging_manifest_missing_biteshark"
         return 1
       fi
@@ -1127,7 +1127,7 @@ activate_and_verify_release() {
     FAILED_PHASE="verify_holding_page"
     local hold_html hold_api_code
     hold_html="$(curl -fsS --max-time 5 "${PUBLIC_HOLDING_URL}/" 2>/dev/null || true)"
-    if ! printf '%s' "${hold_html}" | grep -q "BiteShark is coming soon."; then
+    if [[ "${hold_html}" != *"BiteShark is coming soon."* ]]; then
       VERIFICATION_DETAIL="holding_page_unexpected_content"
       return 1
     fi
