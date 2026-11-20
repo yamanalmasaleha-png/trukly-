@@ -155,8 +155,15 @@
   // =========================================================================
   async function loadVendorSelectorCatalog() {
     try {
-      var data = await apiJson('/api/admin/vendors?page=1&page_size=50');
-      state.catalogVendors = Array.isArray(data.vendors) ? data.vendors : [];
+      var p1 = await apiJson('/api/admin/vendors?page=1&page_size=50');
+      var allVendors = Array.isArray(p1.vendors) ? p1.vendors.slice() : [];
+      if (Number(p1.total) > allVendors.length) {
+        var p2 = await apiJson('/api/admin/vendors?page=2&page_size=50');
+        if (Array.isArray(p2.vendors)) {
+          allVendors = allVendors.concat(p2.vendors);
+        }
+      }
+      state.catalogVendors = allVendors;
       var vpSel = document.getElementById('vpVendorSelect');
       var invSel = document.getElementById('invVendorId');
       var optsHtml =
@@ -168,6 +175,7 @@
           .join('');
       if (vpSel) vpSel.innerHTML = optsHtml;
       if (invSel) invSel.innerHTML = optsHtml;
+      updateInviteFormHints();
     } catch (_e) {
       // Non-fatal selector warmup
     }
@@ -956,14 +964,129 @@
     else loadAccounts(1);
   }
 
+  var pendingInviteAction = null;
+  var lastInviteTriggerEl = null;
+
+  function deliveryPillHtml(inv) {
+    var ds = inv.delivery_status || 'not_requested';
+    var lbl = inv.delivery_status_label || ds;
+    var cls = 'pill';
+    if (ds === 'provider_accepted') cls = 'pill pill-ok';
+    else if (ds === 'delivery_failed' || ds === 'delivery_uncertain') cls = 'pill pill-err';
+    else if (ds === 'pending_approval' || ds === 'queued' || ds === 'staging_mailbox_only') cls = 'pill pill-warn';
+    return '<span class="' + cls + '">' + esc(lbl) + '</span>';
+  }
+
+  function acceptancePillHtml(inv) {
+    if (inv.accepted_by_recipient) {
+      return '<span class="pill pill-ok">Accepted by recipient</span>';
+    }
+    if (inv.status === 'pending_top_approval') {
+      return '<span class="pill pill-warn">Pending approval</span>';
+    }
+    if (inv.status === 'revoked' || inv.status === 'rejected' || inv.is_expired) {
+      return '<span class="pill">' + esc(inv.acceptance_label || inv.status) + '</span>';
+    }
+    return '<span class="pill pill-warn">Awaiting recipient acceptance</span>';
+  }
+
+  function renderInvitationOutcomeBanner(data, fallbackEmail) {
+    var resBox = document.getElementById('invResultBox');
+    if (!resBox) return;
+    resBox.hidden = false;
+    var inv = data.invitation || {};
+    var targetEmail = inv.email || fallbackEmail || '';
+    var roleLbl = inv.role_label || inv.requested_role_label || inv.requested_role || 'Account';
+
+    if (data.requires_top_approval) {
+      resBox.innerHTML =
+        '<strong>⏳ Pending Admin: Top Approval:</strong> Invitation for <strong>' +
+        esc(targetEmail) +
+        '</strong> (' +
+        esc(roleLbl) +
+        ') was recorded and placed in the Admin: Top approval queue. No active token is issued and no email is sent until approved.';
+      return;
+    }
+
+    var del = data.delivery || {};
+    if (del.status === 'provider_accepted') {
+      resBox.innerHTML =
+        '<strong>✓ Accepted by Email Provider:</strong> Invitation email for <strong>' +
+        esc(targetEmail) +
+        '</strong> (<strong>' +
+        esc(roleLbl) +
+        '</strong> · expires ' +
+        fmtDate(inv.expires_at) +
+        ') was accepted by the configured mail provider' +
+        (del.provider_message_id ? ' (Message ID: <code>' + esc(del.provider_message_id) + '</code>)' : '') +
+        '.<br><small>Provider acceptance confirms handoff to the mail service (not inbox receipt). The recipient does <strong>not</strong> hold this role until they verify email ownership via OTP, complete the 14+ age check, and explicitly accept.</small>';
+      return;
+    }
+
+    if (del.status === 'delivery_failed' || del.status === 'delivery_uncertain') {
+      resBox.innerHTML =
+        '<strong>⚠ Invitation Saved — ' +
+        esc(del.status_label || 'Email Delivery Failed') +
+        ':</strong> The invitation record for <strong>' +
+        esc(targetEmail) +
+        '</strong> (' +
+        esc(roleLbl) +
+        ') was preserved, but email delivery did not succeed' +
+        (del.error_code ? ' (code: <code>' + esc(del.error_code) + '</code>)' : '') +
+        (del.correlation_id ? ' [Ref: <code>' + esc(del.correlation_id) + '</code>]' : '') +
+        '.<br><small>Use <strong>Resend Email</strong> in the Invitations Queue below after checking Email Readiness, or revoke the invitation if no longer needed.</small>';
+      return;
+    }
+
+    if (data.accept_path) {
+      var fullLink = window.location.origin + data.accept_path;
+      resBox.innerHTML =
+        '<strong>✓ Staging Mailbox Test Mode (No External Email Sent):</strong> Single-use test link for <strong>' +
+        esc(targetEmail) +
+        '</strong> (' +
+        esc(roleLbl) +
+        '):<br><code>' +
+        esc(fullLink) +
+        '</code>';
+      return;
+    }
+
+    resBox.innerHTML =
+      '<strong>✓ Invitation Updated:</strong> Invitation for <strong>' +
+      esc(targetEmail) +
+      '</strong> (' +
+      esc(roleLbl) +
+      ') is now <strong>' +
+      esc(del.status_label || inv.status || 'issued') +
+      '</strong>.';
+  }
+
   function updateInviteFormHints() {
     var role = document.getElementById('invRole').value;
-    var needsVendor = role === 'vendor_owner' || role === 'vendor_staff';
-    document.getElementById('invVendorWrap').hidden = !needsVendor;
-    document.getElementById('invVendorId').required = needsVendor;
+    var showVendor = role === 'vendor_owner' || role === 'vendor_staff';
+    var vendorWrap = document.getElementById('invVendorWrap');
+    var vendorSel = document.getElementById('invVendorId');
+    if (vendorWrap) vendorWrap.hidden = !showVendor;
+    if (vendorSel) {
+      vendorSel.required = role === 'vendor_staff';
+      var firstOpt = vendorSel.querySelector('option[value=""]');
+      if (firstOpt) {
+        firstOpt.textContent =
+          role === 'vendor_owner'
+            ? 'New vendor listing application (or select existing vendor)…'
+            : 'Select vendor (required for Vendor Staff)…';
+      }
+    }
 
     var isPriv = role === 'mod' || role === 'top';
-    document.getElementById('invModElevationNotice').hidden = !(!state.isTop && isPriv);
+    var modNotice = document.getElementById('invModElevationNotice');
+    var topNotice = document.getElementById('invTopAuthorityNotice');
+    var submitBtn = document.getElementById('invSubmitBtn');
+    if (modNotice) modNotice.hidden = !(!state.isTop && isPriv);
+    if (topNotice) topNotice.hidden = !(state.isTop && role === 'top');
+    if (submitBtn) {
+      submitBtn.textContent = !state.isTop && isPriv ? 'Submit for Top Approval' : 'Create & Send Invitation';
+    }
   }
 
   async function submitCreateInvitation(e) {
@@ -972,8 +1095,10 @@
     var email = document.getElementById('invEmail').value.trim();
     var vendorId = document.getElementById('invVendorId').value;
     var note = document.getElementById('invNote').value.trim();
+    var submitBtn = document.getElementById('invSubmitBtn');
     var resBox = document.getElementById('invResultBox');
     resBox.hidden = true;
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
       var data = await apiJson('/api/admin/invitations/create', {
@@ -981,29 +1106,15 @@
         body: {
           email: email,
           requested_role: role,
-          vendor_id: role === 'vendor_owner' || role === 'vendor_staff' ? vendorId : null,
+          vendor_id: (role === 'vendor_owner' || role === 'vendor_staff') && vendorId ? vendorId : null,
           note: note
         }
       });
-      resBox.hidden = false;
-      if (data.requires_top_approval) {
-        resBox.innerHTML =
-          '<strong>⏳ Pending Admin: Top Approval:</strong> Invitation for <strong>' +
-          esc(email) +
-          '</strong> (' +
-          esc(data.invitation.role_label) +
-          ') was recorded and placed in the Admin: Top approval queue. No active token is issued until approved.';
+      renderInvitationOutcomeBanner(data, email);
+      if (data.delivery && (data.delivery.status === 'delivery_failed' || data.delivery.status === 'delivery_uncertain')) {
+        showBanner('Invitation created, but email delivery reported "' + (data.delivery.status_label || data.delivery.status) + '". Use Resend Email below to retry.', true);
       } else {
-        var fullLink = window.location.origin + data.accept_path;
-        resBox.innerHTML =
-          '<strong>✓ Single-Use Invitation Issued:</strong> Share this expiring link with <strong>' +
-          esc(email) +
-          '</strong> (' +
-          esc(data.invitation.role_label) +
-          '). Recipient must verify email ownership via 6-digit OTP to redeem:<br>' +
-          '<code>' +
-          esc(fullLink) +
-          '</code>';
+        showBanner('', false);
       }
       document.getElementById('inviteCreateForm').reset();
       updateInviteFormHints();
@@ -1011,6 +1122,8 @@
       loadOverview();
     } catch (err) {
       showBanner(err.message, true);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 
@@ -1045,35 +1158,82 @@
       wrapEl.hidden = false;
       wrapEl.innerHTML =
         '<table class="admin-table"><thead><tr>' +
-        '<th>Recipient Email</th><th>Requested Role</th><th>Vendor</th><th>Status</th><th>Initiated By</th><th>Created / Expires</th><th>Actions</th>' +
+        '<th>Recipient</th><th>Role &amp; Scope</th><th>Approval</th><th>Email Delivery</th><th>Acceptance &amp; Expiry</th><th>Actions</th>' +
         '</tr></thead><tbody>' +
         state.invitations.items
           .map(function (inv) {
+            var persistedSt = inv.persisted_status || inv.status;
+            var isPriv = inv.requested_role === 'mod' || inv.requested_role === 'top';
+            var canManageOwn = state.isTop || inv.initiated_by === state.ctx.user.id;
+            var canResend = persistedSt === 'issued' && !inv.accepted_by_recipient && (state.isTop || (!isPriv && canManageOwn));
+
             var actions = '';
-            if (inv.status === 'pending_top_approval' && state.isTop) {
+            if (persistedSt === 'pending_top_approval' && state.isTop) {
               actions +=
                 '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-inv-act="approve" data-id="' +
                 esc(inv.id) +
-                '">Approve &amp; Issue</button> ' +
+                '">Approve &amp; Send</button> ' +
                 '<button type="button" class="admin-btn admin-btn-danger admin-btn-sm" data-inv-act="reject" data-id="' +
                 esc(inv.id) +
                 '">Reject</button> ';
             }
-            if ((inv.status === 'pending_top_approval' || inv.status === 'issued') && (state.isTop || inv.initiated_by === state.ctx.user.id)) {
+            if (canResend) {
+              actions +=
+                '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-inv-act="resend" data-id="' +
+                esc(inv.id) +
+                '">Resend Email</button> ';
+            }
+            if ((persistedSt === 'pending_top_approval' || persistedSt === 'issued') && !inv.accepted_by_recipient && canManageOwn) {
               actions +=
                 '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-inv-act="revoke" data-id="' +
                 esc(inv.id) +
-                '">Revoke</button>';
+                '">Revoke</button> ';
             }
+            actions +=
+              '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-inv-history="' +
+              esc(inv.id) +
+              '">History</button>';
+
+            var scopeHtml = inv.vendor_id
+              ? '<div><small>Vendor: <strong>' + esc(inv.vendor_name || inv.vendor_id) + '</strong> (<code>' + esc(inv.vendor_id) + '</code>)</small></div>'
+              : inv.requested_role === 'vendor_owner'
+                ? '<div><small>New vendor listing application</small></div>'
+                : '';
+
+            var approvalHtml =
+              '<div>' +
+              (inv.approval_required
+                ? '<span class="pill pill-warn">Pending Top approval</span>'
+                : '<span class="pill pill-ok">' + esc(inv.approval_state_label || 'Approved') + '</span>') +
+              '</div><small>Initiator: ' +
+              esc(inv.initiator_role) +
+              '</small>';
+
+            var deliveryMeta = '';
+            if (inv.provider_message_id) {
+              deliveryMeta += '<br><small>Msg: <code>' + esc(inv.provider_message_id) + '</code></small>';
+            }
+            if (inv.last_error_code) {
+              deliveryMeta += '<br><small style="color:#8c1d18">Err: <code>' + esc(inv.last_error_code) + '</code></small>';
+            }
+            if (inv.last_sent_at) {
+              deliveryMeta += '<br><small>Sent: ' + fmtDate(inv.last_sent_at) + ' (v' + Number(inv.token_version || 1) + ')</small>';
+            }
+
+            var acceptMeta = inv.accepted_by_recipient
+              ? '<br><small>Accepted: ' + fmtDate(inv.consumed_at) + '</small>'
+              : inv.expires_at
+                ? '<br><small>Exp: ' + fmtDate(inv.expires_at) + '</small>'
+                : '';
+
             return (
               '<tr>' +
-              '<td><strong>' + esc(inv.email) + '</strong><br><small>' + esc(inv.note || '') + '</small></td>' +
-              '<td>' + esc(inv.role_label) + '</td>' +
-              '<td>' + esc(inv.vendor_id || '—') + '</td>' +
-              '<td>' + statusPill(inv.status) + '</td>' +
-              '<td><span class="pill">' + esc(inv.initiator_role) + '</span><br><small>' + esc(inv.initiated_by) + '</small></td>' +
-              '<td>' + fmtDate(inv.created_at) + '<br><small>Exp: ' + fmtDate(inv.expires_at) + '</small></td>' +
-              '<td>' + (actions || '<small>—</small>') + '</td>' +
+              '<td><strong>' + esc(inv.email) + '</strong>' + (inv.note ? '<br><small>' + esc(inv.note) + '</small>' : '') + '</td>' +
+              '<td><strong>' + esc(inv.role_label) + '</strong>' + scopeHtml + '</td>' +
+              '<td>' + approvalHtml + '</td>' +
+              '<td>' + deliveryPillHtml(inv) + deliveryMeta + '</td>' +
+              '<td>' + acceptancePillHtml(inv) + '<br><small>Created: ' + fmtDate(inv.created_at) + '</small>' + acceptMeta + '</td>' +
+              '<td><div class="action-row" style="gap:6px;flex-wrap:wrap">' + actions + '</div></td>' +
               '</tr>'
             );
           })
@@ -1082,7 +1242,12 @@
 
       wrapEl.querySelectorAll('[data-inv-act]').forEach(function (btn) {
         btn.onclick = function () {
-          decideInvitation(btn.dataset.id, btn.dataset.invAct);
+          openInvitationActionModal(btn.dataset.id, btn.dataset.invAct, btn);
+        };
+      });
+      wrapEl.querySelectorAll('[data-inv-history]').forEach(function (btn) {
+        btn.onclick = function () {
+          openInvitationHistoryModal(btn.dataset.invHistory, btn);
         };
       });
 
@@ -1093,28 +1258,179 @@
     }
   }
 
-  async function decideInvitation(invitationId, action) {
-    var reason = window.prompt('Enter audit reason for invitation ' + action + ' (min 3 chars):', 'Reviewed by administrator');
-    if (!reason || reason.trim().length < 3) return;
+  function openInvitationActionModal(invitationId, action, triggerEl) {
+    var inv = (state.invitations.items || []).find(function (x) { return x.id === invitationId; });
+    if (!inv) return;
+    pendingInviteAction = { invitationId: invitationId, action: action, inv: inv };
+    lastInviteTriggerEl = triggerEl || null;
+
+    var modal = document.getElementById('invActionModal');
+    var titleEl = document.getElementById('invActionTitle');
+    var sumEl = document.getElementById('invActionSummary');
+    var reasonEl = document.getElementById('invActionReason');
+    var errEl = document.getElementById('invActionError');
+    var submitBtn = document.getElementById('invActionSubmitBtn');
+
+    errEl.hidden = true;
+    errEl.textContent = '';
+
+    if (action === 'approve') {
+      titleEl.textContent = 'Approve & Send Privileged Invitation';
+      sumEl.textContent =
+        'Approving issues a single-use token and emails ' +
+        inv.email +
+        ' (' +
+        inv.role_label +
+        '). The recipient still must verify email ownership and complete the 14+ check before accepting.';
+      reasonEl.value = 'Approved after administrator verification';
+      submitBtn.textContent = 'Approve & Send Email';
+      submitBtn.className = 'admin-btn admin-btn-primary';
+    } else if (action === 'resend') {
+      titleEl.textContent = 'Resend Invitation Email (Rotate Link)';
+      sumEl.textContent =
+        'Generates a fresh single-use link for ' +
+        inv.email +
+        ' (' +
+        inv.role_label +
+        '), invalidates any earlier unredeemed link, extends expiration to 72 hours, and sends one new email.';
+      reasonEl.value =
+        inv.delivery_status === 'delivery_failed' || inv.delivery_status === 'delivery_uncertain' || inv.delivery_status === 'not_requested'
+          ? 'Sending active invitation email after prior non-delivery'
+          : 'Recipient requested fresh invitation email';
+      submitBtn.textContent = 'Rotate Link & Send Email';
+      submitBtn.className = 'admin-btn admin-btn-primary';
+    } else if (action === 'reject') {
+      titleEl.textContent = 'Reject Pending Invitation';
+      sumEl.textContent = 'Rejects pending invitation for ' + inv.email + ' (' + inv.role_label + '). No token or email will be issued.';
+      reasonEl.value = '';
+      submitBtn.textContent = 'Reject Invitation';
+      submitBtn.className = 'admin-btn admin-btn-danger';
+    } else {
+      titleEl.textContent = 'Revoke Invitation';
+      sumEl.textContent =
+        'Immediately invalidates the invitation for ' +
+        inv.email +
+        ' (' +
+        inv.role_label +
+        ') so the link can no longer authorize staging registration or role acceptance.';
+      reasonEl.value = '';
+      submitBtn.textContent = 'Revoke Invitation';
+      submitBtn.className = 'admin-btn admin-btn-danger';
+    }
+
+    modal.hidden = false;
+    reasonEl.focus();
+  }
+
+  function closeInvitationActionModal() {
+    var modal = document.getElementById('invActionModal');
+    if (modal) modal.hidden = true;
+    pendingInviteAction = null;
+    if (lastInviteTriggerEl && typeof lastInviteTriggerEl.focus === 'function') {
+      lastInviteTriggerEl.focus();
+    }
+    lastInviteTriggerEl = null;
+  }
+
+  async function submitInvitationActionModal(e) {
+    e.preventDefault();
+    if (!pendingInviteAction) return;
+    var reasonEl = document.getElementById('invActionReason');
+    var errEl = document.getElementById('invActionError');
+    var submitBtn = document.getElementById('invActionSubmitBtn');
+    var reason = reasonEl.value.trim();
+    if (reason.length < 3 || reason.length > 500) {
+      errEl.hidden = false;
+      errEl.textContent = 'Enter an audit reason between 3 and 500 characters.';
+      reasonEl.focus();
+      return;
+    }
+
+    var targetId = pendingInviteAction.invitationId;
+    var act = pendingInviteAction.action;
+    var targetEmail = pendingInviteAction.inv ? pendingInviteAction.inv.email : '';
+    submitBtn.disabled = true;
+    errEl.hidden = true;
     try {
       var out = await apiJson('/api/admin/invitations/decision', {
         method: 'POST',
-        body: { invitation_id: invitationId, action: action, reason: reason.trim() }
+        body: { invitation_id: targetId, action: act, reason: reason }
       });
-      if (out.accept_path) {
-        var resBox = document.getElementById('invResultBox');
-        resBox.hidden = false;
-        resBox.innerHTML =
-          '<strong>✓ Privileged Invitation Approved &amp; Issued:</strong> Share one-time link:<br><code>' +
-          esc(window.location.origin + out.accept_path) +
-          '</code>';
+      closeInvitationActionModal();
+      if (act === 'approve' || act === 'resend') {
+        renderInvitationOutcomeBanner(out, targetEmail);
       }
-      showBanner('Invitation ' + action + ' completed.', false);
+      if (out.delivery && (out.delivery.status === 'delivery_failed' || out.delivery.status === 'delivery_uncertain')) {
+        showBanner('Invitation updated, but email delivery reported "' + (out.delivery.status_label || out.delivery.status) + '".', true);
+      } else {
+        showBanner('Invitation ' + act + ' completed.', false);
+      }
       loadInvitations(state.invitations.page);
       loadOverview();
     } catch (err) {
-      showBanner(err.message, true);
+      errEl.hidden = false;
+      errEl.textContent = err.message;
+    } finally {
+      submitBtn.disabled = false;
     }
+  }
+
+  function openInvitationHistoryModal(invitationId, triggerEl) {
+    var inv = (state.invitations.items || []).find(function (x) { return x.id === invitationId; });
+    if (!inv) return;
+    lastInviteTriggerEl = triggerEl || null;
+    var modal = document.getElementById('invHistoryModal');
+    var titleEl = document.getElementById('invHistoryTitle');
+    var bodyEl = document.getElementById('invHistoryBody');
+    titleEl.textContent = 'Invitation Audit Timeline · ' + inv.email;
+
+    var evs = Array.isArray(inv.events) ? inv.events : [];
+    var summaryHtml =
+      '<div class="record-meta" style="margin-bottom:12px">' +
+      'Role: <strong>' + esc(inv.role_label) + '</strong>' +
+      (inv.vendor_id ? ' · Vendor: <code>' + esc(inv.vendor_id) + '</code>' : '') +
+      ' · Delivery: <strong>' + esc(inv.delivery_status_label || inv.delivery_status) + '</strong>' +
+      ' · Acceptance: <strong>' + esc(inv.acceptance_label || inv.status) + '</strong>' +
+      '</div>';
+
+    var listHtml = evs.length
+      ? '<div class="thread-list">' +
+        evs
+          .map(function (ev) {
+            return (
+              '<div class="thread-item">' +
+              '<strong>' + esc(ev.event_type) + '</strong>' +
+              (ev.actor_role ? ' <span class="pill">' + esc(ev.actor_role) + '</span>' : '') +
+              (ev.actor_id ? ' <small>by <code>' + esc(ev.actor_id) + '</code></small>' : '') +
+              ' · <small>' + fmtDate(ev.created_at) + '</small>' +
+              (ev.provider_message_id ? '<div><small>Provider Message ID: <code>' + esc(ev.provider_message_id) + '</code></small></div>' : '') +
+              (ev.error_code ? '<div><small style="color:#8c1d18">Error Code: <code>' + esc(ev.error_code) + '</code></small></div>' : '') +
+              (ev.correlation_id || ev.release_sha
+                ? '<div><small>' +
+                  (ev.correlation_id ? 'Ref: <code>' + esc(ev.correlation_id) + '</code> ' : '') +
+                  (ev.release_sha ? 'Release: <code>' + esc(String(ev.release_sha).slice(0, 12)) + '</code>' : '') +
+                  '</small></div>'
+                : '') +
+              (ev.note ? '<div>' + esc(ev.note) + '</div>' : '') +
+              '</div>'
+            );
+          })
+          .join('') +
+        '</div>'
+      : '<p class="record-meta">Historical invitation created prior to detailed event timeline logging.</p>';
+
+    bodyEl.innerHTML = summaryHtml + listHtml;
+    modal.hidden = false;
+    document.getElementById('invHistoryCloseBtn').focus();
+  }
+
+  function closeInvitationHistoryModal() {
+    var modal = document.getElementById('invHistoryModal');
+    if (modal) modal.hidden = true;
+    if (lastInviteTriggerEl && typeof lastInviteTriggerEl.focus === 'function') {
+      lastInviteTriggerEl.focus();
+    }
+    lastInviteTriggerEl = null;
   }
 
   async function loadAccounts(page) {
@@ -3114,12 +3430,28 @@
       inlineErrEl: errEl
     });
   };
+  document.getElementById('invActionForm').onsubmit = submitInvitationActionModal;
+  document.getElementById('invActionCancelBtn').onclick = closeInvitationActionModal;
+  document.getElementById('invHistoryCloseBtn').onclick = closeInvitationHistoryModal;
+
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
       var fcModal = document.getElementById('featureConfirmModal');
       if (fcModal && !fcModal.hidden) {
         e.preventDefault();
         closeFeatureConfirmModal(true);
+        return;
+      }
+      var invActModal = document.getElementById('invActionModal');
+      if (invActModal && !invActModal.hidden) {
+        e.preventDefault();
+        closeInvitationActionModal();
+        return;
+      }
+      var invHistModal = document.getElementById('invHistoryModal');
+      if (invHistModal && !invHistModal.hidden) {
+        e.preventDefault();
+        closeInvitationHistoryModal();
       }
     }
   });

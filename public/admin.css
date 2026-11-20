@@ -984,6 +984,22 @@ input:focus, select:focus, textarea:focus {
   .admin-main {
     padding: 16px 14px 40px;
   }
+  .invite-form-grid {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .invite-form-grid label,
+  .invite-form-grid label.grow {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  .invite-form-grid .admin-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  .modal-actions {
+    flex-wrap: wrap;
+  }
 }
 
 /* Focus Visibility & Business/Compliance Readiness Styles */

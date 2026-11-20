@@ -325,10 +325,10 @@
           <div class="card-panel invite-composer">
             <h2>Initiate Account Invitation</h2>
             <form id="inviteCreateForm" class="invite-form-grid">
-              <label>Recipient Email
+              <label for="invEmail">Recipient Email
                 <input type="email" id="invEmail" required maxlength="254" placeholder="name@example.org">
               </label>
-              <label>Requested Role Level
+              <label for="invRole">Requested Role Level
                 <select id="invRole" required>
                   <option value="customer">Customer</option>
                   <option value="vendor_staff">Vendor Staff</option>
@@ -337,22 +337,25 @@
                   <option value="top">Admin: Top</option>
                 </select>
               </label>
-              <label id="invVendorWrap" hidden>Target Vendor
+              <label id="invVendorWrap" for="invVendorId" hidden>Target Vendor Scope
                 <select id="invVendorId">
                   <option value="">Choose vendor…</option>
                 </select>
               </label>
-              <label class="grow">Invitation Reason / Note
+              <label class="grow" for="invNote">Invitation Reason / Note
                 <input type="text" id="invNote" required minlength="3" maxlength="500" placeholder="Reason for account or role invitation">
               </label>
               <div class="invite-submit-cell">
-                <button type="submit" class="admin-btn admin-btn-primary" id="invSubmitBtn">Create Invitation</button>
+                <button type="submit" class="admin-btn admin-btn-primary" id="invSubmitBtn">Create &amp; Send Invitation</button>
               </div>
             </form>
-            <div id="invModElevationNotice" class="policy-callout" hidden>
-              <strong>Two-Step Privileged Invitation Policy:</strong> As <strong>Admin: Mod</strong>, you can initiate <strong>Admin: Mod</strong> and <strong>Admin: Top</strong> invitations, but they remain in <strong>Pending Admin: Top Approval</strong> (no redeemable token issued) until an authorized <strong>Admin: Top</strong> reviews and approves them.
+            <div id="invTopAuthorityNotice" class="policy-callout" hidden>
+              <strong>Admin: Top Authority Notice:</strong> Inviting an address as <strong>Admin: Top</strong> sends a single-use invitation email and authorizes that exact address to verify ownership (OTP) and complete the 14+ age check on staging. <strong>No account or administrative permission is granted until the recipient verifies their email and explicitly accepts the invitation.</strong>
             </div>
-            <div id="invResultBox" class="invite-result" role="status" hidden></div>
+            <div id="invModElevationNotice" class="policy-callout" hidden>
+              <strong>Two-Step Privileged Invitation Policy:</strong> As <strong>Admin: Mod</strong>, you can initiate <strong>Admin: Mod</strong> and <strong>Admin: Top</strong> invitations, but they remain in <strong>Pending approval</strong> (no token issued and no email sent) until an authorized <strong>Admin: Top</strong> reviews and approves them.
+            </div>
+            <div id="invResultBox" class="invite-result" role="status" aria-live="polite" hidden></div>
           </div>
 
           <div class="subtabs" role="tablist" aria-label="Accounts and Invitations views">
@@ -362,17 +365,19 @@
 
           <div id="acctInvitationsView">
             <form class="filter-bar" id="invFilterForm">
-              <label>Invitation Status
+              <label for="invStatusFilter">Invitation Status
                 <select id="invStatusFilter">
                   <option value="all">All invitations</option>
-                  <option value="pending_top_approval">Pending Admin: Top Approval</option>
-                  <option value="issued">Issued (Active Link)</option>
-                  <option value="accepted">Accepted</option>
+                  <option value="pending_top_approval">Pending approval</option>
+                  <option value="issued">Issued (Awaiting acceptance)</option>
+                  <option value="delivery_failed">Delivery failed / uncertain</option>
+                  <option value="accepted">Accepted by recipient</option>
+                  <option value="expired">Expired</option>
                   <option value="rejected">Rejected</option>
-                  <option value="revoked">Revoked</option>
+                  <option value="revoked">Revoked / Superseded</option>
                 </select>
               </label>
-              <label>Role Level
+              <label for="invRoleFilter">Role Level
                 <select id="invRoleFilter">
                   <option value="all">All roles</option>
                   <option value="top">Admin: Top</option>
@@ -780,6 +785,34 @@
       <div class="modal-actions">
         <button type="button" class="admin-btn admin-btn-secondary" id="fcConfirmCancelBtn">Cancel</button>
         <button type="button" class="admin-btn admin-btn-danger" id="fcConfirmSubmitBtn">Confirm &amp; Apply Server Change</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invitation Decision / Resend / Audit History Modals -->
+  <div class="admin-modal-backdrop" id="invActionModal" hidden>
+    <form class="admin-modal" id="invActionForm" role="dialog" aria-modal="true" aria-labelledby="invActionTitle" aria-describedby="invActionSummary">
+      <span class="sec-kicker" id="invActionKicker">INVITATION GOVERNANCE</span>
+      <h2 id="invActionTitle">Confirm Invitation Action</h2>
+      <p id="invActionSummary">Provide an audit reason for this invitation action.</p>
+      <label for="invActionReason">Audit Reason (required, 3–500 characters)
+        <textarea id="invActionReason" rows="3" minlength="3" maxlength="500" required placeholder="Document why this invitation is being approved, resent, rejected, or revoked…"></textarea>
+      </label>
+      <p id="invActionError" class="form-err" role="alert" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="invActionCancelBtn">Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-primary" id="invActionSubmitBtn">Confirm Action</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="admin-modal-backdrop" id="invHistoryModal" hidden>
+    <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="invHistoryTitle">
+      <span class="sec-kicker">INVITATION AUDIT &amp; DELIVERY TIMELINE</span>
+      <h2 id="invHistoryTitle">Invitation History</h2>
+      <div id="invHistoryBody" style="max-height:55vh;overflow-y:auto"></div>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="invHistoryCloseBtn">Close</button>
       </div>
     </div>
   </div>

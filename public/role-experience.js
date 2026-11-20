@@ -8,6 +8,20 @@
 
   var VIEWPOINT_STORAGE_KEY = 'biteshark_admin_viewpoint_v1';
   var FEATURE_BROADCAST_CHANNEL = 'biteshark_feature_controls_v1';
+  var PENDING_INVITE_STORAGE_KEY = 'biteshark_pending_invite_v1';
+
+  function savePendingInviteToken(token) {
+    if (!token) return;
+    try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, String(token)); } catch (_e) {}
+  }
+
+  function readPendingInviteToken() {
+    try { return String(sessionStorage.getItem(PENDING_INVITE_STORAGE_KEY) || '').trim(); } catch (_e) { return ''; }
+  }
+
+  function clearPendingInviteToken() {
+    try { sessionStorage.removeItem(PENDING_INVITE_STORAGE_KEY); } catch (_e) {}
+  }
 
   var rxState = {
     ctx: null,
@@ -493,6 +507,19 @@
         btn.onclick = function () {
           document.getElementById(btn.dataset.rxClose).hidden = true;
         };
+      });
+
+      document.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Escape') return;
+        var closeableIds = ['inviteAcceptModal', 'communityReportModal', 'supportIssuesModal', 'vendorOnboardingModal'];
+        for (var i = 0; i < closeableIds.length; i++) {
+          var el = document.getElementById(closeableIds[i]);
+          if (el && !el.hidden) {
+            el.hidden = true;
+            ev.preventDefault();
+            break;
+          }
+        }
       });
 
       root.querySelectorAll('[data-va-tab]').forEach(function (btn) {
@@ -1078,8 +1105,18 @@
   // =========================================================================
   async function checkInviteRedemptionHash() {
     var h = String(window.location.hash || '');
-    if (h.indexOf('#accept-invite=') !== 0) return;
-    var token = decodeURIComponent(h.slice('#accept-invite='.length)).trim();
+    var token = '';
+    if (h.indexOf('#accept-invite=') === 0) {
+      token = decodeURIComponent(h.slice('#accept-invite='.length)).trim();
+    } else {
+      var qp = new URLSearchParams(window.location.search || '');
+      if (qp.get('invite') === '1') {
+        token = readPendingInviteToken();
+        if (token && window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname + '#accept-invite=' + encodeURIComponent(token));
+        }
+      }
+    }
     if (!token) return;
 
     injectRoleNavigationAndModals();
@@ -1099,22 +1136,75 @@
         requested_role: data.requested_role,
         role_label: data.requested_role_label,
         vendor_id: data.vendor_id,
-        vendor_name: data.vendor_name
+        vendor_name: data.vendor_name,
+        expires_at: data.expires_at,
+        full_authority_warning: data.full_authority_warning,
+        email_matches_session: data.email_matches_session
       };
+
+      savePendingInviteToken(token);
+
+      var topAuthorityHtml =
+        inv.requested_role === 'top' || inv.full_authority_warning
+          ? '<div class="rx-msg" role="note" style="background:#fff4ce;border:1px solid #d9b13b;color:#4b3600;margin:8px 0">' +
+            '<strong>⚠ Full Administrative Authority (Admin: Top):</strong> Accepting grants full administrative control over BiteShark accounts, invitations, vendor approvals, moderation, and controlled feature states.' +
+            '</div>'
+          : '';
+      var vendorOwnerNoteHtml =
+        inv.requested_role === 'vendor_owner'
+          ? '<p style="font-size:12.5px;color:#4a544f;margin:6px 0">Note: Vendor owner membership links your account to this vendor scope; public operational publishing remains subject to onboarding review.</p>'
+          : '';
+      var expiryHtml = inv.expires_at
+        ? '<p style="font-size:12.5px;color:#4a544f;margin:4px 0">Single-use invitation expires: <strong>' + rxEsc(rxDate(inv.expires_at)) + '</strong></p>'
+        : '';
+
       if (!rxState.ctx || !rxState.ctx.authenticated) {
-        var nextParam = encodeURIComponent('/#accept-invite=' + token);
+        var encodedHash = '#accept-invite=' + encodeURIComponent(token);
         body.innerHTML =
           '<div class="rx-card">' +
           '<h3>Invited Role: ' + rxEsc(inv.role_label) + '</h3>' +
-          '<p>Target Email: <strong>' + rxEsc(inv.masked_email) + '</strong>' +
+          '<p>Invited Email: <strong>' + rxEsc(inv.masked_email) + '</strong>' +
           (inv.vendor_name ? ' · Vendor: <strong>' + rxEsc(inv.vendor_name) + '</strong>' : '') +
           '</p>' +
+          expiryHtml +
+          topAuthorityHtml +
+          vendorOwnerNoteHtml +
           '<p>Verify email ownership and minimum account age eligibility (<strong>14+</strong>) for <strong>' + rxEsc(inv.masked_email) + '</strong> before redeeming this invitation.</p>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
-          '<a class="primary" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?mode=signup&amp;next=' + nextParam + '">Create Account (14+) &amp; Verify →</a>' +
-          '<a class="secondary" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?next=' + nextParam + '">Existing Account Sign In →</a>' +
+          '<a class="primary" id="iaSignupLink" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?mode=signup&amp;invite=1' + encodedHash + '">Create Account (14+) &amp; Verify →</a>' +
+          '<a class="secondary" id="iaSigninLink" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?invite=1' + encodedHash + '">Existing Account Sign In →</a>' +
           '</div>' +
           '</div>';
+        var suLink = document.getElementById('iaSignupLink');
+        if (suLink) suLink.focus();
+        return;
+      }
+
+      if (inv.email_matches_session === false) {
+        var signedInEmail = (rxState.ctx.user && rxState.ctx.user.email) || 'another account';
+        body.innerHTML =
+          '<div class="rx-card">' +
+          '<h3>Wrong Account Signed In</h3>' +
+          '<p>Invited Role: <strong>' + rxEsc(inv.role_label) + '</strong> · Invited Email: <strong>' + rxEsc(inv.masked_email) + '</strong></p>' +
+          '<div class="rx-msg error" role="alert" style="margin:8px 0">' +
+          'You are currently signed in as <strong>' + rxEsc(signedInEmail) + '</strong>, which does not match this invitation’s target email (<strong>' + rxEsc(inv.masked_email) + '</strong>). Invitations can only be redeemed by the exact invited email address.' +
+          '</div>' +
+          '<button type="button" class="primary" id="iaSwitchAccountBtn">Sign Out &amp; Switch to Invited Email →</button>' +
+          '</div>';
+        var swBtn = document.getElementById('iaSwitchAccountBtn');
+        if (swBtn) {
+          swBtn.focus();
+          swBtn.onclick = async function () {
+            swBtn.disabled = true;
+            try {
+              if (window.bitesharkAuth && window.bitesharkAuth.signOut) {
+                await window.bitesharkAuth.signOut();
+              }
+            } catch (_e) {}
+            savePendingInviteToken(token);
+            window.location.href = '/login.html?invite=1#accept-invite=' + encodeURIComponent(token);
+          };
+        }
         return;
       }
 
@@ -1123,18 +1213,24 @@
           '<div class="rx-card">' +
           '<h3>Invited Role: ' + rxEsc(inv.role_label) + '</h3>' +
           '<p>Signed in as: <strong>' + rxEsc(rxState.ctx.user.email) + '</strong></p>' +
+          expiryHtml +
+          topAuthorityHtml +
           '<p>Complete the one-time minimum account age check (<strong>14+</strong>) before accepting this invitation.</p>' +
           '<button type="button" class="primary" id="iaOpenAgeCheckBtn">Complete 14+ Age Check →</button>' +
           '</div>';
-        document.getElementById('iaOpenAgeCheckBtn').onclick = function () {
-          modal.hidden = true;
-          var ageModal = document.getElementById('rxAgeAssessmentModal');
-          if (ageModal) {
-            document.getElementById('rxAgeModalEmail').textContent = rxState.ctx.user.email || '';
-            ageModal.hidden = false;
-            document.getElementById('rxAgeMonth').focus();
-          }
-        };
+        var ageBtn = document.getElementById('iaOpenAgeCheckBtn');
+        if (ageBtn) {
+          ageBtn.focus();
+          ageBtn.onclick = function () {
+            modal.hidden = true;
+            var ageModal = document.getElementById('rxAgeAssessmentModal');
+            if (ageModal) {
+              document.getElementById('rxAgeModalEmail').textContent = rxState.ctx.user.email || '';
+              ageModal.hidden = false;
+              document.getElementById('rxAgeMonth').focus();
+            }
+          };
+        }
         return;
       }
 
@@ -1143,33 +1239,67 @@
         '<h3>Invited Role: ' + rxEsc(inv.role_label) + '</h3>' +
         '<p>Signed in as: <strong>' + rxEsc(rxState.ctx.user.email) + '</strong></p>' +
         (inv.vendor_name ? '<p>Vendor: <strong>' + rxEsc(inv.vendor_name) + '</strong></p>' : '') +
-        '<div id="iaAcceptMsg" class="rx-msg" hidden style="margin-bottom:8px"></div>' +
+        expiryHtml +
+        topAuthorityHtml +
+        vendorOwnerNoteHtml +
+        '<div id="iaAcceptMsg" class="rx-msg" role="status" hidden style="margin-bottom:8px"></div>' +
         '<button type="button" class="primary" id="iaConfirmBtn">Accept Invitation →</button>' +
         '</div>';
 
-      document.getElementById('iaConfirmBtn').onclick = async function () {
-        var msg = document.getElementById('iaAcceptMsg');
-        msg.hidden = false;
-        msg.className = 'rx-msg';
-        msg.textContent = 'Redeeming invitation…';
-        try {
-          await rxJson('/api/invitations/accept', { method: 'POST', body: { token: token } });
-          window.location.hash = '';
-          await refreshAccountRoleContext();
-          msg.textContent = 'Invitation accepted! Your permissions are now active.';
-          setTimeout(function () {
-            modal.hidden = true;
-            if (inv.requested_role === 'mod' || inv.requested_role === 'top') {
-              window.location.href = '/admin';
+      var confirmBtn = document.getElementById('iaConfirmBtn');
+      if (confirmBtn) {
+        confirmBtn.focus();
+        confirmBtn.onclick = async function () {
+          var msg = document.getElementById('iaAcceptMsg');
+          confirmBtn.disabled = true;
+          msg.hidden = false;
+          msg.className = 'rx-msg';
+          msg.textContent = 'Redeeming invitation…';
+          try {
+            await rxJson('/api/invitations/accept', { method: 'POST', body: { token: token } });
+            clearPendingInviteToken();
+            if (window.history && window.history.replaceState) {
+              window.history.replaceState(null, '', window.location.pathname);
+            } else {
+              window.location.hash = '';
             }
-          }, 800);
-        } catch (err) {
-          msg.className = 'rx-msg error';
-          msg.textContent = err.message;
-        }
-      };
+            await refreshAccountRoleContext();
+            msg.textContent = 'Invitation accepted! Your permissions are now active.';
+            setTimeout(function () {
+              modal.hidden = true;
+              if (inv.requested_role === 'mod' || inv.requested_role === 'top') {
+                window.location.href = '/admin';
+              }
+            }, 650);
+          } catch (err) {
+            confirmBtn.disabled = false;
+            msg.className = 'rx-msg error';
+            msg.textContent = err.message;
+          }
+        };
+      }
     } catch (err) {
-      body.innerHTML = '<div class="rx-msg error">' + rxEsc(err.message) + '</div>';
+      if (
+        err &&
+        (err.code === 'INVITATION_ALREADY_USED' ||
+          err.code === 'INVITATION_REVOKED' ||
+          err.code === 'INVITATION_EXPIRED' ||
+          err.code === 'INVITATION_NOT_FOUND')
+      ) {
+        clearPendingInviteToken();
+      }
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+      body.innerHTML =
+        '<div class="rx-card">' +
+        '<h3>Invitation Unavailable</h3>' +
+        '<div class="rx-msg error" role="alert" style="margin:8px 0">' + rxEsc(err.message) + '</div>' +
+        '<p style="font-size:13px;color:#4a544f">If you already redeemed this invitation, you can sign in normally with your invited email address. Otherwise, ask a BiteShark administrator to resend a fresh invitation.</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+        '<a class="secondary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html">Go to Sign In</a>' +
+        '</div>' +
+        '</div>';
     }
   }
 

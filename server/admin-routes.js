@@ -18,9 +18,15 @@ import {
   normalizeAdminLevel
 } from '../lib/authz.js';
 import { withTransaction } from '../lib/db-tx.js';
+import { readEnvCompat } from '../lib/env-compat.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
-import { inspectAdminEmailReadiness } from '../lib/standalone-auth.js';
+import {
+  inspectAdminEmailReadiness,
+  getPublicAuthDeliveryModeSummary,
+  createAuthCorrelationId,
+  dispatchInvitationEmail
+} from '../lib/standalone-auth.js';
 import {
   loadPersistedFeatureControls,
   evaluateFeatureControlsSnapshot,
@@ -39,6 +45,7 @@ import {
   MAX_EVIDENCE_PER_APPLICATION,
   MAX_MOD_TEMP_RESTRICTION_HOURS,
   INVITATION_ROLE_LABELS,
+  INVITATION_DELIVERY_LABELS,
   sha256Hex,
   generateOpaqueToken,
   normalizeEmailStrict,
@@ -50,6 +57,8 @@ import {
   validateProposedSlug,
   computeIssueSlaDueAt,
   recordTestSafeNotificationInTx,
+  recordInvitationEventInTx,
+  formatInvitationRowForAdmin,
   consumeGovernanceRateLimit
 } from '../lib/admin-governance.js';
 
@@ -80,6 +89,7 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/invitations',
   '/api/admin/invitations/create',
   '/api/admin/invitations/decision',
+  '/api/admin/invitations/resend',
   '/api/admin/moderation',
   '/api/admin/moderation/decision',
   '/api/admin/issues',
@@ -203,6 +213,186 @@ async function enableAdminTxGuards(tx, ctx) {
        set_config('app.user_email', $2, true)`,
     [ctx?.user?.id || '', ctx?.user?.email || '']
   );
+}
+
+function getRuntimeReleaseSha() {
+  try {
+    const val = String(readEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'local').trim();
+    return val.slice(0, 64) || 'local';
+  } catch {
+    return 'local';
+  }
+}
+
+async function loadInvitationEventsMapInTx(tx, invitationIds) {
+  const byId = new Map();
+  if (!Array.isArray(invitationIds) || invitationIds.length === 0) return byId;
+  await tx.query('SAVEPOINT inv_events_read');
+  try {
+    const { rows } = await tx.query(
+      `SELECT
+         id, invitation_id, event_type, actor_id, actor_role, delivery_mode,
+         provider_status, provider_message_id, error_code, correlation_id, release_sha, note, created_at
+       FROM account_invitation_events
+       WHERE invitation_id = ANY($1::uuid[])
+       ORDER BY created_at ASC, id ASC`,
+      [invitationIds]
+    );
+    await tx.query('RELEASE SAVEPOINT inv_events_read');
+    for (const r of rows) {
+      const list = byId.get(r.invitation_id) || [];
+      list.push(r);
+      byId.set(r.invitation_id, list);
+    }
+  } catch (err) {
+    await tx.query('ROLLBACK TO SAVEPOINT inv_events_read').catch(() => {});
+    if (err?.code !== '42P01') throw err;
+  }
+  return byId;
+}
+
+async function deliverAndFinalizeIssuedInvitation({
+  dbAdapter,
+  ctx,
+  invitationId,
+  tokenVersion,
+  rawToken,
+  recipientEmail,
+  requestedRole,
+  vendorId = null,
+  vendorName = null,
+  expiresAt,
+  actorId,
+  actorRole,
+  flow = 'invite_send',
+  correlationId = createAuthCorrelationId()
+}) {
+  const releaseSha = getRuntimeReleaseSha();
+  const sendRes = await dispatchInvitationEmail(dbAdapter, {
+    invitationId,
+    tokenVersion,
+    rawToken,
+    recipientEmail,
+    roleKey: requestedRole,
+    roleLabel: INVITATION_ROLE_LABELS[requestedRole] || requestedRole,
+    vendorId,
+    vendorName,
+    expiresAtIso: expiresAt,
+    flow,
+    correlationId
+  });
+
+  const finalized = await withTransaction(dbAdapter, async tx => {
+    await enableAdminTxGuards(tx, ctx);
+    const { rows: curRows } = await tx.query(
+      `SELECT ai.*, v.canonical_name AS vendor_name
+       FROM account_invitations ai
+       LEFT JOIN vendors v ON v.id = ai.vendor_id
+       WHERE ai.id = $1
+       FOR UPDATE OF ai`,
+      [invitationId]
+    );
+    if (!curRows.length) return null;
+
+    let updatedRow = curRows[0];
+    if (updatedRow.status === 'issued' && Number(updatedRow.token_version || 1) === Number(tokenVersion)) {
+      const sentNow =
+        sendRes.ok && (sendRes.deliveryStatus === 'provider_accepted' || sendRes.deliveryStatus === 'staging_mailbox_only');
+      const { rows: updRows } = await tx.query(
+        `UPDATE account_invitations
+         SET delivery_status = $2,
+             delivery_mode = $3,
+             send_attempt_count = send_attempt_count + $4,
+             last_sent_at = CASE WHEN $5 THEN now() ELSE last_sent_at END,
+             last_sent_by = $6,
+             last_attempt_at = now(),
+             provider_status = $7,
+             provider_message_id = $8,
+             last_error_code = $9,
+             last_correlation_id = $10,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [
+          invitationId,
+          sendRes.deliveryStatus,
+          sendRes.deliveryMode || null,
+          Number(sendRes.attemptsUsed || 0),
+          sentNow,
+          actorId,
+          sendRes.providerStatus ?? null,
+          sendRes.providerMessageId || null,
+          sendRes.errorCode || null,
+          sendRes.correlationId || null
+        ]
+      );
+      if (updRows[0]) {
+        updatedRow = { ...updRows[0], vendor_name: curRows[0].vendor_name || vendorName || null };
+      }
+    }
+
+    const eventType =
+      sendRes.deliveryStatus === 'provider_accepted'
+        ? 'provider_accepted'
+        : sendRes.deliveryStatus === 'staging_mailbox_only'
+          ? 'staging_mailbox_recorded'
+          : sendRes.deliveryStatus === 'delivery_uncertain'
+            ? 'delivery_uncertain'
+            : 'delivery_failed';
+
+    await recordInvitationEventInTx(tx, {
+      invitationId,
+      eventType,
+      actorId,
+      actorRole,
+      deliveryMode: sendRes.deliveryMode,
+      providerStatus: sendRes.providerStatus,
+      providerMessageId: sendRes.providerMessageId,
+      errorCode: sendRes.errorCode,
+      correlationId: sendRes.correlationId,
+      releaseSha
+    });
+
+    await recordAuditLog(tx, {
+      actorId,
+      actorRole,
+      vendorId: vendorId || null,
+      targetType: 'account_invitation',
+      targetId: invitationId,
+      action: `invitation.${eventType}`,
+      metadata: {
+        requested_role: requestedRole,
+        delivery_status: sendRes.deliveryStatus,
+        delivery_mode: sendRes.deliveryMode,
+        provider_status: sendRes.providerStatus ?? null,
+        provider_message_id: sendRes.providerMessageId || null,
+        error_code: sendRes.errorCode || null,
+        correlation_id: sendRes.correlationId || null
+      }
+    });
+
+    const eventsMap = await loadInvitationEventsMapInTx(tx, [invitationId]);
+    return formatInvitationRowForAdmin(updatedRow, { events: eventsMap.get(invitationId) || [] });
+  });
+
+  const deliverySummary = {
+    ok: Boolean(sendRes.ok),
+    status: sendRes.deliveryStatus,
+    status_label: INVITATION_DELIVERY_LABELS[sendRes.deliveryStatus] || sendRes.deliveryStatus,
+    mode: sendRes.deliveryMode,
+    provider_status: sendRes.providerStatus ?? null,
+    provider_message_id: sendRes.providerMessageId || null,
+    error_code: sendRes.errorCode || null,
+    correlation_id: sendRes.correlationId || null
+  };
+
+  return {
+    invitation: finalized,
+    delivery: deliverySummary,
+    // Expose `accept_path` ONLY in offline `staging_mailbox` test mode; NEVER expose raw tokens
+    // in API responses when real transactional email delivery (`resend_https` / `webhook_https`) is configured.
+    exposeTestAcceptPath: sendRes.deliveryMode === 'staging_mailbox' ? `/#accept-invite=${rawToken}` : undefined
+  };
 }
 
 export async function handleGovernanceApiRequest({
@@ -372,15 +562,17 @@ export async function handleGovernanceApiRequest({
     if (method !== 'GET' && method !== 'POST') {
       return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET, POST' });
     }
-    const rawToken = typeof (query.token || body?.token) === 'string' ? String(query.token || body.token).trim() : '';
+    const rawToken = typeof (body?.token || query.token) === 'string' ? String(body?.token || query.token).trim() : '';
     if (rawToken.length < 24 || rawToken.length > 128) {
-      return sendJson(404, { error: 'Invitation not found or expired.' });
+      return sendJson(404, { valid: false, code: 'INVITATION_NOT_FOUND', error: 'Invitation not found or invalid.' });
     }
     const tokenHash = sha256Hex(rawToken);
     const out = await withTransaction(dbAdapter, async tx => {
       await tx.query("SELECT set_config('app.admin_portal', 'true', true)");
       const { rows } = await tx.query(
-        `SELECT id, email_normalized, requested_role, vendor_id, status, expires_at, consumed_at, revoked_at
+        `SELECT
+           id, email_normalized, requested_role, vendor_id, status, delivery_status,
+           expires_at, consumed_at, revoked_at
          FROM account_invitations
          WHERE token_sha256 = $1`,
         [tokenHash]
@@ -388,8 +580,45 @@ export async function handleGovernanceApiRequest({
       if (!rows.length) return null;
       const inv = rows[0];
       const expired = inv.expires_at && new Date(inv.expires_at).getTime() <= Date.now();
-      if (inv.status !== 'issued' || inv.consumed_at || inv.revoked_at || expired) {
-        return { valid: false, status: expired ? 'expired' : inv.status };
+      if (inv.status === 'consumed' || inv.consumed_at) {
+        return {
+          valid: false,
+          httpStatus: 409,
+          code: 'INVITATION_ALREADY_USED',
+          status: 'consumed',
+          error: 'This invitation has already been accepted and cannot be used again. Sign in normally with your BiteShark account.'
+        };
+      }
+      if (inv.status === 'revoked' || inv.revoked_at) {
+        return {
+          valid: false,
+          httpStatus: 409,
+          code: 'INVITATION_REVOKED',
+          status: 'revoked',
+          error:
+            inv.delivery_status === 'superseded'
+              ? 'This invitation link was replaced by a newer invitation. Open the most recent BiteShark invitation email.'
+              : 'This invitation was revoked by an administrator and is no longer active.'
+        };
+      }
+      if (expired || inv.status === 'expired') {
+        return {
+          valid: false,
+          httpStatus: 410,
+          code: 'INVITATION_EXPIRED',
+          status: 'expired',
+          expires_at: inv.expires_at,
+          error: 'This invitation has expired. Ask a BiteShark administrator to send a fresh invitation.'
+        };
+      }
+      if (inv.status !== 'issued') {
+        return {
+          valid: false,
+          httpStatus: 409,
+          code: 'INVITATION_INACTIVE',
+          status: inv.status,
+          error: 'This invitation is not yet active.'
+        };
       }
       let vendorName = null;
       if (inv.vendor_id) {
@@ -398,6 +627,9 @@ export async function handleGovernanceApiRequest({
       }
       const masked = maskEmail(inv.email_normalized);
       const roleLabel = INVITATION_ROLE_LABELS[inv.requested_role] || inv.requested_role;
+      const sessionEmailNorm = ctx.authenticated && ctx.user?.email ? normalizeEmailStrict(ctx.user.email) : null;
+      const emailMatchesSession = sessionEmailNorm ? sessionEmailNorm === inv.email_normalized : null;
+
       return {
         valid: true,
         invitation_id: inv.id,
@@ -407,6 +639,8 @@ export async function handleGovernanceApiRequest({
         vendor_id: inv.vendor_id,
         vendor_name: vendorName,
         expires_at: inv.expires_at,
+        full_authority_warning: inv.requested_role === 'top',
+        email_matches_session: emailMatchesSession,
         invitation: {
           id: inv.id,
           masked_email: masked,
@@ -414,12 +648,23 @@ export async function handleGovernanceApiRequest({
           role_label: roleLabel,
           vendor_id: inv.vendor_id,
           vendor_name: vendorName,
-          expires_at: inv.expires_at
+          expires_at: inv.expires_at,
+          full_authority_warning: inv.requested_role === 'top',
+          email_matches_session: emailMatchesSession
         }
       };
     });
-    if (!out || !out.valid) {
-      return sendJson(404, { error: 'Invitation is invalid, already used, or expired.' });
+    if (!out) {
+      return sendJson(404, { valid: false, code: 'INVITATION_NOT_FOUND', error: 'Invitation is invalid or not found.' });
+    }
+    if (!out.valid) {
+      return sendJson(out.httpStatus || 409, {
+        valid: false,
+        code: out.code || 'INVITATION_INACTIVE',
+        status: out.status || null,
+        expires_at: out.expires_at || null,
+        error: out.error || 'Invitation is invalid, already used, or expired.'
+      });
     }
     return sendJson(200, out);
   }
@@ -438,8 +683,11 @@ export async function handleGovernanceApiRequest({
     }
     const tokenHash = sha256Hex(rawToken);
     const userEmailNorm = normalizeEmailStrict(ctx.user.email);
+    const releaseSha = getRuntimeReleaseSha();
 
     const outcome = await withTransaction(dbAdapter, async tx => {
+      // Serialize concurrent platform-role mutations in deterministic lock order
+      await tx.query("SELECT pg_advisory_xact_lock(hashtext('biteshark_platform_roles_mutation'))");
       await enableAdminTxGuards(tx, ctx);
       const rl = await consumeGovernanceRateLimit(tx, {
         scope: 'invite_accept',
@@ -451,12 +699,22 @@ export async function handleGovernanceApiRequest({
         return { status: 429, body: { error: 'Too many invitation attempts. Try again shortly.' } };
       }
 
-      // Enforce 14+ minimum-age eligibility check before any invitation can be redeemed
-      const ageRes = await tx.query(
-        'SELECT age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE',
+      // Lock `auth_users` (`FOR SHARE`) to verify active status (`disabled_at IS NULL`) and 14+ age eligibility
+      // without deadlocking against `verifySessionAndEligibilityInTx` (`FOR SHARE`) under concurrent accepts.
+      const userCheckRes = await tx.query(
+        'SELECT id, disabled_at, age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE',
         [ctx.user.id]
       );
-      if (!ageRes.rows.length || ageRes.rows[0].age_eligibility_status !== 'eligible_14_plus') {
+      if (!userCheckRes.rows.length || userCheckRes.rows[0].disabled_at) {
+        return {
+          status: 403,
+          body: {
+            error: 'This account is suspended and cannot redeem invitations.',
+            code: 'ACCOUNT_SUSPENDED'
+          }
+        };
+      }
+      if (userCheckRes.rows[0].age_eligibility_status !== 'eligible_14_plus') {
         return {
           status: 403,
           body: {
@@ -475,21 +733,41 @@ export async function handleGovernanceApiRequest({
         [tokenHash]
       );
       if (!rows.length) {
-        return { status: 404, body: { error: 'Invitation not found or expired.' } };
+        return { status: 404, body: { error: 'Invitation not found or expired.', code: 'INVITATION_NOT_FOUND' } };
       }
       const inv = rows[0];
-      if (inv.status !== 'issued' || inv.consumed_at || inv.revoked_at) {
+      if (inv.status === 'consumed' || inv.consumed_at) {
+        return {
+          status: 409,
+          body: { error: 'This invitation has already been accepted.', code: 'INVITATION_ALREADY_USED' }
+        };
+      }
+      if (inv.status === 'revoked' || inv.revoked_at) {
+        return {
+          status: 409,
+          body: { error: 'This invitation was revoked or replaced and is no longer active.', code: 'INVITATION_REVOKED' }
+        };
+      }
+      if (inv.status !== 'issued') {
         return { status: 409, body: { error: 'This invitation is no longer active.', code: 'INVITATION_INACTIVE' } };
       }
       if (!inv.expires_at || new Date(inv.expires_at).getTime() <= Date.now()) {
         await tx.query("UPDATE account_invitations SET status = 'expired', updated_at = now() WHERE id = $1", [inv.id]);
-        return { status: 410, body: { error: 'This invitation has expired.' } };
+        await recordInvitationEventInTx(tx, {
+          invitationId: inv.id,
+          eventType: 'expired',
+          actorId: ctx.user.id,
+          actorRole: 'invite_recipient',
+          releaseSha,
+          note: 'Invitation expired prior to redemption attempt'
+        });
+        return { status: 410, body: { error: 'This invitation has expired.', code: 'INVITATION_EXPIRED' } };
       }
       if (!userEmailNorm || inv.email_normalized !== userEmailNorm) {
         return {
           status: 403,
           body: {
-            error: 'Signed-in account email does not match the invited email address.',
+            error: `Signed-in account (${ctx.user.email}) does not match the invited email address. Sign out and verify the invited address.`,
             code: 'INVITATION_EMAIL_MISMATCH'
           }
         };
@@ -574,15 +852,34 @@ export async function handleGovernanceApiRequest({
         }
       }
 
-      await tx.query(
+      const consumeUpd = await tx.query(
         `UPDATE account_invitations
          SET status = 'consumed',
              consumed_by_user_id = $2,
              consumed_at = now(),
              updated_at = now()
-         WHERE id = $1`,
+         WHERE id = $1
+           AND status = 'issued'
+           AND consumed_at IS NULL
+           AND revoked_at IS NULL
+         RETURNING id`,
         [inv.id, ctx.user.id]
       );
+      if (consumeUpd.rowCount !== 1) {
+        return {
+          status: 409,
+          body: { error: 'This invitation has already been accepted.', code: 'INVITATION_ALREADY_USED' }
+        };
+      }
+
+      await recordInvitationEventInTx(tx, {
+        invitationId: inv.id,
+        eventType: 'accepted',
+        actorId: ctx.user.id,
+        actorRole: 'invite_recipient',
+        releaseSha,
+        note: `Accepted ${inv.requested_role} invitation`
+      });
 
       await recordAuditLog(tx, {
         actorId: ctx.user.id,
@@ -691,12 +988,14 @@ export async function handleGovernanceApiRequest({
       return sendJson(400, { error: 'Valid vendor_id and staff email address are required.' });
     }
     if (!idem.ok) return sendJson(400, { error: idem.error });
+    const releaseSha = getRuntimeReleaseSha();
+    const correlationId = createAuthCorrelationId();
 
     const outcome = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyVendorMembershipInTx(tx, ctx, vendorId, 'owner');
       if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
       await tx.query(
-        "SELECT set_config('app.admin_portal', 'true', true), set_config('app.user_id', $1, true)",
+        "SELECT set_config('app.admin_portal', 'true', true), set_config('app.auth_internal', 'true', true), set_config('app.user_id', $1, true)",
         [ctx.user.id]
       );
       const rl = await consumeGovernanceRateLimit(tx, {
@@ -707,34 +1006,62 @@ export async function handleGovernanceApiRequest({
       });
       if (!rl.allowed) return { status: 429, body: { error: 'Too many invitations sent recently.' } };
 
+      const suspCheck = await tx.query('SELECT disabled_at FROM auth_users WHERE email_normalized = $1 LIMIT 1', [emailNorm]);
+      if (suspCheck.rows[0]?.disabled_at) {
+        return {
+          status: 409,
+          body: {
+            error: 'This email belongs to a suspended account and cannot receive new invitations.',
+            code: 'RECIPIENT_ACCOUNT_SUSPENDED'
+          }
+        };
+      }
+
+      const vr = await tx.query('SELECT canonical_name FROM vendors WHERE id = $1', [vendorId]);
+      const vendorName = vr.rows[0]?.canonical_name || null;
+
       const { rawToken, tokenSha256 } = generateOpaqueToken(32);
       const expiresAt = new Date(Date.now() + INVITATION_TTL_MS).toISOString();
       const { rows } = await tx.query(
         `INSERT INTO account_invitations (
-           email_normalized, requested_role, vendor_id, status, token_sha256,
-           initiated_by, initiator_role, idempotency_key, expires_at
+           email_normalized, requested_role, vendor_id, status, delivery_status,
+           token_sha256, token_version, initiated_by, initiator_role, idempotency_key,
+           last_correlation_id, expires_at
          )
-         VALUES ($1, 'vendor_staff', $2, 'issued', $3, $4, 'vendor_owner', $5, $6)
+         VALUES ($1, 'vendor_staff', $2, 'issued', 'queued', $3, 1, $4, 'vendor_owner', $5, $6, $7)
          ON CONFLICT (initiated_by, idempotency_key) WHERE idempotency_key IS NOT NULL
          DO NOTHING
-         RETURNING id, email_normalized, requested_role, vendor_id, status, expires_at`,
-        [emailNorm, vendorId, tokenSha256, ctx.user.id, idem.value, expiresAt]
+         RETURNING *`,
+        [emailNorm, vendorId, tokenSha256, ctx.user.id, idem.value, correlationId, expiresAt]
       );
       if (!rows.length && idem.value) {
         const existing = await tx.query(
-          `SELECT id, email_normalized, requested_role, vendor_id, status, expires_at
+          `SELECT *
            FROM account_invitations
            WHERE initiated_by = $1 AND idempotency_key = $2`,
           [ctx.user.id, idem.value]
         );
-        return { status: 200, body: { invitation: existing.rows[0], idempotent_replay: true } };
+        return { status: 200, body: { invitation: formatInvitationRowForAdmin(existing.rows[0]), idempotent_replay: true } };
       }
-      await recordTestSafeNotificationInTx(tx, {
-        recipientEmail: emailNorm,
-        eventKind: 'invitation.vendor_staff',
-        subject: 'BiteShark Vendor Staff Invitation',
-        summary: `Invited to join vendor ${vendorId} as Vendor Staff (expires ${expiresAt}).`
+
+      await recordInvitationEventInTx(tx, {
+        invitationId: rows[0].id,
+        eventType: 'created',
+        actorId: ctx.user.id,
+        actorRole: 'vendor_owner',
+        correlationId,
+        releaseSha,
+        note: `Vendor staff invitation for ${vendorId}`
       });
+      await recordInvitationEventInTx(tx, {
+        invitationId: rows[0].id,
+        eventType: 'delivery_queued',
+        actorId: ctx.user.id,
+        actorRole: 'vendor_owner',
+        correlationId,
+        releaseSha
+      });
+
       await recordAuditLog(tx, {
         actorId: ctx.user.id,
         actorRole: 'owner',
@@ -742,17 +1069,43 @@ export async function handleGovernanceApiRequest({
         targetType: 'account_invitation',
         targetId: rows[0].id,
         action: 'invitation.create_vendor_staff',
-        metadata: { requested_role: 'vendor_staff' }
+        metadata: { requested_role: 'vendor_staff', correlation_id: correlationId }
       });
+
       return {
         status: 201,
-        body: {
-          invitation: rows[0],
-          accept_path: `/#accept-invite=${rawToken}`
+        pendingDispatch: {
+          invitationId: rows[0].id,
+          tokenVersion: 1,
+          rawToken,
+          recipientEmail: emailNorm,
+          requestedRole: 'vendor_staff',
+          vendorId,
+          vendorName,
+          expiresAt,
+          actorId: ctx.user.id,
+          actorRole: 'vendor_owner',
+          correlationId
         }
       };
     });
-    return sendJson(outcome.status, outcome.body);
+
+    if (!outcome.pendingDispatch) {
+      return sendJson(outcome.status, outcome.body);
+    }
+
+    const dispatched = await deliverAndFinalizeIssuedInvitation({
+      dbAdapter,
+      ctx,
+      ...outcome.pendingDispatch,
+      flow: 'invite_send'
+    });
+
+    return sendJson(201, {
+      invitation: dispatched.invitation,
+      delivery: dispatched.delivery,
+      ...(dispatched.exposeTestAcceptPath ? { accept_path: dispatched.exposeTestAcceptPath } : {})
+    });
   }
 
   // =========================================================================
@@ -3097,42 +3450,55 @@ export async function handleGovernanceApiRequest({
       const conds = ['1=1'];
       const params = [];
       if (statusFilter && statusFilter !== 'all') {
-        params.push(statusFilter);
-        conds.push(`status = $${params.length}`);
+        if (statusFilter === 'accepted' || statusFilter === 'consumed') {
+          conds.push("ai.status = 'consumed'");
+        } else if (statusFilter === 'expired') {
+          conds.push("(ai.status = 'expired' OR (ai.status = 'issued' AND ai.expires_at IS NOT NULL AND ai.expires_at <= now()))");
+        } else if (statusFilter === 'issued') {
+          conds.push("(ai.status = 'issued' AND (ai.expires_at IS NULL OR ai.expires_at > now()))");
+        } else if (statusFilter === 'delivery_failed') {
+          conds.push("ai.delivery_status IN ('delivery_failed', 'delivery_uncertain')");
+        } else {
+          params.push(statusFilter);
+          conds.push(`ai.status = $${params.length}`);
+        }
       }
       if (roleFilter && roleFilter !== 'all') {
         params.push(roleFilter);
-        conds.push(`requested_role = $${params.length}`);
+        conds.push(`ai.requested_role = $${params.length}`);
       }
 
       const whereSql = conds.join(' AND ');
-      const totalRes = await tx.query(`SELECT count(*)::int AS total FROM account_invitations WHERE ${whereSql}`, params);
+      const totalRes = await tx.query(`SELECT count(*)::int AS total FROM account_invitations ai WHERE ${whereSql}`, params);
       params.push(pageSize, offset);
       const { rows } = await tx.query(
         `SELECT
-           id, email_normalized, requested_role, vendor_id, status,
-           initiated_by, initiator_role, approved_by, approved_at, approval_reason,
-           rejected_by, rejected_at, rejection_reason, consumed_by_user_id, consumed_at,
-           invite_note, expires_at, created_at, updated_at
-         FROM account_invitations
+           ai.*,
+           v.canonical_name AS vendor_name
+         FROM account_invitations ai
+         LEFT JOIN vendors v ON v.id = ai.vendor_id
          WHERE ${whereSql}
          ORDER BY
-           CASE status WHEN 'pending_top_approval' THEN 0 WHEN 'issued' THEN 1 ELSE 2 END ASC,
-           created_at DESC
+           CASE
+             WHEN ai.status = 'pending_top_approval' THEN 0
+             WHEN ai.status = 'issued' AND ai.delivery_status IN ('delivery_failed', 'delivery_uncertain') THEN 1
+             WHEN ai.status = 'issued' THEN 2
+             ELSE 3
+           END ASC,
+           ai.created_at DESC
          LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params
+      );
+      const eventsByInv = await loadInvitationEventsMapInTx(
+        tx,
+        rows.map(r => r.id)
       );
       return {
         page,
         page_size: pageSize,
         total: totalRes.rows[0]?.total || 0,
-        invitations: rows.map(r => ({
-          ...r,
-          email: r.email_normalized,
-          note: r.invite_note,
-          role_label: INVITATION_ROLE_LABELS[r.requested_role] || r.requested_role,
-          requested_role_label: INVITATION_ROLE_LABELS[r.requested_role] || r.requested_role
-        }))
+        email_delivery: getPublicAuthDeliveryModeSummary(),
+        invitations: rows.map(r => formatInvitationRowForAdmin(r, { events: eventsByInv.get(r.id) || [] }))
       };
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
@@ -3156,6 +3522,8 @@ export async function handleGovernanceApiRequest({
     if (requestedRole === 'vendor_staff' && !vendorId) {
       return sendJson(400, { error: 'vendor_id is required when inviting Vendor Staff.' });
     }
+    const releaseSha = getRuntimeReleaseSha();
+    const correlationId = createAuthCorrelationId();
 
     const outcome = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -3178,9 +3546,22 @@ export async function handleGovernanceApiRequest({
         };
       }
 
+      const suspCheck = await tx.query('SELECT id, disabled_at FROM auth_users WHERE email_normalized = $1 LIMIT 1', [emailNorm]);
+      if (suspCheck.rows[0]?.disabled_at) {
+        return {
+          status: 409,
+          body: {
+            error: 'This email address belongs to a suspended BiteShark account. Reactivate the account before issuing a new invitation.',
+            code: 'RECIPIENT_ACCOUNT_SUSPENDED'
+          }
+        };
+      }
+
+      let vendorName = null;
       if (vendorId) {
-        const vr = await tx.query('SELECT id FROM vendors WHERE id = $1', [vendorId]);
+        const vr = await tx.query('SELECT id, canonical_name FROM vendors WHERE id = $1', [vendorId]);
         if (!vr.rows.length) return { status: 400, body: { error: 'Selected vendor_id was not found.' } };
+        vendorName = vr.rows[0].canonical_name || null;
       }
 
       const initiatorRole = verified.actorRole; // 'mod' | 'top'
@@ -3190,6 +3571,7 @@ export async function handleGovernanceApiRequest({
       let tokenSha256 = null;
       let expiresAt = null;
       let initialStatus = 'pending_top_approval';
+      let initialDeliveryStatus = 'pending_approval';
       let approvedBy = null;
 
       if (!requiresTopApproval) {
@@ -3198,96 +3580,204 @@ export async function handleGovernanceApiRequest({
         tokenSha256 = generated.tokenSha256;
         expiresAt = new Date(Date.now() + INVITATION_TTL_MS).toISOString();
         initialStatus = 'issued';
+        initialDeliveryStatus = 'queued';
         if (initiatorRole === 'top') approvedBy = ctx.user.id;
       }
 
       const { rows } = await tx.query(
         `INSERT INTO account_invitations (
-           email_normalized, requested_role, vendor_id, status, token_sha256,
-           initiated_by, initiator_role, approved_by, approved_at,
-           idempotency_key, invite_note, expires_at
+           email_normalized, requested_role, vendor_id, status, delivery_status,
+           token_sha256, token_version, initiated_by, initiator_role, approved_by, approved_at,
+           idempotency_key, invite_note, last_correlation_id, expires_at
          )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
-                 CASE WHEN $8::text IS NOT NULL THEN now() ELSE NULL END,
-                 $9, $10, $11)
+         VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9,
+                 CASE WHEN $9::text IS NOT NULL THEN now() ELSE NULL END,
+                 $10, $11, $12, $13)
          ON CONFLICT (initiated_by, idempotency_key) WHERE idempotency_key IS NOT NULL
          DO NOTHING
-         RETURNING id, email_normalized, requested_role, vendor_id, status, initiator_role, expires_at, created_at`,
+         RETURNING *`,
         [
           emailNorm,
           requestedRole,
           vendorId,
           initialStatus,
+          initialDeliveryStatus,
           tokenSha256,
           ctx.user.id,
           initiatorRole,
           approvedBy,
           idem.value,
           inviteNote,
+          correlationId,
           expiresAt
         ]
       );
 
       if (!rows.length && idem.value) {
         const prev = await tx.query(
-          `SELECT id, email_normalized, requested_role, vendor_id, status, initiator_role, expires_at, created_at
-           FROM account_invitations
-           WHERE initiated_by = $1 AND idempotency_key = $2`,
+          `SELECT ai.*, v.canonical_name AS vendor_name
+           FROM account_invitations ai
+           LEFT JOIN vendors v ON v.id = ai.vendor_id
+           WHERE ai.initiated_by = $1 AND ai.idempotency_key = $2`,
           [ctx.user.id, idem.value]
         );
-        return { status: 200, body: { invitation: prev.rows[0], idempotent_replay: true } };
+        const evMap = prev.rows[0] ? await loadInvitationEventsMapInTx(tx, [prev.rows[0].id]) : new Map();
+        return {
+          status: 200,
+          body: {
+            invitation: prev.rows[0]
+              ? formatInvitationRowForAdmin(prev.rows[0], { events: evMap.get(prev.rows[0].id) || [] })
+              : null,
+            idempotent_replay: true
+          }
+        };
       }
 
+      const createdInv = rows[0];
+
+      // Supersede earlier unaccepted invitations for the exact same (email, role, vendor) when authorized
       if (initialStatus === 'issued') {
-        await recordTestSafeNotificationInTx(tx, {
-          recipientEmail: emailNorm,
-          eventKind: `invitation.issued_${requestedRole}`,
-          subject: `BiteShark ${INVITATION_ROLE_LABELS[requestedRole]} Invitation`,
-          summary: `Verify ownership of ${emailNorm} via 6-digit code to redeem single-use invitation.`
-        });
+        const { rows: priorActive } = await tx.query(
+          `SELECT id
+           FROM account_invitations
+           WHERE email_normalized = $1
+             AND requested_role = $2
+             AND COALESCE(vendor_id, '') = COALESCE($3, '')
+             AND id <> $4
+             AND status IN ('pending_top_approval', 'issued')
+             AND ($5 = 'top' OR initiated_by = $6)
+           FOR UPDATE`,
+          [emailNorm, requestedRole, vendorId || '', createdInv.id, initiatorRole, ctx.user.id]
+        );
+        for (const prior of priorActive) {
+          await tx.query(
+            `UPDATE account_invitations
+             SET status = 'revoked',
+                 delivery_status = 'superseded',
+                 revoked_by = $2,
+                 revoked_at = now(),
+                 revoke_reason = 'Superseded by newer invitation',
+                 replaced_by_invitation_id = $3,
+                 updated_at = now()
+             WHERE id = $1`,
+            [prior.id, ctx.user.id, createdInv.id]
+          );
+          await recordInvitationEventInTx(tx, {
+            invitationId: prior.id,
+            eventType: 'superseded',
+            actorId: ctx.user.id,
+            actorRole: initiatorRole,
+            correlationId,
+            releaseSha,
+            note: `Superseded by invitation ${createdInv.id}`
+          });
+        }
       }
+
+      await recordInvitationEventInTx(tx, {
+        invitationId: createdInv.id,
+        eventType: 'created',
+        actorId: ctx.user.id,
+        actorRole: initiatorRole,
+        correlationId,
+        releaseSha,
+        note: inviteNote
+      });
+      await recordInvitationEventInTx(tx, {
+        invitationId: createdInv.id,
+        eventType: requiresTopApproval ? 'pending_approval' : 'delivery_queued',
+        actorId: ctx.user.id,
+        actorRole: initiatorRole,
+        correlationId,
+        releaseSha
+      });
 
       await recordAuditLog(tx, {
         actorId: ctx.user.id,
         actorRole: initiatorRole,
         vendorId,
         targetType: 'account_invitation',
-        targetId: rows[0].id,
+        targetId: createdInv.id,
         action: requiresTopApproval ? 'invitation.initiate_pending_top' : 'invitation.issue',
-        metadata: { requested_role: requestedRole, status: initialStatus }
+        metadata: { requested_role: requestedRole, status: initialStatus, correlation_id: correlationId }
       });
+
+      if (requiresTopApproval) {
+        const evMap = await loadInvitationEventsMapInTx(tx, [createdInv.id]);
+        return {
+          status: 201,
+          body: {
+            invitation: formatInvitationRowForAdmin(
+              { ...createdInv, vendor_name: vendorName },
+              { events: evMap.get(createdInv.id) || [] }
+            ),
+            pending_top_approval: true,
+            requires_top_approval: true
+          }
+        };
+      }
 
       return {
         status: 201,
-        body: {
-          invitation: {
-            ...rows[0],
-            email: rows[0].email_normalized,
-            role_label: INVITATION_ROLE_LABELS[requestedRole],
-            requested_role_label: INVITATION_ROLE_LABELS[requestedRole]
-          },
-          pending_top_approval: requiresTopApproval,
-          requires_top_approval: requiresTopApproval,
-          ...(rawToken ? { accept_path: `/#accept-invite=${rawToken}` } : {})
+        pendingDispatch: {
+          invitationId: createdInv.id,
+          tokenVersion: 1,
+          rawToken,
+          recipientEmail: emailNorm,
+          requestedRole,
+          vendorId,
+          vendorName,
+          expiresAt,
+          actorId: ctx.user.id,
+          actorRole: initiatorRole,
+          correlationId
         }
       };
     });
 
-    return sendJson(outcome.status, outcome.body);
+    if (!outcome.pendingDispatch) {
+      return sendJson(outcome.status, outcome.body);
+    }
+
+    const dispatched = await deliverAndFinalizeIssuedInvitation({
+      dbAdapter,
+      ctx,
+      ...outcome.pendingDispatch,
+      flow: 'invite_send'
+    });
+
+    return sendJson(201, {
+      invitation: dispatched.invitation,
+      delivery: dispatched.delivery,
+      pending_top_approval: false,
+      requires_top_approval: false,
+      ...(dispatched.exposeTestAcceptPath ? { accept_path: dispatched.exposeTestAcceptPath } : {})
+    });
   }
 
-  if (normPath === '/api/admin/invitations/decision') {
+  if (normPath === '/api/admin/invitations/decision' || normPath === '/api/admin/invitations/resend') {
     if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
     const invId = typeof body.invitation_id === 'string' ? body.invitation_id.trim() : '';
-    const action = typeof body.action === 'string' ? body.action.trim() : '';
-    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    const action =
+      normPath === '/api/admin/invitations/resend'
+        ? 'resend'
+        : typeof body.action === 'string'
+          ? body.action.trim()
+          : '';
+    const rawReason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    const reason =
+      action === 'resend' && !rawReason ? 'Operator requested invitation resend' : rawReason;
 
-    if (!UUID_RE.test(invId) || !['approve', 'reject', 'revoke'].includes(action)) {
-      return sendJson(400, { error: 'Valid invitation_id and action ("approve" | "reject" | "revoke") are required.' });
+    if (!UUID_RE.test(invId) || !['approve', 'reject', 'revoke', 'resend'].includes(action)) {
+      return sendJson(400, {
+        error: 'Valid invitation_id and action ("approve" | "reject" | "revoke" | "resend") are required.'
+      });
     }
     if (reason.length < 3 || reason.length > 500) {
       return sendJson(400, { error: 'Reason (3–500 characters) is required.' });
     }
+    const releaseSha = getRuntimeReleaseSha();
+    const correlationId = createAuthCorrelationId();
 
     const outcome = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -3302,7 +3792,22 @@ export async function handleGovernanceApiRequest({
         };
       }
 
-      const { rows } = await tx.query('SELECT * FROM account_invitations WHERE id = $1 FOR UPDATE', [invId]);
+      const rl = await consumeGovernanceRateLimit(tx, {
+        scope: `admin_invite_${action}`,
+        subjectKey: ctx.user.id,
+        maxHits: 30,
+        windowSeconds: 3600
+      });
+      if (!rl.allowed) return { status: 429, body: { error: 'Too many invitation actions recently. Please wait.' } };
+
+      const { rows } = await tx.query(
+        `SELECT ai.*, v.canonical_name AS vendor_name
+         FROM account_invitations ai
+         LEFT JOIN vendors v ON v.id = ai.vendor_id
+         WHERE ai.id = $1
+         FOR UPDATE OF ai`,
+        [invId]
+      );
       if (!rows.length) return { status: 404, body: { error: 'Invitation not found.' } };
       const inv = rows[0];
 
@@ -3315,19 +3820,165 @@ export async function handleGovernanceApiRequest({
         }
         await tx.query(
           `UPDATE account_invitations
-           SET status = 'revoked', revoked_by = $2, revoked_at = now(), token_sha256 = NULL, updated_at = now()
+           SET status = 'revoked',
+               revoked_by = $2,
+               revoked_at = now(),
+               revoke_reason = $3,
+               updated_at = now()
            WHERE id = $1`,
-          [invId, ctx.user.id]
+          [invId, ctx.user.id, reason]
         );
+        await recordInvitationEventInTx(tx, {
+          invitationId: invId,
+          eventType: 'revoked',
+          actorId: ctx.user.id,
+          actorRole: verified.actorRole,
+          correlationId,
+          releaseSha,
+          note: reason
+        });
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
           actorRole: verified.actorRole,
           targetType: 'account_invitation',
           targetId: invId,
           action: 'invitation.revoke',
-          metadata: { reason }
+          metadata: { reason, correlation_id: correlationId }
         });
         return { status: 200, body: { ok: true, status: 'revoked' } };
+      }
+
+      if (action === 'resend') {
+        const isPrivRole = inv.requested_role === 'mod' || inv.requested_role === 'top';
+        if (!isTop && (isPrivRole || inv.initiated_by !== ctx.user.id)) {
+          return {
+            status: 403,
+            body: {
+              error: 'Only Admin: Top may resend privileged invitations or invitations created by another administrator.',
+              code: 'TOP_ADMIN_REQUIRED'
+            }
+          };
+        }
+        // Never reactivate revoked, rejected, consumed, or unapproved invitations
+        if (inv.status !== 'issued' || inv.revoked_at || inv.consumed_at) {
+          return {
+            status: 409,
+            body: {
+              error: `Cannot resend an invitation whose status is "${inv.status}". Create a new invitation if appropriate.`,
+              code: 'INVITATION_CANNOT_RESEND'
+            }
+          };
+        }
+        const actorEmailNorm = normalizeEmailStrict(ctx.user.email || '');
+        if (actorEmailNorm && inv.email_normalized === actorEmailNorm && isPrivRole) {
+          return {
+            status: 403,
+            body: { error: 'Administrators cannot resend a privileged invitation to their own email.', code: 'SELF_ELEVATION_FORBIDDEN' }
+          };
+        }
+
+        const suspCheck = await tx.query('SELECT disabled_at FROM auth_users WHERE email_normalized = $1 LIMIT 1', [
+          inv.email_normalized
+        ]);
+        if (suspCheck.rows[0]?.disabled_at) {
+          return {
+            status: 409,
+            body: {
+              error: 'Target account is currently suspended and cannot receive resent invitations.',
+              code: 'RECIPIENT_ACCOUNT_SUSPENDED'
+            }
+          };
+        }
+
+        const cooldownSec = Math.max(
+          0,
+          Math.min(600, Number(readEnvCompat('INVITATION_RESEND_COOLDOWN_SECONDS', { defaultValue: '45' }) || 45))
+        );
+        if (
+          cooldownSec > 0 &&
+          inv.delivery_status === 'provider_accepted' &&
+          inv.last_sent_at &&
+          Date.now() - new Date(inv.last_sent_at).getTime() < cooldownSec * 1000
+        ) {
+          const waitSec = Math.max(
+            1,
+            Math.ceil((cooldownSec * 1000 - (Date.now() - new Date(inv.last_sent_at).getTime())) / 1000)
+          );
+          return {
+            status: 429,
+            body: {
+              error: `An invitation email was just sent. Wait ${waitSec}s before resending.`,
+              code: 'INVITATION_RESEND_COOLDOWN'
+            }
+          };
+        }
+
+        // Rotate single-use token (`token_version + 1`), invalidating any previous raw link
+        const { rawToken, tokenSha256 } = generateOpaqueToken(32);
+        const nextTokenVersion = Number(inv.token_version || 1) + 1;
+        const expiresAt = new Date(Date.now() + INVITATION_TTL_MS).toISOString();
+
+        await tx.query(
+          `UPDATE account_invitations
+           SET token_sha256 = $2,
+               token_version = $3,
+               delivery_status = 'queued',
+               expires_at = $4,
+               last_correlation_id = $5,
+               updated_at = now()
+           WHERE id = $1`,
+          [invId, tokenSha256, nextTokenVersion, expiresAt, correlationId]
+        );
+
+        await recordInvitationEventInTx(tx, {
+          invitationId: invId,
+          eventType: 'resent',
+          actorId: ctx.user.id,
+          actorRole: verified.actorRole,
+          correlationId,
+          releaseSha,
+          note: `${reason} (rotated to token generation #${nextTokenVersion})`
+        });
+        await recordInvitationEventInTx(tx, {
+          invitationId: invId,
+          eventType: 'delivery_queued',
+          actorId: ctx.user.id,
+          actorRole: verified.actorRole,
+          correlationId,
+          releaseSha
+        });
+
+        await recordAuditLog(tx, {
+          actorId: ctx.user.id,
+          actorRole: verified.actorRole,
+          vendorId: inv.vendor_id || null,
+          targetType: 'account_invitation',
+          targetId: invId,
+          action: 'invitation.resend',
+          metadata: {
+            requested_role: inv.requested_role,
+            token_version: nextTokenVersion,
+            reason,
+            correlation_id: correlationId
+          }
+        });
+
+        return {
+          status: 200,
+          pendingDispatch: {
+            invitationId: invId,
+            tokenVersion: nextTokenVersion,
+            rawToken,
+            recipientEmail: inv.email_normalized,
+            requestedRole: inv.requested_role,
+            vendorId: inv.vendor_id || null,
+            vendorName: inv.vendor_name || null,
+            expiresAt,
+            actorId: ctx.user.id,
+            actorRole: verified.actorRole,
+            correlationId
+          }
+        };
       }
 
       if (inv.status !== 'pending_top_approval') {
@@ -3348,43 +3999,83 @@ export async function handleGovernanceApiRequest({
       if (action === 'reject') {
         await tx.query(
           `UPDATE account_invitations
-           SET status = 'rejected', rejected_by = $2, rejected_at = now(), rejection_reason = $3, updated_at = now()
+           SET status = 'rejected',
+               delivery_status = 'not_requested',
+               rejected_by = $2,
+               rejected_at = now(),
+               rejection_reason = $3,
+               updated_at = now()
            WHERE id = $1`,
           [invId, ctx.user.id, reason]
         );
+        await recordInvitationEventInTx(tx, {
+          invitationId: invId,
+          eventType: 'rejected',
+          actorId: ctx.user.id,
+          actorRole: 'top',
+          correlationId,
+          releaseSha,
+          note: reason
+        });
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
           actorRole: 'top',
           targetType: 'account_invitation',
           targetId: invId,
           action: 'invitation.reject',
-          metadata: { requested_role: inv.requested_role, reason }
+          metadata: { requested_role: inv.requested_role, reason, correlation_id: correlationId }
         });
         return { status: 200, body: { ok: true, status: 'rejected' } };
       }
 
       // action === 'approve'
+      const suspCheck = await tx.query('SELECT disabled_at FROM auth_users WHERE email_normalized = $1 LIMIT 1', [
+        inv.email_normalized
+      ]);
+      if (suspCheck.rows[0]?.disabled_at) {
+        return {
+          status: 409,
+          body: {
+            error: 'Target account is currently suspended and cannot be approved for an active invitation.',
+            code: 'RECIPIENT_ACCOUNT_SUSPENDED'
+          }
+        };
+      }
+
       const { rawToken, tokenSha256 } = generateOpaqueToken(32);
       const expiresAt = new Date(Date.now() + INVITATION_TTL_MS).toISOString();
-      const { rows: u } = await tx.query(
+      await tx.query(
         `UPDATE account_invitations
          SET status = 'issued',
+             delivery_status = 'queued',
              token_sha256 = $2,
+             token_version = 1,
              approved_by = $3,
              approved_at = now(),
              approval_reason = $4,
-             expires_at = $5,
+             last_correlation_id = $5,
+             expires_at = $6,
              updated_at = now()
-         WHERE id = $1
-         RETURNING id, email_normalized, requested_role, status, approved_by, approved_at, expires_at`,
-        [invId, tokenSha256, ctx.user.id, reason, expiresAt]
+         WHERE id = $1`,
+        [invId, tokenSha256, ctx.user.id, reason, correlationId, expiresAt]
       );
 
-      await recordTestSafeNotificationInTx(tx, {
-        recipientEmail: inv.email_normalized,
-        eventKind: `invitation.approved_${inv.requested_role}`,
-        subject: `BiteShark ${INVITATION_ROLE_LABELS[inv.requested_role]} Invitation Approved`,
-        summary: `Approved by Admin: Top. Verify ownership of ${inv.email_normalized} via 6-digit code to redeem.`
+      await recordInvitationEventInTx(tx, {
+        invitationId: invId,
+        eventType: 'approved',
+        actorId: ctx.user.id,
+        actorRole: 'top',
+        correlationId,
+        releaseSha,
+        note: reason
+      });
+      await recordInvitationEventInTx(tx, {
+        invitationId: invId,
+        eventType: 'delivery_queued',
+        actorId: ctx.user.id,
+        actorRole: 'top',
+        correlationId,
+        releaseSha
       });
 
       await recordAuditLog(tx, {
@@ -3393,19 +4084,44 @@ export async function handleGovernanceApiRequest({
         targetType: 'account_invitation',
         targetId: invId,
         action: 'invitation.approve',
-        metadata: { requested_role: inv.requested_role, initiated_by: inv.initiated_by, reason }
+        metadata: { requested_role: inv.requested_role, initiated_by: inv.initiated_by, reason, correlation_id: correlationId }
       });
 
       return {
         status: 200,
-        body: {
-          invitation: u[0],
-          accept_path: `/#accept-invite=${rawToken}`
+        pendingDispatch: {
+          invitationId: invId,
+          tokenVersion: 1,
+          rawToken,
+          recipientEmail: inv.email_normalized,
+          requestedRole: inv.requested_role,
+          vendorId: inv.vendor_id || null,
+          vendorName: inv.vendor_name || null,
+          expiresAt,
+          actorId: ctx.user.id,
+          actorRole: 'top',
+          correlationId
         }
       };
     });
 
-    return sendJson(outcome.status, outcome.body);
+    if (!outcome.pendingDispatch) {
+      return sendJson(outcome.status, outcome.body);
+    }
+
+    const dispatched = await deliverAndFinalizeIssuedInvitation({
+      dbAdapter,
+      ctx,
+      ...outcome.pendingDispatch,
+      flow: action === 'resend' ? 'invite_resend' : 'invite_send'
+    });
+
+    return sendJson(200, {
+      ok: true,
+      invitation: dispatched.invitation,
+      delivery: dispatched.delivery,
+      ...(dispatched.exposeTestAcceptPath ? { accept_path: dispatched.exposeTestAcceptPath } : {})
+    });
   }
 
   // -------------------------------------------------------------------------

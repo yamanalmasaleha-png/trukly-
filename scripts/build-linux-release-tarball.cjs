@@ -107,6 +107,7 @@ for (const requiredEntry of [
   'migrations/020_age_gate_allowlist_and_precise_wording.sql',
   'migrations/021_auth_diagnostics_and_email_readiness.sql',
   'migrations/022_feature_controls.sql',
+  'migrations/023_invitation_delivery_and_lifecycle.sql',
   'scripts/run-migrations.cjs',
   'scripts/bootstrap-top-admin.cjs',
   'scripts/operator-read-my-otp.cjs',

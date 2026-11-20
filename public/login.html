@@ -200,6 +200,21 @@
       line-height: 1.48;
       margin: 0 0 14px;
     }
+    .invite-context-banner {
+      background: #eef8f3;
+      border: 1px solid #9fd4bb;
+      color: #153e2d;
+      padding: 11px 13px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.48;
+      margin: 0 0 14px;
+    }
+    .invite-context-banner.is-top {
+      background: #fff8e6;
+      border-color: #dfba57;
+      color: #4b3600;
+    }
     .status-banner {
       background: #eaf6f0;
       border: 1px solid #b5dec9;
@@ -285,6 +300,7 @@
         </button>
       </div>
 
+      <div id="inviteContextBanner" class="invite-context-banner" role="region" aria-label="Pending BiteShark invitation" hidden></div>
       <div id="stagingModeNotice" class="staging-mode-banner" role="status" hidden></div>
 
       <p class="mode-helper" id="modeHelperText">
@@ -436,12 +452,102 @@
       let signupLockedByAgeGate = false;
       let currentDeliveryMode = 'email'; // 'email' | 'staging_mailbox' | 'unavailable'
 
+      const PENDING_INVITE_STORAGE_KEY = 'biteshark_pending_invite_v1';
+
+      function loginEsc(val) {
+        return String(val == null ? '' : val).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+
       const params = new URLSearchParams(location.search);
+      let pendingInviteToken = (function resolveInviteTokenFromHashOrStorage() {
+        const rawHash = String(location.hash || '');
+        if (rawHash.indexOf('#accept-invite=') === 0) {
+          const tok = decodeURIComponent(rawHash.slice('#accept-invite='.length)).trim();
+          if (tok) {
+            try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, tok); } catch (_e) {}
+            return tok;
+          }
+        }
+        // Scrub any legacy query-string `next=/#accept-invite=...` so raw tokens do not stay in location.search
+        const legacyNext = params.get('next') || '';
+        if (legacyNext.indexOf('/#accept-invite=') === 0) {
+          const tok = decodeURIComponent(legacyNext.slice('/#accept-invite='.length)).trim();
+          if (tok) {
+            try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, tok); } catch (_e) {}
+            params.delete('next');
+            params.set('invite', '1');
+            const cleanSearch = params.toString();
+            if (window.history && window.history.replaceState) {
+              window.history.replaceState(
+                null,
+                '',
+                location.pathname + (cleanSearch ? '?' + cleanSearch : '') + '#accept-invite=' + encodeURIComponent(tok)
+              );
+            }
+            return tok;
+          }
+        }
+        if (params.get('invite') === '1') {
+          try {
+            const stored = String(sessionStorage.getItem(PENDING_INVITE_STORAGE_KEY) || '').trim();
+            if (stored) return stored;
+          } catch (_e) {}
+        }
+        return '';
+      })();
+
       const next = (function () {
+        if (pendingInviteToken) {
+          return '/#accept-invite=' + encodeURIComponent(pendingInviteToken);
+        }
         const n = params.get('next') || '/';
         return n.startsWith('/') && !n.startsWith('//') ? n : '/';
       })();
       document.getElementById('returnLink').href = next;
+
+      (function inspectPendingInvitationBanner() {
+        if (!pendingInviteToken) return;
+        const banner = document.getElementById('inviteContextBanner');
+        if (!banner) return;
+        fetch('/api/invitations/inspect', {
+          method: 'POST',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: pendingInviteToken })
+        })
+          .then(function (r) {
+            return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+          })
+          .then(function (res) {
+            if (!res.ok || !res.data || !res.data.invitation) {
+              pendingInviteToken = '';
+              try { sessionStorage.removeItem(PENDING_INVITE_STORAGE_KEY); } catch (_e) {}
+              document.getElementById('returnLink').href = '/';
+              if (res.data && res.data.error) {
+                showError(res.data.error);
+              }
+              return;
+            }
+            const inv = res.data.invitation;
+            const isTop = inv.requested_role === 'top' || inv.full_authority_warning;
+            banner.className = 'invite-context-banner' + (isTop ? ' is-top' : '');
+            banner.hidden = false;
+            const expStr = inv.expires_at
+              ? new Date(inv.expires_at).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+              : '';
+            banner.innerHTML =
+              '<strong>BiteShark Invitation: ' + loginEsc(inv.role_label) + '</strong><br>' +
+              'Target email: <strong>' + loginEsc(inv.masked_email) + '</strong>' +
+              (inv.vendor_name ? ' · Vendor: <strong>' + loginEsc(inv.vendor_name) + '</strong>' : '') +
+              (expStr ? ' · Expires: <strong>' + loginEsc(expStr) + '</strong>' : '') +
+              '<br>Enter that exact email address below to verify ownership and complete 14+ account eligibility before accepting.' +
+              (isTop ? '<br><strong>⚠ Full Administrative Authority:</strong> Admin: Top grants full control over BiteShark administration.' : '');
+          })
+          .catch(function () {});
+      })();
 
       const tabSignIn = document.getElementById('tabSignIn');
       const tabSignUp = document.getElementById('tabSignUp');
@@ -726,7 +832,7 @@
           if (hasPasskey && auth.supportsPasskeys()) {
             try {
               await auth.signInWithPasskey({ email: email });
-              location.href = next;
+              finish();
               return;
             } catch {}
           }
@@ -867,6 +973,11 @@
 
       function finish() {
         localStorage.setItem('passkey_offer_declined', '1');
+        if (pendingInviteToken) {
+          try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, pendingInviteToken); } catch (_e) {}
+          location.href = '/#accept-invite=' + encodeURIComponent(pendingInviteToken);
+          return;
+        }
         location.href = next;
       }
 
