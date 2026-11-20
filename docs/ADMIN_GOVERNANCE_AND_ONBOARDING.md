@@ -98,11 +98,15 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
      --env-file /etc/truckly-staging/migration.env
    ```
 2. **Protected Operator OTP Retrieval (`staging_mailbox` mode)**:
-   - Open `https://staging.biteshark.live/login.html?next=%2Fadmin` and request a 6-digit code for `<operator-email>`.
+   - Open `https://staging.biteshark.live/login.html?next=%2Fadmin` and click **Request staging code →** for `<operator-email>`. (When `staging_mailbox` is active, `/login.html` displays a *Protected staging testing mode* banner instead of claiming an external email was sent.)
    - Retrieve only your own active 6-digit code over SSH without exposing `STAGING_MAILBOX_SECRET`:
      ```bash
      ssh root@172.233.140.74 "/opt/nodejs/node-v22-lts/bin/node /srv/truckly-staging/current/scripts/operator-read-my-otp.cjs --email <operator-email>"
      ```
+3. **Enabling Real HTTPS Transactional Email (`resend_https`) & Top-Admin Diagnostics**:
+   - Inspect live delivery mode, non-secret credential presence, authoritative SPF/DKIM/DMARC/return-path DNS state, recent sanitized failures, and last designated provider acceptance via `/admin` -> **Operational Health** (`GET /api/admin/email-readiness`, restricted strictly to `Admin: Top`).
+   - Every `/api/auth/start` and `/api/auth/verify` call emits a sanitized `X-Correlation-Id` (`corr_<hex>`) and records bounded 7-day stage telemetry in `auth_delivery_telemetry` (`migrations/021_auth_diagnostics_and_email_readiness.sql`) without storing OTPs, DOBs, tokens, secrets, or recipient email addresses.
+   - In `ENV=staging`, configured `STAGING_ALLOWED_EMAILS` / `STAGING_ALLOWED_EMAIL_DOMAINS` remain enforced even when `AUTH_DELIVERY_MODE=resend_https` so staging cannot contact non-allowlisted external addresses.
 
 ---
 

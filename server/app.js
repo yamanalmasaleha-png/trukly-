@@ -25,6 +25,7 @@ import {
   readProtectedStagingMailboxCode,
   submitExistingAccountAgeAssessment,
   cleanupExpiredAuthRecords,
+  getPublicAuthDeliveryModeSummary,
   verifySameOriginMutationRequest
 } from '../lib/standalone-auth.js';
 import { matchDomainApiRoute, REGISTERED_DOMAIN_ROUTE_COUNT } from './routes.js';
@@ -507,10 +508,12 @@ export function createStandaloneServer({
           if (sess.refreshedCookieHeader) {
             appendSetCookie(res, sess.refreshedCookieHeader);
           }
+          const pubMode = getPublicAuthDeliveryModeSummary();
           return sendJsonResponse(res, 200, {
             authenticated: sess.authenticated,
             user: sess.user,
             requires_age_assessment: Boolean(sess.user?.requires_age_assessment),
+            auth_delivery_mode: pubMode.delivery_mode,
             passkeys_supported: false
           });
         }
@@ -530,16 +533,29 @@ export function createStandaloneServer({
             dob: body.dob,
             dob_year: body.dob_year,
             dob_month: body.dob_month,
-            dob_day: body.dob_day
+            dob_day: body.dob_day,
+            logger
           });
           if (out.setCookieHeader) {
             appendSetCookie(res, out.setCookieHeader);
           }
+          const hdrs = {};
+          if (out.correlationId) hdrs['X-Correlation-Id'] = out.correlationId;
+          if (out.retryAfterSeconds) hdrs['Retry-After'] = String(out.retryAfterSeconds);
           if (!out.ok) {
-            const hdrs = out.retryAfterSeconds ? { 'Retry-After': String(out.retryAfterSeconds) } : {};
-            return sendJsonResponse(res, out.status, { error: out.error, code: out.code }, hdrs);
+            return sendJsonResponse(
+              res,
+              out.status,
+              {
+                error: out.error,
+                code: out.code || null,
+                correlation_id: out.correlationId || null,
+                ...(out.retryAfterSeconds ? { retry_after_seconds: out.retryAfterSeconds } : {})
+              },
+              hdrs
+            );
           }
-          return sendJsonResponse(res, out.status, out.body);
+          return sendJsonResponse(res, out.status, out.body, hdrs);
         }
 
         if (pathname === '/api/auth/age-assessment') {
@@ -583,16 +599,29 @@ export function createStandaloneServer({
           const body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
           const out = await verifyEmailOtpChallenge(dbAdapter, req, {
             email: body.email,
-            code: body.code
+            code: body.code,
+            logger
           });
+          const hdrs = {};
+          if (out.correlationId) hdrs['X-Correlation-Id'] = out.correlationId;
+          if (out.retryAfterSeconds) hdrs['Retry-After'] = String(out.retryAfterSeconds);
           if (!out.ok) {
-            const hdrs = out.retryAfterSeconds ? { 'Retry-After': String(out.retryAfterSeconds) } : {};
-            return sendJsonResponse(res, out.status, { error: out.error, code: out.code }, hdrs);
+            return sendJsonResponse(
+              res,
+              out.status,
+              {
+                error: out.error,
+                code: out.code || null,
+                correlation_id: out.correlationId || null,
+                ...(out.retryAfterSeconds ? { retry_after_seconds: out.retryAfterSeconds } : {})
+              },
+              hdrs
+            );
           }
           if (out.setCookieHeader) {
             appendSetCookie(res, out.setCookieHeader);
           }
-          return sendJsonResponse(res, out.status, out.body);
+          return sendJsonResponse(res, out.status, out.body, hdrs);
         }
 
         if (pathname === '/api/auth/logout') {

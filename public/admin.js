@@ -2194,10 +2194,14 @@
       var ov = await apiJson('/api/admin/overview');
       var healthz = await apiJson('/api/healthz');
       var telemetry = null;
+      var emailReadiness = null;
       if (state.isTop) {
         try {
           telemetry = await apiJson('/api/pager/telemetry');
         } catch (_e) {}
+        try {
+          emailReadiness = await apiJson('/api/admin/email-readiness');
+        } catch (_e2) {}
       }
 
       var h = ov.operational_health || {};
@@ -2214,6 +2218,59 @@
           '</div></div>'
         : '<div class="card-panel"><h2>Extended Pager Telemetry</h2><p class="record-meta">Detailed delivery telemetry is scoped to <strong>Admin: Top</strong>.</p></div>';
 
+      var emailCard = '';
+      if (state.isTop && emailReadiness) {
+        var eCfg = emailReadiness.configuration || {};
+        var eDns = emailReadiness.sender_domain_dns || null;
+        var lastTest = emailReadiness.last_successful_designated_test;
+        var failures = Array.isArray(emailReadiness.recent_failures) ? emailReadiness.recent_failures : [];
+        var steps = Array.isArray(emailReadiness.required_next_steps) ? emailReadiness.required_next_steps : [];
+
+        var dnsHtml = eDns
+          ? '<div class="kv-grid" style="margin-top:10px">' +
+            '<div><strong>Inspected Domain</strong><code>' + esc(eDns.domain) + '</code></div>' +
+            '<div><strong>SPF Status</strong><code>' + esc(eDns.spf && eDns.spf.status) + '</code></div>' +
+            '<div><strong>DMARC Status</strong><code>' + esc((eDns.dmarc && eDns.dmarc.status) + (eDns.dmarc && eDns.dmarc.policy ? ' (p=' + eDns.dmarc.policy + ')' : '')) + '</code></div>' +
+            '<div><strong>DKIM / Return-Path</strong><code>' + esc((eDns.resend_dkim && eDns.resend_dkim.status) + ' / ' + (eDns.return_path_send && eDns.return_path_send.status)) + '</code></div>' +
+            '</div>'
+          : '<p class="record-meta" style="margin-top:8px">Sender domain DNS check unavailable until a domain or public origin is configured.</p>';
+
+        var failHtml = failures.length
+          ? '<div style="margin-top:10px"><strong>Sanitized Recent Delivery Failures (' + failures.length + ')</strong><ul style="margin:6px 0 0 18px;font-size:12.5px">' +
+            failures.slice(0, 5).map(function (f) {
+              return '<li><code>' + esc(f.correlation_id) + '</code> · ' + esc(f.outcome_stage) +
+                (f.provider_status ? ' (provider HTTP ' + Number(f.provider_status) + ')' : '') +
+                (f.error_code ? ' · <code>' + esc(f.error_code) + '</code>' : '') +
+                ' · ' + esc(f.created_at) + '</li>';
+            }).join('') +
+            '</ul></div>'
+          : '<p class="record-meta" style="margin-top:8px">No recent provider delivery failures recorded.</p>';
+
+        var stepsHtml = steps.length
+          ? '<div style="margin-top:10px"><strong>Required Next Steps</strong><ul style="margin:6px 0 0 18px;font-size:12.5px">' +
+            steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') +
+            '</ul></div>'
+          : '';
+
+        emailCard =
+          '<div class="card-panel" id="emailReadinessCard"><h2>Authentication Email Readiness (Admin: Top)</h2>' +
+          '<div class="kv-grid">' +
+          '<div><strong>Effective Mode</strong><code>' + esc(emailReadiness.effective_mode) + '</code></div>' +
+          '<div><strong>Real Email Enabled</strong>' + (emailReadiness.real_email_enabled ? '<span class="pill pill-ok">Yes</span>' : '<span class="pill pill-warn">No (Protected Staging / Disabled)</span>') + '</div>' +
+          '<div><strong>Config Valid</strong>' + (emailReadiness.config_valid ? '<span class="pill pill-ok">Valid</span>' : '<span class="pill pill-danger">Invalid</span>') + '</div>' +
+          '<div><strong>API Key / Sender</strong>' + (eCfg.api_key_present ? 'Key set' : 'Key unset') + ' · ' + (eCfg.sender_domain ? esc(eCfg.sender_domain) : 'Sender unset') + '</div>' +
+          '</div>' +
+          dnsHtml +
+          '<p class="record-meta" style="margin-top:8px"><strong>Last Designated Provider Acceptance:</strong> ' +
+          (lastTest ? ('<code>' + esc(lastTest.correlation_id) + '</code>' + (lastTest.provider_message_id ? ' (msg <code>' + esc(lastTest.provider_message_id) + '</code>)' : '') + ' at ' + esc(lastTest.created_at)) : 'None recorded') +
+          '</p>' +
+          failHtml +
+          stepsHtml +
+          '</div>';
+      } else {
+        emailCard = '<div class="card-panel"><h2>Authentication Email Readiness</h2><p class="record-meta">Email delivery &amp; sender-domain diagnostics are scoped to <strong>Admin: Top</strong>.</p></div>';
+      }
+
       container.innerHTML =
         '<div class="card-panel"><h2>API &amp; Database Readiness</h2>' +
         '<div class="kv-grid">' +
@@ -2229,7 +2286,8 @@
         '<div><strong>Outbox Pending / Retrying</strong>' + Number(q.pending || 0) + ' / ' + Number(q.retrying || 0) + '</div>' +
         '<div><strong>Dead-Letter / Oldest Age (s)</strong>' + Number(q.dead_letter || 0) + ' / ' + Number(q.oldest_pending_age_sec || 0) + 's</div>' +
         '</div></div>' +
-        telemetryCard;
+        telemetryCard +
+        emailCard;
     } catch (err) {
       container.innerHTML = '<div class="state-box state-error">' + esc(err.message) + '</div>';
     }

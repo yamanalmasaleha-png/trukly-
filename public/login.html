@@ -190,6 +190,35 @@
     .error-banner:empty {
       display: none;
     }
+    .staging-mode-banner {
+      background: #fff7e0;
+      border: 1px solid #e6c675;
+      color: #553c00;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 12.8px;
+      line-height: 1.48;
+      margin: 0 0 14px;
+    }
+    .status-banner {
+      background: #eaf6f0;
+      border: 1px solid #b5dec9;
+      color: #164431;
+      padding: 9px 12px;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    .status-banner:empty {
+      display: none;
+    }
+    .code-meta-note {
+      font-size: 12.5px;
+      color: #46514b;
+      line-height: 1.45;
+      margin: 10px 0 2px;
+    }
     .passkey-note {
       background: #f5f4ef;
       color: #454f4a;
@@ -256,6 +285,8 @@
         </button>
       </div>
 
+      <div id="stagingModeNotice" class="staging-mode-banner" role="status" hidden></div>
+
       <p class="mode-helper" id="modeHelperText">
         Already have a BiteShark account? Enter your email for a 6-digit sign-in code. New to BiteShark? Select <strong>Create account (14+)</strong> first — codes are sent to new addresses only after the 14+ age check.
       </p>
@@ -310,14 +341,22 @@
 
     <div id="codeStep" hidden>
       <button class="back" type="button" id="backBtn">← Use another email</button>
-      <h1>Check your inbox</h1>
-      <p>Enter the 6-digit code sent to <b id="emailLabel"></b>.</p>
+      <h1 id="codeStepHeading">Enter verification code</h1>
+      <p id="codeStepLead">Request submitted for <b id="emailLabel"></b>.</p>
+      <p class="mode-helper" id="codeStepGuidance">
+        If an eligible account is ready for this address, a 6-digit verification code has been requested — check your inbox and spam/junk folder. New to BiteShark? Switch to <strong>Create account (14+)</strong> first.
+      </p>
       <form id="codeForm">
         <label for="code">Verification code
           <input id="code" class="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
         </label>
+        <p class="code-meta-note" id="codeExpiryNote">
+          Codes are single-use and expire in <span id="codeTtlMinutes">10</span> minutes. Requesting a new code immediately invalidates earlier codes.
+        </p>
         <button class="primary" id="verifyBtn" type="submit">Continue →</button>
+        <button class="secondary" id="resendBtn" type="button">Request a new code</button>
       </form>
+      <div id="codeStepStatus" class="status-banner" role="status" aria-live="polite"></div>
     </div>
 
     <div id="ageAssessmentStep" hidden>
@@ -395,6 +434,7 @@
       let hasPasskey = false;
       let authMode = 'signin'; // 'signin' | 'signup'
       let signupLockedByAgeGate = false;
+      let currentDeliveryMode = 'email'; // 'email' | 'staging_mailbox' | 'unavailable'
 
       const params = new URLSearchParams(location.search);
       const next = (function () {
@@ -419,10 +459,86 @@
 
       function clearError() {
         errEl.textContent = '';
+        const cs = document.getElementById('codeStepStatus');
+        if (cs) cs.textContent = '';
       }
 
       function showError(msg) {
         errEl.textContent = msg || 'Request could not be completed.';
+      }
+
+      function formatAuthError(x, fallbackMsg) {
+        if (!x) return fallbackMsg || 'Request could not be completed.';
+        let msg = x.message || fallbackMsg || 'Request could not be completed.';
+        if (x.status === 429 && x.retryAfterSeconds && msg.indexOf(String(x.retryAfterSeconds)) === -1) {
+          msg += ' (Wait about ' + x.retryAfterSeconds + 's before retrying.)';
+        }
+        if (x.status >= 500 && x.correlationId && msg.indexOf(x.correlationId) === -1) {
+          msg += ' [Reference: ' + x.correlationId + ']';
+        }
+        return msg;
+      }
+
+      function updateButtonLabelsForDeliveryMode() {
+        const isSignup = authMode === 'signup';
+        const isStagingMailbox = currentDeliveryMode === 'staging_mailbox';
+        if (isSignup) {
+          sendBtn.textContent = isStagingMailbox
+            ? 'Check eligibility & generate staging code →'
+            : 'Check eligibility & request code →';
+        } else {
+          sendBtn.textContent = isStagingMailbox
+            ? 'Request staging code →'
+            : 'Request verification code →';
+        }
+      }
+
+      function applyDeliveryModeBanner(mode) {
+        if (mode === 'staging_mailbox' || mode === 'email' || mode === 'unavailable') {
+          currentDeliveryMode = mode;
+        }
+        const banner = document.getElementById('stagingModeNotice');
+        if (banner) {
+          if (currentDeliveryMode === 'staging_mailbox') {
+            banner.hidden = false;
+            banner.innerHTML =
+              '<strong>Protected staging testing mode:</strong> Real external email delivery is not enabled on this isolated staging environment. Allowlisted operator test accounts generate codes only in the protected loopback staging mailbox.';
+          } else if (currentDeliveryMode === 'unavailable') {
+            banner.hidden = false;
+            banner.innerHTML =
+              '<strong>Verification service unavailable:</strong> Verification code delivery is currently disabled or misconfigured on this environment.';
+          } else {
+            banner.hidden = true;
+            banner.textContent = '';
+          }
+        }
+        updateButtonLabelsForDeliveryMode();
+      }
+
+      function applyCodeStepDeliveryCopy(mode, targetEmail, expiresSeconds) {
+        if (mode === 'staging_mailbox' || mode === 'email') {
+          currentDeliveryMode = mode;
+        }
+        const heading = document.getElementById('codeStepHeading');
+        const guidance = document.getElementById('codeStepGuidance');
+        const ttlSpan = document.getElementById('codeTtlMinutes');
+        const ttlMins = Math.max(1, Math.round((Number(expiresSeconds) || 600) / 60));
+        if (ttlSpan) ttlSpan.textContent = String(ttlMins);
+        document.getElementById('emailLabel').textContent = targetEmail;
+
+        if (currentDeliveryMode === 'staging_mailbox') {
+          if (heading) heading.textContent = 'Enter staging verification code';
+          if (guidance) {
+            guidance.innerHTML =
+              '<strong>Protected staging testing mode is active — no external email was sent.</strong> If this allowlisted account is ready, retrieve the active 6-digit code using the protected BiteShark VPS loopback operator tool and enter it below. (New address? Select <strong>Create account (14+)</strong> first.)';
+          }
+        } else {
+          if (heading) heading.textContent = 'Enter verification code';
+          if (guidance) {
+            guidance.innerHTML =
+              'If an eligible account is ready for this address, a 6-digit verification code has been requested — check your inbox and spam/junk folder. New to BiteShark? Switch to <strong>Create account (14+)</strong> first.';
+          }
+        }
       }
 
       function setMode(nextMode) {
@@ -438,16 +554,15 @@
           stepHeading.textContent = 'Create your account';
           modeHelperText.innerHTML =
             'New accounts require users to be at least <strong>14 years old</strong> (proposed policy pending legal review). Enter your email and date of birth to request a verification code.';
-          sendBtn.textContent = 'Check eligibility & email code →';
           sendBtn.disabled = signupLockedByAgeGate;
         } else {
           stepKicker.textContent = 'SONOMA COUNTY FOOD SPOTS';
           stepHeading.textContent = 'Roll back in';
           modeHelperText.innerHTML =
-            'Already have a BiteShark account? Enter your email for a 6-digit sign-in code. New to BiteShark? Select <strong>Create account (14+)</strong> first — codes are sent to new addresses only after the 14+ age check.';
-          sendBtn.textContent = 'Email me a code →';
+            'Already have a BiteShark account? Enter your email for a 6-digit sign-in code. New to BiteShark? Select <strong>Create account (14+)</strong> first — codes are issued to new addresses only after the 14+ age check.';
           sendBtn.disabled = false;
         }
+        updateButtonLabelsForDeliveryMode();
       }
 
       tabSignIn.addEventListener('click', function () { setMode('signin'); });
@@ -546,7 +661,18 @@
           } else {
             setMode('signin');
           }
-          if (typeof auth.getUser === 'function') {
+          if (typeof auth.getSession === 'function') {
+            auth.getSession().then(function (sessData) {
+              if (sessData && sessData.auth_delivery_mode) {
+                applyDeliveryModeBanner(sessData.auth_delivery_mode);
+              }
+              const u = sessData && sessData.authenticated ? sessData.user : null;
+              if (u && u.requires_age_assessment) {
+                email = u.email || '';
+                showAgeAssessmentStep(email);
+              }
+            }).catch(function () {});
+          } else if (typeof auth.getUser === 'function') {
             auth.getUser().then(function (u) {
               if (u && u.requires_age_assessment) {
                 email = u.email || '';
@@ -604,7 +730,8 @@
               return;
             } catch {}
           }
-          document.getElementById('emailLabel').textContent = email;
+          applyCodeStepDeliveryCopy(r.delivery_mode || currentDeliveryMode, email, r.expires_in_seconds);
+          document.getElementById('code').value = '';
           document.getElementById('emailStep').hidden = true;
           document.getElementById('codeStep').hidden = false;
           document.getElementById('code').focus();
@@ -612,11 +739,43 @@
           if (x && x.code === 'AGE_INELIGIBLE') {
             lockSignupAfterIneligible();
           }
-          showError(x.message || 'Could not send a code. Please try again.');
+          showError(formatAuthError(x, 'Could not request a verification code. Please try again.'));
         } finally {
           if (!(authMode === 'signup' && signupLockedByAgeGate)) {
             sendBtn.disabled = false;
           }
+        }
+      });
+
+      document.getElementById('resendBtn').addEventListener('click', async function () {
+        clearError();
+        if (authMode === 'signup') {
+          // Raw birth date is scrubbed immediately after evaluation; return to signup step to re-check
+          document.getElementById('codeStep').hidden = true;
+          document.getElementById('emailStep').hidden = false;
+          showError('Re-enter your birth date on Create account (14+) to request a fresh verification code.');
+          document.getElementById('dobMonth').focus();
+          return;
+        }
+        const resendBtn = document.getElementById('resendBtn');
+        const statusEl = document.getElementById('codeStepStatus');
+        resendBtn.disabled = true;
+        try {
+          const auth = getAuth();
+          const r = await auth.startLogin({ email: email });
+          applyCodeStepDeliveryCopy(r.delivery_mode || currentDeliveryMode, email, r.expires_in_seconds);
+          document.getElementById('code').value = '';
+          if (statusEl) {
+            statusEl.textContent =
+              currentDeliveryMode === 'staging_mailbox'
+                ? 'New staging code generated — any earlier code is now invalid.'
+                : 'New verification code requested — any earlier code is now invalid.';
+          }
+          document.getElementById('code').focus();
+        } catch (x) {
+          showError(formatAuthError(x, 'Could not request a new code right now.'));
+        } finally {
+          resendBtn.disabled = false;
         }
       });
 
@@ -640,7 +799,7 @@
             finish();
           }
         } catch (x) {
-          showError(x.message || 'That code did not work.');
+          showError(formatAuthError(x, 'Invalid or expired verification code.'));
         } finally {
           verifyBtn.disabled = false;
         }

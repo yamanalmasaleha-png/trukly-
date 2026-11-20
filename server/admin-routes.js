@@ -20,6 +20,7 @@ import {
 import { withTransaction } from '../lib/db-tx.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
+import { inspectAdminEmailReadiness } from '../lib/standalone-auth.js';
 import {
   buildAgeAssessmentRequiredPayload,
   daysInGregorianMonth,
@@ -59,6 +60,7 @@ const GOVERNANCE_PATHS = new Set([
   '/api/issues',
   '/api/issues/reply',
   '/api/admin/overview',
+  '/api/admin/email-readiness',
   '/api/admin/vendor-preview',
   '/api/admin/applications',
   '/api/admin/applications/decision',
@@ -1674,6 +1676,26 @@ export async function handleGovernanceApiRequest({
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
     return sendJson(200, out);
+  }
+
+  // -------------------------------------------------------------------------
+  // 6A-Email. Authentication Email Delivery & Domain Readiness (`GET /api/admin/email-readiness`) — `Admin: Top` ONLY
+  // -------------------------------------------------------------------------
+  if (normPath === '/api/admin/email-readiness') {
+    if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    const accessCheck = await withTransaction(dbAdapter, async tx => {
+      const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedTop.ok) return { denied: verifiedTop };
+      return { ok: true };
+    });
+    if (accessCheck.denied) {
+      return sendJson(accessCheck.denied.status, {
+        error: accessCheck.denied.error || 'Only Admin: Top may inspect authentication email readiness.',
+        code: 'TOP_ADMIN_REQUIRED'
+      });
+    }
+    const report = await inspectAdminEmailReadiness(dbAdapter);
+    return sendJson(200, report);
   }
 
   // -------------------------------------------------------------------------

@@ -35,7 +35,16 @@
       var err = new Error(data.error || 'Authentication request failed.');
       err.status = res.status;
       err.code = data.code || null;
+      err.correlationId = res.headers.get('X-Correlation-Id') || data.correlation_id || null;
+      var raHdr = Number(res.headers.get('Retry-After'));
+      var raBody = Number(data.retry_after_seconds);
+      err.retryAfterSeconds =
+        Number.isFinite(raHdr) && raHdr > 0 ? raHdr : Number.isFinite(raBody) && raBody > 0 ? raBody : null;
       throw err;
+    }
+    if (data && typeof data === 'object' && !data.correlation_id) {
+      var cid = res.headers.get('X-Correlation-Id');
+      if (cid) data.correlation_id = cid;
     }
     return data;
   }
@@ -76,16 +85,20 @@
       return postAuthJson('verify', { email: email, code: code });
     },
 
-    async getUser() {
+    async getSession() {
       var res = await fetch('/api/auth/session', {
         method: 'GET',
         credentials: 'same-origin',
         cache: 'no-store'
       });
       if (!res.ok) return null;
-      var data = await res.json().catch(function () {
+      return res.json().catch(function () {
         return null;
       });
+    },
+
+    async getUser() {
+      var data = await standaloneAuthClient.getSession();
       if (data && data.authenticated === true && data.user && typeof data.user.id === 'string') {
         return data.user;
       }
