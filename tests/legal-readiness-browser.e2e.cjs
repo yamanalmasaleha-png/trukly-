@@ -667,19 +667,17 @@ class CdpClient {
     console.log('PASS [E2E 3/5]: 14+ browser signup and existing-account next-sign-in 14+ assessment flow verified');
 
     // =========================================================================
-    // [E2E 4/5] Top Admin `/admin` Launch Reminder, Overview Count, Legal Sign-Off & Auto-Re-Review
+    // [E2E 4/5] Unassessed Top Admin `/admin` Gate -> Assessment -> Zero-Loop Return to `/admin`
     // =========================================================================
     const topSess = await newIsolatedPage();
     await cdp.send('Page.navigate', { url: `${baseUrl}/login.html?next=%2Fadmin` }, topSess);
     await waitForCondition(() => cdp.eval(topSess, `Boolean(window.bitesharkAuth)`), { label: 'top login ready' });
+    // Sign in WITHOUT DOB so `topEmail` remains `not_assessed`, then navigate directly to `/admin`:
+    // `/admin` must redirect cleanly to `/login.html?assess=1&next=%2Fadmin` without fabricating eligibility or looping!
     await cdp.eval(
       topSess,
       `(async () => {
-        await window.bitesharkAuth.startLogin({
-          email: ${JSON.stringify(topEmail)},
-          intent: 'signup',
-          dob: '1985-02-10'
-        });
+        await window.bitesharkAuth.startLogin({ email: ${JSON.stringify(topEmail)} });
       })()`
     );
     const topOtp = await fetchOtp(topEmail);
@@ -688,6 +686,27 @@ class CdpClient {
       `(async () => {
         await window.bitesharkAuth.verifyCode({ email: ${JSON.stringify(topEmail)}, code: ${JSON.stringify(topOtp)} });
         location.href = '/admin';
+      })()`
+    );
+
+    // Must land on `/login.html?assess=1&next=%2Fadmin` with `#ageAssessmentStep` visible!
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          topSess,
+          `location.pathname === '/login.html' && location.search.includes('assess=1') && document.getElementById('ageAssessmentStep')?.hidden === false`
+        ),
+      { label: 'unassessed Top Admin redirected from /admin to /login.html?assess=1&next=%2Fadmin' }
+    );
+
+    // Complete 14+ age assessment -> must return directly to `/admin` with zero redirect loop!
+    await cdp.eval(
+      topSess,
+      `(() => {
+        document.getElementById('assessDobMonth').value = '02';
+        document.getElementById('assessDobDay').value = '10';
+        document.getElementById('assessDobYear').value = '1985';
+        document.getElementById('ageAssessmentForm').requestSubmit();
       })()`
     );
 

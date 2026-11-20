@@ -444,6 +444,7 @@
         '<div id="rxAgeModalMsg" class="rx-msg" role="alert" hidden></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
         '<button type="submit" class="primary" id="rxAgeSubmitBtn">Confirm 14+ Eligibility →</button>' +
+        '<button type="button" class="secondary" id="rxAgeSupportBtn">Privacy / Accessibility Help</button>' +
         '<button type="button" class="secondary" id="rxAgeSignOutBtn">Sign Out</button>' +
         '</div>' +
         '</form></div></div>';
@@ -478,6 +479,13 @@
       document.getElementById('siNewPane').onsubmit = submitNewSupportIssue;
       document.getElementById('crReportForm').onsubmit = submitCommunityReport;
       document.getElementById('rxAgeModalForm').onsubmit = submitNextSignInAgeAssessment;
+      document.getElementById('rxAgeSupportBtn').onclick = function () {
+        document.getElementById('rxAgeAssessmentModal').hidden = true;
+        openSupportIssuesModal();
+        var catSel = document.getElementById('siCategory');
+        if (catSel) catSel.value = 'account_access';
+        switchSiTab('new');
+      };
       document.getElementById('rxAgeSignOutBtn').onclick = async function () {
         try {
           if (window.bitesharkAuth && window.bitesharkAuth.signOut) {

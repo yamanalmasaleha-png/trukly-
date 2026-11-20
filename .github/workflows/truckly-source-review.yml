@@ -11,6 +11,7 @@ on:
       - migrate/**
       - working/**
       - feature/**
+      - fix/**
 
 permissions:
   contents: read

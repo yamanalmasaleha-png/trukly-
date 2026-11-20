@@ -20,7 +20,11 @@ import {
 import { withTransaction } from '../lib/db-tx.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
-import { daysInGregorianMonth, resolvePacificCalendarDateParts } from '../lib/age-policy.js';
+import {
+  buildAgeAssessmentRequiredPayload,
+  daysInGregorianMonth,
+  resolvePacificCalendarDateParts
+} from '../lib/age-policy.js';
 import {
   INVITATION_TTL_MS,
   MAX_EVIDENCE_BYTES,
@@ -245,20 +249,53 @@ export async function handleGovernanceApiRequest({
           ageEligibilityStatus = ageRes.rows[0].age_eligibility_status || 'not_assessed';
           agePolicyVersion = ageRes.rows[0].age_policy_version || null;
         }
-        const appsRes = await tx.query(
-          'SELECT count(*)::int AS c FROM vendor_applications WHERE applicant_user_id = $1',
-          [ctx.user.id]
-        );
-        const issRes = await tx.query(
-          "SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1 AND status IN ('open', 'in_progress', 'waiting')",
-          [ctx.user.id]
-        );
-        myAppsCount = appsRes.rows[0]?.c || 0;
-        myIssuesCount = issRes.rows[0]?.c || 0;
+        if (ageEligibilityStatus === 'eligible_14_plus') {
+          const appsRes = await tx.query(
+            'SELECT count(*)::int AS c FROM vendor_applications WHERE applicant_user_id = $1',
+            [ctx.user.id]
+          );
+          const issRes = await tx.query(
+            "SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1 AND status IN ('open', 'in_progress', 'waiting')",
+            [ctx.user.id]
+          );
+          myAppsCount = appsRes.rows[0]?.c || 0;
+          myIssuesCount = issRes.rows[0]?.c || 0;
+        }
       });
     } catch {}
 
     const requiresAgeAssessment = ageEligibilityStatus !== 'eligible_14_plus';
+    if (requiresAgeAssessment) {
+      // Data minimization on exempt bootstrap endpoint: expose ONLY minimum session info needed
+      // to render the one-time age assessment; withhold memberships, roles, admin flags, and counts.
+      return sendJson(200, {
+        authenticated: true,
+        user: {
+          id: ctx.user.id,
+          email: ctx.user.email,
+          age_eligibility_status: ageEligibilityStatus,
+          requires_age_assessment: true
+        },
+        age_eligibility_status: ageEligibilityStatus,
+        age_policy_version: agePolicyVersion,
+        requires_age_assessment: true,
+        assessment_url: '/login.html?assess=1',
+        role_labels: [],
+        admin_level: null,
+        admin_label: null,
+        capabilities: {
+          can_access_admin_portal: false,
+          can_act_on_behalf: false,
+          is_top_admin: false
+        },
+        admin: null,
+        memberships: [],
+        vendor_memberships: [],
+        my_applications_count: 0,
+        my_open_issues_count: 0
+      });
+    }
+
     const memList = Array.from(ctx.memberships.values());
     return sendJson(200, {
       authenticated: true,
@@ -1237,14 +1274,29 @@ export async function handleGovernanceApiRequest({
     if (method === 'GET') {
       const singleId = typeof query.issue_id === 'string' && UUID_RE.test(query.issue_id.trim()) ? query.issue_id.trim() : '';
       const out = await withTransaction(dbAdapter, async tx => {
-        await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
+        await tx.query(
+          "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
+          [ctx.user.id]
+        );
+        const ageRes = await tx.query(
+          'SELECT age_eligibility_status FROM auth_users WHERE id = $1',
+          [ctx.user.id]
+        );
+        const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
+
+        // Unassessed accounts may view ONLY narrow privacy/accessibility/account-access support tickets,
+        // never historical operational/booking/vendor dispute records.
+        const scopeSql = isEligible
+          ? ''
+          : " AND category = 'account_access' AND vendor_id IS NULL AND related_booking_id IS NULL AND related_review_id IS NULL";
+
         const { rows: issues } = await tx.query(
           `SELECT
              id, reporter_context, category, severity, status, vendor_id,
              related_booking_id, related_review_id, subject, description,
              resolution_reason, created_at, updated_at, resolved_at
            FROM support_issues
-           WHERE reporter_user_id = $1
+           WHERE reporter_user_id = $1${scopeSql}
            ORDER BY updated_at DESC
            LIMIT 30`,
           [ctx.user.id]
@@ -1284,9 +1336,12 @@ export async function handleGovernanceApiRequest({
       const catAlias = {
         booking_issue: 'booking_dispute',
         vendor_dispute: 'vendor_conduct',
-        safety_concern: 'vendor_conduct'
+        safety_concern: 'vendor_conduct',
+        privacy_request: 'account_access',
+        accessibility_support: 'account_access'
       };
       const category = catAlias[rawCat] || rawCat;
+      const isNarrowSupportCategory = ['account_access', 'privacy_request', 'accessibility_support'].includes(rawCat);
       const severity = typeof body.severity === 'string' && body.severity.trim() ? body.severity.trim() : 'normal';
       const reporterContext = body.reporter_context === 'vendor' && ctx.memberships.size > 0 ? 'vendor' : 'customer';
       const vendorId = typeof body.vendor_id === 'string' && body.vendor_id.trim() ? body.vendor_id.trim() : null;
@@ -1317,6 +1372,21 @@ export async function handleGovernanceApiRequest({
           "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
           [ctx.user.id]
         );
+        const ageRes = await tx.query(
+          'SELECT age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE',
+          [ctx.user.id]
+        );
+        const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
+        if (!isEligible) {
+          if (!isNarrowSupportCategory || vendorId || bookingId || reviewId || body.reporter_context === 'vendor') {
+            return {
+              status: 403,
+              body: buildAgeAssessmentRequiredPayload('/')
+            };
+          }
+        }
+        const effectiveReporterContext = isEligible ? reporterContext : 'customer';
+
         const rl = await consumeGovernanceRateLimit(tx, {
           scope: 'issue_create',
           subjectKey: ctx.user.id,
@@ -1357,7 +1427,7 @@ export async function handleGovernanceApiRequest({
           [
             ctx.user.id,
             ctx.user.email || null,
-            reporterContext,
+            effectiveReporterContext,
             category,
             severity,
             vendorId,
@@ -1381,7 +1451,7 @@ export async function handleGovernanceApiRequest({
 
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: reporterContext,
+          actorRole: effectiveReporterContext,
           vendorId,
           targetType: 'support_issue',
           targetId: rows[0].id,
@@ -1400,18 +1470,30 @@ export async function handleGovernanceApiRequest({
     if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
     if (!ctx.authenticated || !ctx.user?.id) return sendJson(401, { error: 'Sign in is required.' });
     const issueId = typeof body.issue_id === 'string' ? body.issue_id.trim() : '';
-    const replyBody = typeof body.body === 'string' ? body.body.trim() : '';
+    const replyBody = typeof (body.body ?? body.message) === 'string' ? String(body.body ?? body.message).trim() : '';
     if (!UUID_RE.test(issueId) || replyBody.length < 2 || replyBody.length > 1500) {
       return sendJson(400, { error: 'Valid issue_id and message (2–1500 chars) are required.' });
     }
 
     const outcome = await withTransaction(dbAdapter, async tx => {
-      await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
+      await tx.query(
+        "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
+        [ctx.user.id]
+      );
+      const ageRes = await tx.query(
+        'SELECT age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE',
+        [ctx.user.id]
+      );
+      const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
+
       const { rows } = await tx.query(
-        'SELECT id, status, reporter_context FROM support_issues WHERE id = $1 AND reporter_user_id = $2 FOR UPDATE',
+        'SELECT id, status, reporter_context, category, vendor_id, related_booking_id FROM support_issues WHERE id = $1 AND reporter_user_id = $2 FOR UPDATE',
         [issueId, ctx.user.id]
       );
       if (!rows.length) return { status: 404, body: { error: 'Issue not found.' } };
+      if (!isEligible && (rows[0].category !== 'account_access' || rows[0].vendor_id || rows[0].related_booking_id)) {
+        return { status: 403, body: buildAgeAssessmentRequiredPayload('/') };
+      }
       if (rows[0].status === 'closed') {
         return { status: 409, body: { error: 'Closed issues cannot receive new replies. Open a new issue if needed.' } };
       }

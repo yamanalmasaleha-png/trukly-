@@ -9,6 +9,7 @@ import {
   runNotificationWorkerBatch
 } from "../../lib/pager-notifications.js";
 import { readEnvCompat, EnvAliasConflictError } from "../../lib/env-compat.js";
+import { cleanupExpiredAuthRecords } from "../../lib/standalone-auth.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -93,11 +94,16 @@ export default async function(req, res) {
       hooks,
       runCleanup
     });
+    let authCleanup = null;
+    if (runCleanup) {
+      authCleanup = await cleanupExpiredAuthRecords(db, { now: now || new Date() }).catch(() => null);
+    }
     const executedIso = (now || new Date()).toISOString();
     return res.json({
       ok: true,
       executed_at: executedIso,
-      ...result
+      ...result,
+      ...(authCleanup ? { auth_cleanup: authCleanup } : {})
     });
   } catch {
     return res.status(503).json({

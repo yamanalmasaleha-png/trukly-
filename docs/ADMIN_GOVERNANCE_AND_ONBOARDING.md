@@ -106,26 +106,39 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
 
 ---
 
-## 6. Preliminary Legal-Policy Framework, Proposed 14+ Age Policy & Launch Readiness Register (`migrations/019`)
+## 6. Preliminary Legal-Policy Framework, Proposed 14+ Age Policy & Launch Readiness Register (`migrations/019`–`020`)
 
 > **Important Status Notice:** All policy pages (`/policies/*.html`), age-eligibility rules (`lib/age-policy.js`), and readiness records (`compliance_readiness_items`) are **preliminary working drafts and internal tracking tools — NOT approved legal documents or declarations of compliance**. Qualified counsel must review, revise, and sign off before public rollout.
 
-### 6.1 Proposed Minimum Account Age (`14+`) & Data Minimization
+### 6.1 Proposed Minimum Account Age (`14+`), Central Server-Side Gate & Data Minimization
 
 - **Proposed Operator Policy (Pending Legal Review)**: Users aged **13 and younger cannot create accounts**. Minimum account age is **14** (`PROPOSED_MIN_ACCOUNT_AGE = 14`, `AGE_POLICY_VERSION = 'draft-14plus-v0.1'`). Customer account eligibility does **not** establish contractual capacity for vendor agreements, commercial representation, or paid transactions.
 - **Timezone & Leap-Day Boundary**: Evaluated server-side against the current civil calendar date in `America/Los_Angeles` (Sonoma County local calendar). Leap-day (`02-29`) births reach their Nth birthday on `02-29` in leap years and on `03-01` in non-leap years (still age `N - 1` on `02-28`).
-- **Pre-OTP Enforcement & Zero Raw DOB Storage**:
+- **Pre-OTP Enforcement, Minimized/Pseudonymous Rate Limits & Zero Raw DOB Storage**:
   - Eligibility is evaluated on `POST /api/auth/start` **before** issuing any signup verification code or creating a new `auth_users` row; returning sign-in requests (`{ email }` without DOB) preserve exact non-enumerating `200` responses while issuing OTP challenges **only** for existing `auth_users` accounts.
   - BiteShark **never** stores raw date of birth, birth year, birth month, or birth day in PostgreSQL, logs, URLs, cookies, analytics, or responses. Only `age_eligibility_status` (`'not_assessed' | 'eligible_14_plus'`), `age_policy_version`, `age_assessed_at`, and `age_assessment_basis` are persisted.
-  - Rejected `< 14` signups create **zero** accounts, **zero** OTP challenges, and **zero** marketing records, setting only a 15-minute non-PII HttpOnly cooldown cookie (`__Host-bs_age_gate=1`) and a truncated IP rate-limit bucket (`age_ineligible_ip`, purged after 24 hours).
-  - Pre-existing accounts default honestly to `'not_assessed'` (no fabricated birth dates, no automatic approvals, no automatic deletions) and complete a one-time check via `POST /api/auth/age-assessment` (required before redeeming invitations on `POST /api/invitations/accept`).
+  - Rejected `< 14` signups create **zero** accounts, **zero** OTP challenges, **zero** per-email rate-limit hashes, and **zero** marketing records. Browser cooldown uses a 15-minute constant-value HttpOnly cookie (`__Host-bs_age_gate=1`, containing no identifier); server-side network throttling records a truncated SHA-256 IP digest (`age_ineligible_ip` in `auth_rate_limits`), which is treated as a **minimized, pseudonymous security identifier** (never claimed to be anonymous) and purged after **24 hours** both opportunistically during `consumeAuthRateLimit` / `consumeGovernanceRateLimit` writes and every 30 worker ticks (~5 minutes) via `/api/pager/worker` -> `cleanupExpiredAuthRecords` (which also purges expired OTP challenges after 24 hours and expired/revoked `auth_sessions` carrying `ip_hash`/`ua_hash` after 7 days).
+- **Central Server-Side Gate for Pre-Existing `'not_assessed'` Accounts & Documented Allowlist**:
+  - Pre-existing accounts (including administrators) default honestly to `'not_assessed'` (no fabricated birth dates, no automatic approvals, no automatic deletions).
+  - `server/app.js` enforces a central server-side eligibility gate (`403 AGE_ASSESSMENT_REQUIRED`) across **all** authenticated Domain API routes (`route.access === 'user'`), Act-on-Behalf requests, staging probes, `/admin` HTML entry (`302 -> /login.html?assess=1&next=%2Fadmin` for legitimate Mod/Top admins, returning cleanly to `/admin` after assessment without any redirect loop), and Governance/Admin API routes, reinforced by `FOR SHARE` row locks on `auth_sessions` + `auth_users` inside `withTransaction` (`lib/db-tx.js`).
+  - **Documented Narrow Allowlist (`AGE_ASSESSMENT_ALLOWLIST_SPEC` in `lib/age-policy.js`)**:
+    1. `POST /api/auth/age-assessment` — Complete the one-time 14+ age check.
+    2. `POST /api/auth/logout` — Revoke active session and clear cookie.
+    3. `GET /api/auth/session` — Minimum session identity (`id`, `email`, `age_eligibility_status`, `requires_age_assessment`) needed to render the assessment form.
+    4. `POST /api/auth/start`, `POST /api/auth/verify`, `POST /api/auth/staging-mailbox` — Authentication bootstrap.
+    5. `GET /api/account/context` — Redacted bootstrap context while `not_assessed` (withholds vendor memberships, role elevations, admin flags, and application/issue counts).
+    6. `GET|POST /api/invitations/inspect` — Masked public token metadata preview (`accept` remains gated).
+    7. `GET|POST /api/issues` & `POST /api/issues/reply` — Narrowly restricted while `not_assessed` to `account_access` / `privacy_request` / `accessibility_support` tickets with zero vendor/booking links (blocking operational ticket categories and withholding historical operational tickets).
+    8. Public discovery endpoints, static shell, and `/policies/*` draft/accessibility pages.
+  - **Ineligible Existing Accounts & Historical Records**: Submitting `< 14` on `POST /api/auth/age-assessment` immediately disables `auth_users` (`disabled_at`) and revokes active `auth_sessions`, **without** automatically deleting historical non-auth records (`bookings`, `favorites`, `community_reviews`, `support_issues`); retention/deletion handling for disabled under-14 pre-existing accounts is explicitly tracked as an unresolved legal-review item.
 
-### 6.2 Business & Compliance Readiness Register (`/admin#readiness`) & Non-Blocking Portal Reminder
+### 6.2 Business & Compliance Readiness Register (`/admin#readiness`), Backup Distinction & Non-Blocking Portal Reminder
 
 - **23 Seeded Readiness Items (`22` Launch-Critical + `1` Pre-Activation Monetization Gate)**:
-  - Out of 22 launch-critical items, **all 22 remain unresolved for legal sign-off (`0` `legally_approved`)** on initial seed:
+  - Out of 22 launch-critical items, **all 22 remain unresolved for legal sign-off (`0` `legally_approved`)**:
     - Unassessed / Decision Pending / Proposed: `legal_operator_identity` (`[LEGAL OPERATOR NAME], doing business as BiteShark`), `dba_registration`, `entity_structure`, `banking_and_tax`, `insurance_assessment`, `launch_jurisdictions`, `teen_user_safeguards`, `contractual_eligibility_split`, `terms_and_vendor_agreement`, `marketing_consent_unsubscribe`, `user_privacy_requests`, `copyright_dmca_process`, `security_incident_procedures`, `final_legal_launch_gate` (plus pre-activation `payment_subscription_prereqs`).
-    - Implemented / Verified Internally (Still Awaiting Counsel Sign-Off): `minimum_signup_age_14`, `dob_collection_minimization`, `privacy_inventory_retention`, `cookie_analytics_ad_inventory`, `vendor_review_verification_defs`, `content_moderation_appeals`, `accessibility_statement_testing`, `backups_offserver_restore` (local GPG backups active; off-server replication still unresolved).
+    - Implemented / Verified Internally (Still Awaiting Counsel Sign-Off): `minimum_signup_age_14`, `dob_collection_minimization`, `privacy_inventory_retention`, `cookie_analytics_ad_inventory`, `vendor_review_verification_defs`, `content_moderation_appeals`, `accessibility_statement_testing`, `backups_offserver_restore`.
+  - **Archive Readability Checks vs. Completed Database Restores**: Pre-deployment verification runs `gpg --decrypt` + `pg_restore --list`, which confirms **archive decryptability and table-of-contents readability** — distinct from a **completed `pg_restore` into a PostgreSQL database** (executed earlier in a disposable local staging DB during Stage 1/2 verification in `docs/VPS_RELEASE_VERIFICATION_REPORT.md`; off-server backup replication and an off-host restore drill on the current schema remain unresolved).
 - **Permissions & Versioned Legal Sign-Off**:
   - `Admin: Mod` may view `mod_visible` items and record operational notes/evidence (`POST /api/admin/readiness/note`), but cannot change statuses, modify governing policies, view `confidential_counsel_notes` (unless `mod_counsel_access_granted = true`), or mark `final_legal_launch_gate` complete.
   - `Admin: Top` (`POST /api/admin/readiness/update`) cannot mark an item `legally_approved` without structured `approved_doc_version`, `approved_jurisdiction_scope`, `legal_reviewer_name`, and `legal_reviewed_at`. Modifying `policy_version` or `current_practice` on a `legally_approved` item automatically transitions it to `needs_re_review` while preserving append-only `compliance_readiness_history`.

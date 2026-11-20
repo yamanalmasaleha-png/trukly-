@@ -235,7 +235,7 @@ function extractCookiePair(res, cookieName) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":19'), `Expected 19 migrations, got: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":20'), `Expected 20 migrations, got: ${migRes.stdout}`);
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });
@@ -243,16 +243,18 @@ function extractCookiePair(res, cookieName) {
     const port = await getFreePort();
     const baseOrigin = `http://127.0.0.1:${port}`;
     const mailboxSecret = 'mbx_' + crypto.randomBytes(24).toString('hex');
+    const workerSecret = 'wrk_' + crypto.randomBytes(24).toString('hex');
     const authSecret = crypto.randomBytes(32).toString('hex');
     const allowedDomain = 'legal.biteshark.invalid';
 
     process.env.BITESHARK_ENV = 'staging';
     delete process.env.BITESHARK_PUBLIC_ORIGIN;
     delete process.env.TRUCKLY_PUBLIC_ORIGIN;
-    process.env.BITESHARK_AUTH_START_IP_MAX = '80';
-    process.env.BITESHARK_AUTH_VERIFY_IP_MAX = '80';
+    process.env.BITESHARK_AUTH_START_IP_MAX = '160';
+    process.env.BITESHARK_AUTH_VERIFY_IP_MAX = '160';
     process.env.BITESHARK_AUTH_AGE_GATE_IP_MAX = '20';
     process.env.BITESHARK_AUTH_SECRET = authSecret;
+    process.env.BITESHARK_NOTIFICATION_WORKER_SECRET = workerSecret;
     process.env.BITESHARK_AUTH_DELIVERY_MODE = 'staging_mailbox';
     process.env.BITESHARK_STAGING_MAILBOX_SECRET = mailboxSecret;
     process.env.BITESHARK_STAGING_ALLOWED_EMAIL_DOMAINS = allowedDomain;
@@ -890,7 +892,441 @@ function extractCookiePair(res, cookieName) {
       assert(!/googletagmanager|google-analytics|gtag\(|fbq\(|doubleclick|adsense|hotjar/i.test(r.text));
     }
 
-    console.log('PASS [8/8]: All 7 preliminary policy pages + hub verified (noindex, [LEGAL OPERATOR NAME] placeholder, unresolved items explicit, zero ad/analytics trackers)');
+    console.log('PASS [8/10]: All 7 preliminary policy pages + hub verified (noindex, [LEGAL OPERATOR NAME] placeholder, unresolved items explicit, zero ad/analytics trackers)');
+
+    // =========================================================================
+    // [9/10] Central Server-Side Pending-Age-Assessment Gate Across Unassessed
+    //        Customer, Vendor, Mod & Top Sessions + Narrow Allowlist + Preserved History
+    // =========================================================================
+    async function seedPreExistingUnassessedSession(emailLocal, { platformRole = null, vendorRole = null, vendorId = 'iniguez' } = {}) {
+      const email = `${emailLocal}@${allowedDomain}`;
+      const uid = 'usr_sa_' + crypto.randomBytes(16).toString('hex');
+      await migratorPool.query('BEGIN');
+      await migratorPool.query("SELECT set_config('app.auth_internal', 'true', true), set_config('app.admin_portal', 'true', true), set_config('app.is_platform_admin', 'true', true)");
+      await migratorPool.query(
+        `INSERT INTO auth_users (id, email_normalized, created_at, updated_at)
+         VALUES ($1, $2, now() - interval '60 days', now() - interval '60 days')`,
+        [uid, email]
+      );
+      if (platformRole) {
+        await migratorPool.query(
+          `INSERT INTO platform_roles (user_id, role, granted_by, notes)
+           VALUES ($1, $2, 'seed', 'Pre-019 existing admin test')`,
+          [uid, platformRole]
+        );
+      }
+      if (vendorRole) {
+        await migratorPool.query(
+          `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by)
+           VALUES ($1, $2, $3, 'seed')`,
+          [vendorId, uid, vendorRole]
+        );
+      }
+      await migratorPool.query('COMMIT');
+
+      // Establish real session via OTP sign-in WITHOUT DOB (never opening browser prompt)
+      const st = await httpReq('/api/auth/start', {
+        method: 'POST',
+        headers: { 'X-BiteShark-Client': 'web-auth-v1' },
+        body: { email }
+      });
+      assert.equal(st.status, 200);
+      const mb = await httpReq('/api/auth/staging-mailbox', {
+        method: 'POST',
+        headers: { 'X-Staging-Mailbox-Secret': mailboxSecret },
+        body: { email }
+      });
+      assert.equal(mb.status, 200);
+      const vr = await httpReq('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'X-BiteShark-Client': 'web-auth-v1' },
+        body: { email, code: mb.json.code }
+      });
+      assert.equal(vr.status, 200);
+      assert.equal(vr.json.requires_age_assessment, true);
+      const ck = extractCookiePair(vr.rawRes, '__Host-truckly_session').pair;
+      return { id: uid, email, cookie: ck };
+    }
+
+    const unassessedCust = await seedPreExistingUnassessedSession('pre-cust');
+    const unassessedVendor = await seedPreExistingUnassessedSession('pre-vendor', {
+      vendorRole: 'owner',
+      vendorId: 'iniguez'
+    });
+    const unassessedMod = await seedPreExistingUnassessedSession('pre-mod', { platformRole: 'mod' });
+    const unassessedTop = await seedPreExistingUnassessedSession('pre-top', { platformRole: 'top' });
+
+    // Seed historical records on `unassessedCust` (booking, favorite, operational support issue)
+    let histIssueId;
+    const mcSeedHist = await migratorPool.connect();
+    try {
+      await mcSeedHist.query('BEGIN');
+      await mcSeedHist.query("SELECT set_config('app.user_id', $1, true), set_config('app.can_moderate', 'true', true), set_config('app.admin_portal', 'true', true)", [unassessedCust.id]);
+      await mcSeedHist.query("INSERT INTO favorites (user_id, truck_id) VALUES ($1, 'mitote')", [unassessedCust.id]);
+      await mcSeedHist.query(
+        `INSERT INTO bookings
+           (truck_id, truck_name, event_type, event_date, location, guest_count, requester, requester_user_id, requester_email, package_id, package_name, package_price, status)
+         VALUES
+           ('iniguez', 'Tacos Iñiguez', 'Birthday', CURRENT_DATE + 20, 'Santa Rosa', 30, 'Pre Cust', $1, $2, 'dropin', 'Neighborhood Drop-in', 750, 'pending')`,
+        [unassessedCust.id, unassessedCust.email]
+      );
+      const histIssRes = await mcSeedHist.query(
+        `INSERT INTO support_issues
+           (reporter_user_id, reporter_email, reporter_context, category, severity, vendor_id, subject, description, sla_due_at)
+         VALUES
+           ($1, $2, 'customer', 'booking_dispute', 'normal', 'iniguez', 'Historical booking question', 'Pre-existing operational dispute record before migration 019.', now() + interval '2 days')
+         RETURNING id`,
+        [unassessedCust.id, unassessedCust.email]
+      );
+      histIssueId = histIssRes.rows[0].id;
+      await mcSeedHist.query('COMMIT');
+    } finally {
+      mcSeedHist.release();
+    }
+
+    // Verify ALL direct protected requests fail closed (`403 AGE_ASSESSMENT_REQUIRED`) across Customer, Vendor, Mod & Top!
+    const protectedChecks = [
+      // Customer routes
+      [unassessedCust.cookie, 'GET', '/api/favorites/list', undefined],
+      [unassessedCust.cookie, 'POST', '/api/favorites/toggle', { truck_id: 'mitote' }],
+      [unassessedCust.cookie, 'GET', '/api/bookings/list', undefined],
+      [unassessedCust.cookie, 'POST', '/api/bookings/create', { truck_id: 'iniguez', event_date: '2026-12-10', location: 'Santa Rosa', guest_count: 25, package_id: 'dropin' }],
+      [unassessedCust.cookie, 'GET', '/api/community/mine', undefined],
+      [unassessedCust.cookie, 'POST', '/api/community/post', { place_id: 'iniguez', nickname: 'Tester', body: 'Great tacos here!', rating: 5 }],
+      [unassessedCust.cookie, 'POST', '/api/community/report', { post_id: crypto.randomUUID(), reason_category: 'spam' }],
+      [unassessedCust.cookie, 'GET', '/api/notifications/settings', undefined],
+      [unassessedCust.cookie, 'POST', '/api/notifications/settings', { nearby_enabled: true, radius_miles: 5 }],
+      [unassessedCust.cookie, 'GET', '/api/onboarding/applications', undefined],
+      [unassessedCust.cookie, 'POST', '/api/onboarding/applications', { action: 'save_draft', business_name: 'Bypass Spot' }],
+      [unassessedCust.cookie, 'POST', '/api/invitations/accept', { token: 'x'.repeat(32) }],
+
+      // Vendor Owner/Staff routes
+      [unassessedVendor.cookie, 'GET', '/api/owner/profile?truck_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'POST', '/api/owner/profile', { truck_id: 'iniguez', display_name: 'Bypass Edit', cuisine: 'Mexican' }],
+      [unassessedVendor.cookie, 'POST', '/api/owner/location', { truck_id: 'iniguez', location: 'Santa Rosa', is_open: true }],
+      [unassessedVendor.cookie, 'GET', '/api/owner/schedule?truck_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'POST', '/api/owner/schedule', { truck_id: 'iniguez', service_date: '2026-12-01', opens_at: '11:00', closes_at: '18:00', location: 'Santa Rosa', status: 'scheduled' }],
+      [unassessedVendor.cookie, 'GET', '/api/owner/bookings?truck_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'GET', '/api/owner/requests?truck_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'GET', '/api/owner/stats?truck_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'GET', '/api/vendor/members?vendor_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'POST', '/api/vendor/staff-invitations', { vendor_id: 'iniguez', email: `staff@${allowedDomain}` }],
+      [unassessedVendor.cookie, 'GET', '/api/pager/staff?vendor_id=iniguez', undefined],
+      [unassessedVendor.cookie, 'POST', '/api/pager/staff', { vendor_id: 'iniguez', ticket: 'T-99' }],
+      [unassessedVendor.cookie, 'POST', '/api/pager/update', { pager_id: crypto.randomUUID(), status: 'ready' }],
+
+      // Admin: Mod routes
+      [unassessedMod.cookie, 'GET', '/api/admin/overview', undefined],
+      [unassessedMod.cookie, 'GET', '/api/admin/applications', undefined],
+      [unassessedMod.cookie, 'GET', '/api/admin/moderation', undefined],
+      [unassessedMod.cookie, 'POST', '/api/community/moderate', { id: crypto.randomUUID(), status: 'approved' }],
+      [unassessedMod.cookie, 'GET', '/api/admin/issues', undefined],
+      [unassessedMod.cookie, 'GET', '/api/admin/readiness', undefined],
+      [unassessedMod.cookie, 'POST', '/api/admin/readiness/note', { item_key: 'minimum_signup_age_14', note: 'Bypass note' }],
+
+      // Admin: Top routes
+      [unassessedTop.cookie, 'GET', '/api/admin/overview', undefined],
+      [unassessedTop.cookie, 'GET', '/api/admin/vendors', undefined],
+      [unassessedTop.cookie, 'POST', '/api/admin/vendors/update', { vendor_id: 'iniguez', reason: 'Bypass update' }],
+      [unassessedTop.cookie, 'GET', '/api/admin/accounts', undefined],
+      [unassessedTop.cookie, 'POST', '/api/admin/invitations/create', { email: `inv@${allowedDomain}`, requested_role: 'mod' }],
+      [unassessedTop.cookie, 'POST', '/api/admin/readiness/update', { item_key: 'launch_jurisdictions', status: 'proposed' }],
+      [unassessedTop.cookie, 'GET', '/api/admin/audit', undefined],
+      [unassessedTop.cookie, 'GET', '/api/pager/telemetry', undefined]
+    ];
+
+    for (const [ck, m, p, b] of protectedChecks) {
+      const r = await httpReq(p, { method: m, cookie: ck, body: b });
+      assert.equal(r.status, 403, `Expected 403 on ${m} ${p} for unassessed session, got ${r.status}`);
+      assert.equal(r.json?.code, 'AGE_ASSESSMENT_REQUIRED', `Expected AGE_ASSESSMENT_REQUIRED on ${m} ${p}`);
+    }
+
+    // Act-on-Behalf header by unassessed Top Admin MUST also be blocked (`403 AGE_ASSESSMENT_REQUIRED`)!
+    const unassessedAob = await httpReq('/api/owner/location', {
+      method: 'POST',
+      cookie: unassessedTop.cookie,
+      headers: {
+        'X-BiteShark-Act-On-Behalf': 'iniguez',
+        'X-BiteShark-Support-Reason': 'Testing unassessed Act-on-Behalf block'
+      },
+      body: { truck_id: 'iniguez', location: 'Santa Rosa', is_open: true }
+    });
+    assert.equal(unassessedAob.status, 403);
+    assert.equal(unassessedAob.json?.code, 'AGE_ASSESSMENT_REQUIRED');
+
+    // `/admin` HTML entry: non-admin still gets 403; unassessed Mod/Top get 302 -> `/login.html?assess=1&next=%2Fadmin`!
+    assert.equal((await httpReq('/admin', { cookie: unassessedCust.cookie })).status, 403);
+    assert.equal((await httpReq('/admin', { cookie: unassessedVendor.cookie })).status, 403);
+    const modAdminHtml = await httpReq('/admin', { cookie: unassessedMod.cookie });
+    assert.equal(modAdminHtml.status, 302);
+    assert.equal(modAdminHtml.headers.get('location'), '/login.html?assess=1&next=%2Fadmin');
+    const topAdminHtml = await httpReq('/admin', { cookie: unassessedTop.cookie });
+    assert.equal(topAdminHtml.status, 302);
+    assert.equal(topAdminHtml.headers.get('location'), '/login.html?assess=1&next=%2Fadmin');
+
+    // Verify narrow allowlist & strict data minimization while `not_assessed`:
+    // 1. Public discovery & policy/accessibility pages stay 200 even with unassessed cookie
+    assert.equal((await httpReq('/api/trucks?summary=1', { cookie: unassessedTop.cookie })).status, 200);
+    assert.equal((await httpReq('/api/schedule/today', { cookie: unassessedTop.cookie })).status, 200);
+    assert.equal((await httpReq('/api/community/list?place_id=iniguez', { cookie: unassessedTop.cookie })).status, 200);
+    assert.equal((await httpReq('/policies/privacy.html', { cookie: unassessedTop.cookie })).status, 200);
+    assert.equal((await httpReq('/policies/accessibility.html', { cookie: unassessedTop.cookie })).status, 200);
+
+    // 2. `/api/account/context` withholds memberships, admin capabilities, and historical counts while `not_assessed`!
+    const redactedTopCtx = await httpReq('/api/account/context', { cookie: unassessedTop.cookie });
+    assert.equal(redactedTopCtx.status, 200);
+    assert.equal(redactedTopCtx.json.requires_age_assessment, true);
+    assert.equal(redactedTopCtx.json.admin, null, 'Unassessed Top context must withhold admin object');
+    assert.equal(redactedTopCtx.json.capabilities.can_access_admin_portal, false);
+    assert.equal(redactedTopCtx.json.capabilities.is_top_admin, false);
+    const redactedVendorCtx = await httpReq('/api/account/context', { cookie: unassessedVendor.cookie });
+    assert.deepEqual(redactedVendorCtx.json.memberships, [], 'Unassessed Vendor context must withhold memberships');
+    const redactedCustCtx = await httpReq('/api/account/context', { cookie: unassessedCust.cookie });
+    assert.equal(redactedCustCtx.json.my_open_issues_count, 0, 'Unassessed Customer context must withhold historical counts');
+
+    // 3. Narrow privacy/accessibility/account support channel on `/api/issues` & `/api/issues/reply` while `not_assessed`
+    const blockedOpIssue = await httpReq('/api/issues', {
+      method: 'POST',
+      cookie: unassessedCust.cookie,
+      body: {
+        category: 'booking_dispute',
+        vendor_id: 'iniguez',
+        subject: 'Try operational dispute without age check',
+        description: 'Attempting to file a vendor booking dispute while not_assessed.'
+      }
+    });
+    assert.equal(blockedOpIssue.status, 403);
+    assert.equal(blockedOpIssue.json?.code, 'AGE_ASSESSMENT_REQUIRED');
+
+    const allowedPrivacyIssue = await httpReq('/api/issues', {
+      method: 'POST',
+      cookie: unassessedCust.cookie,
+      body: {
+        category: 'privacy_request',
+        subject: 'Privacy inquiry about my pre-existing account',
+        description: 'Requesting information on account data retention before completing check.'
+      }
+    });
+    assert.equal(allowedPrivacyIssue.status, 201);
+    const privacyIssueId = allowedPrivacyIssue.json.issue.id;
+
+    // `GET /api/issues` while `not_assessed` returns ONLY the `account_access` support ticket, hiding `histIssueId`!
+    const scopedIssuesList = await httpReq('/api/issues', { cookie: unassessedCust.cookie });
+    assert.equal(scopedIssuesList.status, 200);
+    assert.equal(scopedIssuesList.json.issues.length, 1);
+    assert.equal(scopedIssuesList.json.issues[0].id, privacyIssueId);
+
+    // Reply allowed on `privacyIssueId`, blocked (`403`) on `histIssueId`!
+    assert.equal(
+      (await httpReq('/api/issues/reply', { method: 'POST', cookie: unassessedCust.cookie, body: { issue_id: privacyIssueId, body: 'Follow-up privacy note.' } })).status,
+      201
+    );
+    assert.equal(
+      (await httpReq('/api/issues/reply', { method: 'POST', cookie: unassessedCust.cookie, body: { issue_id: histIssueId, body: 'Try replying to booking dispute.' } })).status,
+      403
+    );
+
+    // 4. Legitimate Vendor, Mod & Top complete 14+ assessment -> immediately regain full intended permissions; Mod logs out cleanly
+    for (const persona of [unassessedVendor, unassessedMod, unassessedTop]) {
+      const aRes = await httpReq('/api/auth/age-assessment', {
+        method: 'POST',
+        cookie: persona.cookie,
+        headers: { 'X-BiteShark-Client': 'web-auth-v1' },
+        body: { dob: '1986-07-14' }
+      });
+      assert.equal(aRes.status, 200);
+    }
+    assert.equal((await httpReq('/api/owner/profile?truck_id=iniguez', { cookie: unassessedVendor.cookie })).status, 200);
+    assert.equal((await httpReq('/admin', { cookie: unassessedTop.cookie })).status, 200, 'Assessed Top Admin must load /admin (200) with zero redirect loop');
+    assert.equal((await httpReq('/api/admin/overview', { cookie: unassessedTop.cookie })).status, 200);
+    const restoredTopCtx = await httpReq('/api/account/context', { cookie: unassessedTop.cookie });
+    assert.equal(restoredTopCtx.json.capabilities.is_top_admin, true);
+
+    assert.equal((await httpReq('/api/admin/overview', { cookie: unassessedMod.cookie })).status, 200);
+    assert.equal(
+      (await httpReq('/api/auth/logout', { method: 'POST', cookie: unassessedMod.cookie, headers: { 'X-BiteShark-Client': 'web-auth-v1' }, body: {} })).status,
+      200
+    );
+    assert.equal((await httpReq('/api/admin/overview', { cookie: unassessedMod.cookie })).status, 401);
+
+    // 5. Ineligible (`< 14`) assessment on `unassessedCust`: disables account & revokes session, while PRESERVING historical records!
+    const custIneligible = await httpReq('/api/auth/age-assessment', {
+      method: 'POST',
+      cookie: unassessedCust.cookie,
+      headers: { 'X-BiteShark-Client': 'web-auth-v1' },
+      body: { dob: '2015-08-01' }
+    });
+    assert.equal(custIneligible.status, 403);
+    assert.equal(custIneligible.json?.code, 'AGE_INELIGIBLE');
+    assert.equal((await httpReq('/api/favorites/list', { cookie: unassessedCust.cookie })).status, 401);
+
+    const mcCheck = await migratorPool.connect();
+    let presFavs;
+    let presBk;
+    let presIss;
+    try {
+      await mcCheck.query('BEGIN');
+      await mcCheck.query("SELECT set_config('app.admin_portal', 'true', true), set_config('app.can_moderate', 'true', true)");
+      presFavs = await mcCheck.query('SELECT count(*)::int AS c FROM favorites WHERE user_id = $1', [unassessedCust.id]);
+      presBk = await mcCheck.query('SELECT count(*)::int AS c FROM bookings WHERE requester_user_id = $1', [unassessedCust.id]);
+      presIss = await mcCheck.query('SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1', [unassessedCust.id]);
+      await mcCheck.query('COMMIT');
+    } finally {
+      mcCheck.release();
+    }
+    assert.equal(presFavs.rows[0].c, 1, 'Historical favorites must not be deleted automatically');
+    assert.equal(presBk.rows[0].c, 1, 'Historical bookings must not be deleted automatically');
+    assert.equal(presIss.rows[0].c, 2, 'Historical support issues must not be deleted automatically');
+    console.log('PASS [9/10]: Central server-side pending-age gate across Customer/Vendor/Mod/Top, narrow allowlist redaction, zero admin redirect loop, and preserved historical records verified');
+
+    // =========================================================================
+    // [10/10] Concurrent Assessment/Revocation Races + Verified 24h Rate-Limit Cleanup & Wording
+    // =========================================================================
+    const racePersona = await seedPreExistingUnassessedSession('race-top-vendor', {
+      platformRole: 'top',
+      vendorRole: 'owner',
+      vendorId: 'iniguez'
+    });
+
+    // Fire `< 14` age assessment concurrently with protected booking, favorite, review, vendor & admin mutations!
+    const raceOutcomes = await Promise.all([
+      httpReq('/api/auth/age-assessment', {
+        method: 'POST',
+        cookie: racePersona.cookie,
+        headers: { 'X-BiteShark-Client': 'web-auth-v1' },
+        body: { dob: '2016-03-03' }
+      }),
+      httpReq('/api/bookings/create', {
+        method: 'POST',
+        cookie: racePersona.cookie,
+        body: { truck_id: 'iniguez', event_date: '2026-12-22', location: 'Santa Rosa', guest_count: 35, package_id: 'dropin' }
+      }),
+      httpReq('/api/favorites/toggle', {
+        method: 'POST',
+        cookie: racePersona.cookie,
+        body: { truck_id: 'mitote' }
+      }),
+      httpReq('/api/community/post', {
+        method: 'POST',
+        cookie: racePersona.cookie,
+        body: { place_id: 'iniguez', nickname: 'Racer', body: 'Concurrent bypass attempt', rating: 5 }
+      }),
+      httpReq('/api/owner/profile', {
+        method: 'POST',
+        cookie: racePersona.cookie,
+        body: { truck_id: 'iniguez', display_name: 'Race Tamper', cuisine: 'Mexican' }
+      }),
+      httpReq('/api/admin/overview', {
+        method: 'GET',
+        cookie: racePersona.cookie
+      })
+    ]);
+
+    assert.equal(raceOutcomes[0].status, 403);
+    assert.equal(raceOutcomes[0].json?.code, 'AGE_INELIGIBLE');
+    for (let idx = 1; idx < raceOutcomes.length; idx++) {
+      assert(
+        raceOutcomes[idx].status === 403 || raceOutcomes[idx].status === 401,
+        `Concurrent protected call #${idx} must fail closed (401 or 403), got ${raceOutcomes[idx].status}`
+      );
+    }
+
+    // Also test concurrent suspension (`FOR SHARE` row lock inside `withTransaction`) on an assessed user
+    const assessedRacer = await signUp14Plus(`assessed-racer@${allowedDomain}`, '1992-05-19');
+    const suspRace = await Promise.all([
+      httpReq('/api/admin/accounts/status', {
+        method: 'POST',
+        cookie: topAdmin.cookie,
+        body: { user_id: assessedRacer.user.id, action: 'suspend', reason: 'Concurrent revocation test' }
+      }),
+      ...Array.from({ length: 4 }, (_, k) =>
+        httpReq('/api/bookings/create', {
+          method: 'POST',
+          cookie: assessedRacer.cookie,
+          body: {
+            truck_id: 'iniguez',
+            event_type: 'Company Lunch',
+            event_date: `2027-02-${12 + k}`,
+            location: 'Petaluma',
+            guest_count: 20,
+            package_id: 'dropin'
+          }
+        })
+      )
+    ]);
+    assert.equal(suspRace[0].status, 200);
+    assert(suspRace.slice(1).every(r => [200, 201, 401].includes(r.status)), 'No 500s during concurrent FOR SHARE suspension race');
+    assert.equal((await httpReq('/api/bookings/list', { cookie: assessedRacer.cookie })).status, 401);
+
+    // Verify actual retention & cleanup of expired `auth_rate_limits` (>24h), `auth_otp_challenges` (>24h),
+    // and `auth_sessions` (>7d) via `/api/pager/worker` HTTP endpoint (the exact path run by systemd worker)
+    const staleRlKey = 'arl:stale_verify_' + suffix;
+    const staleChId = crypto.randomUUID();
+    const staleSessSha = crypto.createHash('sha256').update('stale_sess_' + suffix).digest('hex');
+    const mcStale = await migratorPool.connect();
+    try {
+      await mcStale.query('BEGIN');
+      await mcStale.query("SELECT set_config('app.auth_internal', 'true', true)");
+      await mcStale.query(
+        "INSERT INTO auth_rate_limits (bucket_key, window_start, hit_count) VALUES ($1, now() - interval '26 hours', 3)",
+        [staleRlKey]
+      );
+      await mcStale.query(
+        `INSERT INTO auth_otp_challenges (id, email_normalized, code_hmac, attempts, max_attempts, requester_ip_hash, expires_at, created_at)
+         VALUES ($1, $2, $3, 0, 5, 'stale_ip', now() - interval '25 hours', now() - interval '26 hours')`,
+        [staleChId, `stale@${allowedDomain}`, '0'.repeat(64)]
+      );
+      await mcStale.query(
+        `INSERT INTO auth_sessions (token_sha256, user_id, ip_hash, ua_hash, created_at, last_seen_at, expires_at, max_expires_at, revoked_at)
+         VALUES ($1, $2, 'stale_ip', 'stale_ua', now() - interval '9 days', now() - interval '9 days', now() - interval '8 days', now() - interval '8 days', now() - interval '8 days')`,
+        [staleSessSha, teen14.user.id]
+      );
+      await mcStale.query('COMMIT');
+    } finally {
+      mcStale.release();
+    }
+
+    const workerRes = await httpReq('/api/pager/worker', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${workerSecret}` },
+      body: { batch_size: 5, cleanup: true }
+    });
+    assert.equal(workerRes.status, 200);
+
+    const mcVerify = await migratorPool.connect();
+    let remRl;
+    let remOtp;
+    let remSess;
+    try {
+      await mcVerify.query('BEGIN');
+      await mcVerify.query("SELECT set_config('app.auth_internal', 'true', true)");
+      remRl = await mcVerify.query('SELECT count(*)::int AS c FROM auth_rate_limits WHERE bucket_key = $1', [staleRlKey]);
+      remOtp = await mcVerify.query('SELECT count(*)::int AS c FROM auth_otp_challenges WHERE id = $1', [staleChId]);
+      remSess = await mcVerify.query('SELECT count(*)::int AS c FROM auth_sessions WHERE token_sha256 = $1', [staleSessSha]);
+      await mcVerify.query('COMMIT');
+    } finally {
+      mcVerify.release();
+    }
+    assert.equal(remRl.rows[0].c, 0, 'Worker cleanup must purge >24h pseudonymous auth_rate_limits buckets');
+    assert.equal(remOtp.rows[0].c, 0, 'Worker cleanup must purge >24h expired auth_otp_challenges');
+    assert.equal(remSess.rows[0].c, 0, 'Worker cleanup must purge >7d expired/revoked auth_sessions');
+
+    // Verify precise privacy & backup wording in policies and readiness items (Section 3)
+    const privHtml = (await httpReq('/policies/privacy.html')).text;
+    assert(privHtml.includes('minimized, pseudonymous'), 'Privacy Notice must describe IP rate-limit digests as minimized/pseudonymous');
+    assert(privHtml.includes('not treated as anonymous'), 'Privacy Notice must avoid blanket anonymity claims');
+    assert(privHtml.includes('existing non-auth historical records are preserved pending legal review'), 'Privacy Notice must document disabled-account historical record preservation pending legal review');
+
+    const rItems = (await httpReq('/api/admin/readiness', { cookie: topAdmin.cookie })).json.items;
+    const backupItem = rItems.find(i => i.item_key === 'backups_offserver_restore');
+    const dobItem = rItems.find(i => i.item_key === 'dob_collection_minimization');
+    assert(backupItem.current_practice.includes('pg_restore --list (archive TOC readability check, NOT a completed database restore)'));
+    assert.notEqual(backupItem.status, 'legally_approved');
+    assert(dobItem.current_practice.includes('minimized/pseudonymous'));
+    assert(dobItem.unresolved_questions.includes('disabled on an under-14 assessment'));
+    assert.notEqual(dobItem.status, 'legally_approved');
+
+    console.log('PASS [10/10]: Concurrent assessment/revocation races, verified 24h/7d worker cleanup, pseudonymous IP wording & archive-readability vs DB-restore distinction verified');
     console.log('ALL LEGAL-POLICY, 14+ AGE ELIGIBILITY & READINESS INTEGRATION CHECKS PASSED.');
   } finally {
     if (standalone) await standalone.closeGracefully(1000).catch(() => {});

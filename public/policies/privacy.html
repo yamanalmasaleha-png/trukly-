@@ -77,18 +77,18 @@
           <tbody>
             <tr>
               <td><strong>Account Registration &amp; Sign-In</strong></td>
-              <td>Normalized email address, opaque account ID, single-use OTP HMAC challenges, SHA-256 hashed session token, truncated IP/user-agent hashes for rate-limiting and session security, and derived 14+ age-eligibility metadata.</td>
-              <td>OTP challenges/rate limits cleaned up after 24 hours; revoked/expired sessions purged after 7 days; account rows persist until disabled/deleted (automated self-service deletion not yet built).</td>
+              <td>Normalized email address, opaque account ID, single-use OTP HMAC challenges, SHA-256 hashed session token, minimized/pseudonymous truncated SHA-256 IP and user-agent digests for rate-limiting and session security (not treated as anonymous), and derived 14+ age-eligibility metadata.</td>
+              <td>OTP challenges and rate-limit buckets are purged after 24 hours (during rate-limit writes and periodic worker cleanup); revoked/expired sessions are purged after 7 days; account rows persist until disabled/deleted (automated self-service deletion not yet built).</td>
             </tr>
             <tr>
               <td><strong>Date of Birth (14+ Check)</strong></td>
               <td>Self-reported Month, Day, and Year submitted over HTTPS during account creation or one-time existing-account check. <strong>No identity documents are collected.</strong></td>
-              <td><strong>Raw date of birth is never stored.</strong> Only <code>age_eligibility_status</code> (<code>eligible_14_plus</code> or <code>not_assessed</code>), policy version, assessment timestamp, and self-reported basis are saved. Rejected under-14 attempts create zero accounts, zero OTP challenges, and zero marketing records.</td>
+              <td><strong>Raw date of birth is never stored.</strong> Only <code>age_eligibility_status</code> (<code>eligible_14_plus</code> or <code>not_assessed</code>), policy version, assessment timestamp, and self-reported basis are saved. Rejected under-14 signups create zero accounts, zero OTP challenges, and zero marketing records. If a pre-existing account reports under-14 on its one-time check, the account is disabled and sessions are revoked immediately; existing non-auth historical records are preserved pending legal review of retention/deletion handling.</td>
             </tr>
             <tr>
               <td><strong>Abuse Cooldown on Rejected Signup</strong></td>
-              <td>HttpOnly cookie <code>__Host-bs_age_gate=1</code> (15-minute max-age) and truncated SHA-256 IP rate-limit bucket (<code>age_ineligible_ip</code>) to deter automated birth-date fishing.</td>
-              <td>Cookie expires in 15 minutes; IP rate-limit bucket is purged within 24 hours. Stores zero DOB and zero email address.</td>
+              <td>HttpOnly cookie <code>__Host-bs_age_gate=1</code> (constant value <code>1</code>; 15-minute max-age) and a minimized, pseudonymous truncated SHA-256 IP rate-limit bucket (<code>age_ineligible_ip</code>) to deter automated birth-date fishing.</td>
+              <td>Cookie expires in 15 minutes; pseudonymous IP rate-limit bucket is purged after 24 hours (never treated as blanket anonymous data). Stores zero DOB and zero email address.</td>
             </tr>
             <tr>
               <td><strong>Location &amp; Nearby Discovery</strong></td>
@@ -150,7 +150,7 @@
         <ul>
           <li><strong>Confirmed operator identity &amp; privacy contact inbox:</strong> Replace <span class="placeholder-token">[LEGAL OPERATOR NAME]</span> and publish a monitored privacy request contact method and postal address.</li>
           <li><strong>Account deletion &amp; DSAR procedure:</strong> Build and verify user-initiated account deletion and data-access/correction workflows, including rules for records retained for security, fraud prevention, or legal obligations.</li>
-          <li><strong>Retention schedule sign-off:</strong> Finalize exact retention periods for bookings, community posts, support issues, onboarding applications, backups, and append-only audit logs.</li>
+          <li><strong>Retention schedule &amp; disabled-account record handling:</strong> Finalize exact retention periods for bookings, community posts, support issues, onboarding applications, backups, and append-only audit logs — including how historical records tied to a pre-existing account disabled after an under-14 assessment should be retained, anonymized, or deleted under counsel guidance.</li>
           <li><strong>Jurisdictional notices (California CCPA/CPRA, CalOPPA, CA AADC, state privacy laws, EU/UK GDPR):</strong> Determine applicability based on confirmed launch jurisdictions and operator thresholds, and add required statutory disclosures.</li>
           <li><strong>Public browsing &amp; anonymous pager review:</strong> Confirm with counsel whether unauthenticated map browsing or pickup pager status checks require additional youth-privacy safeguards.</li>
         </ul>

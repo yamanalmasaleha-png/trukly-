@@ -546,7 +546,7 @@
           } else {
             setMode('signin');
           }
-          if (params.get('assess') === '1' && typeof auth.getUser === 'function') {
+          if (typeof auth.getUser === 'function') {
             auth.getUser().then(function (u) {
               if (u && u.requires_age_assessment) {
                 email = u.email || '';

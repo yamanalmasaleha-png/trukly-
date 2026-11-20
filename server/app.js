@@ -9,6 +9,11 @@ import {
   auth
 } from 'hatchable';
 import { applyPrivateNoStoreHeaders, loadAccessContext } from '../lib/authz.js';
+import { SessionEligibilityError } from '../lib/db-tx.js';
+import {
+  buildAgeAssessmentRequiredPayload,
+  isGovernanceRouteExemptFromAgeGate
+} from '../lib/age-policy.js';
 import { runWithGovernanceContext } from '../lib/request-context.js';
 import { isLoopbackIp, stampTrustedClientIp } from '../lib/client-ip.js';
 import { readEnvCompat, assertNoSecurityEnvConflicts } from '../lib/env-compat.js';
@@ -19,6 +24,7 @@ import {
   revokeSessionFromRequest,
   readProtectedStagingMailboxCode,
   submitExistingAccountAgeAssessment,
+  cleanupExpiredAuthRecords,
   verifySameOriginMutationRequest
 } from '../lib/standalone-auth.js';
 import { matchDomainApiRoute, REGISTERED_DOMAIN_ROUTE_COUNT } from './routes.js';
@@ -175,7 +181,7 @@ function sendJsonResponse(res, statusCode, payload, extraHeaders = {}) {
   res.end(body);
 }
 
-function createHandlerResponseAdapter(rawRes) {
+function createHandlerResponseAdapter(rawRes, govState = null) {
   return {
     statusCode: 200,
     setHeader(name, value) {
@@ -193,11 +199,27 @@ function createHandlerResponseAdapter(rawRes) {
       return this;
     },
     json(payload) {
+      if (govState?.abortedBySessionEligibilityError && this.statusCode >= 500) {
+        const abortErr = govState.abortedBySessionEligibilityError;
+        applyPrivateNoStoreHeaders(rawRes);
+        if (abortErr.status === 403) {
+          sendJsonResponse(rawRes, 403, buildAgeAssessmentRequiredPayload('/'));
+        } else {
+          sendJsonResponse(rawRes, abortErr.status || 401, {
+            error: abortErr.message || 'Sign in is required.',
+            code: abortErr.code || 'SESSION_REVOKED'
+          });
+        }
+        return this;
+      }
       sendJsonResponse(rawRes, this.statusCode, payload);
       return this;
     },
     send(payload) {
       if (rawRes.writableEnded) return this;
+      if (govState?.abortedBySessionEligibilityError && this.statusCode >= 500) {
+        return this.json({});
+      }
       rawRes.statusCode = this.statusCode;
       if (payload === undefined || payload === null) {
         rawRes.end();
@@ -388,7 +410,7 @@ export function createStandaloneServer({
     db: dbAdapter,
     getUser: async req => {
       const s = await resolveSessionFromRequest(dbAdapter, req);
-      return s.authenticated ? s.user : null;
+      return s.authenticated && s.user && !s.user.requires_age_assessment ? s.user : null;
     }
   });
 
@@ -633,13 +655,23 @@ export function createStandaloneServer({
         if (!sess.authenticated || !sess.user) {
           return sendJsonResponse(res, 401, { error: 'Sign in is required.' });
         }
+        if (sess.user.requires_age_assessment) {
+          return sendJsonResponse(res, 403, buildAgeAssessmentRequiredPayload('/'));
+        }
         req.query = parseQueryObject(parsedUrl.searchParams);
         req.params = {};
         req.body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
         bindVerifiedRequestUser(req, sess.user);
         const resAdapter = createHandlerResponseAdapter(res);
         await runWithRequestContext({ db: dbAdapter, user: sess.user }, () =>
-          stagingGateProbe.default(req, resAdapter)
+          runWithGovernanceContext(
+            {
+              requireEligibleSessionInTx: true,
+              verifiedSessionId: sess.sessionId,
+              verifiedUserId: sess.user.id
+            },
+            () => stagingGateProbe.default(req, resAdapter)
+          )
         );
         if (!res.writableEnded) res.end();
         return;
@@ -677,6 +709,16 @@ export function createStandaloneServer({
           appendSetCookie(res, sess.refreshedCookieHeader);
         }
         const verifiedUser = sess.authenticated ? sess.user : null;
+
+        // Central server-side pending-age-assessment gate across all Governance & Admin API routes
+        // except the narrow documented allowlist (`lib/age-policy.js`).
+        const isExemptGovRoute =
+          !actOnBehalf.present && isGovernanceRouteExemptFromAgeGate(normGovPath, method);
+        if (verifiedUser && verifiedUser.requires_age_assessment && !isExemptGovRoute) {
+          const nextHint = normGovPath.startsWith('/api/admin/') ? '/admin' : '/';
+          return sendJsonResponse(res, 403, buildAgeAssessmentRequiredPayload(nextHint));
+        }
+
         bindVerifiedRequestUser(req, verifiedUser);
 
         if (actOnBehalf.present) {
@@ -703,7 +745,10 @@ export function createStandaloneServer({
             runWithGovernanceContext(
               {
                 isStandaloneHttpMutation: MUTATING_HTTP_METHODS.has(method),
-                actOnBehalf: actOnBehalf.value
+                actOnBehalf: actOnBehalf.value,
+                requireEligibleSessionInTx: Boolean(verifiedUser && !verifiedUser.requires_age_assessment),
+                verifiedSessionId: sess.sessionId || null,
+                verifiedUserId: verifiedUser?.id || null
               },
               () =>
                 handleGovernanceApiRequest({
@@ -780,6 +825,7 @@ export function createStandaloneServer({
         // Resolve server-side session cookie ONLY on `access === 'user'` routes (or when Act-on-Behalf is asserted)
         // so public cacheable endpoints (`Cache-Control: public`) never incur session DB queries or emit `Set-Cookie`.
         let verifiedUser = null;
+        let verifiedSessionId = null;
         if (route.access === 'user' || actOnBehalf.present) {
           applyPrivateNoStoreHeaders(res);
           const sess = await resolveSessionFromRequest(dbAdapter, req);
@@ -792,7 +838,12 @@ export function createStandaloneServer({
               login_url: '/login.html?next=/'
             });
           }
+          // Central server-side pending-age-assessment gate across all authenticated Domain API routes
+          if (sess.user.requires_age_assessment) {
+            return sendJsonResponse(res, 403, buildAgeAssessmentRequiredPayload('/'));
+          }
           verifiedUser = sess.user;
+          verifiedSessionId = sess.sessionId || null;
         }
 
         req.query = parseQueryObject(parsedUrl.searchParams);
@@ -810,18 +861,19 @@ export function createStandaloneServer({
           }
         }
 
-        const resAdapter = createHandlerResponseAdapter(res);
+        const govState = {
+          isStandaloneHttpMutation: MUTATING_HTTP_METHODS.has(method),
+          actOnBehalf: actOnBehalf.value,
+          requireEligibleSessionInTx: Boolean(verifiedUser),
+          verifiedSessionId,
+          verifiedUserId: verifiedUser?.id || null
+        };
+        const resAdapter = createHandlerResponseAdapter(res, govState);
         await runWithRequestContext(
           { db: dbAdapter, user: verifiedUser },
-          () =>
-            runWithGovernanceContext(
-              {
-                isStandaloneHttpMutation: MUTATING_HTTP_METHODS.has(method),
-                actOnBehalf: actOnBehalf.value
-              },
-              () => route.handler(req, resAdapter)
-            )
+          () => runWithGovernanceContext(govState, () => route.handler(req, resAdapter))
         );
+
         if (!res.writableEnded) {
           res.end();
         }
@@ -858,6 +910,16 @@ export function createStandaloneServer({
             return;
           }
           res.end(deniedBody);
+          return;
+        }
+
+        // Do not fabricate eligibility for existing administrators: redirect legitimate unassessed
+        // admins cleanly to the one-time age assessment step on `/login.html`, which returns to `/admin`
+        // after `POST /api/auth/age-assessment` succeeds (zero redirect loop).
+        if (sess.user.requires_age_assessment) {
+          res.statusCode = 302;
+          res.setHeader('Location', '/login.html?assess=1&next=%2Fadmin');
+          res.end();
           return;
         }
 
@@ -922,6 +984,16 @@ export function createStandaloneServer({
       fileStream.pipe(res);
     } catch (err) {
       applyPrivateNoStoreHeaders(res);
+      if (err instanceof SessionEligibilityError || err?.isSessionEligibilityError) {
+        if (err.status === 403) {
+          const nextHint = pathname.startsWith('/api/admin/') ? '/admin' : '/';
+          return sendJsonResponse(res, 403, buildAgeAssessmentRequiredPayload(nextHint));
+        }
+        return sendJsonResponse(res, err.status || 401, {
+          error: err.message || 'Sign in is required.',
+          code: err.code || 'SESSION_REVOKED'
+        });
+      }
       if (err instanceof BodyParseError) {
         if (err.status === 413) {
           res.setHeader('Connection', 'close');

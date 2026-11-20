@@ -82,7 +82,7 @@
             </tr>
             <tr>
               <td><strong>Strictly Necessary Age-Gate Cooldown Cookie</strong> (<code>__Host-bs_age_gate</code>)</td>
-              <td><code>HttpOnly; Secure; SameSite=Lax; Path=/</code>. Stores only the literal value <code>1</code> (never a birth date or email) after an under-14 registration attempt is declined, preventing immediate birth-date fishing in the same browser.</td>
+              <td><code>HttpOnly; Secure; SameSite=Lax; Path=/</code>. Stores only the constant literal value <code>1</code> (never a birth date, email, or user identifier) after an under-14 registration attempt is declined, preventing immediate birth-date fishing in the same browser. Server-side network throttling separately uses a minimized, pseudonymous truncated SHA-256 IP rate-limit bucket purged after 24 hours (described in our <a href="/policies/privacy.html">Draft Privacy Notice</a>).</td>
               <td>15 minutes (<code>Max-Age=900</code>).</td>
             </tr>
           </tbody>

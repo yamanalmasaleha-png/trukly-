@@ -82,6 +82,11 @@
       window.location.href = '/login.html?next=%2Fadmin';
       throw new Error('Your session expired. Redirecting to sign in…');
     }
+    if (res.status === 403 && data && data.code === 'AGE_ASSESSMENT_REQUIRED') {
+      var targetNext = encodeURIComponent((window.location.pathname || '/admin') + (window.location.hash || ''));
+      window.location.href = '/login.html?assess=1&next=' + targetNext;
+      throw new Error('One-time minimum account age check (14+) is required before accessing the Admin Portal.');
+    }
     if (!res.ok) {
       var err = new Error(data.error || 'Request failed (' + res.status + ')');
       err.status = res.status;
