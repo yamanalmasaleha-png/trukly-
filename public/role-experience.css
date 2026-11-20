@@ -1,0 +1,267 @@
+/* BiteShark Customer / Vendor / Admin Role Experience, Viewpoint Banner & Self-Service Modals */
+
+.biteshark-viewpoint-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #17382b;
+  color: #fffaf0;
+  border-bottom: 3px solid #f3c14f;
+}
+
+.biteshark-viewpoint-banner.is-act-on-behalf {
+  background: #7f1d1d;
+  border-bottom-color: #ff6b5f;
+}
+
+.biteshark-viewpoint-banner .vp-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.biteshark-viewpoint-banner .vp-banner-btn {
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  background: #fffaf0;
+  color: #17382b;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.biteshark-viewpoint-banner .vp-banner-btn.secondary {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fffaf0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.profile-role-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+
+.profile-role-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e6f0ec;
+  color: #214b3b;
+}
+
+.profile-role-pill.is-admin {
+  background: #f3c14f;
+  color: #1b2420;
+}
+
+.profile-admin-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #214b3b !important;
+  color: #fffaf0 !important;
+  text-decoration: none;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 13px;
+  margin: 4px 0;
+}
+
+.rx-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  background: rgba(20, 30, 25, 0.56);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.rx-modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.rx-modal {
+  background: #fffaf0;
+  color: #1b2420;
+  border: 1px solid #dfd7c5;
+  border-radius: 18px;
+  max-width: 680px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px 24px;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.24);
+}
+
+.rx-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.rx-modal-head h2 {
+  margin: 2px 0 0;
+  font-size: 21px;
+  color: #214b3b;
+}
+
+.rx-close {
+  background: #efe9da;
+  border: 1px solid #d8cfbc;
+  color: #1b2420;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.rx-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.rx-tab {
+  border: 1px solid #d8cfbc;
+  background: #fff;
+  color: #4b5852;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rx-tab.active {
+  background: #214b3b;
+  color: #fff;
+  border-color: #214b3b;
+}
+
+.rx-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rx-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #3d4a44;
+}
+
+.rx-row-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.rx-form input, .rx-form select, .rx-form textarea {
+  background: #fff;
+  color: #1b2420;
+  border: 1px solid #cfc6b4;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.rx-card {
+  background: #fff;
+  border: 1px solid #e2dac8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.rx-card h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #1b2420;
+}
+
+.rx-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: #e6f0ec;
+  color: #214b3b;
+}
+
+.rx-badge.warn { background: #fef3c7; color: #92400e; }
+.rx-badge.danger { background: #fee2e2; color: #991b1b; }
+
+.rx-msg {
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #e6f0ec;
+  color: #214b3b;
+}
+
+.rx-msg.error {
+  background: #fdebe9;
+  color: #b42318;
+}
+
+.community-report-btn {
+  background: transparent;
+  border: 1px solid #dfd7c5;
+  color: #5c6862;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.community-report-btn:hover {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.owner-restriction-alert {
+  background: #fff8eb;
+  border: 1px solid #f0c97d;
+  color: #7a4900;
+  border-radius: 12px;
+  padding: 12px 15px;
+  margin: 10px 0 14px;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .rx-row-2 {
+    grid-template-columns: 1fr;
+  }
+}

@@ -14,7 +14,7 @@ async function openCommunity(){
   document.getElementById('communityScreen').scrollTop=0;
   const grid=document.getElementById('communityFeed');
   if(!communityState.loaded)grid.innerHTML='<div class="community-empty">Loading local conversations…</div>';
-  try{await window.trucklyReady}catch(e){}
+  try{await (window.bitesharkReady||window.trucklyReady)}catch(e){}
   const places=communityGetPlaces();
   const select=document.getElementById('communityPlace');
   const selected=select.value;
@@ -70,9 +70,10 @@ function communityRender(){
       '<h3>'+communityEscape(p.title)+'</h3><p class="community-post-about">'+communityEscape(p.place_name)+' · '+communityEscape(p.town)+'</p>'+
       rating+(p.kind==='whisper'?'<p class="community-whisper-note">🕵️ Unverified food tip · Community-submitted, not independently confirmed. Check directly with the business.</p>':'')+'<p class="community-post-body">'+communityEscape(p.body)+'</p>'+
       '<div class="community-post-foot"><span>By '+communityEscape(p.nickname||'Local food fan')+' · Community submission</span>'+
-      '<button type="button" data-community-place="'+communityEscape(p.place_id)+'">View place ↗</button></div></article>';
+      '<div style="display:flex;gap:8px;align-items:center"><button type="button" class="community-report-btn" data-community-report="'+communityEscape(p.id)+'">🚩 Report</button><button type="button" data-community-place="'+communityEscape(p.place_id)+'">View place ↗</button></div></div></article>';
   }).join('');
   feed.querySelectorAll('[data-community-place]').forEach(b=>b.addEventListener('click',()=>communityViewPlace(b.dataset.communityPlace)));
+  feed.querySelectorAll('[data-community-report]').forEach(b=>b.addEventListener('click',()=>{if(typeof window.bitesharkOpenCommunityReport==='function')window.bitesharkOpenCommunityReport(b.dataset.communityReport);}));
 }
 function communityViewPlace(id){
   const t=communityGetPlaces().find(t=>t.id===id);

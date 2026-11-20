@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#214b3b">
+  <title>BiteShark Administration Portal</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="admin-shell" id="adminShell">
+    <header class="admin-topbar" role="banner">
+      <div class="admin-brand-group">
+        <a href="/admin" class="admin-brand" aria-label="BiteShark Administration Portal">
+          <span class="admin-brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="56" cy="9" r="10" fill="#fffaf0"/>
+              <circle cx="50" cy="17" r="6.5" fill="#fffaf0"/>
+              <path d="M12 44 C 18 24, 29 13, 42 11 C 38 22, 38 33, 44 44 Z" fill="currentColor"/>
+              <path d="M8 44 Q 20 39, 32 44 T 56 44 L 56 51 Q 44 55, 32 51 T 8 51 Z" fill="#f3c14f"/>
+            </svg>
+          </span>
+          <span class="admin-brand-copy">
+            <strong>BiteShark</strong>
+            <small>Administration Portal</small>
+          </span>
+        </a>
+        <span class="admin-env-pill" id="adminRoleBadge">Verifying session…</span>
+      </div>
+
+      <div class="admin-viewpoint-bar" role="region" aria-label="Administrator viewpoint switcher">
+        <span class="vp-label">Viewpoint:</span>
+        <button type="button" class="vp-btn active" aria-current="page">🛡️ Admin Portal</button>
+        <button type="button" class="vp-btn" id="vpCustomerPreviewBtn" title="Open BiteShark in read-only Customer Preview">🧭 Customer Preview</button>
+        <div class="vp-vendor-group">
+          <select id="vpVendorSelect" aria-label="Select vendor for preview or support">
+            <option value="">Select vendor…</option>
+          </select>
+          <button type="button" class="vp-btn" id="vpVendorPreviewBtn" title="Inspect selected vendor in read-only preview">🚚 Vendor Preview</button>
+          <button type="button" class="vp-btn vp-btn-act" id="vpActOnBehalfBtn" hidden title="Explicit audited Admin: Top support mode">🔧 Act on Behalf</button>
+        </div>
+      </div>
+
+      <div class="admin-account-box">
+        <div class="admin-account-meta">
+          <strong id="adminUserEmail">Loading…</strong>
+          <small id="adminUserSub">Checking permissions</small>
+        </div>
+        <a href="/" class="admin-btn admin-btn-ghost">App Home ↗</a>
+        <button type="button" class="admin-btn admin-btn-outline" id="adminSignOutBtn">Sign out</button>
+      </div>
+    </header>
+
+    <div class="admin-body">
+      <nav class="admin-nav" aria-label="Administration sections">
+        <button type="button" class="admin-nav-item active" data-section="overview">
+          <span class="nav-icon" aria-hidden="true">📊</span>
+          <span class="nav-label">Overview</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="applications">
+          <span class="nav-icon" aria-hidden="true">📋</span>
+          <span class="nav-label">Vendor Applications</span>
+          <span class="nav-badge" id="badgeApplications" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="vendors">
+          <span class="nav-icon" aria-hidden="true">🚚</span>
+          <span class="nav-label">Vendor Directory</span>
+          <span class="nav-badge nav-badge-warn" id="badgeVendors" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="accounts">
+          <span class="nav-icon" aria-hidden="true">👥</span>
+          <span class="nav-label">Accounts &amp; Invitations</span>
+          <span class="nav-badge" id="badgeInvitations" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="moderation">
+          <span class="nav-icon" aria-hidden="true">💬</span>
+          <span class="nav-label">Comments &amp; Moderation</span>
+          <span class="nav-badge" id="badgeModeration" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="issues">
+          <span class="nav-icon" aria-hidden="true">🛟</span>
+          <span class="nav-label">Customer / Vendor Issues</span>
+          <span class="nav-badge nav-badge-danger" id="badgeIssues" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="audit">
+          <span class="nav-icon" aria-hidden="true">📜</span>
+          <span class="nav-label">Audit &amp; Activity History</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="health">
+          <span class="nav-icon" aria-hidden="true">🩺</span>
+          <span class="nav-label">Operational Health</span>
+        </button>
+      </nav>
+
+      <main class="admin-main" id="adminMain" tabindex="-1">
+        <div id="adminGlobalBanner" class="admin-alert" role="status" aria-live="polite" hidden></div>
+
+        <!-- 1. OVERVIEW -->
+        <section class="admin-section active" id="sec-overview" aria-labelledby="heading-overview">
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">ACTIONABLE QUEUES &amp; GOVERNANCE</span>
+              <h1 id="heading-overview">Operations Overview</h1>
+              <p>Live queue counts and platform status derived directly from BiteShark PostgreSQL records.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshOverviewBtn">↻ Refresh overview</button>
+          </div>
+
+          <div id="overviewLoading" class="state-box">Loading live operational counts…</div>
+          <div id="overviewError" class="state-box state-error" hidden></div>
+
+          <div class="overview-grid" id="overviewCards" hidden>
+            <button type="button" class="metric-card" data-goto="applications">
+              <span class="metric-label">Pending Vendor Applications</span>
+              <strong class="metric-value" id="ovPendingApps">0</strong>
+              <small class="metric-sub" id="ovModRecApps">0 with Mod recommendation</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="accounts" data-subfilter="pending_top_approval">
+              <span class="metric-label">Pending Privileged Invitations</span>
+              <strong class="metric-value" id="ovPendingInvites">0</strong>
+              <small class="metric-sub">Awaiting Admin: Top approval</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="moderation">
+              <span class="metric-label">Flagged &amp; Pending Comments</span>
+              <strong class="metric-value" id="ovFlaggedComments">0</strong>
+              <small class="metric-sub" id="ovCommentsBreakdown">0 pending · 0 reported</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="issues">
+              <span class="metric-label">Open Support Issues</span>
+              <strong class="metric-value" id="ovOpenIssues">0</strong>
+              <small class="metric-sub" id="ovOverdueIssues">0 overdue SLA</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="vendors" data-subfilter="restricted">
+              <span class="metric-label">Suspended / Restricted Vendors</span>
+              <strong class="metric-value" id="ovRestrictedVendors">0</strong>
+              <small class="metric-sub" id="ovVendorsBreakdown">0 suspended · 0 restricted</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="health">
+              <span class="metric-label">Worker &amp; Outbox Health</span>
+              <strong class="metric-value metric-text" id="ovHealthStatus">Checking…</strong>
+              <small class="metric-sub" id="ovHealthSub">Push &amp; queue summary</small>
+            </button>
+          </div>
+
+          <div class="governance-matrix-card" id="overviewRoleNotice">
+            <h2>Active Administrator Scope</h2>
+            <p id="overviewRoleDescription"></p>
+            <div class="scope-columns">
+              <div>
+                <h3>Admin: Mod Capabilities</h3>
+                <ul>
+                  <li>Review vendor applications, request corrections, and record approval/rejection recommendations.</li>
+                  <li>Moderate pending/reported community posts (approve, reject, hide, restore) with immutable content history.</li>
+                  <li>Triage and respond to customer/vendor issues with separated internal vs user-visible notes.</li>
+                  <li>Apply bounded temporary safety restrictions (up to 72 hours) on listings when urgent safety/accuracy issues arise.</li>
+                  <li>Initiate account invitations at all levels (Mod/Top invitations enter <em>Pending Admin: Top Approval</em>).</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Admin: Top Exclusive Controls</h3>
+                <ul>
+                  <li>Final vendor ownership approval, rejection, permanent restriction, suspension, and reactivation.</li>
+                  <li>Independent field verification &amp; photo-rights confirmation management.</li>
+                  <li>Approve or reject privileged <strong>Admin: Mod</strong> and <strong>Admin: Top</strong> invitations (with self-approval blocked).</li>
+                  <li>Grant, demote, or revoke administrative roles (with last-Top database &amp; API protection) and suspend accounts.</li>
+                  <li>Explicit, reason-audited <strong>Act on Behalf of Vendor</strong> operational support mode.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. VENDOR APPLICATIONS -->
+        <section class="admin-section" id="sec-applications" aria-labelledby="heading-applications" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">ONBOARDING &amp; OWNERSHIP CLAIMS</span>
+              <h1 id="heading-applications">Vendor Applications</h1>
+              <p>Review ownership claims and new vendor submissions. Curated public listings remain unclaimed until explicitly approved by Admin: Top.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshAppsBtn">↻ Refresh</button>
+          </div>
+
+          <form class="filter-bar" id="appsFilterForm">
+            <label>Status
+              <select id="appsStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="submitted" selected>Submitted</option>
+                <option value="needs_info">Needs Information</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="suspended">Suspended</option>
+                <option value="draft">Draft</option>
+              </select>
+            </label>
+            <label>Mod Recommendation
+              <select id="appsRecFilter">
+                <option value="">Any recommendation</option>
+                <option value="unreviewed">Unreviewed</option>
+                <option value="recommend_approve">Recommend Approve</option>
+                <option value="recommend_reject">Recommend Reject</option>
+                <option value="needs_info">Needs Info</option>
+              </select>
+            </label>
+            <label class="grow">Search business, town, vendor ID, or email
+              <input type="search" id="appsSearchInput" placeholder="e.g. Sebastopol, taqueria, iniguez…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Apply filters</button>
+          </form>
+
+          <div class="split-workspace">
+            <div class="list-pane">
+              <div id="appsListState" class="state-box">Loading vendor applications…</div>
+              <div id="appsList" class="record-list" hidden></div>
+              <div class="pager-bar" id="appsPager" hidden></div>
+            </div>
+            <aside class="detail-pane" id="appsDetailPane">
+              <div class="empty-detail">Select a vendor application to inspect business details, conflict alerts, uploaded evidence, internal notes, and review actions.</div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 3. VENDOR DIRECTORY -->
+        <section class="admin-section" id="sec-vendors" aria-labelledby="heading-vendors" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">CATALOG &amp; GRANULAR SAFETY CONTROLS</span>
+              <h1 id="heading-vendors">Vendor Directory &amp; Restrictions</h1>
+              <p>Manage Sonoma County listings, feature eligibility, verification state, and reversible operational restrictions without stranding active customer bookings or pagers.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshVendorsBtn">↻ Refresh</button>
+          </div>
+
+          <form class="filter-bar" id="vendorsFilterForm">
+            <label>Operational Status
+              <select id="vendorsStatusFilter">
+                <option value="all">All vendors</option>
+                <option value="active">Active &amp; unrestricted</option>
+                <option value="restricted">Restricted / Suspended</option>
+                <option value="suspended">Access Suspended</option>
+                <option value="needs_correction">Needs Correction</option>
+              </select>
+            </label>
+            <label>Ownership
+              <select id="vendorsOwnershipFilter">
+                <option value="all">All ownership states</option>
+                <option value="unclaimed">Unclaimed curated listing</option>
+                <option value="pending_review">Pending ownership review</option>
+                <option value="approved_owner">Approved owner</option>
+                <option value="suspended">Suspended ownership</option>
+              </select>
+            </label>
+            <label>Verification
+              <select id="vendorsVerifiedFilter">
+                <option value="all">All verification</option>
+                <option value="verified">Field verified</option>
+                <option value="unverified">Unverified</option>
+                <option value="photo_rights">Photo rights confirmed</option>
+              </select>
+            </label>
+            <label>Town
+              <input type="text" id="vendorsTownFilter" placeholder="e.g. Santa Rosa">
+            </label>
+            <label class="grow">Search name, slug, or owner
+              <input type="search" id="vendorsSearchInput" placeholder="Search 59+ Sonoma listings…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Filter</button>
+          </form>
+
+          <div class="split-workspace">
+            <div class="list-pane">
+              <div id="vendorsListState" class="state-box">Loading vendor directory…</div>
+              <div id="vendorsList" class="record-list" hidden></div>
+              <div class="pager-bar" id="vendorsPager" hidden></div>
+            </div>
+            <aside class="detail-pane" id="vendorsDetailPane">
+              <div class="empty-detail">Select a vendor listing to view customer-impact counts (open bookings &amp; active pagers), edit profile/eligibility, or manage restrictions.</div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 4. ACCOUNTS & INVITATIONS -->
+        <section class="admin-section" id="sec-accounts" aria-labelledby="heading-accounts" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">IDENTITY, ROLES &amp; PRIVILEGED INVITATIONS</span>
+              <h1 id="heading-accounts">Accounts &amp; Invitations</h1>
+              <p>Initiate expiring, email-verified invitations at any level and manage role assignments safely. Secrets, OTPs, and session tokens are never exposed.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshAccountsBtn">↻ Refresh</button>
+          </div>
+
+          <div class="card-panel invite-composer">
+            <h2>Initiate Account Invitation</h2>
+            <form id="inviteCreateForm" class="invite-form-grid">
+              <label>Recipient Email
+                <input type="email" id="invEmail" required maxlength="254" placeholder="name@example.org">
+              </label>
+              <label>Requested Role Level
+                <select id="invRole" required>
+                  <option value="customer">Customer</option>
+                  <option value="vendor_staff">Vendor Staff</option>
+                  <option value="vendor_owner">Vendor Owner</option>
+                  <option value="mod">Admin: Mod</option>
+                  <option value="top">Admin: Top</option>
+                </select>
+              </label>
+              <label id="invVendorWrap" hidden>Target Vendor
+                <select id="invVendorId">
+                  <option value="">Choose vendor…</option>
+                </select>
+              </label>
+              <label class="grow">Invitation Reason / Note
+                <input type="text" id="invNote" required minlength="3" maxlength="500" placeholder="Reason for account or role invitation">
+              </label>
+              <div class="invite-submit-cell">
+                <button type="submit" class="admin-btn admin-btn-primary" id="invSubmitBtn">Create Invitation</button>
+              </div>
+            </form>
+            <div id="invModElevationNotice" class="policy-callout" hidden>
+              <strong>Two-Step Privileged Invitation Policy:</strong> As <strong>Admin: Mod</strong>, you can initiate <strong>Admin: Mod</strong> and <strong>Admin: Top</strong> invitations, but they remain in <strong>Pending Admin: Top Approval</strong> (no redeemable token issued) until an authorized <strong>Admin: Top</strong> reviews and approves them.
+            </div>
+            <div id="invResultBox" class="invite-result" role="status" hidden></div>
+          </div>
+
+          <div class="subtabs" role="tablist" aria-label="Accounts and Invitations views">
+            <button type="button" class="subtab active" data-acct-tab="invitations">Invitations Queue</button>
+            <button type="button" class="subtab" data-acct-tab="directory">Accounts Directory</button>
+          </div>
+
+          <div id="acctInvitationsView">
+            <form class="filter-bar" id="invFilterForm">
+              <label>Invitation Status
+                <select id="invStatusFilter">
+                  <option value="all">All invitations</option>
+                  <option value="pending_top_approval">Pending Admin: Top Approval</option>
+                  <option value="issued">Issued (Active Link)</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="revoked">Revoked</option>
+                </select>
+              </label>
+              <label>Role Level
+                <select id="invRoleFilter">
+                  <option value="all">All roles</option>
+                  <option value="top">Admin: Top</option>
+                  <option value="mod">Admin: Mod</option>
+                  <option value="vendor_owner">Vendor Owner</option>
+                  <option value="vendor_staff">Vendor Staff</option>
+                  <option value="customer">Customer</option>
+                </select>
+              </label>
+              <button type="submit" class="admin-btn admin-btn-secondary">Filter Invitations</button>
+            </form>
+            <div id="invListState" class="state-box">Loading invitations…</div>
+            <div id="invList" class="table-wrap" hidden></div>
+            <div class="pager-bar" id="invPager" hidden></div>
+          </div>
+
+          <div id="acctDirectoryView" hidden>
+            <form class="filter-bar" id="accountsFilterForm">
+              <label>Role Filter
+                <select id="acctRoleFilter">
+                  <option value="all">All accounts</option>
+                  <option value="top">Admin: Top</option>
+                  <option value="mod">Admin: Mod</option>
+                  <option value="vendor_owner">Vendor Owner</option>
+                  <option value="vendor_staff">Vendor Staff</option>
+                </select>
+              </label>
+              <label>Account Status
+                <select id="acctStatusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="suspended">Suspended</option>
+                </select>
+              </label>
+              <label class="grow">Search by email
+                <input type="search" id="acctSearchInput" placeholder="Search email address…">
+              </label>
+              <button type="submit" class="admin-btn admin-btn-primary">Search Accounts</button>
+            </form>
+            <div class="split-workspace">
+              <div class="list-pane">
+                <div id="acctListState" class="state-box">Loading accounts…</div>
+                <div id="acctList" class="record-list" hidden></div>
+                <div class="pager-bar" id="acctPager" hidden></div>
+              </div>
+              <aside class="detail-pane" id="acctDetailPane">
+                <div class="empty-detail">Select an account to view memberships and (for Admin: Top) manage platform roles or account suspension.</div>
+              </aside>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. COMMENTS & MODERATION -->
+        <section class="admin-section" id="sec-moderation" aria-labelledby="heading-moderation" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">COMMUNITY TRUST &amp; CONTENT HISTORY</span>
+              <h1 id="heading-moderation">Comments &amp; Moderation</h1>
+              <p>Approve, reject, hide, or restore community submissions. Original user-submitted text is preserved immutably alongside every moderation decision.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshModBtn">↻ Refresh</button>
+          </div>
+
+          <div class="subtabs" role="tablist" aria-label="Moderation queues">
+            <button type="button" class="subtab active" data-mod-queue="pending">Pending Submissions</button>
+            <button type="button" class="subtab" data-mod-queue="reported">User-Reported Content</button>
+            <button type="button" class="subtab" data-mod-queue="history">Approved / Rejected / Hidden History</button>
+          </div>
+
+          <form class="filter-bar" id="modFilterForm">
+            <label>Status
+              <select id="modStatusFilter">
+                <option value="">Queue default</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="hidden">Hidden</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </label>
+            <label>Vendor ID
+              <input type="text" id="modVendorFilter" placeholder="e.g. iniguez">
+            </label>
+            <label>Author ID
+              <input type="text" id="modAuthorFilter" placeholder="Author UUID / ID">
+            </label>
+            <label>Reason / Report Category
+              <input type="text" id="modReasonFilter" placeholder="spam, harassment…">
+            </label>
+            <label>From Date
+              <input type="date" id="modDateFrom">
+            </label>
+            <label>To Date
+              <input type="date" id="modDateTo">
+            </label>
+            <label class="grow">Keyword
+              <input type="search" id="modSearchInput" placeholder="Search title, body, place…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Filter</button>
+          </form>
+
+          <div class="split-workspace">
+            <div class="list-pane">
+              <div id="modListState" class="state-box">Loading moderation queue…</div>
+              <div id="modList" class="record-list" hidden></div>
+              <div class="pager-bar" id="modPager" hidden></div>
+            </div>
+            <aside class="detail-pane" id="modDetailPane">
+              <div class="empty-detail">Select a community submission to inspect original content, user reports, moderation history, and actions.</div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 6. CUSTOMER / VENDOR ISSUES -->
+        <section class="admin-section" id="sec-issues" aria-labelledby="heading-issues" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">PRIVATE SUPPORT &amp; DISPUTE TRIAGE</span>
+              <h1 id="heading-issues">Customer &amp; Vendor Issues</h1>
+              <p>Track private support tickets with separated internal admin notes and reporter-visible responses. Private complainant details never appear in public feeds.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshIssuesBtn">↻ Refresh</button>
+          </div>
+
+          <form class="filter-bar" id="issuesFilterForm">
+            <label>Status
+              <select id="issuesStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="open" selected>Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="waiting">Waiting on Reporter</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </label>
+            <label>Severity
+              <select id="issuesSeverityFilter">
+                <option value="all">All severities</option>
+                <option value="urgent">Urgent (4h SLA)</option>
+                <option value="high">High (24h SLA)</option>
+                <option value="normal">Normal (72h SLA)</option>
+                <option value="low">Low (7d SLA)</option>
+              </select>
+            </label>
+            <label>Category
+              <select id="issuesCategoryFilter">
+                <option value="all">All categories</option>
+                <option value="booking_issue">Booking Issue</option>
+                <option value="pager_issue">Pager Issue</option>
+                <option value="listing_accuracy">Listing Accuracy</option>
+                <option value="vendor_dispute">Vendor Dispute</option>
+                <option value="safety_concern">Safety Concern</option>
+                <option value="abuse_report">Abuse Report</option>
+                <option value="account_access">Account Access</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label class="checkbox-inline">
+              <input type="checkbox" id="issuesOverdueOnly">
+              <span>Overdue SLA only</span>
+            </label>
+            <label class="grow">Search subject or vendor
+              <input type="search" id="issuesSearchInput" placeholder="Search issues…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Filter</button>
+          </form>
+
+          <div class="split-workspace">
+            <div class="list-pane">
+              <div id="issuesListState" class="state-box">Loading support issues…</div>
+              <div id="issuesList" class="record-list" hidden></div>
+              <div class="pager-bar" id="issuesPager" hidden></div>
+            </div>
+            <aside class="detail-pane" id="issuesDetailPane">
+              <div class="empty-detail">Select an issue to inspect linked records, post internal or reporter-visible notes, assign ownership, or record resolution.</div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 7. AUDIT & ACTIVITY HISTORY -->
+        <section class="admin-section" id="sec-audit" aria-labelledby="heading-audit" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">APPEND-ONLY GOVERNANCE TRAIL</span>
+              <h1 id="heading-audit">Audit &amp; Activity History</h1>
+              <p>Immutable, secret-redacted audit trail of administrative decisions, role changes, moderation actions, and explicit Act-on-Behalf support operations.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshAuditBtn">↻ Refresh</button>
+          </div>
+
+          <form class="filter-bar" id="auditFilterForm">
+            <label class="grow">Action filter
+              <input type="search" id="auditActionFilter" placeholder="e.g. vendor., account., invitation., community., issue.">
+            </label>
+            <label>Vendor ID
+              <input type="text" id="auditVendorFilter" placeholder="e.g. iniguez">
+            </label>
+            <label>Actor ID
+              <input type="text" id="auditActorFilter" placeholder="Actor ID">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Search Audit Log</button>
+          </form>
+
+          <div id="auditListState" class="state-box">Loading audit records…</div>
+          <div id="auditList" class="table-wrap" hidden></div>
+          <div class="pager-bar" id="auditPager" hidden></div>
+        </section>
+
+        <!-- 8. OPERATIONAL HEALTH -->
+        <section class="admin-section" id="sec-health" aria-labelledby="heading-health" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">NON-SECRET SERVICE DIAGNOSTICS</span>
+              <h1 id="heading-health">Operational Health</h1>
+              <p>Runtime health, notification worker status, and write-pause posture without exposing environment secrets or credentials.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshHealthBtn">↻ Refresh</button>
+          </div>
+          <div id="healthContent" class="health-grid">
+            <div class="state-box">Loading runtime health…</div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Act-on-Behalf Confirmation Modal (Admin: Top Only) -->
+  <div class="admin-modal-backdrop" id="aobModal" hidden>
+    <form class="admin-modal" id="aobForm">
+      <span class="sec-kicker">EXPLICIT AUDITED SUPPORT MODE · ADMIN: TOP ONLY</span>
+      <h2>Act on Behalf of Vendor</h2>
+      <p>Unlike read-only preview, Act-on-Behalf authorizes operational changes for the selected vendor using your own administrator session (never another user's session or tokens). Every mutation records your identity, the target vendor, and your support reason in <code>audit_logs</code>.</p>
+      <label>Target Vendor
+        <input type="text" id="aobVendorDisplay" readonly>
+      </label>
+      <label>Support / Operational Reason (required, 8–240 characters)
+        <textarea id="aobReasonInput" required minlength="8" maxlength="240" rows="3" placeholder="e.g. Ticket #1042: Owner requested schedule &amp; location update during phone outage"></textarea>
+      </label>
+      <p id="aobError" class="form-err" role="alert" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="aobCancelBtn">Cancel</button>
+        <button type="submit" class="admin-btn admin-btn-danger">Enter Audited Act-on-Behalf Mode →</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="/auth-client.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>
