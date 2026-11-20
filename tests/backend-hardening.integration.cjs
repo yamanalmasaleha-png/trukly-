@@ -1460,7 +1460,7 @@ function futurePacificDate(daysAhead = 12) {
       });
       const dataUrl =
         'data:text/javascript;base64,' +
-        Buffer.from(`${legacySource.replace(/from "hatchable"/g, 'from "@biteshark/runtime-adapter"')}\n//# sourceURL=legacy-8bbbbe3-${relApiPath}`, 'utf8').toString('base64');
+        Buffer.from(`${legacySource.replace(/from ["']hatchable["']/g, 'from "@biteshark/runtime-adapter"')}\n//# sourceURL=legacy-8bbbbe3-${relApiPath}`, 'utf8').toString('base64');
       const mod = await import(dataUrl);
       return async ({ method = 'GET', user = null, query = {}, params = {}, body = {} } = {}) => {
         let code = 200;
