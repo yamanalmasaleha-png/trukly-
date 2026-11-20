@@ -35,6 +35,9 @@ export default async function(req, res) {
         user_id: ctx.user.id,
         is_platform_admin: ctx.isPlatformAdmin,
         is_moderator: ctx.isModerator,
+        admin_level: ctx.adminLevel,
+        admin_label: ctx.adminLabel,
+        role_labels: ctx.roleLabels,
         vendors: Array.from(ctx.memberships.values())
       }
     });

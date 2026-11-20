@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
 import { db, auth } from "hatchable";
 import { BOOKING_PACKAGES } from "../../lib/catalog.js";
-import { resolveIdentity, isWritePaused, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
+import {
+  resolveIdentity,
+  isWritePaused,
+  applyPrivateNoStoreHeaders,
+  evaluateEffectiveVendorRestrictions
+} from "../../lib/authz.js";
 import { validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -163,22 +168,50 @@ export default async function(req, res) {
         }
       }
 
-      const { rows: vendorRows } = await tx.query(
-        `SELECT
-           v.id,
-           v.is_active,
-           v.event_bookable,
-           COALESCE(op.display_name, v.canonical_name) AS canonical_name,
-           COALESCE(op.accepting_bookings, true) AS accepting_bookings
-         FROM vendors v
-         LEFT JOIN owner_profiles op ON op.truck_id = v.id
-         WHERE v.id = $1
-         FOR SHARE OF v`,
-        [truckId]
-      );
+      let vendorRows;
+      try {
+        ({ rows: vendorRows } = await tx.query(
+          `SELECT
+             v.id,
+             v.is_active,
+             v.event_bookable,
+             v.hidden_from_discovery,
+             v.bookings_restricted,
+             v.vendor_access_suspended,
+             v.restriction_authority,
+             v.temp_restriction_expires_at,
+             COALESCE(op.display_name, v.canonical_name) AS canonical_name,
+             COALESCE(op.accepting_bookings, true) AS accepting_bookings
+           FROM vendors v
+           LEFT JOIN owner_profiles op ON op.truck_id = v.id
+           WHERE v.id = $1
+           FOR SHARE OF v`,
+          [truckId]
+        ));
+      } catch (colErr) {
+        if (colErr?.code !== "42703") throw colErr;
+        ({ rows: vendorRows } = await tx.query(
+          `SELECT
+             v.id,
+             v.is_active,
+             v.event_bookable,
+             COALESCE(op.display_name, v.canonical_name) AS canonical_name,
+             COALESCE(op.accepting_bookings, true) AS accepting_bookings
+           FROM vendors v
+           LEFT JOIN owner_profiles op ON op.truck_id = v.id
+           WHERE v.id = $1
+           FOR SHARE OF v`,
+          [truckId]
+        ));
+      }
 
       if (!vendorRows.length) {
         return { status: 400, body: { error: "Selected food truck was not found." } };
+      }
+
+      const effRestr = evaluateEffectiveVendorRestrictions(vendorRows[0], now.getTime());
+      if (effRestr.hidden_from_discovery) {
+        return { status: 400, body: { error: "Selected listing is not currently available for event bookings." } };
       }
 
       const { rows: lockedProfile } = await tx.query(
@@ -195,7 +228,7 @@ export default async function(req, res) {
         return { status: 400, body: { error: "Selected listing is not eligible for event bookings." } };
       }
 
-      if (!vendor.accepting_bookings) {
+      if (!vendor.accepting_bookings || effRestr.bookings_restricted || effRestr.vendor_access_suspended) {
         return { status: 409, body: { error: "This food truck is not currently accepting event bookings." } };
       }
 

@@ -48,6 +48,10 @@ export function runWithRequestContext(context, fn) {
   return requestAls.run(context, fn);
 }
 
+export function getActiveRequestContext() {
+  return requestAls.getStore() || null;
+}
+
 function resolveActiveDb() {
   const store = requestAls.getStore();
   const active = (store && store.db) || configuredDb;

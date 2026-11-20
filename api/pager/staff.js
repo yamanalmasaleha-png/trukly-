@@ -8,7 +8,8 @@ import {
   recordAuditLog,
   redactPagerTargetId,
   isWritePaused,
-  applyPrivateNoStoreHeaders
+  applyPrivateNoStoreHeaders,
+  evaluateEffectiveVendorRestrictions
 } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 
@@ -73,16 +74,46 @@ export default async function(req, res) {
         return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
       }
 
-      const { rows: vendorRows } = await tx.query(
-        `SELECT v.id, v.is_active, COALESCE(op.display_name, v.canonical_name) AS display_name
-         FROM vendors v
-         LEFT JOIN owner_profiles op ON op.truck_id = v.id
-         WHERE v.id = $1
-         FOR SHARE OF v`,
-        [authz.vendorId]
-      );
+      let vendorRows;
+      try {
+        ({ rows: vendorRows } = await tx.query(
+          `SELECT
+             v.id,
+             v.is_active,
+             v.pager_restricted,
+             v.vendor_access_suspended,
+             v.restriction_authority,
+             v.temp_restriction_expires_at,
+             COALESCE(op.display_name, v.canonical_name) AS display_name
+           FROM vendors v
+           LEFT JOIN owner_profiles op ON op.truck_id = v.id
+           WHERE v.id = $1
+           FOR SHARE OF v`,
+          [authz.vendorId]
+        ));
+      } catch (colErr) {
+        if (colErr?.code !== "42703") throw colErr;
+        ({ rows: vendorRows } = await tx.query(
+          `SELECT v.id, v.is_active, COALESCE(op.display_name, v.canonical_name) AS display_name
+           FROM vendors v
+           LEFT JOIN owner_profiles op ON op.truck_id = v.id
+           WHERE v.id = $1
+           FOR SHARE OF v`,
+          [authz.vendorId]
+        ));
+      }
       if (!vendorRows.length || !vendorRows[0].is_active) {
         return { status: 400, body: { error: "Selected vendor is inactive or invalid." } };
+      }
+      const effRestr = evaluateEffectiveVendorRestrictions(vendorRows[0]);
+      if (effRestr.pager_restricted || effRestr.vendor_access_suspended) {
+        return {
+          status: 403,
+          body: {
+            error: "New pickup pager creation is currently restricted for this vendor. Existing active tickets can still be completed.",
+            code: "PAGER_RESTRICTED"
+          }
+        };
       }
       const canonicalVendorName = String(vendorRows[0].display_name).slice(0, 80);
 

@@ -1,5 +1,6 @@
 import { db } from "hatchable";
 import { isValidCalendarDate, validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
+import { evaluateEffectiveVendorRestrictions } from "../../lib/authz.js";
 
 export const access = "public";
 export const methods = ["GET"];
@@ -16,23 +17,49 @@ export default async function(req, res) {
   }
 
   try {
-    const { rows: vendorRows } = await db.query(
-      `SELECT
-         v.id,
-         v.is_active,
-         v.event_bookable,
-         COALESCE(op.accepting_bookings, true) AS accepting_bookings
-       FROM vendors v
-       LEFT JOIN owner_profiles op ON op.truck_id = v.id
-       WHERE v.id = $1`,
-      [id]
-    );
+    const now = req._now instanceof Date ? req._now : new Date();
+    let vendorRows;
+    try {
+      ({ rows: vendorRows } = await db.query(
+        `SELECT
+           v.id,
+           v.is_active,
+           v.event_bookable,
+           v.hidden_from_discovery,
+           v.bookings_restricted,
+           v.vendor_access_suspended,
+           v.restriction_authority,
+           v.temp_restriction_expires_at,
+           COALESCE(op.accepting_bookings, true) AS accepting_bookings
+         FROM vendors v
+         LEFT JOIN owner_profiles op ON op.truck_id = v.id
+         WHERE v.id = $1`,
+        [id]
+      ));
+    } catch (colErr) {
+      if (colErr?.code !== "42703") throw colErr;
+      ({ rows: vendorRows } = await db.query(
+        `SELECT
+           v.id,
+           v.is_active,
+           v.event_bookable,
+           COALESCE(op.accepting_bookings, true) AS accepting_bookings
+         FROM vendors v
+         LEFT JOIN owner_profiles op ON op.truck_id = v.id
+         WHERE v.id = $1`,
+        [id]
+      ));
+    }
 
     if (!vendorRows.length) {
       return res.status(404).json({ error: "Vendor not found." });
     }
 
     const vendor = vendorRows[0];
+    const effRestr = evaluateEffectiveVendorRestrictions(vendor, now.getTime());
+    if (effRestr.hidden_from_discovery) {
+      return res.status(404).json({ error: "Vendor not found." });
+    }
     if (!vendor.is_active || !vendor.event_bookable) {
       return res.json({
         truck_id: id,
@@ -43,7 +70,7 @@ export default async function(req, res) {
       });
     }
 
-    const dateCheck = validateFuturePacificDate(date, req._now instanceof Date ? req._now : new Date());
+    const dateCheck = validateFuturePacificDate(date, now);
     if (!dateCheck.ok) {
       return res.json({
         truck_id: id,
@@ -64,7 +91,7 @@ export default async function(req, res) {
       ? { ...schedRows[0], service_date: normalizeCalendarDate(schedRows[0].service_date) }
       : null;
 
-    if (!vendor.accepting_bookings) {
+    if (!vendor.accepting_bookings || effRestr.bookings_restricted || effRestr.vendor_access_suspended) {
       return res.json({
         truck_id: id,
         date,
