@@ -149,3 +149,19 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
 - **Deployment Control Limitation (Explicit)**:
   - `/admin` displays the prominent `Admin: Top` reminder **“Legal review and launch readiness remain incomplete. Draft policies are not approved for public rollout.”** alongside the unresolved launch-critical count on Overview.
   - **Deployment automation (`deploy/install-staging-release.sh`) is executed by operators over SSH/CLI and is NOT technically controlled or blocked by the Admin Portal database register.** Production cutover remains operationally gated by keeping `https://biteshark.live` on its static holding page until explicit operator & counsel sign-off.
+
+## 8. Controlled Feature Management (`/admin` → Feature Controls, Migration `022`)
+
+- **Fixed Reviewed Registry (`lib/feature-controls.js`)**:
+  - Switchable controls (`enabled`, `paused`, `hidden` + `all` vs server-verified `staff_beta` audience): `event_inquiries`, `community_hub`, `community_submissions` (depends on `community_hub`), `local_guides_passport`, `flavor_lab_tools`, `vendor_onboarding`, `pickup_pager_creation`, `pickup_pager_demo`, `pager_push_delivery`, `pager_push_subscriptions` (depends on `pager_push_delivery`), and `nearby_alert_preferences` (explicitly marked `placeholder` because no automated proximity push job exists).
+  - Read-only disclosures: `passkey_webauthn` (`deferred`) and `owner_menu_photo_upload` (`demonstrative`).
+  - Protected non-disableable essentials: authentication/logout, 14+ age eligibility, RBAC/CSRF/rate limits/RLS/audit logging, policy/accessibility pages, privacy/access support issues, read-only canonical vendor discovery, Top-admin recovery (`/admin`, `/api/admin/features*`), `/api/healthz`, and backup tooling.
+- **Permissions, Persistence & Optimistic Concurrency**:
+  - Persisted in `feature_controls` and append-only `feature_control_history` (`FORCE ROW LEVEL SECURITY`; `UPDATE`/`DELETE` revoked on `feature_control_history`, `DELETE` revoked on `feature_controls`), plus `audit_logs` (`feature_control.update` / `feature_control.recover`).
+  - Only `Admin: Top` may mutate feature states (`POST /api/admin/features/update` with mandatory `expected_revision` -> `409 FEATURE_REVISION_CONFLICT` on stale revision, `409 FEATURE_DEPENDENCY_VIOLATION` when enabling a child whose parent is configured non-enabled, and `confirmed_impact: true` required on high-impact workflow interruptions). `Admin: Mod` has read-only access to effective states, implementation statuses, dependencies, and explanations (`GET /api/admin/features`).
+  - Public visibility endpoint `GET /api/features` returns only caller-effective states and safe public messages (never actor IDs, internal reasons, audiences, or audit details).
+- **End-to-End Enforcement, Propagation & Active-Workflow Preservation**:
+  - Central HTTP gate (`enforceHttpFeatureGate` in `server/app.js`) and worker pre-dispatch recheck (`checkPagerPushDeliveryInTx` inside `prepareClaimForDispatch` in `lib/pager-notifications.js`) query PostgreSQL live with 0 ms cache and fail closed (`503 FEATURE_CONFIG_UNAVAILABLE`) on untrusted/unreadable configuration.
+  - Open browser tabs resynchronize on boot, `visibilitychange`/`focus`, cross-tab `BroadcastChannel('biteshark_feature_controls_v1')`, `403`/`503` feature rejections, and 60-second visible polling. Already-transmitted network push packets cannot be recalled.
+  - Authoritative environment controls (`PAUSE_WRITES`, `PUSH_PROVIDER_MODE`, `DISABLE_SUBSCRIPTIONS`, `DISABLE_NOTIFICATION_DELIVERY`) always override database `enabled` settings.
+  - Existing booking inquiries/vendor responses, approved community moderation, existing onboarding status checks, active pickup pagers (`GET /api/pager/status`, `POST /api/pager/update`), and push unsubscribe (`DELETE /api/pager/subscriptions`) remain functional while new creation/submission is paused or hidden.

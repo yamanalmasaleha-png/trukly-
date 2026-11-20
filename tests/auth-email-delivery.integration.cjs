@@ -178,7 +178,7 @@ function extractCookiePair(setCookieHeader, name) {
   try {
     const migRes = await runMigrationsCli(migratorUrl, appRole);
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":21'), 'Expected 21 migrations applied');
+    assert(migRes.stdout.includes('"newly_applied":22'), 'Expected 22 migrations applied');
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });

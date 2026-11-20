@@ -82,6 +82,7 @@ for (const requiredEntry of [
   'server/admin-routes.js',
   'lib/admin-governance.js',
   'lib/age-policy.js',
+  'lib/feature-controls.js',
   'lib/request-context.js',
   'public/index.html',
   'public/admin.html',
@@ -104,9 +105,11 @@ for (const requiredEntry of [
   'migrations/019_age_eligibility_and_compliance_readiness.sql',
   'migrations/020_age_gate_allowlist_and_precise_wording.sql',
   'migrations/021_auth_diagnostics_and_email_readiness.sql',
+  'migrations/022_feature_controls.sql',
   'scripts/run-migrations.cjs',
   'scripts/bootstrap-top-admin.cjs',
   'scripts/operator-read-my-otp.cjs',
+  'scripts/manage-feature-controls.cjs',
   'scripts/run-pager-worker.cjs',
   'deploy/install-staging-release.sh'
 ]) {

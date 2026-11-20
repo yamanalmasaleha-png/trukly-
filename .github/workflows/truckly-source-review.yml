@@ -109,6 +109,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/legal-readiness.integration.cjs
+      - name: Run BiteShark controlled feature management, worker recheck, dependency DAG & CLI recovery PostgreSQL suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/feature-controls.integration.cjs
       - name: Run deployment installer archive-safety, concurrency & service-failure rollback suite on Linux
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
@@ -145,6 +149,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/legal-readiness-browser.e2e.cjs
+      - name: Run real headless Chrome + PostgreSQL BiteShark Controlled Feature Management & Open-Tab Sync E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/feature-controls-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         shell: bash
         env:

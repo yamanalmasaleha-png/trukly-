@@ -4,6 +4,8 @@ function spotUrl(id){return location.origin+'/#spot='+encodeURIComponent(id)}
 function cityOptions(){return '<option value="">Any town</option>'+[...new Set(trucks.map(t=>t.city).filter(Boolean))].sort().map(c=>'<option value="'+smartEscape(c)+'">'+smartEscape(c)+'</option>').join('')}
 function smartStatus(msg){document.getElementById('smartMessage').textContent=msg}
 async function openSmart(mode='finder'){
+ const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+ if(fc&&fc.isHidden('flavor_lab_tools')){if(typeof toast==='function')toast(fc.getMessage('flavor_lab_tools'));if(typeof showScreen==='function')showScreen('discover');return}
  showScreen('smart');smartMode=mode;smartStatus('Loading local spots…');try{await window.bitesharkReady}catch{smartStatus('Some listings could not load. Please refresh and try again.');return}
  document.querySelectorAll('[data-smart-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.smartTab===mode);b.setAttribute('aria-pressed',String(b.dataset.smartTab===mode))});smartStatus('');
  if(mode==='marketing'){document.getElementById('smartBody').innerHTML='<section class="smart-panel"><h2>Give your spot a little spotlight.</h2><p>Choose the listing you manage. Review its details, then use the caption or download a promo card.</p><label>Your listing<select id="promoSpot" onchange="renderPromo()">'+trucks.map(t=>'<option value="'+smartEscape(t.id)+'">'+smartEscape(t.name)+'</option>').join('')+'</select></label><div id="promoBody"></div></section>';renderPromo();return}

@@ -10,8 +10,14 @@ function communityGetPlaces(){
   return Array.isArray(trucks)?trucks.filter(t=>t&&t.id&&t.city).slice().sort((a,b)=>String(a.name).localeCompare(String(b.name))):[];
 }
 async function openCommunity(){
+  const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+  if(fc&&fc.isHidden('community_hub')){
+    if(typeof toast==='function')toast(fc.getMessage('community_hub'));
+    return;
+  }
   showScreen('community');
   document.getElementById('communityScreen').scrollTop=0;
+  if(fc)fc.syncDom();
   const grid=document.getElementById('communityFeed');
   if(!communityState.loaded)grid.innerHTML='<div class="community-empty">Loading local conversations…</div>';
   try{await (window.bitesharkReady||window.trucklyReady)}catch(e){}
@@ -59,7 +65,9 @@ function communityRender(){
   document.getElementById('communityCount').textContent=matching.length+' '+(matching.length===1?'post':'posts');
   const feed=document.getElementById('communityFeed');
   if(!matching.length){
-    feed.innerHTML='<div class="community-empty"><span aria-hidden="true">📝</span><h3>No public posts here yet.</h3><p>Be among the first to share a real food find. New contributions appear after moderation.</p><button type="button" onclick="communityStartPost(\'review\')">Write a review</button></div>';
+    const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+    const canWrite=!fc||fc.isAvailable('community_submissions');
+    feed.innerHTML='<div class="community-empty"><span aria-hidden="true">📝</span><h3>No public posts here yet.</h3><p>'+(canWrite?'Be among the first to share a real food find. New contributions appear after moderation.':'Approved community submissions appear here once published.')+'</p>'+(canWrite?'<button type="button" onclick="communityStartPost(\'review\')">Write a review</button>':'')+'</div>';
     return;
   }
   feed.innerHTML=matching.map(p=>{
@@ -81,6 +89,12 @@ function communityViewPlace(id){
   showScreen('discover');openDetail(id);
 }
 function communityStartPost(kind='review',title=''){
+  const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+  if(fc&&!fc.isAvailable('community_submissions')){
+    if(typeof toast==='function')toast(fc.getMessage('community_submissions'));
+    fc.syncDom();
+    return;
+  }
   const form=document.getElementById('communityCompose');
   form.hidden=false;
   document.getElementById('communitySuccess').hidden=true;

@@ -15,6 +15,10 @@ import {
   consumePagerRateLimit,
   enqueueReadyCatchupInTx
 } from "../../lib/pager-notifications.js";
+import {
+  isPagerPushSubscriptionFeatureEnabled,
+  isPagerPushDeliveryFeatureAllowed
+} from "../../lib/feature-controls.js";
 
 export const access = "public";
 export const methods = ["GET", "POST", "DELETE"];
@@ -37,7 +41,12 @@ export default async function(req, res) {
     // =========================================================================
     if (req.method === "GET") {
       const providerCfg = getPushProviderConfig();
-      const subDisabled = isSubscriptionsDisabled();
+      const subEnvDisabled = isSubscriptionsDisabled();
+      const [subFeatureEnabled, delivFeature] = await Promise.all([
+        isPagerPushSubscriptionFeatureEnabled(db),
+        isPagerPushDeliveryFeatureAllowed(db)
+      ]);
+      const subDisabled = subEnvDisabled || !subFeatureEnabled || !delivFeature.allowed;
       const enabled = providerCfg.enabled && !subDisabled;
 
       const subId = typeof req.query?.subscription_id === "string" ? req.query.subscription_id.trim() : "";

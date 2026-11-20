@@ -32,6 +32,8 @@ The built-in staging probe requires `BITESHARK_ENV=staging`, `BITESHARK_ENABLE_S
 
 Stop `truckly-staging-worker.service` for an immediate worker halt. Update pause settings in the protected environment and restart the applicable services to make changes effective. Preserve reads, authorization and RLS. See `PAGER_NOTIFICATIONS_RUNBOOK.md` for lease/backlog semantics.
 
+Runtime feature controls in `/admin` (`Feature Controls`, `Admin: Top` only) can pause, hide, or `staff_beta`-restrict optional features in PostgreSQL (`022_feature_controls.sql`) without service restarts, but authoritative environment controls (`PAUSE_WRITES`, `PUSH_PROVIDER_MODE`, `DISABLE_SUBSCRIPTIONS`, `DISABLE_NOTIFICATION_DELIVERY`) always take precedence over database `enabled` settings. For SSH operator inspection or recovery without direct SQL edits, run `set -a && . /etc/truckly-staging/staging.env && set +a && node /opt/truckly-staging/current/scripts/manage-feature-controls.cjs --status` (or `--reset-defaults --actor-email <top-admin-email> --reason "..."`).
+
 Installer rollback restores code and environment, not committed database migrations. It accepts the old local adapter name only to validate older immutable VPS rollback releases. Never rewrite migrations to roll back an app.
 
 Retain backup timers and restricted backup files. `pg_restore --list` is not a restore test: complete an isolated restoration and offsite recovery exercise before claiming recovery readiness. This platform transition does not close physical-device, legal, backup or production-approval gates.

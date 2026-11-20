@@ -84,9 +84,17 @@ async function renderGuidePassport(){
   const form=document.getElementById('guideVisitForm');
   if(form)form.addEventListener('submit',guideLogVisit);
   host.querySelectorAll('[data-remove-visit]').forEach(btn=>btn.addEventListener('click',()=>guideUndoVisit(btn.dataset.removeVisit)));
+  if(typeof window!=='undefined'&&window.bitesharkFeatures&&typeof window.bitesharkFeatures.syncDom==='function')window.bitesharkFeatures.syncDom();
 }
 function guideLogVisit(e){
   e.preventDefault();
+  const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+  if(fc&&!fc.isAvailable('local_guides_passport')){
+    const msg=document.getElementById('guideActionMessage');
+    if(msg)msg.textContent=fc.getMessage('local_guides_passport');
+    fc.syncDom();
+    return;
+  }
   const spot=document.getElementById('guideSpotSelect'),msg=document.getElementById('guideActionMessage');
   const p=guidePlace(spot.value),rows=guideVisitsRead();
   if(!p){msg.textContent='Choose a listed local food spot.';return}

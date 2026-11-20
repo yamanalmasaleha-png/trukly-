@@ -14,6 +14,11 @@ import {
   buildAgeAssessmentRequiredPayload,
   isGovernanceRouteExemptFromAgeGate
 } from '../lib/age-policy.js';
+import {
+  matchRouteFeatureRule,
+  enforceHttpFeatureGate
+} from '../lib/feature-controls.js';
+import { verifySameOriginMutation as verifyPagerSubscriptionCsrf } from '../lib/pager-notifications.js';
 import { runWithGovernanceContext } from '../lib/request-context.js';
 import { isLoopbackIp, stampTrustedClientIp } from '../lib/client-ip.js';
 import { readEnvCompat, assertNoSecurityEnvConflicts } from '../lib/env-compat.js';
@@ -768,6 +773,22 @@ export function createStandaloneServer({
         req.params = {};
         req.body = parsedBody;
 
+        // Central server-side feature-control gate on Governance routes (runs after auth & age checks;
+        // unauthenticated calls fall through to 401 so feature switches never mask auth requirements).
+        if (verifiedUser && matchRouteFeatureRule(normGovPath, method)) {
+          const fcGate = await enforceHttpFeatureGate({
+            dbAdapter,
+            req,
+            auth,
+            pathname: normGovPath,
+            method,
+            requireTablePresent: true
+          });
+          if (!fcGate.allowed) {
+            return sendJsonResponse(res, fcGate.status, fcGate.body);
+          }
+        }
+
         await runWithRequestContext(
           { db: dbAdapter, user: verifiedUser },
           () =>
@@ -831,11 +852,19 @@ export function createStandaloneServer({
         }
 
         // Enforce CSRF / same-origin checks across all non-Bearer state-changing API endpoints
+        // BEFORE feature-control checks so paused features never mask 403 CSRF rejections.
         if (MUTATING_HTTP_METHODS.has(method) && !route.exemptFromCookieCsrf) {
           const csrf = verifySameOriginMutationRequest(req);
           if (!csrf.ok) {
             applyPrivateNoStoreHeaders(res);
             return sendJsonResponse(res, csrf.status, { error: csrf.error, code: csrf.code });
+          }
+          if (route.pattern === '/api/pager/subscriptions') {
+            const pagerCsrf = verifyPagerSubscriptionCsrf(req);
+            if (!pagerCsrf.ok) {
+              applyPrivateNoStoreHeaders(res);
+              return sendJsonResponse(res, pagerCsrf.status, { error: pagerCsrf.error });
+            }
           }
         }
 
@@ -887,6 +916,34 @@ export function createStandaloneServer({
               error: 'Only Admin: Top may use Act-on-Behalf operational mode.',
               code: 'ACT_ON_BEHALF_FORBIDDEN'
             });
+          }
+        }
+
+        // Central server-side feature-control gate on Domain API routes
+        const matchedFeatureRule = matchRouteFeatureRule(route.pattern, method);
+        if (matchedFeatureRule) {
+          let gateReq = req;
+          if (!verifiedUser && req.headers?.cookie) {
+            // Read-only session lookup for `staff_beta` evaluation on gated public routes (`community/list`, `trucks/availability`)
+            // without emitting `Set-Cookie` or touching cacheable `/api/trucks` catalog routes.
+            const pubSess = await resolveSessionFromRequest(dbAdapter, req).catch(() => null);
+            if (pubSess?.authenticated && pubSess.user && !pubSess.user.requires_age_assessment) {
+              applyPrivateNoStoreHeaders(res);
+              gateReq = Object.create(req);
+              bindVerifiedRequestUser(gateReq, pubSess.user);
+            }
+          }
+          const fcGate = await enforceHttpFeatureGate({
+            dbAdapter,
+            req: gateReq,
+            auth,
+            pathname: route.pattern,
+            method,
+            requireTablePresent: true
+          });
+          if (!fcGate.allowed) {
+            applyPrivateNoStoreHeaders(res);
+            return sendJsonResponse(res, fcGate.status, fcGate.body);
           }
         }
 

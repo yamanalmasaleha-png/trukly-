@@ -532,6 +532,9 @@ function extraDetail(t) {
     : `Source checked ${esc(t.checked || 'recently')}. Hours and pop-up locations can change. ${esc(distanceLabel(t, 'detail'))}.`;
   document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()" aria-label="Close details">×</button><div class="detail-hero icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span></div><div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2>${esc(t.name)}</h2><p>${esc(t.blurb)}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
   document.getElementById('detailModal').classList.add('show');
+  if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
+    window.bitesharkFeatures.syncDom();
+  }
 }
 
 function cardHTML(t) {
@@ -564,6 +567,9 @@ function openDetail(id) {
   const safeId = esc(t.id);
   document.getElementById('detailContent').innerHTML = `<button class="modal-close" onclick="closeModal()">×</button><div class="detail-hero ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}</div><div class="detail-body"><small>${statusPrefix}${esc(t.cuisine).toUpperCase()}</small><h2>${esc(t.emoji)} ${esc(t.name)}</h2><p>${esc(t.blurb)}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${t.price ? `<span>${esc(t.price)}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(t.listing_type || t.availability || 'Mobile vendor')} · ${esc(t.city || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button><button class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button></div>`;
   document.getElementById('detailModal').classList.add('show');
+  if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
+    window.bitesharkFeatures.syncDom();
+  }
 }
 
 function closeModal() {
@@ -750,6 +756,12 @@ async function loadNotificationSettings() {
 }
 
 async function saveNotificationSettings() {
+  const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+  if (fc && !fc.isAvailable('nearby_alert_preferences')) {
+    toast(fc.getMessage('nearby_alert_preferences'));
+    fc.syncDom();
+    return;
+  }
   const toggle = document.getElementById('nearbyAlertToggle');
   const select = document.getElementById('nearbyAlertRadius');
   if (!toggle || !select) return;
@@ -973,6 +985,11 @@ async function checkBookingAvailability() {
 }
 
 function openBooking(id) {
+  const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+  if (fc && fc.isHidden('event_inquiries')) {
+    toast(fc.getMessage('event_inquiries'));
+    return;
+  }
   const t = id && id !== 'owner-truck' ? trucks.find(x => !x.extra && x.id === id) : null;
   populateBookingTruckSelect(t ? t.id : '');
   const lbl = document.getElementById('bookingTruckLabel');
@@ -992,7 +1009,8 @@ function openBooking(id) {
   bookingDateBlocked = false;
   setBookingError('');
   document.getElementById('bookingModal').classList.add('show');
-  if (t) checkBookingAvailability();
+  if (fc) fc.syncDom();
+  if (t && (!fc || fc.isAvailable('event_inquiries'))) checkBookingAvailability();
 }
 
 function closeBooking() {
@@ -1119,7 +1137,8 @@ async function submitBooking(e) {
     setBookingError(msg);
     toast(msg);
   } finally {
-    if (submitBtn) submitBtn.disabled = false;
+    const fc = typeof window !== 'undefined' && window.bitesharkFeatures ? window.bitesharkFeatures : null;
+    if (submitBtn) submitBtn.disabled = Boolean(fc && !fc.isAvailable('event_inquiries'));
   }
 }
 

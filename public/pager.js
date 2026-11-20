@@ -129,14 +129,19 @@ function buildPagerPushSectionHtml(p){
   if(Notification.permission==='denied'){
     return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="denied"><strong>Notifications blocked in browser settings</strong><small>Allow notifications for this site if you want background alerts, or keep this page open with ready sound enabled.</small></div>';
   }
-  if(!pagerPushServer.enabled||!pagerPushServer.vapid_public_key){
-    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="server-disabled"><strong>Live page updates active</strong><small>Background push delivery isn’t enabled on this server right now. Keep this page open — we check your ticket every ~8 seconds.</small></div>';
-  }
-
   const sub=getLocalPagerSub(pagerToken);
+  const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+  const pushFeatureBlocked=Boolean(fc&&(!fc.isAvailable('pager_push_delivery')||!fc.isAvailable('pager_push_subscriptions')));
   const errHtml=pagerPushError?'<small class="pager-push-error">'+pagerEscape(pagerPushError)+'</small>':'';
   if(sub&&sub.status==='active'){
-    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="subscribed"><strong>🔔 Background ready alert is ON</strong><small>You’ll receive a notification when Ticket #'+pagerEscape(p.ticket)+' is marked Ready. Using a shared device? Turn alerts off when done.</small>'+errHtml+'<button type="button" id="pagerUnsubscribeBtn" class="pager-push-btn secondary-push" '+(pagerPushBusy?'disabled ':'')+'onclick="unsubscribePagerPush()">'+(pagerPushBusy?'Updating…':'Turn off background alerts')+'</button></div>';
+    const pausedNote=(!pagerPushServer.enabled||pushFeatureBlocked)
+      ?'<small>Background push delivery is currently paused on this server, so keep this page open (~8s live check). You can still turn off saved alerts on this device below.</small>'
+      :'<small>You’ll receive a notification when Ticket #'+pagerEscape(p.ticket)+' is marked Ready. Using a shared device? Turn alerts off when done.</small>';
+    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="subscribed"><strong>'+(pagerPushServer.enabled&&!pushFeatureBlocked?'🔔 Background ready alert is ON':'🔕 Saved background alert (delivery paused)')+'</strong>'+pausedNote+errHtml+'<button type="button" id="pagerUnsubscribeBtn" class="pager-push-btn secondary-push" '+(pagerPushBusy?'disabled ':'')+'onclick="unsubscribePagerPush()">'+(pagerPushBusy?'Updating…':'Turn off background alerts')+'</button></div>';
+  }
+  if(!pagerPushServer.enabled||!pagerPushServer.vapid_public_key||pushFeatureBlocked){
+    const serverMsg=fc&&!fc.isAvailable('pager_push_subscriptions')?fc.getMessage('pager_push_subscriptions','Background push delivery isn’t enabled on this server right now. Keep this page open — we check your ticket every ~8 seconds.'):'Background push delivery isn’t enabled on this server right now. Keep this page open — we check your ticket every ~8 seconds.';
+    return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="server-disabled"><strong>Live page updates active</strong><small>'+pagerEscape(serverMsg)+'</small></div>';
   }
 
   return '<div class="pager-push-box" id="pagerPushPanel" data-push-state="'+(pagerPushError?'error':'prompt')+'"><strong>Want an alert if you switch apps?</strong><small>Get a one-time notification when Ticket #'+pagerEscape(p.ticket)+' is ready at the counter.</small>'+errHtml+'<button type="button" id="pagerSubscribeBtn" class="pager-push-btn" '+(pagerPushBusy?'disabled ':'')+'onclick="subscribePagerPush()">'+(pagerPushBusy?'Enabling alert…':'🔔 Notify me when ready')+'</button></div>';
@@ -402,6 +407,12 @@ function ringPager(){
 }
 
 function startPagerDemo(){
+  const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+  if(fc&&fc.isHidden('pickup_pager_demo')){
+    if(typeof toast==='function')toast(fc.getMessage('pickup_pager_demo'));
+    document.getElementById('pagerRealEntry').open=true;
+    return;
+  }
   if(!document.getElementById('pagerScreen').classList.contains('active'))showScreen('pager');
   pagerClearDemoTimer();
   pagerDemo=true;
@@ -497,6 +508,9 @@ function renderKitchen(rows){
 
 async function loadKitchen(){
   document.getElementById('kitchenPanel').hidden=false;
+  if(typeof window!=='undefined'&&window.bitesharkFeatures&&typeof window.bitesharkFeatures.syncDom==='function'){
+    window.bitesharkFeatures.syncDom();
+  }
   document.getElementById('kitchenMessage').textContent='Loading kitchen…';
   const vid=currentKitchenVendorId();
   try{
@@ -533,7 +547,8 @@ async function createPager(e){
   }catch(err){
     kitchenError(err);
   }finally{
-    button.disabled=false;
+    const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+    button.disabled=Boolean(fc&&!fc.isAvailable('pickup_pager_creation'));
   }
 }
 

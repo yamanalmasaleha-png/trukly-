@@ -91,6 +91,11 @@
           <span class="nav-label">Business &amp; Compliance</span>
           <span class="nav-badge nav-badge-warn" id="badgeReadiness" hidden>0</span>
         </button>
+        <button type="button" class="admin-nav-item" data-section="features">
+          <span class="nav-icon" aria-hidden="true">🎛️</span>
+          <span class="nav-label">Feature Controls</span>
+          <span class="nav-badge nav-badge-warn" id="badgeFeatures" hidden>0</span>
+        </button>
         <button type="button" class="admin-nav-item" data-section="audit">
           <span class="nav-icon" aria-hidden="true">📜</span>
           <span class="nav-label">Audit &amp; Activity History</span>
@@ -190,6 +195,7 @@
                   <li>Approve or reject privileged <strong>Admin: Mod</strong> and <strong>Admin: Top</strong> invitations (with self-approval blocked).</li>
                   <li>Grant, demote, or revoke administrative roles (with last-Top database &amp; API protection) and suspend accounts.</li>
                   <li>Explicit, reason-audited <strong>Act on Behalf of Vendor</strong> operational support mode.</li>
+                  <li>Modify controlled <strong>Feature Controls</strong> (<code>enabled</code>, <code>paused</code>, <code>hidden</code>, and <code>staff_beta</code> audience) while essential platform security and recovery paths remain permanently protected.</li>
                 </ul>
               </div>
             </div>
@@ -619,6 +625,76 @@
           </div>
         </section>
 
+        <!-- 6C. CONTROLLED FEATURE MANAGEMENT -->
+        <section class="admin-section" id="sec-features" aria-labelledby="heading-features" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">OPERATIONAL HARDENING · FIXED REVIEWED REGISTRY</span>
+              <h1 id="heading-features">Feature Controls</h1>
+              <p>Safely pause, hide, or restrict optional, beta, demonstrative, or placeholder features without stranding existing inquiries, active pickup pagers, moderation history, or essential platform security.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshFeaturesBtn">↻ Refresh controls</button>
+          </div>
+
+          <div id="fcLiveStatus" class="admin-alert" role="status" aria-live="polite" hidden></div>
+          <div id="fcLiveError" class="admin-alert is-error" role="alert" hidden></div>
+
+          <div class="card-panel fc-governance-banner" id="fcRoleAndPropagationCard">
+            <div class="fc-gov-columns">
+              <div>
+                <h2>Enforcement &amp; Propagation Model</h2>
+                <p id="fcPropagationNote">Server HTTP mutations and notification worker pre-dispatch checks verify PostgreSQL state live on every operation (0 ms cache). Open browser tabs resynchronize on tab focus/visibility, cross-tab BroadcastChannel events, 403/503 feature rejections, and every 60s while visible. Already-transmitted network push packets cannot be recalled.</p>
+                <p class="record-meta" id="fcRolePermissionNote" style="margin-top:6px"></p>
+              </div>
+              <div>
+                <h2>Operator Emergency &amp; Recovery Path</h2>
+                <p class="record-meta">Authoritative environment kill-switches (<code>PAUSE_WRITES</code>, <code>PUSH_PROVIDER_MODE</code>, <code>DISABLE_SUBSCRIPTIONS</code>, <code>DISABLE_NOTIFICATION_DELIVERY</code>) always override database <code>enabled</code> settings. SSH recovery CLI: <code>node scripts/manage-feature-controls.cjs --status</code> or <code>--reset-defaults --actor-email &lt;top-admin&gt; --reason "..."</code>.</p>
+              </div>
+            </div>
+          </div>
+
+          <form class="filter-bar" id="featuresFilterForm" aria-label="Filter feature controls">
+            <label for="fcStatusFilter">Effective State
+              <select id="fcStatusFilter">
+                <option value="all">All states</option>
+                <option value="enabled">Enabled</option>
+                <option value="paused">Paused</option>
+                <option value="hidden">Hidden</option>
+                <option value="overridden">Environment Overridden</option>
+                <option value="customized">Customized from default</option>
+              </select>
+            </label>
+            <label for="fcImplFilter">Implementation Status
+              <select id="fcImplFilter">
+                <option value="all">All implementation statuses</option>
+                <option value="implemented">Implemented</option>
+                <option value="beta">Beta</option>
+                <option value="demonstrative">Demonstrative</option>
+                <option value="placeholder">Placeholder</option>
+                <option value="deferred">Deferred</option>
+              </select>
+            </label>
+            <label class="grow" for="fcSearchInput">Search feature, route, or workflow
+              <input type="search" id="fcSearchInput" placeholder="e.g. bookings, community, pager, push, onboarding…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Apply filter</button>
+          </form>
+
+          <div id="featuresLoading" class="state-box">Loading feature controls…</div>
+          <div id="featuresList" class="fc-grid" hidden></div>
+
+          <div class="card-panel" id="fcProtectedEssentialsPanel" hidden style="margin-top:18px">
+            <h2>Protected Essential Capabilities (Non-Disableable)</h2>
+            <p class="record-meta" style="margin-bottom:10px">These security, authentication, age-eligibility, accessibility, discovery, and recovery boundaries are permanently enforced in code and cannot be turned off via Feature Controls.</p>
+            <div id="fcProtectedList" class="fc-protected-grid"></div>
+          </div>
+
+          <div class="card-panel" id="fcHistoryPanel" hidden style="margin-top:18px">
+            <h2>Recent Feature Control Changes (Append-Only Trail)</h2>
+            <div id="fcHistoryWrap" class="table-wrap" style="margin-top:10px"></div>
+          </div>
+        </section>
+
         <!-- 7. AUDIT & ACTIVITY HISTORY -->
         <section class="admin-section" id="sec-audit" aria-labelledby="heading-audit" hidden>
           <div class="sec-head">
@@ -684,6 +760,28 @@
         <button type="submit" class="admin-btn admin-btn-danger">Enter Audited Act-on-Behalf Mode →</button>
       </div>
     </form>
+  </div>
+
+  <!-- Feature Control High-Impact Confirmation Modal (Admin: Top Only) -->
+  <div class="admin-modal-backdrop" id="featureConfirmModal" hidden>
+    <div class="admin-modal" role="dialog" aria-modal="true" aria-labelledby="fcConfirmTitle" aria-describedby="fcConfirmLead">
+      <span class="sec-kicker">WORKFLOW IMPACT CONFIRMATION · ADMIN: TOP</span>
+      <h2 id="fcConfirmTitle">Confirm Feature State Change</h2>
+      <p id="fcConfirmLead">Review the concrete operational effects on customers, vendors, and background workers before applying this change. State updates take effect only after server confirmation.</p>
+      <div class="conflict-callout" id="fcConfirmTransitionSummary" style="margin:4px 0"></div>
+      <div>
+        <strong style="font-size:12.5px;color:var(--ink)">Concrete Consequences &amp; Preserved Workflows:</strong>
+        <ul id="fcConfirmConsequences" class="fc-consequences-list"></ul>
+      </div>
+      <label for="fcConfirmReason">Operator Reason (required, 4–500 characters)
+        <textarea id="fcConfirmReason" rows="3" minlength="4" maxlength="500" required placeholder="Explain why this feature is being paused, hidden, or restricted…"></textarea>
+      </label>
+      <p id="fcConfirmError" class="form-err" role="alert" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="fcConfirmCancelBtn">Cancel</button>
+        <button type="button" class="admin-btn admin-btn-danger" id="fcConfirmSubmitBtn">Confirm &amp; Apply Server Change</button>
+      </div>
+    </div>
   </div>
 
   <script src="/auth-client.js"></script>

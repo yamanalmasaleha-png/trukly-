@@ -22,6 +22,13 @@ import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
 import { inspectAdminEmailReadiness } from '../lib/standalone-auth.js';
 import {
+  loadPersistedFeatureControls,
+  evaluateFeatureControlsSnapshot,
+  buildPublicFeatureControlsPayload,
+  buildAdminFeatureControlsPayload,
+  updateFeatureControlInTx
+} from '../lib/feature-controls.js';
+import {
   buildAgeAssessmentRequiredPayload,
   daysInGregorianMonth,
   resolvePacificCalendarDateParts
@@ -50,6 +57,7 @@ export const EVIDENCE_UPLOAD_MAX_JSON_BYTES = 900 * 1024; // 900 KiB JSON envelo
 
 const GOVERNANCE_PATHS = new Set([
   '/api/account/context',
+  '/api/features',
   '/api/invitations/inspect',
   '/api/invitations/accept',
   '/api/vendor/members',
@@ -79,6 +87,8 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/readiness',
   '/api/admin/readiness/note',
   '/api/admin/readiness/update',
+  '/api/admin/features',
+  '/api/admin/features/update',
   '/api/admin/audit'
 ]);
 
@@ -332,6 +342,27 @@ export async function handleGovernanceApiRequest({
       my_applications_count: myAppsCount,
       my_open_issues_count: myIssuesCount
     });
+  }
+
+  // =========================================================================
+  // 1B. Public Safe Feature-Controls Snapshot (`GET /api/features`)
+  // =========================================================================
+  if (normPath === '/api/features') {
+    if (method !== 'GET') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    }
+    const persisted = await loadPersistedFeatureControls(dbAdapter, { requireTablePresent: true });
+    // Unassessed accounts do not receive `staff_beta` audience privileges before completing 14+ check
+    const eligibleCtx = ctx.authenticated && !req.user?.requires_age_assessment ? ctx : null;
+    const rawVp = typeof query.viewpoint === 'string' ? query.viewpoint.trim().toLowerCase() : '';
+    const viewpointMode =
+      eligibleCtx && eligibleCtx.isModAdmin && rawVp === 'customer' ? 'customer_preview' : null;
+    const evaluated = evaluateFeatureControlsSnapshot({
+      persistedResult: persisted,
+      accessCtx: eligibleCtx,
+      viewpointMode
+    });
+    return sendJson(200, buildPublicFeatureControlsPayload(evaluated));
   }
 
   // =========================================================================
@@ -4508,6 +4539,141 @@ export async function handleGovernanceApiRequest({
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
     return sendJson(200, out);
+  }
+
+  // -------------------------------------------------------------------------
+  // 6I. Controlled Feature Management (`/api/admin/features`, `/api/admin/features/update`)
+  // -------------------------------------------------------------------------
+  if (normPath === '/api/admin/features') {
+    if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    const accessCheck = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { denied: verified };
+      await enableAdminTxGuards(tx, ctx);
+      const histRes = await tx
+        .query(
+          `SELECT id, feature_key, previous_state, new_state, previous_audience, new_audience,
+                  revision, actor_id, actor_role, change_source, reason, created_at
+           FROM feature_control_history
+           ORDER BY created_at DESC
+           LIMIT 40`
+        )
+        .catch(() => ({ rows: [] }));
+      return { ok: true, actorRole: verified.actorRole, historyRows: histRes.rows };
+    });
+    if (accessCheck.denied) {
+      return sendJson(accessCheck.denied.status, { error: accessCheck.denied.error });
+    }
+    const persisted = await loadPersistedFeatureControls(dbAdapter, { requireTablePresent: true });
+    const evaluated = evaluateFeatureControlsSnapshot({
+      persistedResult: persisted,
+      accessCtx: ctx
+    });
+    return sendJson(
+      200,
+      buildAdminFeatureControlsPayload(evaluated, accessCheck.historyRows, {
+        actorLevel: accessCheck.actorRole
+      })
+    );
+  }
+
+  if (normPath === '/api/admin/features/update') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const isReadOnlyPreview =
+      String(req.headers?.['x-biteshark-viewpoint'] || '')
+        .trim()
+        .toLowerCase() === 'preview';
+    if (isReadOnlyPreview) {
+      return sendJson(403, {
+        error: 'Feature controls cannot be modified while in read-only Viewpoint Preview.',
+        code: 'ADMIN_PREVIEW_READ_ONLY'
+      });
+    }
+
+    const rawExpectedRev = body?.expected_revision;
+    const expectedRevision =
+      typeof rawExpectedRev === 'number' && Number.isInteger(rawExpectedRev)
+        ? rawExpectedRev
+        : typeof rawExpectedRev === 'string' && /^\d+$/.test(rawExpectedRev.trim())
+          ? Number(rawExpectedRev.trim())
+          : NaN;
+
+    if (!Number.isInteger(expectedRevision) || expectedRevision < 0) {
+      return sendJson(400, {
+        error: 'expected_revision (non-negative integer) is required for optimistic concurrency protection.',
+        code: 'INVALID_EXPECTED_REVISION'
+      });
+    }
+
+    const outcome = await withTransaction(dbAdapter, async tx => {
+      const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedTop.ok) {
+        return {
+          status: verifiedTop.status,
+          body: {
+            error: verifiedTop.error || 'Only Admin: Top may modify feature controls.',
+            code: 'TOP_ADMIN_REQUIRED'
+          }
+        };
+      }
+      await enableAdminTxGuards(tx, ctx);
+      await tx.query("SELECT set_config('app.is_platform_admin', 'true', true)");
+      await tx.query("SELECT set_config('app.feature_controls_read', 'true', true)");
+
+      const res = await updateFeatureControlInTx(tx, {
+        actorId: ctx.user.id,
+        actorEmailMasked: maskEmail(ctx.user.email || ''),
+        actorRole: 'top',
+        changeSource: 'admin_portal',
+        featureKey: body?.feature_key,
+        nextState: body?.configured_state ?? body?.state,
+        nextAudience: body?.audience,
+        expectedRevision,
+        reason: body?.reason,
+        confirmedImpact: body?.confirmed_impact === true
+      });
+
+      if (!res.ok) {
+        return { status: res.status, body: res };
+      }
+
+      const histRes = await tx.query(
+        `SELECT id, feature_key, previous_state, new_state, previous_audience, new_audience,
+                revision, actor_id, actor_role, change_source, reason, created_at
+         FROM feature_control_history
+         ORDER BY created_at DESC
+         LIMIT 40`
+      );
+      const allRows = await tx.query(
+        `SELECT feature_key, configured_state, audience, revision, reason,
+                updated_by, updated_by_email_masked, updated_at
+         FROM feature_controls`
+      );
+      return {
+        status: 200,
+        allRows: allRows.rows,
+        historyRows: histRes.rows,
+        updatedResult: res
+      };
+    });
+
+    if (outcome.status !== 200) {
+      return sendJson(outcome.status, outcome.body);
+    }
+
+    const persisted = await loadPersistedFeatureControls(dbAdapter, { requireTablePresent: true });
+    const evaluated = evaluateFeatureControlsSnapshot({
+      persistedResult: persisted,
+      accessCtx: ctx
+    });
+    const adminPayload = buildAdminFeatureControlsPayload(evaluated, outcome.historyRows, {
+      actorLevel: 'top'
+    });
+    return sendJson(200, {
+      ok: true,
+      updated: outcome.updatedResult,
+      ...adminPayload
+    });
   }
 
   return sendJson(404, { error: 'Not found' });

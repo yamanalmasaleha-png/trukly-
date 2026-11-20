@@ -7,13 +7,18 @@
   'use strict';
 
   var VIEWPOINT_STORAGE_KEY = 'biteshark_admin_viewpoint_v1';
+  var FEATURE_BROADCAST_CHANNEL = 'biteshark_feature_controls_v1';
 
   var rxState = {
     ctx: null,
     viewpoint: null, // { mode: 'customer_preview' | 'vendor_preview' | 'act_on_behalf', vendorId?, reason?, readOnly }
     myApps: [],
     myIssues: [],
-    selectedIssueId: null
+    selectedIssueId: null,
+    features: {},
+    featuresLoaded: false,
+    featuresTrusted: true,
+    featuresPollSeconds: 60
   };
 
   function rxEsc(val) {
@@ -62,32 +67,59 @@
   var nativeFetch = window.fetch.bind(window);
   window.fetch = function (input, init) {
     var vp = rxState.viewpoint;
-    if (!vp) return nativeFetch(input, init);
-
     var urlStr = typeof input === 'string' ? input : input && input.url ? input.url : '';
     var isSameOriginApi = false;
+    var apiPathname = '';
     try {
       var parsed = new URL(urlStr, window.location.origin);
       isSameOriginApi = parsed.origin === window.location.origin && parsed.pathname.indexOf('/api/') === 0;
-      if (parsed.pathname === '/api/auth/logout') isSameOriginApi = false;
+      apiPathname = parsed.pathname;
     } catch (_e) {}
 
-    if (!isSameOriginApi) return nativeFetch(input, init);
+    var fetchPromise;
+    if (!vp || !isSameOriginApi || apiPathname === '/api/auth/logout') {
+      fetchPromise = nativeFetch(input, init);
+    } else {
+      var nextInit = Object.assign({}, init || {});
+      var headers = new Headers(nextInit.headers || (typeof input !== 'string' && input && input.headers ? input.headers : undefined));
 
-    var nextInit = Object.assign({}, init || {});
-    var headers = new Headers(nextInit.headers || (typeof input !== 'string' && input && input.headers ? input.headers : undefined));
-
-    if (vp.mode === 'customer_preview' || vp.mode === 'vendor_preview' || vp.readOnly) {
-      headers.set('X-BiteShark-Viewpoint', 'preview');
-    } else if (vp.mode === 'act_on_behalf' && vp.vendorId && vp.reason) {
-      var method = String(nextInit.method || (typeof input !== 'string' && input && input.method) || 'GET').toUpperCase();
-      if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) >= 0) {
-        headers.set('X-BiteShark-Act-On-Behalf', vp.vendorId);
-        headers.set('X-BiteShark-Support-Reason', vp.reason);
+      if (vp.mode === 'customer_preview' || vp.mode === 'vendor_preview' || vp.readOnly) {
+        headers.set('X-BiteShark-Viewpoint', 'preview');
+      } else if (vp.mode === 'act_on_behalf' && vp.vendorId && vp.reason) {
+        var method = String(nextInit.method || (typeof input !== 'string' && input && input.method) || 'GET').toUpperCase();
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) >= 0) {
+          headers.set('X-BiteShark-Act-On-Behalf', vp.vendorId);
+          headers.set('X-BiteShark-Support-Reason', vp.reason);
+        }
       }
+      nextInit.headers = headers;
+      fetchPromise = nativeFetch(input, nextInit);
     }
-    nextInit.headers = headers;
-    return nativeFetch(input, nextInit);
+
+    if (isSameOriginApi && apiPathname !== '/api/features') {
+      fetchPromise
+        .then(function (res) {
+          if (res && (res.status === 403 || res.status === 503) && typeof res.clone === 'function') {
+            res
+              .clone()
+              .json()
+              .then(function (data) {
+                if (
+                  data &&
+                  (data.code === 'FEATURE_PAUSED' ||
+                    data.code === 'FEATURE_DISABLED' ||
+                    data.code === 'FEATURE_CONFIG_UNAVAILABLE')
+                ) {
+                  refreshFeatureControls({ reason: 'api_rejection' });
+                }
+              })
+              .catch(function () {});
+          }
+        })
+        .catch(function () {});
+    }
+
+    return fetchPromise;
   };
 
   async function rxJson(url, opts) {
@@ -596,7 +628,10 @@
 
       syncOwnerTeamAndRestrictionUI();
       await applyActiveViewpointExperience();
-    } catch (_e) {}
+      await refreshFeatureControls({ reason: 'account_context' });
+    } catch (_e) {
+      await refreshFeatureControls({ reason: 'account_context_fallback' });
+    }
   }
 
   async function syncOwnerTeamAndRestrictionUI() {
@@ -716,6 +751,7 @@
     injectRoleNavigationAndModals();
     populateModalVendorSelects();
     document.getElementById('vendorApplyModal').hidden = false;
+    applyFeatureControlsToDom();
     if (!rxState.ctx || !rxState.ctx.authenticated) {
       document.getElementById('vaStatusPane').innerHTML =
         '<div class="rx-card"><h3>Sign in required</h3><p>Sign in with your email verification code to submit or track a vendor ownership application.</p><a class="primary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html?next=/">Sign in →</a></div>';
@@ -734,6 +770,7 @@
         pane.innerHTML =
           '<div class="rx-card"><h3>No vendor applications yet</h3><p>Own or manage a Sonoma County food truck, coffee cart, or market stand? Claim an unclaimed listing or submit a new spot for BiteShark review.</p><button type="button" class="primary" id="vaStartNewBtn">Start Application →</button></div>';
         document.getElementById('vaStartNewBtn').onclick = function () { switchVaTab('form'); };
+        applyFeatureControlsToDom();
         return;
       }
       pane.innerHTML = rxState.myApps
@@ -778,6 +815,7 @@
           switchVaTab('form');
         };
       });
+      applyFeatureControlsToDom();
     } catch (err) {
       pane.innerHTML = '<div class="rx-msg error">' + rxEsc(err.message) + '</div>';
     }
@@ -1129,10 +1167,369 @@
     }
   }
 
+  // =========================================================================
+  // 8. Controlled Feature State Synchronization & Open-Tab Propagation
+  // =========================================================================
+  var featureRefreshInFlight = null;
+  var featurePollTimer = null;
+
+  function getFeatureEntry(key) {
+    if (rxState.features && Object.prototype.hasOwnProperty.call(rxState.features, key)) {
+      return rxState.features[key];
+    }
+    return { state: 'enabled', available: true, implementation_status: 'implemented', message: null };
+  }
+
+  function getFeatureState(key) {
+    return getFeatureEntry(key).state || 'enabled';
+  }
+
+  function isFeatureAvailable(key) {
+    return getFeatureState(key) === 'enabled';
+  }
+
+  function isFeatureHidden(key) {
+    return getFeatureState(key) === 'hidden';
+  }
+
+  function getFeatureMessage(key, fallback) {
+    var entry = getFeatureEntry(key);
+    return entry.message || fallback || 'This feature is currently unavailable.';
+  }
+
+  function ensureInlineBanner(id, parentEl, beforeEl) {
+    if (!parentEl) return null;
+    var el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement('div');
+      el.id = id;
+      el.className = 'owner-banner';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.hidden = true;
+      if (beforeEl && beforeEl.parentNode === parentEl) {
+        parentEl.insertBefore(el, beforeEl);
+      } else {
+        parentEl.insertBefore(el, parentEl.firstChild);
+      }
+    }
+    return el;
+  }
+
+  function applyFeatureControlsToDom() {
+    var isAdminOrMod = Boolean(
+      rxState.ctx &&
+      rxState.ctx.authenticated &&
+      rxState.ctx.capabilities &&
+      rxState.ctx.capabilities.can_access_admin_portal &&
+      !(rxState.viewpoint && rxState.viewpoint.mode === 'customer_preview')
+    );
+
+    // 1. Event Booking Inquiries (`event_inquiries`)
+    var bookState = getFeatureState('event_inquiries');
+    document.querySelectorAll('.book-nav').forEach(function (el) {
+      el.hidden = bookState === 'hidden';
+    });
+    document.querySelectorAll('#ownerScreen button[onclick*="openBooking"]').forEach(function (el) {
+      el.hidden = bookState === 'hidden';
+    });
+    document.querySelectorAll('#detailContent button[onclick*="openBooking"]').forEach(function (el) {
+      el.hidden = bookState === 'hidden';
+    });
+    var bookingForm = document.querySelector('#bookingModal form.booking-modal');
+    var bookingSubmitBtn = document.getElementById('bookingSubmitBtn');
+    if (bookingForm) {
+      var bookBanner = ensureInlineBanner('fcBookingStateBanner', bookingForm, document.getElementById('bookingAuthNotice'));
+      if (bookState !== 'enabled') {
+        if (bookBanner) {
+          bookBanner.hidden = false;
+          bookBanner.innerHTML = '<span><b>Notice:</b> ' + rxEsc(getFeatureMessage('event_inquiries')) + '</span>';
+        }
+        if (bookingSubmitBtn) bookingSubmitBtn.disabled = true;
+        if (bookState === 'hidden') {
+          var bm = document.getElementById('bookingModal');
+          if (bm && bm.classList.contains('show')) {
+            bm.classList.remove('show');
+            if (typeof toast === 'function') toast(getFeatureMessage('event_inquiries'));
+          }
+        }
+      } else {
+        if (bookBanner) bookBanner.hidden = true;
+        if (bookingSubmitBtn) bookingSubmitBtn.disabled = false;
+      }
+    }
+
+    // 2. Community Hub (`community_hub`) & Submissions (`community_submissions`)
+    var commHubHidden = isFeatureHidden('community_hub');
+    var commSubState = getFeatureState('community_submissions');
+    document.querySelectorAll('.community-entry').forEach(function (el) {
+      el.hidden = commHubHidden;
+    });
+    document.querySelectorAll('#profileMenu button[onclick*="openCommunity"]').forEach(function (el) {
+      el.hidden = commHubHidden;
+    });
+    document.querySelectorAll('#detailContent button[onclick*="communityReviewPlace"]').forEach(function (el) {
+      el.hidden = commHubHidden || commSubState !== 'enabled';
+    });
+    var commScreen = document.getElementById('communityScreen');
+    if (commScreen) {
+      if (commHubHidden && commScreen.classList.contains('active') && !isAdminOrMod) {
+        if (typeof showScreen === 'function') showScreen('discover');
+        if (typeof toast === 'function') toast(getFeatureMessage('community_hub'));
+      }
+      var commNewBtn = commScreen.querySelector('.community-new');
+      var commIdeas = commScreen.querySelector('.community-ideas');
+      var whisperBtn = commScreen.querySelector('button[onclick*="streetOpenWhisper"]');
+      var commCompose = document.getElementById('communityCompose');
+      var commSubmit = document.getElementById('communitySubmit');
+      var commBanner = ensureInlineBanner('fcCommunityStateBanner', commScreen, commIdeas);
+
+      if (commSubState !== 'enabled') {
+        if (commNewBtn) commNewBtn.hidden = true;
+        if (commIdeas) commIdeas.hidden = true;
+        if (whisperBtn) whisperBtn.hidden = true;
+        if (commCompose) commCompose.hidden = true;
+        if (commSubmit) commSubmit.disabled = true;
+        if (commBanner) {
+          commBanner.hidden = commSubState === 'hidden';
+          commBanner.innerHTML = '<span><b>Community submissions paused:</b> ' + rxEsc(getFeatureMessage('community_submissions')) + '</span>';
+        }
+      } else {
+        if (commNewBtn) commNewBtn.hidden = false;
+        if (commIdeas) commIdeas.hidden = false;
+        if (whisperBtn) whisperBtn.hidden = false;
+        if (commSubmit) commSubmit.disabled = false;
+        if (commBanner) commBanner.hidden = true;
+      }
+    }
+
+    // 3. Local Guides, Food Passport & Dish Notebook (`local_guides_passport`)
+    var guidesState = getFeatureState('local_guides_passport');
+    document.querySelectorAll('.guides-launch, .guide-nav, .community-footer-links button[onclick*="openLocalGuides"]').forEach(function (el) {
+      el.hidden = guidesState === 'hidden';
+    });
+    var guidesScreen = document.getElementById('guidesScreen');
+    if (guidesScreen) {
+      if (guidesState === 'hidden' && guidesScreen.classList.contains('active')) {
+        if (typeof showScreen === 'function') showScreen('discover');
+        if (typeof toast === 'function') toast(getFeatureMessage('local_guides_passport'));
+      }
+      var guidesBanner = ensureInlineBanner('fcGuidesStateBanner', guidesScreen, guidesScreen.querySelector('.guides-tabs'));
+      var dishSaveBtn = document.getElementById('dishPhotoSave');
+      var passportSubmitBtn = document.querySelector('#guideVisitForm button[type="submit"]');
+      if (guidesState === 'paused') {
+        if (guidesBanner) {
+          guidesBanner.hidden = false;
+          guidesBanner.innerHTML = '<span><b>Paused:</b> ' + rxEsc(getFeatureMessage('local_guides_passport')) + '</span>';
+        }
+        if (dishSaveBtn) dishSaveBtn.disabled = true;
+        if (passportSubmitBtn) passportSubmitBtn.disabled = true;
+      } else {
+        if (guidesBanner) guidesBanner.hidden = true;
+        if (dishSaveBtn && guidesState === 'enabled') dishSaveBtn.disabled = false;
+      }
+    }
+
+    // 4. Flavor Lab & Promo Card Tools (`flavor_lab_tools`)
+    var flavorHidden = isFeatureHidden('flavor_lab_tools');
+    document.querySelectorAll('.smart-invite').forEach(function (el) {
+      el.hidden = flavorHidden;
+    });
+    document.querySelectorAll('#ownerScreen button[onclick*="openSmart"]').forEach(function (btn) {
+      var card = btn.closest('.owner-card');
+      if (card) card.hidden = flavorHidden;
+      else btn.hidden = flavorHidden;
+    });
+    var smartScreen = document.getElementById('smartScreen');
+    if (smartScreen && flavorHidden && smartScreen.classList.contains('active')) {
+      if (typeof showScreen === 'function') showScreen('discover');
+      if (typeof toast === 'function') toast(getFeatureMessage('flavor_lab_tools'));
+    }
+
+    // 5. Self-Service Vendor Onboarding (`vendor_onboarding`)
+    var onbState = getFeatureState('vendor_onboarding');
+    var hasExistingApps = Boolean(
+      (rxState.ctx && Number(rxState.ctx.my_applications_count) > 0) ||
+      (Array.isArray(rxState.myApps) && rxState.myApps.length > 0)
+    );
+    var applyBtn = document.getElementById('rxVendorApplyBtn');
+    if (applyBtn) {
+      if (onbState === 'hidden' && !hasExistingApps) {
+        applyBtn.hidden = true;
+      } else {
+        applyBtn.hidden = false;
+        applyBtn.textContent = onbState !== 'enabled' && hasExistingApps
+          ? '🏪 My vendor applications'
+          : '🏪 Claim or apply as vendor';
+      }
+    }
+    var vaModal = document.getElementById('vendorApplyModal');
+    if (vaModal) {
+      var vaInner = vaModal.querySelector('.rx-modal');
+      var vaTabs = vaModal.querySelector('.rx-tabs');
+      var vaFormTab = vaModal.querySelector('[data-va-tab="form"]');
+      var vaFormPane = document.getElementById('vaFormPane');
+      var vaBanner = ensureInlineBanner('fcOnboardingStateBanner', vaInner, vaTabs);
+      if (onbState !== 'enabled') {
+        if (vaBanner) {
+          vaBanner.hidden = false;
+          vaBanner.innerHTML = '<span><b>Notice:</b> ' + rxEsc(getFeatureMessage('vendor_onboarding')) + '</span>';
+        }
+        if (vaFormTab) vaFormTab.hidden = true;
+        if (vaFormPane && !vaFormPane.hidden) {
+          switchVaTab('status');
+        }
+        vaModal.querySelectorAll('#vaStartNewBtn, [data-va-edit], #vaFormPane button[type="submit"], #vaSaveDraftBtn').forEach(function (b) {
+          b.disabled = true;
+        });
+      } else {
+        if (vaBanner) vaBanner.hidden = true;
+        if (vaFormTab) vaFormTab.hidden = false;
+        vaModal.querySelectorAll('#vaStartNewBtn, [data-va-edit], #vaFormPane button[type="submit"], #vaSaveDraftBtn').forEach(function (b) {
+          b.disabled = false;
+        });
+      }
+    }
+
+    // 6. Interactive Pickup Demo (`pickup_pager_demo`) & New Pager Creation (`pickup_pager_creation`)
+    var demoHidden = isFeatureHidden('pickup_pager_demo');
+    document.querySelectorAll('.pager-example-hero, #ownerScreen button[onclick*="startPagerDemo"]').forEach(function (el) {
+      el.hidden = demoHidden;
+    });
+    if (demoHidden) {
+      var realEntry = document.getElementById('pagerRealEntry');
+      if (realEntry) realEntry.open = true;
+      if (typeof pagerDemo !== 'undefined' && pagerDemo && typeof pagerLeaveDemo === 'function') {
+        pagerLeaveDemo();
+      }
+    }
+
+    var pagerCreateState = getFeatureState('pickup_pager_creation');
+    var kitchenPanel = document.getElementById('kitchenPanel');
+    var pagerCreateForm = document.getElementById('pagerCreateForm');
+    var pagerCreateBtn = document.getElementById('pagerCreateButton');
+    var pagerTicketInput = document.getElementById('pagerTicket');
+    if (kitchenPanel && pagerCreateForm) {
+      var pagerBanner = ensureInlineBanner('fcPagerCreateStateBanner', kitchenPanel, pagerCreateForm);
+      if (pagerCreateState !== 'enabled') {
+        if (pagerBanner) {
+          pagerBanner.hidden = false;
+          pagerBanner.innerHTML = '<span><b>Notice:</b> ' + rxEsc(getFeatureMessage('pickup_pager_creation')) + '</span>';
+        }
+        pagerCreateForm.hidden = pagerCreateState === 'hidden';
+        if (pagerCreateBtn) pagerCreateBtn.disabled = true;
+        if (pagerTicketInput) pagerTicketInput.disabled = true;
+      } else {
+        if (pagerBanner) pagerBanner.hidden = true;
+        pagerCreateForm.hidden = false;
+        if (pagerTicketInput) pagerTicketInput.disabled = false;
+        if (pagerCreateBtn && !(rxState.viewpoint && rxState.viewpoint.readOnly)) {
+          pagerCreateBtn.disabled = false;
+        }
+      }
+    }
+
+    // 7. Nearby Alert Preferences (`nearby_alert_preferences`)
+    var nearbyState = getFeatureState('nearby_alert_preferences');
+    var alertsBar = document.querySelector('#favoritesScreen .alerts-bar');
+    if (alertsBar) {
+      alertsBar.hidden = nearbyState === 'hidden';
+      var nToggle = document.getElementById('nearbyAlertToggle');
+      var nRadius = document.getElementById('nearbyAlertRadius');
+      var nMeta = document.getElementById('nearbyAlertMeta');
+      if (nearbyState === 'paused') {
+        if (nToggle) nToggle.disabled = true;
+        if (nRadius) nRadius.disabled = true;
+        if (nMeta) nMeta.textContent = getFeatureMessage('nearby_alert_preferences');
+      } else if (nearbyState === 'enabled') {
+        if (nToggle) nToggle.disabled = false;
+        if (typeof renderNotificationUI === 'function') renderNotificationUI();
+      }
+    }
+
+    // 8. Re-render active real pager push box if open
+    if (typeof pagerCurrentRendered !== 'undefined' && pagerCurrentRendered && typeof renderPager === 'function' && typeof pagerToken !== 'undefined' && pagerToken) {
+      try { renderPager(pagerCurrentRendered); } catch (_e) {}
+    }
+  }
+
+  async function refreshFeatureControls() {
+    if (featureRefreshInFlight) return featureRefreshInFlight;
+    featureRefreshInFlight = (async function () {
+      try {
+        var url = '/api/features';
+        if (rxState.viewpoint && rxState.viewpoint.mode === 'customer_preview') {
+          url += '?viewpoint=customer';
+        }
+        var res = await window.fetch(url, {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        var data = await res.json().catch(function () { return null; });
+        if (res.ok && data && data.features && typeof data.features === 'object') {
+          rxState.features = data.features;
+          rxState.featuresLoaded = true;
+          rxState.featuresTrusted = data.config_trusted !== false;
+          if (Number(data.propagation_poll_seconds) >= 15) {
+            rxState.featuresPollSeconds = Number(data.propagation_poll_seconds);
+          }
+          applyFeatureControlsToDom();
+        }
+      } catch (_e) {
+        // Keep last known feature map; server enforces authoritative gates on all mutations
+      } finally {
+        featureRefreshInFlight = null;
+      }
+    })();
+    return featureRefreshInFlight;
+  }
+
+  function setupFeaturePropagationListeners() {
+    if (featurePollTimer) clearInterval(featurePollTimer);
+    featurePollTimer = setInterval(function () {
+      if (!document.hidden) {
+        refreshFeatureControls({ reason: 'poll' });
+      }
+    }, 60000);
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) {
+        refreshFeatureControls({ reason: 'visibilitychange' });
+      }
+    });
+
+    window.addEventListener('focus', function () {
+      refreshFeatureControls({ reason: 'focus' });
+    });
+
+    try {
+      if (typeof BroadcastChannel === 'function') {
+        var bc = new BroadcastChannel(FEATURE_BROADCAST_CHANNEL);
+        bc.onmessage = function (ev) {
+          if (ev && ev.data && ev.data.type === 'feature_controls_updated') {
+            refreshFeatureControls({ reason: 'broadcast' });
+          }
+        };
+      }
+    } catch (_e) {}
+  }
+
+  window.bitesharkFeatures = {
+    getState: getFeatureState,
+    isAvailable: isFeatureAvailable,
+    isHidden: isFeatureHidden,
+    getMessage: getFeatureMessage,
+    refresh: refreshFeatureControls,
+    syncDom: applyFeatureControlsToDom
+  };
+
   window.addEventListener('hashchange', checkInviteRedemptionHash);
 
   // Boot after main app settles
   async function bootRoleExperience() {
+    setupFeaturePropagationListeners();
+    await refreshFeatureControls({ reason: 'boot' });
     try {
       if (window.bitesharkReady) await window.bitesharkReady;
     } catch (_e) {}

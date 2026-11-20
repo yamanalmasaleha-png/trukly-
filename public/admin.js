@@ -10,6 +10,8 @@
 
   var VIEWPOINT_STORAGE_KEY = 'biteshark_admin_viewpoint_v1';
 
+  var FEATURE_BROADCAST_CHANNEL = 'biteshark_feature_controls_v1';
+
   var state = {
     ctx: null,
     isTop: false,
@@ -25,6 +27,16 @@
     mod: { queue: 'pending', page: 1, total: 0, pageSize: 15, items: [], selectedId: null },
     issues: { page: 1, total: 0, pageSize: 15, items: [], selectedId: null, selectedDetail: null },
     readiness: { items: [], selectedKey: null, summary: null, statusesCatalog: [] },
+    features: {
+      canEdit: false,
+      configTrusted: true,
+      trustError: null,
+      controls: [],
+      protectedEssentials: [],
+      history: [],
+      pendingConfirm: null,
+      lastTriggerEl: null
+    },
     audit: { page: 1, total: 0, pageSize: 25, items: [] }
   };
 
@@ -91,6 +103,7 @@
       var err = new Error(data.error || 'Request failed (' + res.status + ')');
       err.status = res.status;
       err.code = data.code || null;
+      err.payload = data;
       throw err;
     }
     return data;
@@ -237,6 +250,7 @@
     } else if (sectionName === 'moderation') loadModeration(1);
     else if (sectionName === 'issues') loadIssues(1);
     else if (sectionName === 'readiness') loadReadiness();
+    else if (sectionName === 'features') loadFeatures();
     else if (sectionName === 'audit') loadAudit(1);
     else if (sectionName === 'health') loadHealth();
   }
@@ -2294,6 +2308,646 @@
   }
 
   // =========================================================================
+  // 8B. Controlled Feature Management (`#sec-features`)
+  // =========================================================================
+  function implStatusBadge(impl) {
+    var s = String(impl || '').toLowerCase();
+    var labelMap = {
+      implemented: 'Implemented',
+      beta: 'Beta',
+      demonstrative: 'Demonstrative',
+      placeholder: 'Placeholder',
+      deferred: 'Deferred'
+    };
+    var cls = 'pill';
+    if (s === 'implemented') cls += ' pill-ok';
+    else if (s === 'beta') cls += ' pill-info';
+    else if (s === 'demonstrative' || s === 'placeholder') cls += ' pill-warn';
+    else cls += ' pill-mod';
+    return '<span class="' + cls + '">Status: ' + esc(labelMap[s] || impl) + '</span>';
+  }
+
+  function effectiveStateBadge(eff) {
+    var s = String(eff || '').toLowerCase();
+    var cls = 'pill ';
+    if (s === 'enabled') cls += 'pill-ok';
+    else if (s === 'paused') cls += 'pill-warn';
+    else if (s === 'hidden') cls += 'pill-danger';
+    else cls += 'pill-info';
+    return '<span class="' + cls + '">Effective: ' + esc(s) + '</span>';
+  }
+
+  function audienceBadge(aud, isReadOnly) {
+    if (isReadOnly) return '<span class="pill">Read-only disclosure</span>';
+    if (aud === 'staff_beta') return '<span class="pill pill-top">Audience: Staff &amp; Admins (staff_beta)</span>';
+    return '<span class="pill">Audience: All eligible users</span>';
+  }
+
+  function setFeatureAlerts(statusMsg, errMsg) {
+    var okEl = document.getElementById('fcLiveStatus');
+    var errEl = document.getElementById('fcLiveError');
+    if (okEl) {
+      okEl.hidden = !statusMsg;
+      okEl.textContent = statusMsg || '';
+    }
+    if (errEl) {
+      errEl.hidden = !errMsg;
+      errEl.textContent = errMsg || '';
+    }
+  }
+
+  function broadcastFeatureControlsChange(detail) {
+    try {
+      if (typeof BroadcastChannel === 'function') {
+        var ch = new BroadcastChannel(FEATURE_BROADCAST_CHANNEL);
+        ch.postMessage(Object.assign({ type: 'feature_controls_updated', at: Date.now() }, detail || {}));
+        ch.close();
+      }
+    } catch (_e) {}
+  }
+
+  function updateFeaturesNavBadge() {
+    var badge = document.getElementById('badgeFeatures');
+    if (!badge) return;
+    var nonEnabledCount = (state.features.controls || []).filter(function (c) {
+      return !c.read_only && c.effective_state !== 'enabled' && !(c.env_override && c.env_override.active && !c.customized);
+    }).length;
+    badge.hidden = nonEnabledCount === 0;
+    badge.textContent = String(nonEnabledCount);
+  }
+
+  function applyFeatureControlsPayloadToState(data) {
+    state.features.canEdit = Boolean(data.can_edit && state.isTop);
+    state.features.configTrusted = data.config_trusted !== false;
+    state.features.trustError = data.trust_error || null;
+    state.features.controls = Array.isArray(data.controls) ? data.controls : [];
+    state.features.protectedEssentials = Array.isArray(data.protected_essentials) ? data.protected_essentials : [];
+    state.features.history = Array.isArray(data.recent_history) ? data.recent_history : [];
+    if (data.propagation_policy && data.propagation_policy.note) {
+      var propEl = document.getElementById('fcPropagationNote');
+      if (propEl) propEl.textContent = data.propagation_policy.note;
+    }
+    var permNote = document.getElementById('fcRolePermissionNote');
+    if (permNote) {
+      permNote.textContent = state.features.canEdit
+        ? 'Signed in as Admin: Top — you may update switchable feature states and audiences. Changes require an operator reason and are recorded in audit_logs and feature_control_history.'
+        : 'Signed in as Admin: Mod (read-only view) — you can inspect effective states, implementation statuses, dependencies, and explanations. Modifying feature states requires Admin: Top.';
+    }
+    updateFeaturesNavBadge();
+  }
+
+  function clientRequiresInterruptConfirm(control, nextState, nextAudience) {
+    if (!control || !control.high_impact_interrupt) return false;
+    if (control.configured_state === 'enabled' && (nextState === 'paused' || nextState === 'hidden')) {
+      return true;
+    }
+    if (nextState === 'enabled' && control.configured_audience === 'all' && nextAudience === 'staff_beta') {
+      return true;
+    }
+    return false;
+  }
+
+  function renderFeaturesSection() {
+    var listEl = document.getElementById('featuresList');
+    var protPanel = document.getElementById('fcProtectedEssentialsPanel');
+    var protList = document.getElementById('fcProtectedList');
+    var histPanel = document.getElementById('fcHistoryPanel');
+    var histWrap = document.getElementById('fcHistoryWrap');
+    if (!listEl) return;
+
+    var statusFilter = (document.getElementById('fcStatusFilter') && document.getElementById('fcStatusFilter').value) || 'all';
+    var implFilter = (document.getElementById('fcImplFilter') && document.getElementById('fcImplFilter').value) || 'all';
+    var q = String((document.getElementById('fcSearchInput') && document.getElementById('fcSearchInput').value) || '')
+      .trim()
+      .toLowerCase();
+
+    var allControls = state.features.controls || [];
+    var byKey = {};
+    allControls.forEach(function (c) { byKey[c.key] = c; });
+
+    var filtered = allControls.filter(function (c) {
+      if (statusFilter === 'enabled' && c.effective_state !== 'enabled') return false;
+      if (statusFilter === 'paused' && c.effective_state !== 'paused') return false;
+      if (statusFilter === 'hidden' && c.effective_state !== 'hidden') return false;
+      if (statusFilter === 'overridden' && !(c.env_override && c.env_override.active)) return false;
+      if (statusFilter === 'customized' && !c.customized) return false;
+      if (implFilter !== 'all' && c.implementation_status !== implFilter) return false;
+      if (q) {
+        var hay = [
+          c.key,
+          c.title,
+          c.category,
+          c.description,
+          c.state_exceptions_note,
+          (c.affected_workflows || []).join(' ')
+        ]
+          .join(' ')
+          .toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+
+    var canEdit = state.features.canEdit && state.features.configTrusted;
+
+    if (!filtered.length) {
+      listEl.hidden = false;
+      listEl.innerHTML = '<div class="state-box" style="grid-column:1/-1">No feature controls match the selected filters.</div>';
+    } else {
+      listEl.hidden = false;
+      listEl.innerHTML = filtered
+        .map(function (c) {
+          var cardCls = 'fc-card';
+          if (c.read_only) cardCls += ' is-readonly';
+          else if (c.effective_state === 'paused') cardCls += ' is-paused';
+          else if (c.effective_state === 'hidden') cardCls += ' is-hidden';
+
+          var envHtml = '';
+          if (c.env_override && c.env_override.active) {
+            envHtml =
+              '<div class="fc-override-alert"><strong>⚡ Authoritative Environment Override Active (<code>' +
+              esc(c.env_override.source) +
+              '</code>):</strong> ' +
+              esc(c.env_override.explanation) +
+              ' Database <code>enabled</code> settings cannot bypass active environment emergency/provider stops.</div>';
+          }
+
+          var depHtml = '';
+          if (c.dependency_block && c.dependency_block.blocked) {
+            depHtml =
+              '<div class="fc-dep-alert"><strong>🔗 Parent Dependency Active:</strong> ' +
+              esc(c.dependency_block.reason) +
+              ' Saved child configuration (<code>' +
+              esc(c.configured_state) +
+              '</code>) is preserved and will resume when the parent feature is re-enabled.</div>';
+          } else if (Array.isArray(c.depends_on) && c.depends_on.length > 0) {
+            var parentNames = c.depends_on
+              .map(function (pk) {
+                return byKey[pk] ? byKey[pk].title + ' (' + pk + ')' : pk;
+              })
+              .join(', ');
+            depHtml = '<div class="record-meta"><strong>Depends on:</strong> ' + esc(parentNames) + '</div>';
+          }
+
+          var workflowsHtml =
+            Array.isArray(c.affected_workflows) && c.affected_workflows.length
+              ? '<div><strong style="font-size:12px;color:var(--ink)">Affected Surfaces &amp; Routes:</strong><ul class="fc-meta-list">' +
+                c.affected_workflows
+                  .map(function (w) {
+                    return '<li>' + esc(w) + '</li>';
+                  })
+                  .join('') +
+                '</ul></div>'
+              : '';
+
+          var exceptionsHtml = c.state_exceptions_note
+            ? '<div class="record-meta"><strong>Preserved Workflows:</strong> ' + esc(c.state_exceptions_note) + '</div>'
+            : '';
+
+          var lastChangeHtml = c.last_change
+            ? '<div class="fc-last-change"><strong>Last Change (Rev ' +
+              Number(c.revision) +
+              '):</strong> ' +
+              esc(fmtDate(c.last_change.updated_at)) +
+              ' · Actor: <strong>' +
+              esc(c.last_change.actor_email_masked || c.last_change.actor_id || 'Admin: Top') +
+              '</strong>' +
+              (c.last_change.reason ? '<br>Reason: <em>"' + esc(c.last_change.reason) + '"</em>' : '') +
+              '</div>'
+            : '<div class="fc-last-change">Default configuration (Revision 0 — no runtime overrides saved).</div>';
+
+          var formHtml = '';
+          if (c.read_only) {
+            formHtml =
+              '<div class="fc-form"><div class="record-meta"><strong>Read-Only Architectural Disclosure:</strong> This entry documents non-toggleable or deferred functionality so operators have an accurate system inventory without fake switches.</div></div>';
+          } else {
+            var stateOpts = (c.allowed_states || [])
+              .map(function (st) {
+                var lbl =
+                  st === 'enabled'
+                    ? 'enabled — Active for eligible audience'
+                    : st === 'paused'
+                      ? 'paused — Halt new writes; preserve in-flight workflows'
+                      : 'hidden — Hide UI & reject public/non-admin access';
+                return (
+                  '<option value="' +
+                  esc(st) +
+                  '"' +
+                  (c.configured_state === st ? ' selected' : '') +
+                  '>' +
+                  esc(lbl) +
+                  '</option>'
+                );
+              })
+              .join('');
+
+            var audOpts = (c.allowed_audiences || ['all'])
+              .map(function (aud) {
+                var lbl = aud === 'staff_beta' ? 'staff_beta — Verified Vendor Staff/Owners & Admins only' : 'all — All eligible accounts / visitors';
+                return (
+                  '<option value="' +
+                  esc(aud) +
+                  '"' +
+                  (c.configured_audience === aud ? ' selected' : '') +
+                  '>' +
+                  esc(lbl) +
+                  '</option>'
+                );
+              })
+              .join('');
+
+            formHtml =
+              '<form class="fc-form" data-fc-form="' +
+              esc(c.key) +
+              '">' +
+              '<div class="form-row-2">' +
+              '<label for="fc-state-' +
+              esc(c.key) +
+              '">Configured State' +
+              '<select id="fc-state-' +
+              esc(c.key) +
+              '" name="configured_state" ' +
+              (!canEdit ? 'disabled' : '') +
+              '>' +
+              stateOpts +
+              '</select></label>' +
+              '<label for="fc-aud-' +
+              esc(c.key) +
+              '">Audience' +
+              '<select id="fc-aud-' +
+              esc(c.key) +
+              '" name="audience" ' +
+              (!canEdit || (c.allowed_audiences || []).length <= 1 ? 'disabled' : '') +
+              '>' +
+              audOpts +
+              '</select></label>' +
+              '</div>' +
+              '<label for="fc-reason-' +
+              esc(c.key) +
+              '">Operator Reason (required to save, 4–500 chars)' +
+              '<input type="text" id="fc-reason-' +
+              esc(c.key) +
+              '" name="reason" minlength="4" maxlength="500" placeholder="Explain why you are updating ' +
+              esc(c.title) +
+              '…" ' +
+              (!canEdit ? 'disabled' : '') +
+              '>' +
+              '</label>' +
+              '<p id="fc-err-' +
+              esc(c.key) +
+              '" class="form-err" role="alert" hidden style="margin:0;font-size:12.5px"></p>' +
+              '<div class="action-row" style="justify-content:space-between;align-items:center">' +
+              '<span class="record-meta">Configured: <code>' +
+              esc(c.configured_state) +
+              '</code> · Rev ' +
+              Number(c.revision) +
+              (c.high_impact_interrupt ? ' · High-impact confirmation on disable' : ' · Low-impact (direct save)') +
+              '</span>' +
+              '<button type="submit" class="admin-btn admin-btn-primary" id="fc-save-' +
+              esc(c.key) +
+              '" ' +
+              (!canEdit ? 'disabled' : '') +
+              '>' +
+              (state.isTop ? 'Save Control' : 'Admin: Top Only') +
+              '</button>' +
+              '</div>' +
+              '</form>';
+          }
+
+          return (
+            '<article class="' +
+            cardCls +
+            '" id="fc-card-' +
+            esc(c.key) +
+            '" data-feature-key="' +
+            esc(c.key) +
+            '">' +
+            '<div class="fc-card-top">' +
+            '<div><span class="fc-category">' +
+            esc(c.category) +
+            ' · <code>' +
+            esc(c.key) +
+            '</code></span><h2 class="fc-card-title">' +
+            esc(c.title) +
+            '</h2></div>' +
+            '<div class="fc-badges">' +
+            implStatusBadge(c.implementation_status) +
+            effectiveStateBadge(c.effective_state) +
+            audienceBadge(c.configured_audience, c.read_only) +
+            '</div>' +
+            '</div>' +
+            '<p class="fc-desc">' +
+            esc(c.description) +
+            '</p>' +
+            envHtml +
+            depHtml +
+            workflowsHtml +
+            exceptionsHtml +
+            lastChangeHtml +
+            formHtml +
+            '</article>'
+          );
+        })
+        .join('');
+
+      listEl.querySelectorAll('[data-fc-form]').forEach(function (formEl) {
+        formEl.addEventListener('submit', function (e) {
+          e.preventDefault();
+          onFeatureControlFormSubmit(formEl.getAttribute('data-fc-form'));
+        });
+      });
+    }
+
+    if (protPanel && protList) {
+      var essentials = state.features.protectedEssentials || [];
+      protPanel.hidden = essentials.length === 0;
+      protList.innerHTML = essentials
+        .map(function (item) {
+          return (
+            '<div class="fc-protected-item"><strong>🛡️ ' +
+            esc(item.title) +
+            '</strong><span>' +
+            esc(item.reason || item.summary) +
+            '</span></div>'
+          );
+        })
+        .join('');
+    }
+
+    if (histPanel && histWrap) {
+      var hist = state.features.history || [];
+      histPanel.hidden = false;
+      if (!hist.length) {
+        histWrap.innerHTML = '<div class="state-box" style="border:none">No feature control modifications recorded yet.</div>';
+      } else {
+        histWrap.innerHTML =
+          '<table class="admin-table"><thead><tr><th>When</th><th>Feature</th><th>Transition</th><th>Audience</th><th>Rev</th><th>Actor / Source</th><th>Reason</th></tr></thead><tbody>' +
+          hist
+            .map(function (h) {
+              return (
+                '<tr>' +
+                '<td>' +
+                esc(fmtDate(h.created_at)) +
+                '</td>' +
+                '<td><code>' +
+                esc(h.feature_key) +
+                '</code></td>' +
+                '<td><code>' +
+                esc(h.previous_state) +
+                '</code> → <strong><code>' +
+                esc(h.new_state) +
+                '</code></strong></td>' +
+                '<td><code>' +
+                esc(h.previous_audience) +
+                '</code> → <code>' +
+                esc(h.new_audience) +
+                '</code></td>' +
+                '<td>' +
+                Number(h.revision) +
+                '</td>' +
+                '<td>' +
+                esc(h.actor_id ? h.actor_role + ' (' + h.actor_id + ')' : h.actor_role) +
+                ' · <small>' +
+                esc(h.change_source) +
+                '</small></td>' +
+                '<td>' +
+                esc(h.reason) +
+                '</td>' +
+                '</tr>'
+              );
+            })
+            .join('') +
+          '</tbody></table>';
+      }
+    }
+  }
+
+  async function loadFeatures() {
+    var loadingEl = document.getElementById('featuresLoading');
+    var listEl = document.getElementById('featuresList');
+    if (loadingEl) loadingEl.hidden = false;
+    if (listEl) listEl.hidden = true;
+    setFeatureAlerts('', '');
+
+    try {
+      var data = await apiJson('/api/admin/features');
+      applyFeatureControlsPayloadToState(data);
+      if (loadingEl) loadingEl.hidden = true;
+      if (!state.features.configTrusted) {
+        setFeatureAlerts(
+          '',
+          'Feature configuration store could not be verified (' +
+            (state.features.trustError || 'untrusted state') +
+            '). Optional server mutations are failing closed until resolved.'
+        );
+      }
+      renderFeaturesSection();
+    } catch (err) {
+      if (loadingEl) loadingEl.hidden = true;
+      setFeatureAlerts('', err.message || 'Failed to load feature controls.');
+    }
+  }
+
+  function onFeatureControlFormSubmit(featureKey) {
+    if (!state.features.canEdit) {
+      setFeatureAlerts('', 'Only Admin: Top may modify feature controls.');
+      return;
+    }
+    var control = (state.features.controls || []).find(function (c) {
+      return c.key === featureKey;
+    });
+    if (!control || control.read_only) return;
+
+    var stateSel = document.getElementById('fc-state-' + featureKey);
+    var audSel = document.getElementById('fc-aud-' + featureKey);
+    var reasonInput = document.getElementById('fc-reason-' + featureKey);
+    var errEl = document.getElementById('fc-err-' + featureKey);
+    var saveBtn = document.getElementById('fc-save-' + featureKey);
+
+    var nextState = stateSel ? stateSel.value : control.configured_state;
+    var nextAudience = audSel ? audSel.value : control.configured_audience;
+    var typedReason = reasonInput ? reasonInput.value.trim() : '';
+
+    if (errEl) {
+      errEl.hidden = true;
+      errEl.textContent = '';
+    }
+
+    if (clientRequiresInterruptConfirm(control, nextState, nextAudience)) {
+      openFeatureConfirmModal(control, nextState, nextAudience, typedReason, saveBtn);
+      return;
+    }
+
+    if (typedReason.length < 4 || typedReason.length > 500) {
+      if (errEl) {
+        errEl.hidden = false;
+        errEl.textContent = 'Enter an operator reason (4–500 characters) before saving.';
+      }
+      if (reasonInput) reasonInput.focus();
+      return;
+    }
+
+    executeFeatureControlSave({
+      control: control,
+      nextState: nextState,
+      nextAudience: nextAudience,
+      reason: typedReason,
+      confirmedImpact: false,
+      triggerBtn: saveBtn,
+      inlineErrEl: errEl
+    });
+  }
+
+  function openFeatureConfirmModal(control, nextState, nextAudience, prefillReason, triggerEl) {
+    state.features.pendingConfirm = {
+      control: control,
+      nextState: nextState,
+      nextAudience: nextAudience
+    };
+    state.features.lastTriggerEl = triggerEl || null;
+
+    var modal = document.getElementById('featureConfirmModal');
+    var titleEl = document.getElementById('fcConfirmTitle');
+    var sumEl = document.getElementById('fcConfirmTransitionSummary');
+    var listEl = document.getElementById('fcConfirmConsequences');
+    var reasonEl = document.getElementById('fcConfirmReason');
+    var errEl = document.getElementById('fcConfirmError');
+    var submitBtn = document.getElementById('fcConfirmSubmitBtn');
+
+    titleEl.textContent = 'Confirm Impact: ' + control.title;
+    sumEl.innerHTML =
+      'Changing <strong>' +
+      esc(control.title) +
+      '</strong> (<code>' +
+      esc(control.key) +
+      '</code>) from <code>' +
+      esc(control.configured_state) +
+      '</code> (' +
+      esc(control.configured_audience) +
+      ') → <strong><code>' +
+      esc(nextState) +
+      '</code> (' +
+      esc(nextAudience) +
+      ')</strong> · Expected revision ' +
+      Number(control.revision);
+
+    var consequences = Array.isArray(control.interrupt_consequences) && control.interrupt_consequences.length
+      ? control.interrupt_consequences
+      : [control.state_exceptions_note || 'New public requests for this feature will be blocked until re-enabled.'];
+
+    listEl.innerHTML = consequences
+      .map(function (line) {
+        return '<li>' + esc(line) + '</li>';
+      })
+      .join('');
+
+    reasonEl.value = prefillReason || '';
+    errEl.hidden = true;
+    errEl.textContent = '';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Confirm & Apply Server Change';
+    modal.hidden = false;
+
+    setTimeout(function () {
+      if (reasonEl.value.trim().length >= 4) submitBtn.focus();
+      else reasonEl.focus();
+    }, 0);
+  }
+
+  function closeFeatureConfirmModal(restoreFocus) {
+    var modal = document.getElementById('featureConfirmModal');
+    if (modal) modal.hidden = true;
+    var trigger = state.features.lastTriggerEl;
+    state.features.pendingConfirm = null;
+    state.features.lastTriggerEl = null;
+    if (restoreFocus && trigger && typeof trigger.focus === 'function') {
+      trigger.focus();
+    }
+  }
+
+  async function executeFeatureControlSave(opts) {
+    var control = opts.control;
+    var btn = opts.triggerBtn;
+    var inlineErrEl = opts.inlineErrEl;
+    var origBtnLabel = btn ? btn.textContent : '';
+
+    setFeatureAlerts('', '');
+    if (inlineErrEl) {
+      inlineErrEl.hidden = true;
+      inlineErrEl.textContent = '';
+    }
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving to server…';
+    }
+
+    try {
+      var res = await apiJson('/api/admin/features/update', {
+        method: 'POST',
+        body: {
+          feature_key: control.key,
+          configured_state: opts.nextState,
+          audience: opts.nextAudience,
+          expected_revision: control.revision,
+          reason: opts.reason,
+          confirmed_impact: Boolean(opts.confirmedImpact)
+        }
+      });
+
+      // Only update UI state after verified HTTP 200 server response
+      applyFeatureControlsPayloadToState(res);
+      closeFeatureConfirmModal(false);
+      renderFeaturesSection();
+
+      var updatedEntry = (state.features.controls || []).find(function (c) {
+        return c.key === control.key;
+      });
+      var effAfter = updatedEntry ? updatedEntry.effective_state : opts.nextState;
+      var revAfter = updatedEntry ? updatedEntry.revision : control.revision + 1;
+
+      setFeatureAlerts(
+        'Server confirmed: "' +
+          control.title +
+          '" saved as ' +
+          opts.nextState +
+          ' (audience: ' +
+          opts.nextAudience +
+          ', effective state: ' +
+          effAfter +
+          ', revision ' +
+          revAfter +
+          ').',
+        ''
+      );
+
+      broadcastFeatureControlsChange({
+        feature_key: control.key,
+        configured_state: opts.nextState,
+        effective_state: effAfter,
+        revision: revAfter
+      });
+
+      var savedBtnAfter = document.getElementById('fc-save-' + control.key);
+      if (savedBtnAfter) savedBtnAfter.focus();
+    } catch (err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = origBtnLabel;
+      }
+      var errMsg = err.message || 'Feature control update failed.';
+      if (inlineErrEl) {
+        inlineErrEl.hidden = false;
+        inlineErrEl.textContent = errMsg;
+      } else {
+        setFeatureAlerts('', errMsg);
+      }
+      if (err.status === 409 && err.code === 'FEATURE_REVISION_CONFLICT') {
+        setFeatureAlerts('', errMsg);
+      }
+    }
+  }
+
+  // =========================================================================
   // Boot
   // =========================================================================
   async function bootAdminPortal() {
@@ -2320,12 +2974,16 @@
         : 'Signed in as Admin: Mod. You have full access to review queues, moderation, issue triage, temporary safety holds, and invitation initiation; final vendor approvals and administrative elevations require Admin: Top.';
 
       updateInviteFormHints();
-      await Promise.all([loadVendorSelectorCatalog(), loadOverview()]);
+      await Promise.all([
+        loadVendorSelectorCatalog(),
+        loadOverview(),
+        apiJson('/api/admin/features').then(applyFeatureControlsPayloadToState).catch(function () {})
+      ]);
 
       var initialHash = String(window.location.hash || '').replace(/^#/, '').trim();
       var initialQuerySec = new URLSearchParams(window.location.search || '').get('section') || '';
       var targetInitialSection = initialHash || initialQuerySec;
-      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
+      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'features', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
         switchSection(targetInitialSection);
       }
     } catch (err) {
@@ -2426,6 +3084,48 @@
 
   document.getElementById('refreshAuditBtn').onclick = function () { loadAudit(state.audit.page); };
   document.getElementById('auditFilterForm').onsubmit = function (e) { e.preventDefault(); loadAudit(1); };
+
+  document.getElementById('refreshFeaturesBtn').onclick = loadFeatures;
+  document.getElementById('featuresFilterForm').onsubmit = function (e) { e.preventDefault(); renderFeaturesSection(); };
+  document.getElementById('fcStatusFilter').onchange = renderFeaturesSection;
+  document.getElementById('fcImplFilter').onchange = renderFeaturesSection;
+  document.getElementById('fcSearchInput').oninput = renderFeaturesSection;
+
+  document.getElementById('fcConfirmCancelBtn').onclick = function () {
+    closeFeatureConfirmModal(true);
+  };
+  document.getElementById('fcConfirmSubmitBtn').onclick = function () {
+    var pending = state.features.pendingConfirm;
+    if (!pending) return;
+    var reasonEl = document.getElementById('fcConfirmReason');
+    var errEl = document.getElementById('fcConfirmError');
+    var submitBtn = document.getElementById('fcConfirmSubmitBtn');
+    var reason = reasonEl ? reasonEl.value.trim() : '';
+    if (reason.length < 4 || reason.length > 500) {
+      errEl.hidden = false;
+      errEl.textContent = 'Enter a specific operator reason between 4 and 500 characters.';
+      if (reasonEl) reasonEl.focus();
+      return;
+    }
+    executeFeatureControlSave({
+      control: pending.control,
+      nextState: pending.nextState,
+      nextAudience: pending.nextAudience,
+      reason: reason,
+      confirmedImpact: true,
+      triggerBtn: submitBtn,
+      inlineErrEl: errEl
+    });
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var fcModal = document.getElementById('featureConfirmModal');
+      if (fcModal && !fcModal.hidden) {
+        e.preventDefault();
+        closeFeatureConfirmModal(true);
+      }
+    }
+  });
 
   document.getElementById('refreshHealthBtn').onclick = loadHealth;
 

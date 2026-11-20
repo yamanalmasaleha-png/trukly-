@@ -7,11 +7,14 @@ const localGuideNotes=[
 let dishDbPromise=null,dishPhotoUrls=[],dishPhotoRenderVersion=0;
 function guidesEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function openLocalGuides(tab='passport'){
+ const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+ if(fc&&fc.isHidden('local_guides_passport')){if(typeof toast==='function')toast(fc.getMessage('local_guides_passport'));return}
  showScreen('guides');document.getElementById('guidesScreen').scrollTop=0;
- try{await window.trucklyReady}catch{}
+ try{await (window.bitesharkReady||window.trucklyReady)}catch{}
  document.getElementById('dishPhotoVendor').innerHTML=trucks.map(t=>'<option value="'+guidesEscape(t.id)+'">'+guidesEscape(t.name)+'</option>').join('');
  document.getElementById('guideStoryGrid').innerHTML=localGuideNotes.map(g=>'<article class="guide-story"><figure>'+(g.image?'<img src="'+g.image+'" alt="'+guidesEscape(g.alt)+'" loading="lazy" onerror="this.hidden=true;this.parentElement.querySelector(\'.guide-image-error\').hidden=false"><p class="guide-image-error" hidden>Photo unavailable. The guide and source are still available below.</p>':'<div class="guide-illustration">'+flavorDoodle('coffee')+'</div>')+'<figcaption>'+guidesEscape(g.credit)+'</figcaption></figure><div class="guide-story-copy"><small>'+g.tag+' · '+g.town+'</small><h2>'+g.title+'</h2><p>'+g.text+'</p><aside>'+g.detail+'</aside><div class="guide-card-actions"><button onclick="openDetail(\''+g.id+'\')">'+g.cue+' ↗</button><button onclick="openPhotoNotebook(\''+g.id+'\')">Add my dish photo</button>'+(g.source?'<a href="'+g.source+'" target="_blank" rel="noopener">Story source ↗</a>':'')+'</div></div></article>').join('');
  showGuidesTab(tab);
+ if(fc)fc.syncDom();
 }
 function showGuidesTab(tab){
  const requested=['passport','stories','photos'].includes(tab)?tab:'passport';
@@ -27,7 +30,9 @@ function dishDb(){
 async function dishRead(){const db=await dishDb();return new Promise((resolve,reject)=>{const r=db.transaction('photos','readonly').objectStore('photos').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error('Could not read your saved photos.'))})}
 async function dishWrite(action,value){const db=await dishDb();return new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');const s=tx.objectStore('photos');action==='add'?s.add(value):s.delete(value);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(new Error('Could not save this change. Browser storage may be full.'));tx.onabort=()=>reject(new Error('The photo change did not save. Please try again.'))})}
 async function saveDishPhoto(e){
- e.preventDefault();const button=document.getElementById('dishPhotoSave'),message=document.getElementById('dishPhotoMessage');button.disabled=true;message.textContent='Saving your food memory…';
+ e.preventDefault();const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
+ if(fc&&!fc.isAvailable('local_guides_passport')){document.getElementById('dishPhotoMessage').textContent=fc.getMessage('local_guides_passport');fc.syncDom();return}
+ const button=document.getElementById('dishPhotoSave'),message=document.getElementById('dishPhotoMessage');button.disabled=true;message.textContent='Saving your food memory…';
  try{const file=document.getElementById('dishPhotoFile').files[0],caption=document.getElementById('dishPhotoCaption').value.trim(),id=document.getElementById('dishPhotoVendor').value;const vendor=trucks.find(t=>t.id===id);
  if(!vendor||!caption)throw new Error('Choose a place and add a short dish note.');if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Choose a JPEG, PNG, or WebP photo.');if(file.size>5*1024*1024)throw new Error('Choose a photo smaller than 5 MB.');if((await dishRead()).length>=12)throw new Error('Your notebook has 12 photos. Remove one before adding another.');
  const probeUrl=URL.createObjectURL(file);try{const image=new Image();image.src=probeUrl;await image.decode()}catch{throw new Error('That file could not be read as a photo. Please choose another.')}finally{URL.revokeObjectURL(probeUrl)}

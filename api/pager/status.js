@@ -6,6 +6,7 @@ import {
   extractClientRateKey,
   consumePagerRateLimit
 } from "../../lib/pager-notifications.js";
+import { isPagerPushSubscriptionFeatureEnabled } from "../../lib/feature-controls.js";
 
 export const access = "public";
 export const methods = ["GET"];
@@ -42,7 +43,8 @@ export default async function(req, res) {
     }
 
     const providerCfg = getPushProviderConfig();
-    const pushEnabled = providerCfg.enabled && !isSubscriptionsDisabled();
+    const featureAllowed = await isPagerPushSubscriptionFeatureEnabled(db);
+    const pushEnabled = providerCfg.enabled && !isSubscriptionsDisabled() && featureAllowed;
 
     return res.json({
       pager: r.rows[0],
