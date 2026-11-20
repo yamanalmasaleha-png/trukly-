@@ -659,9 +659,20 @@ function makeEl(id,extra={}){
   const localGuidesJs=fs.readFileSync(join('public','local-guides.js'),'utf8');
   const logoSvg=fs.readFileSync(join('public','logo.svg'),'utf8');
 
+  const adminHtml=fs.readFileSync(join('public','admin.html'),'utf8');
+  const adminCss=fs.readFileSync(join('public','admin.css'),'utf8');
+  const adminJs=fs.readFileSync(join('public','admin.js'),'utf8');
+  const roleExpCss=fs.readFileSync(join('public','role-experience.css'),'utf8');
+  const roleExpJs=fs.readFileSync(join('public','role-experience.js'),'utf8');
+
   for(const [name,content] of [
     ['public/index.html',html],
     ['public/login.html',loginHtml],
+    ['public/admin.html',adminHtml],
+    ['public/admin.css',adminCss],
+    ['public/admin.js',adminJs],
+    ['public/role-experience.css',roleExpCss],
+    ['public/role-experience.js',roleExpJs],
     ['public/manifest.json',manifestRaw],
     ['public/sw.js',swJs],
     ['public/smart.js',smartJs]

@@ -190,7 +190,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRun1.code, 0, `First migration run failed: ${migRun1.stderr}`);
-    assert(migRun1.stdout.includes('"newly_applied":17'), 'Expected all 17 migrations applied on fresh DB');
+    assert(migRun1.stdout.includes('"newly_applied":18'), 'Expected all 18 migrations applied on fresh DB');
 
     // Second run must be a zero-op idempotent checksum verification
     const migRun2 = await runChildExpectExit(
@@ -214,19 +214,41 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     try {
       const legacyFiles = fs
         .readdirSync(path.join(ROOT, 'migrations'))
-        .filter(f => /^\d{3}_.+\.sql$/.test(f) && !f.startsWith('017_'))
+        .filter(f => /^\d{3}_.+\.sql$/.test(f) && !f.startsWith('017_') && !f.startsWith('018_'))
         .sort();
       for (const f of legacyFiles) {
         await upgPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
       }
       await upgPool.query("INSERT INTO favorites (user_id, truck_id) VALUES ('usr_pre_017', 'mitote')");
+      await upgPool.query("INSERT INTO platform_roles (user_id, role, granted_by) VALUES ('usr_legacy_padmin', 'platform_admin', 'seed'), ('usr_legacy_mod', 'moderator', 'seed')");
+      await upgPool.query("INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by) VALUES ('iniguez', 'usr_legacy_owner', 'owner', 'seed')");
       const upgRun = await runChildExpectExit(
         [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole],
         { ...process.env, MIGRATION_DATABASE_URL: upgUrl }
       );
-      assert.equal(upgRun.code, 0, `Upgrade migration 001..016 -> 017 failed: ${upgRun.stderr}`);
+      assert.equal(upgRun.code, 0, `Upgrade migration 001..016 -> 018 failed: ${upgRun.stderr}`);
       const preservedFav = await upgPool.query("SELECT count(*)::int AS c FROM favorites WHERE user_id = 'usr_pre_017'");
-      assert.equal(preservedFav.rows[0].c, 1, 'Pre-existing data must be preserved across 017 upgrade');
+      assert.equal(preservedFav.rows[0].c, 1, 'Pre-existing data must be preserved across 017+018 upgrade');
+      const upgradedRoles = await upgPool.query("SELECT user_id, role FROM platform_roles WHERE user_id IN ('usr_legacy_padmin', 'usr_legacy_mod') ORDER BY user_id");
+      assert.deepEqual(
+        upgradedRoles.rows,
+        [
+          { user_id: 'usr_legacy_mod', role: 'mod' },
+          { user_id: 'usr_legacy_padmin', role: 'top' }
+        ],
+        'Migration 018 must map legacy platform_admin -> top and moderator -> mod'
+      );
+      const ownershipCounts = await upgPool.query(
+        "SELECT ownership_status, count(*)::int AS c FROM vendors GROUP BY ownership_status ORDER BY ownership_status"
+      );
+      assert.deepEqual(
+        ownershipCounts.rows,
+        [
+          { ownership_status: 'approved_owner', c: 1 },
+          { ownership_status: 'unclaimed', c: 58 }
+        ],
+        'Migration 018 must mark only owner-claimed vendors as approved_owner and keep remaining 58 curated listings unclaimed & visible'
+      );
     } finally {
       await upgPool.end().catch(() => {});
       await adminPool.query(`DROP DATABASE IF EXISTS ${upgDbName}`).catch(() => {});
