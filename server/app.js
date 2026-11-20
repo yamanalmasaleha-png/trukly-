@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url';
 import {
   configureStandaloneAdapter,
   bindVerifiedRequestUser,
-  runWithRequestContext
+  runWithRequestContext,
+  auth
 } from 'hatchable';
-import { applyPrivateNoStoreHeaders } from '../lib/authz.js';
+import { applyPrivateNoStoreHeaders, loadAccessContext } from '../lib/authz.js';
+import { runWithGovernanceContext } from '../lib/request-context.js';
 import { isLoopbackIp, stampTrustedClientIp } from '../lib/client-ip.js';
 import { readEnvCompat, assertNoSecurityEnvConflicts } from '../lib/env-compat.js';
 import {
@@ -19,6 +21,11 @@ import {
   verifySameOriginMutationRequest
 } from '../lib/standalone-auth.js';
 import { matchDomainApiRoute, REGISTERED_DOMAIN_ROUTE_COUNT } from './routes.js';
+import {
+  EVIDENCE_UPLOAD_MAX_JSON_BYTES,
+  isGovernanceApiPath,
+  handleGovernanceApiRequest
+} from './admin-routes.js';
 import * as stagingGateProbe from '../scripts/staging-runtime-probe.template.js';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -45,11 +52,91 @@ const ALLOWED_STATIC_MIME = Object.freeze({
 const NO_CACHE_STATIC_FILES = new Set([
   '/index.html',
   '/login.html',
+  '/admin.html',
+  '/admin.css',
+  '/admin.js',
+  '/role-experience.css',
+  '/role-experience.js',
   '/sw.js',
   '/manifest.json',
   '/auth-client.js',
   '/build.json'
 ]);
+
+function escapeHtml(raw) {
+  return String(raw || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderAdminAccessDeniedHtml(userEmail, roleLabels = []) {
+  const safeEmail = escapeHtml(userEmail || 'Signed-in account');
+  const safeRoles = escapeHtml(roleLabels.length ? roleLabels.join(' · ') : 'Customer');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>Administrator Access Required — BiteShark</title>
+  <style>
+    body { margin:0; font-family: system-ui, -apple-system, sans-serif; background:#fffaf0; color:#1c2520; display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .card { max-width:480px; width:100%; background:#ffffff; border:1px solid #e6dfd1; border-radius:16px; padding:28px; box-shadow:0 12px 30px rgba(33,75,59,0.08); }
+    .badge { display:inline-block; background:#fde8e6; color:#b42318; font-weight:700; font-size:12px; padding:4px 10px; border-radius:999px; letter-spacing:0.04em; text-transform:uppercase; }
+    h1 { margin:14px 0 8px; font-size:22px; color:#214b3b; }
+    p { margin:0 0 14px; font-size:14px; line-height:1.55; color:#4b5563; }
+    .acct { background:#f8f5ec; border:1px solid #e6dfd1; border-radius:10px; padding:10px 12px; font-size:13px; margin-bottom:18px; }
+    .actions { display:flex; gap:10px; flex-wrap:wrap; }
+    a.btn { text-decoration:none; padding:10px 16px; border-radius:10px; font-weight:600; font-size:14px; }
+    a.primary { background:#214b3b; color:#fff; }
+    a.secondary { background:#f3efe4; color:#214b3b; border:1px solid #d9d0be; }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <span class="badge">403 · Access Restricted</span>
+    <h1>BiteShark Administration Portal</h1>
+    <p>This portal requires an authorized <strong>Admin: Mod</strong> or <strong>Admin: Top</strong> role.</p>
+    <div class="acct">
+      <div><strong>Signed in as:</strong> ${safeEmail}</div>
+      <div><strong>Active permissions:</strong> ${safeRoles}</div>
+    </div>
+    <div class="actions">
+      <a class="btn primary" href="/">Return to BiteShark</a>
+      <a class="btn secondary" href="/login.html?next=%2Fadmin">Switch Account</a>
+    </div>
+  </main>
+</body>
+</html>`;
+}
+
+function parseActOnBehalfHeaders(req) {
+  const rawVendor = req.headers?.['x-biteshark-act-on-behalf'];
+  if (rawVendor === undefined || rawVendor === null || String(rawVendor).trim() === '') {
+    return { present: false, ok: true, value: null };
+  }
+  const vendorId = String(rawVendor).trim();
+  const rawReason = String(req.headers?.['x-biteshark-support-reason'] || '')
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .trim();
+  if (!/^[a-z0-9_-]{1,80}$/i.test(vendorId) || rawReason.length < 8 || rawReason.length > 240) {
+    return {
+      present: true,
+      ok: false,
+      status: 400,
+      code: 'INVALID_ACT_ON_BEHALF',
+      error: 'Act-on-Behalf requires a valid vendor identifier and a support reason (8–240 characters).'
+    };
+  }
+  return {
+    present: true,
+    ok: true,
+    value: { vendorId, reason: rawReason }
+  };
+}
 
 const MUTATING_HTTP_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -336,6 +423,19 @@ export function createStandaloneServer({
     const pathname = parsedUrl.pathname;
 
     try {
+      // 0. Server-Side Admin Preview Read-Only Enforcement (`X-BiteShark-Viewpoint: preview`)
+      const viewpointMode = String(req.headers?.['x-biteshark-viewpoint'] || '')
+        .trim()
+        .toLowerCase();
+      if (viewpointMode === 'preview' && MUTATING_HTTP_METHODS.has(method) && pathname !== '/api/auth/logout') {
+        applyPrivateNoStoreHeaders(res);
+        return sendJsonResponse(res, 403, {
+          error:
+            'Admin preview mode is read-only. Return to the Admin Portal or switch to explicit Admin: Top Act-on-Behalf mode for support operations.',
+          code: 'ADMIN_PREVIEW_READ_ONLY'
+        });
+      }
+
       // 1. Health & Readiness Endpoint (`GET /api/healthz`)
       if (pathname === '/api/healthz') {
         applyPrivateNoStoreHeaders(res);
@@ -495,6 +595,85 @@ export function createStandaloneServer({
         return;
       }
 
+      // 3B. Governance, Onboarding, Invitations, Moderation & Admin Portal API Routes
+      if (isGovernanceApiPath(pathname)) {
+        applyPrivateNoStoreHeaders(res);
+
+        if (MUTATING_HTTP_METHODS.has(method)) {
+          const csrf = verifySameOriginMutationRequest(req);
+          if (!csrf.ok) {
+            return sendJsonResponse(res, csrf.status, { error: csrf.error, code: csrf.code });
+          }
+        }
+
+        const actOnBehalf = parseActOnBehalfHeaders(req);
+        if (!actOnBehalf.ok) {
+          return sendJsonResponse(res, actOnBehalf.status, { error: actOnBehalf.error, code: actOnBehalf.code });
+        }
+
+        const normGovPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+        const bodyLimit =
+          normGovPath === '/api/onboarding/evidence' && method === 'POST'
+            ? EVIDENCE_UPLOAD_MAX_JSON_BYTES
+            : maxJsonBytes;
+
+        let parsedBody = {};
+        if (MUTATING_HTTP_METHODS.has(method)) {
+          parsedBody = await readBoundedJsonBody(req, bodyLimit);
+        }
+
+        const sess = await resolveSessionFromRequest(dbAdapter, req);
+        if (sess.refreshedCookieHeader) {
+          appendSetCookie(res, sess.refreshedCookieHeader);
+        }
+        const verifiedUser = sess.authenticated ? sess.user : null;
+        bindVerifiedRequestUser(req, verifiedUser);
+
+        if (actOnBehalf.present) {
+          if (!verifiedUser) {
+            return sendJsonResponse(res, 401, { error: 'Sign in is required.' });
+          }
+          const aobCtx = await loadAccessContext(req, auth, dbAdapter);
+          if (!aobCtx.isTopAdmin) {
+            return sendJsonResponse(res, 403, {
+              error: 'Only Admin: Top may use Act-on-Behalf operational mode.',
+              code: 'ACT_ON_BEHALF_FORBIDDEN'
+            });
+          }
+        }
+
+        const queryObj = parseQueryObject(parsedUrl.searchParams);
+        req.query = queryObj;
+        req.params = {};
+        req.body = parsedBody;
+
+        await runWithRequestContext(
+          { db: dbAdapter, user: verifiedUser },
+          () =>
+            runWithGovernanceContext(
+              {
+                isStandaloneHttpMutation: MUTATING_HTTP_METHODS.has(method),
+                actOnBehalf: actOnBehalf.value
+              },
+              () =>
+                handleGovernanceApiRequest({
+                  pathname: normGovPath,
+                  method,
+                  req,
+                  query: queryObj,
+                  body: parsedBody,
+                  dbAdapter,
+                  sendJson: (status, payload, headers) => sendJsonResponse(res, status, payload, headers),
+                  rawRes: res
+                })
+            )
+        );
+        if (!res.writableEnded) {
+          res.end();
+        }
+        return;
+      }
+
       // 4. Domain API Routes (`/api/*`)
       if (pathname === '/api' || pathname.startsWith('/api/')) {
         const matched = matchDomainApiRoute(pathname);
@@ -536,16 +715,22 @@ export function createStandaloneServer({
           }
         }
 
+        const actOnBehalf = parseActOnBehalfHeaders(req);
+        if (!actOnBehalf.ok) {
+          applyPrivateNoStoreHeaders(res);
+          return sendJsonResponse(res, actOnBehalf.status, { error: actOnBehalf.error, code: actOnBehalf.code });
+        }
+
         // Parse JSON body with strict byte cap on mutating requests
         let parsedBody = {};
         if (MUTATING_HTTP_METHODS.has(method)) {
           parsedBody = await readBoundedJsonBody(req, maxJsonBytes);
         }
 
-        // Resolve server-side session cookie ONLY on `access === 'user'` routes so public
-        // cacheable endpoints (`Cache-Control: public`) never incur session DB queries or emit `Set-Cookie`.
+        // Resolve server-side session cookie ONLY on `access === 'user'` routes (or when Act-on-Behalf is asserted)
+        // so public cacheable endpoints (`Cache-Control: public`) never incur session DB queries or emit `Set-Cookie`.
         let verifiedUser = null;
-        if (route.access === 'user') {
+        if (route.access === 'user' || actOnBehalf.present) {
           applyPrivateNoStoreHeaders(res);
           const sess = await resolveSessionFromRequest(dbAdapter, req);
           if (sess.refreshedCookieHeader) {
@@ -565,14 +750,87 @@ export function createStandaloneServer({
         req.body = parsedBody;
         bindVerifiedRequestUser(req, verifiedUser);
 
+        if (actOnBehalf.present) {
+          const aobCtx = await loadAccessContext(req, auth, dbAdapter);
+          if (!aobCtx.isTopAdmin) {
+            return sendJsonResponse(res, 403, {
+              error: 'Only Admin: Top may use Act-on-Behalf operational mode.',
+              code: 'ACT_ON_BEHALF_FORBIDDEN'
+            });
+          }
+        }
+
         const resAdapter = createHandlerResponseAdapter(res);
         await runWithRequestContext(
           { db: dbAdapter, user: verifiedUser },
-          () => route.handler(req, resAdapter)
+          () =>
+            runWithGovernanceContext(
+              {
+                isStandaloneHttpMutation: MUTATING_HTTP_METHODS.has(method),
+                actOnBehalf: actOnBehalf.value
+              },
+              () => route.handler(req, resAdapter)
+            )
         );
         if (!res.writableEnded) {
           res.end();
         }
+        return;
+      }
+
+      // 4B. Dedicated Administration Portal Entry (`/admin`, `/admin/`, `/admin.html`)
+      if (pathname === '/admin' || pathname === '/admin/' || pathname === '/admin.html') {
+        applyPrivateNoStoreHeaders(res);
+        if (method !== 'GET' && method !== 'HEAD') {
+          return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
+        }
+
+        const sess = await resolveSessionFromRequest(dbAdapter, req);
+        if (sess.refreshedCookieHeader) {
+          appendSetCookie(res, sess.refreshedCookieHeader);
+        }
+        if (!sess.authenticated || !sess.user) {
+          res.statusCode = 302;
+          res.setHeader('Location', '/login.html?next=%2Fadmin');
+          res.end();
+          return;
+        }
+
+        bindVerifiedRequestUser(req, sess.user);
+        const adminCtx = await loadAccessContext(req, auth, dbAdapter);
+        if (!adminCtx.isModAdmin) {
+          const deniedBody = renderAdminAccessDeniedHtml(sess.user.email, adminCtx.roleLabels);
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Content-Length', Buffer.byteLength(deniedBody, 'utf8'));
+          if (method === 'HEAD') {
+            res.end();
+            return;
+          }
+          res.end(deniedBody);
+          return;
+        }
+
+        const resolvedAdminHtml = resolveSafePublicFile(realPublicRoot, '/admin.html');
+        if (!resolvedAdminHtml) {
+          return sendJsonResponse(res, 500, { error: 'Admin portal assets are unavailable.' });
+        }
+        res.statusCode = 200;
+        res.setHeader('Content-Type', resolvedAdminHtml.mime);
+        res.setHeader('Content-Length', resolvedAdminHtml.size);
+        if (method === 'HEAD') {
+          res.end();
+          return;
+        }
+        const adminStream = fs.createReadStream(resolvedAdminHtml.filePath);
+        adminStream.on('error', () => {
+          if (!res.headersSent) {
+            sendJsonResponse(res, 500, { error: 'Admin portal read error.' });
+          } else {
+            res.destroy();
+          }
+        });
+        adminStream.pipe(res);
         return;
       }
 
