@@ -1,40 +1,10 @@
-// Truckly Hatchable Staging Gate & End-to-End Verification Runner (G1..G6 + E2E)
-//
-// Modes:
-//   1. Live Isolated Hatchable Staging Mode:
-//      STAGING_BASE_URL=https://<staging-subdomain>.hatchable.site \
-//      STAGING_COOKIE_CUSTOMER_A="..." \
-//      STAGING_COOKIE_CUSTOMER_B="..." \
-//      STAGING_COOKIE_VENDOR_A_OWNER="..." \
-//      STAGING_COOKIE_VENDOR_A_STAFF="..." \
-//      STAGING_COOKIE_VENDOR_B_OWNER="..." \
-//      STAGING_COOKIE_MODERATOR="..." \
-//      STAGING_COOKIE_PLATFORM_ADMIN="..." \
-//      STAGING_PROBE_TOKEN="..." \
-//      node tests/staging-hatchable-gates.cjs
-//
-//   2. Local Pre-Flight Harness Self-Test (validates this script + probe + cleanup SQL
-//      against a disposable HTTP server & real PostgreSQL; clearly labeled NOT HOSTED):
-//      node tests/staging-hatchable-gates.cjs --preflight-local
-//
-// Safety rules:
-//   - Hard-blocks execution against production `truckly.hatchable.site`.
-//   - Never prints session cookies, user emails, or raw private pager UUIDs.
-
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const http = require('node:http');
-const vm = require('node:vm');
+// Shared VPS staging HTTP assertions. Run tests/vps-staging-gates.cjs.
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const { register } = require('node:module');
-const { pathToFileURL } = require('node:url');
-const { AsyncLocalStorage } = require('node:async_hooks');
 
-const ROOT = path.resolve(__dirname, '..');
 const FORBIDDEN_PROD_HOSTS = new Set([
+  'biteshark.live',
+  'www.biteshark.live',
   'truckly.hatchable.site',
   'www.truckly.hatchable.site'
 ]);
@@ -53,7 +23,7 @@ function assertNotProductionUrl(rawUrl) {
   const host = parsed.hostname.toLowerCase();
   if (FORBIDDEN_PROD_HOSTS.has(host) || rawUrl.includes('proj_MEO518rmLLl0')) {
     const err = new Error(
-      `SAFETY BLOCK: Refusing to run staging verification against production host "${host}". Use an isolated staging project.`
+      `SAFETY BLOCK: Refusing to run staging verification against production host "${host}". Use an isolated staging deployment.`
     );
     err.code = 'PRODUCTION_TARGET_BLOCKED';
     throw err;
@@ -341,7 +311,7 @@ async function runStagingSuite(cfg) {
       } else {
         gates.G2_transactions = {
           status: 'BLOCKED',
-          detail: `/api/_staging_gate_probe returned HTTP ${probeRes.status}; upload scripts/staging-runtime-probe.template.js on isolated staging to verify connection pinning & rollback.`
+          detail: `/api/_staging_gate_probe returned HTTP ${probeRes.status}; enable the protected VPS staging probe to verify connection pinning & rollback.`
         };
       }
     }
@@ -871,7 +841,7 @@ async function runStagingSuite(cfg) {
     // Worker endpoint secret/network guard:
     //   - On VPS Nginx public HTTPS, external `/api/pager/worker` is blocked at the reverse proxy (`403`)
     //     while local supervisor invokes `cfg.workerLoopbackUrl` (`http://127.0.0.1:4100/api/pager/worker`).
-    //   - On direct loopback or serverless gateway, wrong Bearer secret returns `401` and valid secret returns `200`.
+    //   - On direct loopback, wrong Bearer secret returns `401` and valid secret returns `200`.
     const unauthWorker = await reqJson('/api/pager/worker', {
       method: 'POST',
       headers: { Authorization: 'Bearer invalid_wrong_worker_secret_token_0000' },
@@ -936,332 +906,5 @@ async function runStagingSuite(cfg) {
   return { baseOrigin, runId, gates, e2e };
 }
 
-// ============================================================================
-// Local Pre-Flight Harness Validation (`--preflight-local`)
-// ============================================================================
-async function runLocalPreflightSelfTest() {
-  // 1. Verify production-URL safety block
-  assert.throws(
-    () => assertNotProductionUrl('https://truckly.hatchable.site'),
-    /SAFETY BLOCK/,
-    'Production URL guard must reject truckly.hatchable.site'
-  );
 
-  // 2. Start disposable PostgreSQL + local HTTP server mounting real routes + staging probe
-  let pgMod;
-  try {
-    pgMod = require('pg');
-  } catch {
-    const extra = process.env.TRUCKLY_PG_NODE_MODULES;
-    if (!extra) throw new Error('Set TRUCKLY_PG_NODE_MODULES to run --preflight-local');
-    pgMod = require(path.join(extra, 'pg'));
-  }
-  const { Pool } = pgMod;
-
-  const binSuffix = process.platform === 'win32' ? '.exe' : '';
-  const pkgPlatform = `${process.platform === 'win32' ? 'windows' : process.platform}-${process.arch}`;
-  let adminUrl = process.env.DATABASE_URL || null;
-  let stopPg = async () => {};
-
-  if (!adminUrl) {
-    const binDir = path.join(process.env.TRUCKLY_PG_NODE_MODULES || '', '@embedded-postgres', pkgPlatform, 'native', 'bin');
-    const initdb = path.join(binDir, 'initdb' + binSuffix);
-    const pgCtl = path.join(binDir, 'pg_ctl' + binSuffix);
-    const port = 55800 + Math.floor(Math.random() * 150);
-    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'truckly-stg-preflight-'));
-    const dbDir = path.join(tmpRoot, 'data');
-    const pwFile = path.join(tmpRoot, 'pw.txt');
-    const logFile = path.join(tmpRoot, 'pg.log');
-    const pw = 'pf_pw_' + crypto.randomBytes(6).toString('hex');
-    fs.writeFileSync(pwFile, pw + '\n', 'utf8');
-    execFileSync(initdb, ['-D', dbDir, '-U', 'postgres', `--pwfile=${pwFile}`, '-A', 'scram-sha-256', '-E', 'UTF8', '--no-locale'], { stdio: 'ignore', windowsHide: true });
-    execFileSync(pgCtl, ['-D', dbDir, '-l', logFile, '-w', '-o', `-p ${port} -h 127.0.0.1`, 'start'], { stdio: 'ignore', windowsHide: true });
-    adminUrl = `postgres://postgres:${encodeURIComponent(pw)}@127.0.0.1:${port}/postgres`;
-    stopPg = async () => {
-      try { execFileSync(pgCtl, ['-D', dbDir, '-m', 'immediate', '-w', 'stop'], { stdio: 'ignore', windowsHide: true }); } catch {}
-      try { fs.rmSync(tmpRoot, { recursive: true, force: true }); } catch {}
-    };
-  }
-
-  const als = new AsyncLocalStorage();
-  globalThis.__TRUCKLY_HATCHABLE__ = {
-    db: {
-      query: (s, p) => als.getStore().db.query(s, p),
-      connect: () => als.getStore().db.connect()
-    },
-    auth: {
-      getUser: async () => als.getStore().user || null
-    }
-  };
-  register(
-    'data:text/javascript,' +
-      encodeURIComponent(`
-export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
-    return {
-      shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_HATCHABLE__.auth;"
-    };
-  }
-  return nextResolve(specifier, context);
-}
-`)
-  );
-
-  const adminPool = new Pool({ connectionString: adminUrl, max: 2 });
-  const roleName = 'stg_role_' + crypto.randomBytes(3).toString('hex');
-  const rolePass = 'stg_pw_' + crypto.randomBytes(6).toString('hex');
-  const dbName = 'stg_db_' + crypto.randomBytes(3).toString('hex');
-  let appPool = null;
-  let httpServer = null;
-
-  try {
-    await adminPool.query(`CREATE ROLE ${roleName} LOGIN PASSWORD '${rolePass}' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`);
-    await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${roleName}`);
-    const u = new URL(adminUrl);
-    u.username = roleName;
-    u.password = rolePass;
-    u.pathname = '/' + dbName;
-    appPool = new Pool({ connectionString: u.toString(), max: 8 });
-
-    const migFiles = fs.readdirSync(path.join(ROOT, 'migrations')).filter(f => /^\d{3}_.+\.sql$/.test(f)).sort();
-    for (const f of migFiles) {
-      await appPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
-    }
-
-    const sessionUsers = {
-      tok_cust_a: { id: 'stg_usr_cust_a', email: 'custa@staging.invalid' },
-      tok_cust_b: { id: 'stg_usr_cust_b', email: 'custb@staging.invalid' },
-      tok_va_owner: { id: 'stg_usr_va_owner', email: 'va-owner@staging.invalid' },
-      tok_va_staff: { id: 'stg_usr_va_staff', email: 'va-staff@staging.invalid' },
-      tok_vb_owner: { id: 'stg_usr_vb_owner', email: 'vb-owner@staging.invalid' },
-      tok_mod: { id: 'stg_usr_mod', email: 'mod@staging.invalid' },
-      tok_padmin: { id: 'stg_usr_padmin', email: 'padmin@staging.invalid' }
-    };
-
-    // Execute real scripts/staging-seed.sql (with placeholders substituted)
-    const rawSeedSql = fs
-      .readFileSync(path.join(ROOT, 'scripts', 'staging-seed.sql'), 'utf8')
-      .replace("-- SET LOCAL app.confirm_staging = 'true';", "SET LOCAL app.confirm_staging = 'true';")
-      .replace(/<STG_USER_ID_PLATFORM_ADMIN>/g, sessionUsers.tok_padmin.id)
-      .replace(/<STG_USER_ID_MODERATOR>/g, sessionUsers.tok_mod.id)
-      .replace(/<STG_USER_ID_VENDOR_A_OWNER>/g, sessionUsers.tok_va_owner.id)
-      .replace(/<STG_USER_ID_VENDOR_A_STAFF>/g, sessionUsers.tok_va_staff.id)
-      .replace(/<STG_USER_ID_VENDOR_B_OWNER>/g, sessionUsers.tok_vb_owner.id);
-    await appPool.query(rawSeedSql);
-
-    const probeSecret = 'stg_probe_secret_' + crypto.randomBytes(12).toString('hex');
-    const workerSecret = 'stg_worker_secret_' + crypto.randomBytes(12).toString('hex');
-    process.env.TRUCKLY_STAGING_PROBE_TOKEN = probeSecret;
-    process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET = workerSecret;
-    process.env.TRUCKLY_ENV = 'staging';
-    process.env.HATCHABLE_PROJECT_ID = 'proj_stg_local_preflight';
-    const probeMod = await import(pathToFileURL(path.join(ROOT, 'scripts', 'staging-runtime-probe.template.js')).href);
-
-    const routeCache = new Map();
-    httpServer = http.createServer(async (req, res) => {
-      try {
-        const parsed = new URL(req.url, 'http://127.0.0.1');
-        const p = parsed.pathname;
-
-        if (p.startsWith('/api/')) {
-          let mod = null;
-          let routeParams = {};
-          if (p === '/api/_staging_gate_probe') {
-            mod = probeMod;
-          } else {
-            const rel = p.replace(/^\/api\/?/, '');
-            const direct = path.join(ROOT, 'api', ...rel.split('/')) + '.js';
-            if (fs.existsSync(direct) && fs.statSync(direct).isFile()) {
-              if (!routeCache.has(direct)) routeCache.set(direct, await import(pathToFileURL(direct).href));
-              mod = routeCache.get(direct);
-            } else if (rel.split('/').length === 2 && rel.startsWith('trucks/')) {
-              const dyn = path.join(ROOT, 'api', 'trucks', '[id].js');
-              if (!routeCache.has(dyn)) routeCache.set(dyn, await import(pathToFileURL(dyn).href));
-              mod = routeCache.get(dyn);
-              routeParams = { id: decodeURIComponent(rel.split('/')[1]) };
-            }
-          }
-          if (!mod) {
-            res.writeHead(404, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Not found' }));
-          }
-          if (!mod.methods.includes(req.method)) {
-            res.writeHead(405, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Method not allowed' }));
-          }
-
-          const cookieStr = String(req.headers.cookie || '');
-          const m = /hatch_stg_sess=([a-z0-9_]+)/i.exec(cookieStr);
-          const user = m ? sessionUsers[m[1]] || null : null;
-
-          if (mod.access === 'user' && !user) {
-            res.writeHead(401, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Sign in required' }));
-          }
-
-          let rawBody = '';
-          for await (const chunk of req) rawBody += chunk;
-          const body = rawBody ? JSON.parse(rawBody) : {};
-          const query = Object.fromEntries(parsed.searchParams.entries());
-          let code = 200;
-          const hdrs = { 'Content-Type': 'application/json; charset=utf-8' };
-          const mockReq = { method: req.method, query, params: routeParams, body, headers: req.headers, ...(user ? { user } : {}) };
-          const mockRes = {
-            setHeader(k, v) { hdrs[k] = v; },
-            status(c) { code = c; return this; },
-            end(b = '') {
-              res.writeHead(code, hdrs);
-              res.end(b);
-              return this;
-            },
-            json(payload) {
-              res.writeHead(code, hdrs);
-              res.end(JSON.stringify(payload));
-              return this;
-            }
-          };
-          await als.run({ db: appPool, user }, () => mod.default(mockReq, mockRes));
-          return;
-        }
-
-        const pubFile = path.normalize(path.join(ROOT, 'public', p === '/' ? 'index.html' : p.replace(/^\/+/, '')));
-        if (pubFile.startsWith(path.join(ROOT, 'public')) && fs.existsSync(pubFile) && fs.statSync(pubFile).isFile()) {
-          res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-          return res.end(fs.readFileSync(pubFile));
-        }
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Not found' }));
-      } catch (e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Internal error' }));
-      }
-    });
-
-    await new Promise(resolve => httpServer.listen(0, '127.0.0.1', resolve));
-    const port = httpServer.address().port;
-
-    const report = await runStagingSuite({
-      baseUrl: `http://127.0.0.1:${port}`,
-      probeToken: probeSecret,
-      workerSecret,
-      cookies: {
-        customerA: 'hatch_stg_sess=tok_cust_a',
-        customerB: 'hatch_stg_sess=tok_cust_b',
-        vendorAOwner: 'hatch_stg_sess=tok_va_owner',
-        vendorAStaff: 'hatch_stg_sess=tok_va_staff',
-        vendorBOwner: 'hatch_stg_sess=tok_vb_owner',
-        moderator: 'hatch_stg_sess=tok_mod',
-        platformAdmin: 'hatch_stg_sess=tok_padmin'
-      },
-      withWritePause: async (scopes, fn) => {
-        process.env.TRUCKLY_PAUSE_WRITES = scopes;
-        try {
-          await fn();
-        } finally {
-          delete process.env.TRUCKLY_PAUSE_WRITES;
-        }
-      }
-    });
-
-    for (const [k, v] of Object.entries(report.gates)) {
-      assert.equal(v.status, 'PASS', `Local preflight gate ${k} did not PASS: ${v.detail}`);
-    }
-    for (const [k, v] of Object.entries(report.e2e)) {
-      assert.equal(v.status, 'PASS', `Local preflight check ${k} did not PASS: ${v.detail}`);
-    }
-
-    // Execute real scripts/staging-cleanup.sql and confirm 0 disposable rows remain
-    const rawCleanupSql = fs
-      .readFileSync(path.join(ROOT, 'scripts', 'staging-cleanup.sql'), 'utf8')
-      .replace("-- SET LOCAL app.confirm_staging = 'true';", "SET LOCAL app.confirm_staging = 'true';");
-    await appPool.query(rawCleanupSql);
-
-    const remBookings = await appPool.query("SELECT count(*)::int AS c FROM bookings WHERE location LIKE '[STG-E2E-%]%'");
-    const remPagers = await appPool.query("SELECT count(*)::int AS c FROM pickup_pagers WHERE ticket LIKE 'STG-%'");
-    await appPool.query('BEGIN');
-    await appPool.query("SELECT set_config('app.can_moderate', 'true', true)");
-    const remComm = await appPool.query("SELECT count(*)::int AS c FROM community_reviews WHERE title LIKE '[STG-E2E-%]%'");
-    await appPool.query('COMMIT');
-    assert.equal(remBookings.rows[0].c, 0, 'staging-cleanup.sql left disposable bookings');
-    assert.equal(remPagers.rows[0].c, 0, 'staging-cleanup.sql left disposable pagers');
-    assert.equal(remComm.rows[0].c, 0, 'staging-cleanup.sql left disposable community posts');
-
-    console.log('MODE: LOCAL PRE-FLIGHT HARNESS VALIDATION (NOT HOSTED HATCHABLE)');
-    console.log('PASS: Production URL/env fail-closed blocks, staging-seed.sql, staging-runtime-probe, G1..G9, E2E1..E2E6, and staging-cleanup.sql verified.');
-  } finally {
-    delete process.env.TRUCKLY_STAGING_PROBE_TOKEN;
-    delete process.env.TRUCKLY_NOTIFICATION_WORKER_SECRET;
-    delete process.env.TRUCKLY_ENV;
-    delete process.env.HATCHABLE_PROJECT_ID;
-    if (httpServer) await new Promise(r => httpServer.close(r));
-    if (appPool) await appPool.end().catch(() => {});
-    await adminPool.end().catch(() => {});
-    await stopPg();
-  }
-}
-
-module.exports = {
-  runStagingSuite,
-  assertNotProductionUrl
-};
-
-if (require.main === module) {
-  (async () => {
-    if (process.argv.includes('--preflight-local')) {
-      await runLocalPreflightSelfTest();
-      return;
-    }
-
-    const stagingUrl = (process.env.STAGING_BASE_URL || '').trim();
-    if (!stagingUrl) {
-      console.log(
-        JSON.stringify(
-          {
-            environment: 'HOSTED_HATCHABLE_STAGING',
-            overall_status: 'BLOCKED',
-            reason: 'STAGING_BASE_URL and Hatchable staging credentials are not configured in this environment.',
-            required_inputs: [
-              'STAGING_BASE_URL (isolated https://<staging>.hatchable.site — never truckly.hatchable.site)',
-              'STAGING_COOKIE_CUSTOMER_A',
-              'STAGING_COOKIE_CUSTOMER_B',
-              'STAGING_COOKIE_VENDOR_A_OWNER',
-              'STAGING_COOKIE_VENDOR_A_STAFF',
-              'STAGING_COOKIE_VENDOR_B_OWNER',
-              'STAGING_COOKIE_MODERATOR',
-              'STAGING_COOKIE_PLATFORM_ADMIN',
-              'STAGING_PROBE_TOKEN (matching TRUCKLY_STAGING_PROBE_TOKEN on ephemeral api/_staging_gate_probe.js)',
-              'STAGING_WORKER_SECRET (matching TRUCKLY_NOTIFICATION_WORKER_SECRET for Gate G9)'
-            ]
-          },
-          null,
-          2
-        )
-      );
-      if (process.argv.includes('--require-live')) process.exitCode = 2;
-      return;
-    }
-
-    const report = await runStagingSuite({
-      baseUrl: stagingUrl,
-      probeToken: (process.env.STAGING_PROBE_TOKEN || '').trim(),
-      workerSecret: (process.env.STAGING_WORKER_SECRET || '').trim(),
-      cookies: {
-        customerA: process.env.STAGING_COOKIE_CUSTOMER_A || '',
-        customerB: process.env.STAGING_COOKIE_CUSTOMER_B || '',
-        vendorAOwner: process.env.STAGING_COOKIE_VENDOR_A_OWNER || '',
-        vendorAStaff: process.env.STAGING_COOKIE_VENDOR_A_STAFF || '',
-        vendorBOwner: process.env.STAGING_COOKIE_VENDOR_B_OWNER || '',
-        moderator: process.env.STAGING_COOKIE_MODERATOR || '',
-        platformAdmin: process.env.STAGING_COOKIE_PLATFORM_ADMIN || ''
-      }
-    });
-
-    console.log(JSON.stringify({ environment: 'HOSTED_HATCHABLE_STAGING', ...report }, null, 2));
-    const anyNonPass = [...Object.values(report.gates), ...Object.values(report.e2e)].some(x => x.status !== 'PASS');
-    if (anyNonPass) process.exitCode = 1;
-  })().catch(err => {
-    console.error('STAGING GATE RUNNER ERROR:', err.message || err);
-    process.exitCode = 1;
-  });
-}
+module.exports = { runStagingSuite, assertNotProductionUrl };

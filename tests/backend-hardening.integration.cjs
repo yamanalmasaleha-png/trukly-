@@ -7,7 +7,7 @@
 // FORCE ROW LEVEL SECURITY policies are genuinely enforced by PostgreSQL.
 //
 // Note on authentication boundary:
-// Hosted Hatchable SSO session issuance is external to this repository, so
+// This suite isolates domain authorization from OTP/session issuance, so
 // `auth.getUser(req)` is supplied by an AsyncLocalStorage test adapter while
 // all SQL, RBAC lookups, transactions, locks, triggers, and RLS run on real Postgres.
 //
@@ -55,7 +55,7 @@ const hatchableAuthProxy = {
   }
 };
 
-globalThis.__TRUCKLY_HATCHABLE__ = {
+globalThis.__BITESHARK_RUNTIME__ = {
   db: hatchableDbProxy,
   auth: hatchableAuthProxy
 };
@@ -64,10 +64,10 @@ register(
   'data:text/javascript,' +
     encodeURIComponent(`
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
+  if (specifier === "@biteshark/runtime-adapter") {
     return {
       shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_HATCHABLE__.auth;"
+      url: "data:text/javascript,export const db = globalThis.__BITESHARK_RUNTIME__.db; export const auth = globalThis.__BITESHARK_RUNTIME__.auth;"
     };
   }
   return nextResolve(specifier, context);
@@ -890,8 +890,7 @@ function futurePacificDate(daysAhead = 12) {
     // =========================================================================
     // PART 4: P0-C Community Privacy, Forced RLS, Direct Table Checks & Audit Redaction
     // =========================================================================
-    const tomlRaw = fs.readFileSync(path.join(ROOT, 'hatchable.toml'), 'utf8');
-    assert(!tomlRaw.includes('community_reviews'), 'direct community_reviews table exposure removed from hatchable.toml');
+    assert(!fs.existsSync(path.join(ROOT, 'hatchable.toml')), 'retired platform deployment configuration must not return');
 
     // Anonymous cannot post; authors cannot spoof author_id or set moderation fields
     assert.equal((await callApi('community/post.js', { method: 'POST', user: null, body: {} })).status, 401);
@@ -1461,7 +1460,7 @@ function futurePacificDate(daysAhead = 12) {
       });
       const dataUrl =
         'data:text/javascript;base64,' +
-        Buffer.from(`${legacySource}\n//# sourceURL=legacy-8bbbbe3-${relApiPath}`, 'utf8').toString('base64');
+        Buffer.from(`${legacySource.replace(/from "hatchable"/g, 'from "@biteshark/runtime-adapter"')}\n//# sourceURL=legacy-8bbbbe3-${relApiPath}`, 'utf8').toString('base64');
       const mod = await import(dataUrl);
       return async ({ method = 'GET', user = null, query = {}, params = {}, body = {} } = {}) => {
         let code = 200;

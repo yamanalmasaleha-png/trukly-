@@ -27,3 +27,9 @@
 scripts/dev-server.cjs export-ignore
 scripts/dev-workbench export-ignore
 tests export-ignore
+
+# Historical platform/source artifacts are not deployable application inputs.
+docs/archive export-ignore
+truckly-v63.zip export-ignore
+truckly-data.sql.gz export-ignore
+scripts/rollback-legacy-8bbbbe3-compat.sql export-ignore

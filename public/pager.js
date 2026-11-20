@@ -468,7 +468,7 @@ async function kitchenFetch(path,options={}){
     const err=new Error('Sign in with an authorized vendor or admin account to manage pickup tickets.');
     try{
       const url=new URL(out.login_url||'/login.html?next=/',location.origin);
-      if(url.origin===location.origin||url.hostname==='hatchable.com')err.login=url.href;
+      if(url.origin===location.origin)err.login=url.href;
     }catch{}
     throw err;
   }

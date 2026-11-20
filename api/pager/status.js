@@ -1,4 +1,4 @@
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { UUID_RE, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import {
   getPushProviderConfig,

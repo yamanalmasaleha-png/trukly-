@@ -1,12 +1,12 @@
--- Truckly Isolated Hatchable Staging Cleanup SQL
+-- Truckly Isolated VPS Staging Cleanup SQL
 --
 -- Safely removes ONLY disposable `[STG-E2E-%]` records created by
--- `tests/staging-hatchable-gates.cjs` (and optional staging probe audit markers).
+-- `tests/vps-staging-gates.cjs` (and optional staging probe audit markers).
 -- Never truncates tables or deletes non-test records.
 
 BEGIN;
 
--- Uncomment ONLY after confirming target is the isolated Hatchable staging database:
+-- Uncomment ONLY after confirming target is the isolated VPS staging database:
 -- SET LOCAL app.confirm_staging = 'true';
 
 DO $$

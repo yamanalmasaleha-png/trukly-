@@ -1,30 +1,9 @@
-// EPHEMERAL STAGING-ONLY RUNTIME PROBE TEMPLATE (DO NOT PLACE IN `api/` IN GIT)
-//
-// Purpose:
-//   Proves Gates 1, 2, 3, and 5 from inside the live Hatchable serverless function runtime
-//   on an ISOLATED STAGING project:
-//     - Gate 1: Verifies shared `lib/*.js` imports, `node:crypto`, and RFC 8291/8292
-//       Web Push encryption/signing (`lib/webpush-crypto.js`) inside the hosted runtime.
-//     - Gate 2: Inspects `db` adapter methods, verifies `withTransaction` pins multiple
-//       statements to a single `pg_backend_pid()`, and proves a multi-statement
-//       transaction rolls back completely when a later statement throws.
-//     - Gate 3: Verifies transaction-local `app.user_id`, `app.can_moderate`, and
-//       `app.pager_internal` GUCs do not leak after either `COMMIT` or `ROLLBACK`.
-//     - Gate 5: Reports `usesuper`, `usebypassrls`, table ownership (`relowner`),
-//       `relrowsecurity`, and `relforcerowsecurity` across `community_reviews` and all
-//       four `pager_notification_*` tables, confirming bare `SELECT`s return 0 private rows.
-//
-// Staging lifecycle:
-//   1. On the isolated staging project ONLY, upload this file as `api/_staging_gate_probe.js`
-//      (temporarily making the deployed staging route count 31: 30 permanent + 1 probe)
-//      and set secret `TRUCKLY_STAGING_PROBE_TOKEN` (minimum 24 random characters).
-//   2. Run `node --env-file=.env.staging tests/staging-hatchable-gates.cjs --require-live`
-//      with `STAGING_PROBE_TOKEN` and `STAGING_COOKIE_PLATFORM_ADMIN`.
-//   3. Delete `api/_staging_gate_probe.js` and `TRUCKLY_STAGING_PROBE_TOKEN` from staging
-//      and re-deploy staging so the final build matches the exact 30-route repository tree.
+// Protected VPS staging diagnostics, mounted by server/app.js only when explicitly enabled.
+// Requires staging environment, operator token and platform administrator access.
+// Never copy into api/; disable after verification.
 
 import crypto from "node:crypto";
-import { db, auth } from "hatchable";
+import { db, auth } from "@biteshark/runtime-adapter";
 import { loadAccessContext, applyPrivateNoStoreHeaders } from "../lib/authz.js";
 import { readEnvCompat, EnvAliasConflictError } from "../lib/env-compat.js";
 import { withTransaction } from "../lib/db-tx.js";

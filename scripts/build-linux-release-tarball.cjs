@@ -61,6 +61,10 @@ const forbiddenMatches = archivedEntries.filter(
     entry.startsWith('node_modules/') ||
     entry.startsWith('.github/') ||
     entry.startsWith('tests/') ||
+    entry.startsWith('docs/archive/') ||
+    entry === 'hatchable.toml' ||
+    entry === 'truckly-v63.zip' ||
+    entry === 'truckly-data.sql.gz' ||
     entry.includes('debug-admin.') ||
     entry.includes('dev-server.cjs')
 );

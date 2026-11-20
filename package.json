@@ -27,11 +27,13 @@
     "test:e2e:discovery": "node tests/discovery-browser.e2e.cjs",
     "test:e2e:notifications": "node tests/pager-notifications-browser.e2e.cjs",
     "test:e2e:admin": "node tests/admin-portal-browser.e2e.cjs",
-    "test:e2e:legal": "node tests/legal-readiness-browser.e2e.cjs"
+    "test:e2e:legal": "node tests/legal-readiness-browser.e2e.cjs",
+    "test:platform": "node tests/vps-platform-contract.test.cjs",
+    "test:email": "node tests/auth-email-delivery.integration.cjs"
   },
   "dependencies": {
     "cookie": "1.1.1",
-    "hatchable": "file:./packages/hatchable-adapter",
+    "@biteshark/runtime-adapter": "file:./packages/runtime-adapter",
     "otplib": "13.6.0",
     "pg": "8.23.1"
   }

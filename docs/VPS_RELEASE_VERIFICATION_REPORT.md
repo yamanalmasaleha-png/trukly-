@@ -1,3 +1,5 @@
+> Historical exact-release evidence. VPS-only policy is now documented in [VPS operations](VPS_OPERATIONS.md); do not interpret earlier Hatchable preservation language as continued platform support.
+
 # Truckly Standalone VPS Staging & Physical-Device Release Verification Report
 
 **Report Generated:** `2026-11-17T13:42:00-08:00` · **Updated After Domain & HTTPS Verification:** `2026-11-19T05:10:00-08:00` (`2026-11-19T13:10:00Z`)
@@ -37,7 +39,7 @@
 |---|---|---|---|
 | Frozen Hatchable executable baseline | `improve/p1-audit-and-pager-notifications` | `fa4e40affb574d3da5a98e4874b301ad5251e17c` | Frozen Phase 1–3 application code prior to VPS portability work |
 | Historical Hatchable report commit | `improve/p1-audit-and-pager-notifications` | `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13` | Documentation-only update to `docs/RELEASE_VERIFICATION_REPORT.md` (`0` code diff vs `fa4e40a`) |
-| Standalone VPS runtime & auth adapter | `migrate/vps-standalone-staging` | `dfab57f879e7a0bd61e2401b3d03483d21c6c823` | `server/*`, `packages/hatchable-adapter`, migration `017`, `lib/standalone-auth.js`, `lib/client-ip.js`, `deploy/*`, `tests/vps-staging-gates.cjs` |
+| Standalone VPS runtime & auth adapter | `migrate/vps-standalone-staging` | `dfab57f879e7a0bd61e2401b3d03483d21c6c823` | `server/*`, `packages/runtime-adapter`, migration `017`, `lib/standalone-auth.js`, `lib/client-ip.js`, `deploy/*`, `tests/vps-staging-gates.cjs` |
 | Pre-install security review fixes (`REV-01`–`REV-05`) | `migrate/vps-standalone-staging` | `b6dcf2459f5ecc3c2b00e5f1b8006842b11f8825` | Public-route session skip, `https:` Referer + `TRUCKLY_PUBLIC_ORIGIN` CSRF, loopback mailbox guard, partial unique OTP index, append-only `audit_logs` grants |
 | Linux archive & backup stream fixes (`DEF-VPS-01`–`02`) | `migrate/vps-standalone-staging` | `bc6a607168fe89d4ab9d0abbadb9e4e8404ba3c9` → `16594e95a556aec29f12c79bc70de0db4432d36f` | `.gitattributes` LF enforcement, `0700` root `pg_dump` stream, CRLF/LF-tolerant migration checksum verification |
 | **Final Verified & Deployed Executable Candidate (`DEF-VPS-03`)** | `migrate/vps-standalone-staging` | **`614dc997e1b903c94948dc7ff13d02e51c434acd`** | Default `TRUCKLY_TRUST_PROXY=none` until Nginx reverse-proxy activation + regression test (GHA Run `44180486982` `success`) |
@@ -50,7 +52,7 @@
 | **Deployed Executable SHA** | `614dc997e1b903c94948dc7ff13d02e51c434acd` (`git status --porcelain` clean) |
 | **Linux Release Tarball SHA-256** | `8d23f085c4038de4306d8da2988d9ec5c42f75d805a1d96396c931d6412493cb` (`sha256sum -c` verified on host before extraction) |
 | **Artifact-to-Source Proof (120 Deployed Files)** | Composite manifest SHA-256 `3bef048c70e3deb353ed26441d9d0a481d91e680b696d3ce94c530f48d852c1d` (`120` deployed files under `/srv/truckly-staging/current`, `0` extra files, `0` SHA-256 mismatches vs `git archive 614dc997e1b903c94948dc7ff13d02e51c434acd`; `tests/` and `scripts/dev-server.cjs` absent from host) |
-| **Dependency Lockfile & Audit** | [`package-lock.json`](../package-lock.json) SHA-256 `446378fce11243f42a458e0c61cdd2bf827e083eb67cf7194805f7a1095163f2` (`25` pure-JS prod packages via `npm ci --omit=dev --ignore-scripts`: `pg@8.23.1`, `otplib@13.6.0`, `cookie@1.1.1`, `hatchable@file:packages/hatchable-adapter`; `npm audit`: `0` vulnerabilities) |
+| **Dependency Lockfile & Audit** | [`package-lock.json`](../package-lock.json) SHA-256 `446378fce11243f42a458e0c61cdd2bf827e083eb67cf7194805f7a1095163f2` (`25` pure-JS prod packages via `npm ci --omit=dev --ignore-scripts`: `pg@8.23.1`, `otplib@13.6.0`, `cookie@1.1.1`, `hatchable@file:packages/runtime-adapter`; `npm audit`: `0` vulnerabilities) |
 | **Isolated Runtime Versions** | `/opt/nodejs/node-v22.23.5-linux-x64/bin/node` (`v22.23.5`, `npm 10.9.9`, symlink `/opt/nodejs/node-v22-lts`); system `/usr/bin/node` untouched at `v18.19.1` |
 | **System User & Release Path** | `truckly-stg` (`uid=997`, `gid=987`, `/nonexistent`, `/usr/sbin/nologin`); `/srv/truckly-staging/current` → `/srv/truckly-staging/releases/614dc997e1b903c94948dc7ff13d02e51c434acd` (`root:root`, mode `0755`/`0644`, verified `/proc/<pid>/cwd` for live API & worker PIDs) |
 | **`systemd` Units** | `truckly-staging-api.service` (`MemoryMax=192M`, `CPUQuota=60%`), `truckly-staging-worker.service` (`--continuous --interval-ms 10000 --batch-size 15 --cleanup-every 30`, `Restart=always`, `RestartSec=5`, `MemoryMax=128M`, `CPUQuota=30%`), `truckly-staging-backup.service` + `truckly-staging-backup.timer` (`09:40 UTC` daily) |

@@ -122,8 +122,8 @@
       try {
         document.cookie = "truckly_debug_role=" + encodeURIComponent(state.role) + "; path=/; SameSite=Lax";
       } catch (_) {}
-      window.__HATCHABLE__ = window.__HATCHABLE__ || {};
-      window.__HATCHABLE__.user = (ROLE_META[state.role] || ROLE_META.guest).user;
+      window.__BITESHARK__ = window.__BITESHARK__ || {};
+      window.__BITESHARK__.user = (ROLE_META[state.role] || ROLE_META.guest).user;
     }
   }
 
@@ -572,7 +572,7 @@
       "</div>" +
       '<p class="debug-note">' + (IS_LOCAL
         ? "Local dev simulator only (" + dbgEsc((ROLE_META[state.role] || ROLE_META.guest).sub) + "). Debug headers/cookies are ignored in production."
-        : "Hosted mode: server APIs enforce real Hatchable auth & vendor RBAC. Debug headers have zero effect.") + "</p>" +
+        : "Hosted mode: server APIs enforce real VPS session auth & vendor RBAC. Debug headers have zero effect.") + "</p>" +
       "</section>" +
 
       '<section class="debug-section">' +

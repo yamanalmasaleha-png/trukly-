@@ -25,14 +25,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify exact 30 Hatchable API route files (no stray helpers or staging probes in api/)
+      - name: Verify VPS domain route inventory (no stray helpers or staging probes in api/)
         shell: bash
         run: |
           count=$(find api -type f -name '*.js' | wc -l | tr -d ' ')
           echo "Found $count route files in api/"
           test "$count" = "30"
           ! find api -type f -name '*probe*' -o -name '*debug*' | grep -q .
-      - name: Check Hatchable API, standalone server, shared lib, and staging probe ESM syntax
+      - name: Check VPS handlers, server, shared libraries, and staging diagnostics syntax
         shell: bash
         run: |
           find api lib server packages scripts -type f -name '*.js' -print0 | while IFS= read -r -d '' f; do
@@ -51,6 +51,8 @@ jobs:
         run: |
           bash -n deploy/install-staging-release.sh
           bash -n deploy/backup/truckly-staging-backup.sh
+      - name: VPS-only platform contract
+        run: node tests/vps-platform-contract.test.cjs
       - name: Pager demo safety smoke test
         run: node tests/pager-demo.test.cjs
 
@@ -119,10 +121,6 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/backend-hardening.integration.cjs
-      - name: Validate Hatchable staging gate runner pre-flight
-        env:
-          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-        run: node tests/staging-hatchable-gates.cjs --preflight-local
       - name: Run P1 unified discovery & owner publishing PostgreSQL integration suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres

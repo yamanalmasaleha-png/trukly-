@@ -1,4 +1,4 @@
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { loadDiscoveryCatalog, applyDiscoveryCacheHeaders } from "../../lib/discovery.js";
 
 export const access = "public";

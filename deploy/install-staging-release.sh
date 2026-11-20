@@ -645,7 +645,7 @@ function verifyDirectoryAgainstMap(dirPath, fileHashes, requireNodeModules) {
   if (requireNodeModules) {
     for (const modPkg of [
       path.join(dirPath, 'node_modules', 'pg', 'package.json'),
-      path.join(dirPath, 'node_modules', 'hatchable', 'package.json')
+      path.join(dirPath, 'node_modules', '@biteshark/runtime-adapter', 'package.json')
     ]) {
       if (!fs.existsSync(modPkg)) {
         throw new Error(`Existing release directory is missing installed dependency: ${modPkg}`);
@@ -681,13 +681,16 @@ if (mode === 'inspect-tar') {
     'server/app.js',
     'public/index.html',
     'scripts/run-pager-worker.cjs',
-    'node_modules/pg/package.json',
-    'node_modules/hatchable/package.json'
+    'node_modules/pg/package.json'
   ]) {
     if (!fs.existsSync(path.join(targetDir, ...req.split('/')))) {
       throw new Error(`Rollback target directory is incomplete (missing ${req})`);
     }
   }
+  // Older immutable VPS releases used the former local adapter package name.
+  const hasAdapter = ['@biteshark/runtime-adapter', 'hatchable'].some(name =>
+    fs.existsSync(path.join(targetDir, 'node_modules', name, 'package.json')));
+  if (!hasAdapter) throw new Error('Rollback target is missing its runtime adapter');
   for (const ent of fs.readdirSync(targetDir)) {
     if (/^\.env(\.|$)/i.test(ent)) {
       throw new Error(`Forbidden .env file inside rollback directory: ${ent}`);

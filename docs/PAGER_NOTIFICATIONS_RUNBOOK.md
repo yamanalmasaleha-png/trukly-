@@ -1,3 +1,5 @@
+> VPS-only deployment: follow [VPS operations](VPS_OPERATIONS.md). Historical hosted-platform references below are provenance, not release requirements.
+
 # Pickup Pager Notifications Architecture, Contracts & Incident Runbook
 
 This document is the authoritative specification for Truckly's background pickup-pager notifications, covering the delivery architecture, security/privacy model, ready-state catch-up & deduplication policy, wave-claimed & claim-token-fenced worker state machine, exact runtime configuration table, physical-device verification matrix, and incident recovery procedures.
@@ -43,7 +45,7 @@ Truckly has **no native Android or iOS app project** (`android/`, `ios/`, Gradle
      - `GET /api/pager/status`: **`90` requests / `60s`** per hashed client IP (`pager_status_client`).
      - `POST /api/pager/subscriptions`: **`12` requests / `300s`** per hashed client IP (`pager_sub_client`) **and** **`10` requests / `300s`** per hashed pager ID (`pager_sub_ticket`), returning `429` + `Retry-After`.
 5. **Database Defense-in-Depth (`migrations/015` & `016`):**
-   - None of the notification tables are exposed in `hatchable.toml`.
+   - The VPS has no public database gateway; only the explicit notification APIs are exposed.
    - All four tables (`pager_notification_subscriptions`, `pager_notification_events`, `pager_notification_deliveries`, `pager_rate_limits`) enforce `FORCE ROW LEVEL SECURITY` requiring transaction-local `app.pager_internal = 'true'`.
    - `pager_delivery_lease_consistency_chk` (`migrations/016_pager_worker_fencing_and_catchup.sql`) enforces at the SQL engine level that `status = 'processing'` rows always carry non-null `(lease_owner, claim_token, lease_expires_at)` and all other statuses clear them to `NULL`.
    - [`public/sw.js`](../public/sw.js) registers **zero `fetch` caching listeners**, guaranteeing private API responses are never cached in Service Worker storage.
@@ -110,25 +112,25 @@ flowchart TD
 
 ## 5. Authoritative Runtime Configuration Table (Never Commit Secret Values)
 
-> **Restart / Redeploy Note:** Code reads `process.env.*` dynamically on each request rather than caching values at module initialization. However, on Hatchable and typical serverless platforms, updating environment variables or secrets **requires redeploying or recycling function instances** to update `process.env` unless live hot-reload is explicitly verified on the target runtime (**not yet verified on hosted Hatchable** — do **not** assume zero-redeploy propagation).
+> **Environment changes:** update the protected VPS environment file and restart the affected API/worker services. Reading process.env dynamically does not make changes to a disk file visible to an already-running process.
 
 | Exact Variable Name | Allowed Values / Format | Default (Unset) | Invalid / Production Fail-Closed Behavior | Scope (Modules Reading It) | Change Propagation |
 |---|---|---|---|---|---|
-| `TRUCKLY_ENV` | `local` \| `development` \| `test` \| `staging` \| `production` | `""` (unclassified) | Unrecognized value disables push (`mode: 'invalid_config'`); staging probe rejects anything except `'staging'` | `lib/pager-notifications.js`, `scripts/staging-runtime-probe.template.js` | Redeploy / instance recycle |
-| `TRUCKLY_PUSH_PROVIDER_MODE` | `disabled` \| `webpush` (`fake` \| `loopback_test` in local/test only) | `disabled` | Unrecognized value, or `fake`/`loopback_test` in production (`TRUCKLY_ENV=production`, `NODE_ENV=production`, or `proj_MEO518rmLLl0`) or without `TRUCKLY_ALLOW_TEST_PUSH_MODES=1`, fails closed (`enabled: false`) | `lib/pager-notifications.js` (`status`, `subscriptions`, `worker`, `telemetry`) | Redeploy / instance recycle |
+| `TRUCKLY_ENV` | `local` \| `development` \| `test` \| `staging` \| `production` | `""` (unclassified) | Unrecognized value disables push (`mode: 'invalid_config'`); staging probe rejects anything except `'staging'` | `lib/pager-notifications.js`, `scripts/staging-runtime-probe.js` | Restart affected VPS services |
+| `TRUCKLY_PUSH_PROVIDER_MODE` | `disabled` \| `webpush` (`fake` \| `loopback_test` in local/test only) | `disabled` | Unrecognized value, or `fake`/`loopback_test` in production (`TRUCKLY_ENV=production`, `NODE_ENV=production`, or `proj_MEO518rmLLl0`) or without `TRUCKLY_ALLOW_TEST_PUSH_MODES=1`, fails closed (`enabled: false`) | `lib/pager-notifications.js` (`status`, `subscriptions`, `worker`, `telemetry`) | Restart affected VPS services |
 | `TRUCKLY_ALLOW_TEST_PUSH_MODES` | `1` (local/CI test harness only; **never set in production**) | Unset (`0`) | Ignored in production (`isProductionEnvironment()` hard-blocks `fake`/`loopback_test` even if `'1'`) | `lib/pager-notifications.js` | Test process env only |
-| `TRUCKLY_VAPID_PUBLIC_KEY` | 87-char base64url uncompressed P-256 public key (65 bytes) | Unset | Missing/malformed in `webpush` mode disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Redeploy / instance recycle |
-| `TRUCKLY_VAPID_PRIVATE_KEY` | 43-char base64url 32-byte P-256 private scalar (**secret manager only**) | Unset | Missing/mismatched scalar disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Redeploy / instance recycle |
-| `TRUCKLY_VAPID_SUBJECT` | `mailto:<email>` or `https://<host>...` | Unset | Missing/malformed URI disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Redeploy / instance recycle |
+| `TRUCKLY_VAPID_PUBLIC_KEY` | 87-char base64url uncompressed P-256 public key (65 bytes) | Unset | Missing/malformed in `webpush` mode disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Restart affected VPS services |
+| `TRUCKLY_VAPID_PRIVATE_KEY` | 43-char base64url 32-byte P-256 private scalar (**secret manager only**) | Unset | Missing/mismatched scalar disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Restart affected VPS services |
+| `TRUCKLY_VAPID_SUBJECT` | `mailto:<email>` or `https://<host>...` | Unset | Missing/malformed URI disables push (`enabled: false`, `config_valid: false`) | `lib/pager-notifications.js` | Restart affected VPS services |
 | `TRUCKLY_NOTIFICATION_WORKER_SECRET` | Random `>= 24`-char secret (**secret manager only**); sent via `Authorization: Bearer <secret>` or `X-Worker-Secret: <secret>` | Unset | `< 24` chars returns `503 WORKER_NOT_CONFIGURED`; mismatch returns `401` | `api/pager/worker.js`, `api/pager/telemetry.js`, `scripts/run-pager-worker.cjs` | Redeploy + scheduler secret update |
-| `TRUCKLY_DISABLE_SUBSCRIPTIONS` | `0` \| `false` \| `1` \| `true` | `0` (not paused) | Any other non-empty string fails closed (`true` = pauses `POST /api/pager/subscriptions` with `503` while keeping `GET`/`DELETE` active) | `lib/pager-notifications.js` (`status`, `subscriptions`, `telemetry`) | Redeploy / instance recycle |
-| `TRUCKLY_DISABLE_NOTIFICATION_DELIVERY` | `0` \| `false` \| `1` \| `true` | `0` (not paused) | Any other non-empty string fails closed (`true` = worker pauses dispatch while retaining outbox rows) | `lib/pager-notifications.js` (`worker`, `telemetry`) | Redeploy / instance recycle |
-| `TRUCKLY_PAUSE_WRITES` | Comma-separated: `bookings`, `pagers`, `community`, `owner`, `notifications`, `all` | Unset (no scopes paused) | Any unrecognized scope token fails closed (pauses **all** hardened write scopes with `503` while preserving public reads & RLS) | `lib/authz.js`, `lib/pager-notifications.js`, write handlers in `api/**` | Redeploy / instance recycle |
-| `TRUCKLY_PUSH_ALLOWED_HOSTS` | Optional comma-separated extra HTTPS push hostnames | Unset (built-in allowlist only) | IP literals, `localhost`, `.local`, `.internal`, HTTP, and non-443 ports remain blocked | `lib/pager-notifications.js` | Redeploy / instance recycle |
-| `TRUCKLY_ENABLE_NATIVE_PUSH` | `1` only after packaged mobile APNs/FCM transport is implemented | Unset (`501`) | Unset / non-`'1'` rejects `apns`/`fcm` subscriptions with `501 NATIVE_PUSH_NOT_CONFIGURED` | `lib/pager-notifications.js` | Redeploy / instance recycle |
-| `TRUCKLY_PLATFORM_ADMIN_IDS` | Optional comma-separated Hatchable `user.id` values | Unset (uses `platform_roles` table) | Static env-granted admin IDs; DB `platform_roles` preferred for transaction-serialized revocation | `lib/authz.js` | Redeploy / instance recycle |
+| `TRUCKLY_DISABLE_SUBSCRIPTIONS` | `0` \| `false` \| `1` \| `true` | `0` (not paused) | Any other non-empty string fails closed (`true` = pauses `POST /api/pager/subscriptions` with `503` while keeping `GET`/`DELETE` active) | `lib/pager-notifications.js` (`status`, `subscriptions`, `telemetry`) | Restart affected VPS services |
+| `TRUCKLY_DISABLE_NOTIFICATION_DELIVERY` | `0` \| `false` \| `1` \| `true` | `0` (not paused) | Any other non-empty string fails closed (`true` = worker pauses dispatch while retaining outbox rows) | `lib/pager-notifications.js` (`worker`, `telemetry`) | Restart affected VPS services |
+| `TRUCKLY_PAUSE_WRITES` | Comma-separated: `bookings`, `pagers`, `community`, `owner`, `notifications`, `all` | Unset (no scopes paused) | Any unrecognized scope token fails closed (pauses **all** hardened write scopes with `503` while preserving public reads & RLS) | `lib/authz.js`, `lib/pager-notifications.js`, write handlers in `api/**` | Restart affected VPS services |
+| `TRUCKLY_PUSH_ALLOWED_HOSTS` | Optional comma-separated extra HTTPS push hostnames | Unset (built-in allowlist only) | IP literals, `localhost`, `.local`, `.internal`, HTTP, and non-443 ports remain blocked | `lib/pager-notifications.js` | Restart affected VPS services |
+| `TRUCKLY_ENABLE_NATIVE_PUSH` | `1` only after packaged mobile APNs/FCM transport is implemented | Unset (`501`) | Unset / non-`'1'` rejects `apns`/`fcm` subscriptions with `501 NATIVE_PUSH_NOT_CONFIGURED` | `lib/pager-notifications.js` | Restart affected VPS services |
+| `TRUCKLY_PLATFORM_ADMIN_IDS` | Optional comma-separated VPS `user.id` values | Unset (uses `platform_roles` table) | Static env-granted admin IDs; DB `platform_roles` preferred for transaction-serialized revocation | `lib/authz.js` | Restart affected VPS services |
 | `TRUCKLY_RELEASE_SHA` | Git commit SHA reported in `GET /api/pager/telemetry` | Falls back to `GITHUB_SHA` or `"local-dev"` | Read-only observability string | `api/pager/telemetry.js` | Set at deploy time |
-| `TRUCKLY_STAGING_PROBE_TOKEN` | Ephemeral `>= 24`-char secret on isolated staging only | Unset (`404`) | `< 24` chars or mismatch returns `404`; **delete probe & secret after staging run** | `scripts/staging-runtime-probe.template.js` | Staging deploy only |
+| `TRUCKLY_STAGING_PROBE_TOKEN` | Ephemeral `>= 24`-char secret on isolated staging only | Unset (`404`) | `< 24` chars or mismatch returns `404`; **delete probe & secret after staging run** | `scripts/staging-runtime-probe.js` | Staging deploy only |
 
 ### Worker Scheduler Invocation
 Serverless handlers never rely on background `setTimeout` timers after responding. Invoke `POST /api/pager/worker` every `10–15 seconds` from an external scheduler or supervised runner (`node scripts/run-pager-worker.cjs --url https://<host>/api/pager/worker --max-ticks 4 --interval-ms 12000`) passing `Authorization: Bearer <TRUCKLY_NOTIFICATION_WORKER_SECRET>` (or `X-Worker-Secret`). Keep `TRUCKLY_PUSH_PROVIDER_MODE=disabled` until staging and physical-device checks pass.
@@ -153,9 +155,9 @@ Loopback RFC 8291/8292 encryption/decryption tests and headless Chromium E2E (`t
 ## 7. Incident Response, Pause & Safe Recovery Runbook
 
 1. **Pause outbound push dispatch (provider storm / misconfiguration):**
-   - Set `TRUCKLY_DISABLE_NOTIFICATION_DELIVERY=1` and redeploy/recycle functions (or stop the external worker scheduler for immediate halt without waiting on function recycle). P0 RBAC, bookings, community RLS, and foreground 8s pager polling remain 100% operational.
+   - Set `TRUCKLY_DISABLE_NOTIFICATION_DELIVERY=1` and restart the affected VPS services (or stop the systemd worker service for immediate halt without waiting on service restart). P0 RBAC, bookings, community RLS, and foreground 8s pager polling remain 100% operational.
 2. **Pause new push subscriptions (endpoint flood / abuse):**
-   - Set `TRUCKLY_DISABLE_SUBSCRIPTIONS=1` and redeploy/recycle functions (`POST /api/pager/subscriptions` returns `503 SUBSCRIPTIONS_PAUSED`; `GET` status and `DELETE` unsubscribe remain active).
+   - Set `TRUCKLY_DISABLE_SUBSCRIPTIONS=1` and restart the affected VPS services (`POST /api/pager/subscriptions` returns `503 SUBSCRIPTIONS_PAUSED`; `GET` status and `DELETE` unsubscribe remain active).
 3. **Inspect queue & configuration health (Platform Admin):**
    - Call `GET /api/pager/telemetry` as `platform_admin` to inspect `controls.config_valid`, `controls.config_errors`, `deliveries.queued`, `deliveries.claimed_pending_dispatch`, `deliveries.in_flight_dispatched`, `deliveries.expired_leases`, `deliveries.retry_scheduled`, `deliveries.failed_permanent`, and `recent_redacted_errors`.
 4. **Recover or drain backlog safely:**

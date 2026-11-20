@@ -1,12 +1,12 @@
--- Truckly Isolated Hatchable Staging Bootstrap & Gate 5 Diagnostic SQL
+-- Truckly Isolated VPS Staging Bootstrap & Gate 5 Diagnostic SQL
 --
 -- SAFETY GUARD:
---   1. NEVER execute against production (`proj_MEO518rmLLl0` / `https://truckly.hatchable.site`).
+--   1. NEVER execute against the production database or https://biteshark.live.
 --   2. Requires `SET LOCAL app.confirm_staging = 'true'` inside the transaction block;
 --      otherwise the DO block immediately aborts before mutating any rows.
 --
 -- Before running, replace the `<STG_USER_ID_*>` placeholders below with the real
--- Hatchable `user.id` values created via `/login.html` on the isolated staging project.
+-- VPS `user.id` values created via `/login.html` on the isolated staging project.
 
 BEGIN;
 

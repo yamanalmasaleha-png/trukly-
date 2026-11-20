@@ -1,4 +1,4 @@
-import { db, auth } from "hatchable";
+import { db, auth } from "@biteshark/runtime-adapter";
 import { resolveIdentity, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 

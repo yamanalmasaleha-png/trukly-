@@ -1,4 +1,4 @@
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { isValidCalendarDate, validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 import { evaluateEffectiveVendorRestrictions } from "../../lib/authz.js";
 

@@ -1,9 +1,11 @@
+> VPS-only deployment: follow [VPS operations](VPS_OPERATIONS.md). Historical hosted-platform references below are provenance, not release requirements.
+
 # P1 Unified Discovery & Owner Publishing Architecture
 
 This document defines the schema ownership, override merge rules, truthful location taxonomy, Pacific schedule precedence, caching/freshness contract, and migration/rollback plan for the P1 unified discovery vertical slice (`improve/p1-unified-discovery`, branched from P0 candidate `44f9682`).
 
 > **Dependency & Deployment Gate:**
-> `improve/p1-unified-discovery` builds on the P0 RBAC, booking, and RLS hardening (`migrations/011`–`013`, `lib/authz.js`, `lib/dates.js`, `lib/db-tx.js`). Production deployment remains **BLOCKED** until P0 hosted Hatchable staging gates (`G1`–`G6`) pass and this P1 slice is reviewed.
+> `improve/p1-unified-discovery` builds on the P0 RBAC, booking, and RLS hardening (`migrations/011`–`013`, `lib/authz.js`, `lib/dates.js`, `lib/db-tx.js`). Production deployment requires the corresponding VPS staging gates and review of the exact release; historical hosted-platform gates are retired.
 
 ---
 

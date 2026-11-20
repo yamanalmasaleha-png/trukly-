@@ -469,7 +469,7 @@ class CdpClient {
           `(() => {
             const emailInput = document.getElementById('email');
             const disclosure = document.getElementById('passkeyDisclosure');
-            if (!emailInput || !window.hatchable || !window.hatchable.auth) return null;
+            if (!emailInput || !window.biteshark || !window.biteshark.auth) return null;
             return {
               loginTitle: document.title,
               backText: document.getElementById('returnLink')?.textContent?.trim() || '',

@@ -4,7 +4,7 @@
 // `Vendor Owner`, `Admin: Mod`, `Admin: Top`), CSRF verification, rate limits, magic-byte evidence
 // validation, last-Top protection, session revocation on role/status changes, and redacted audit logs.
 
-import { auth } from 'hatchable';
+import { auth } from '@biteshark/runtime-adapter';
 import {
   UUID_RE,
   ROLE_LABELS,

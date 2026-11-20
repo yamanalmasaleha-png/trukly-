@@ -31,16 +31,16 @@ Inspection of the current workspace confirmed:
    - `TRUCKLY_PUSH_PROVIDER_MODE=disabled` (keep push delivery disabled during initial gate run; switch to `webpush` with staging VAPID keys only for designated physical-device push testing — never enable `fake` or `loopback_test` on hosted environments)
    - `TRUCKLY_NOTIFICATION_WORKER_SECRET=<random-24+-char-secret>`
    - `TRUCKLY_STAGING_PROBE_TOKEN=<random-24+-char-secret>`
-5. Temporarily upload [`scripts/staging-runtime-probe.template.js`](../scripts/staging-runtime-probe.template.js) as **`api/_staging_gate_probe.js` on the staging project only**, deploy staging, and record both the platform deployment ID and `TRUCKLY_RELEASE_SHA`.
+5. Temporarily upload [`scripts/staging-runtime-probe.template.js`](../../../scripts/staging-runtime-probe.template.js) as **`api/_staging_gate_probe.js` on the staging project only**, deploy staging, and record both the platform deployment ID and `TRUCKLY_RELEASE_SHA`.
    - **Temporary Route Count Note:** While `api/_staging_gate_probe.js` is deployed during Steps 1–3, the staging deployment contains **31 route files** (`30` permanent routes + `1` ephemeral `_staging_gate_probe`). Do **not** commit `api/_staging_gate_probe.js` to Git; in Step 4 it is deleted so the final staging deployment returns to the exact **30 permanent routes**.
 
 ### Step 2 — Sign In 7 Disposable Staging Personas & Seed RBAC Roles
 1. Sign in the 7 disposable staging test accounts via `/login.html` and record their `user.id` values and session cookies in a local operator `.env.staging` file (outside git).
-2. In [`scripts/staging-seed.sql`](../scripts/staging-seed.sql), uncomment `SET LOCAL app.confirm_staging = 'true';`, substitute the `<STG_USER_ID_*>` placeholders, and execute on staging PostgreSQL.
+2. In [`scripts/staging-seed.sql`](../../../scripts/staging-seed.sql), uncomment `SET LOCAL app.confirm_staging = 'true';`, substitute the `<STG_USER_ID_*>` placeholders, and execute on staging PostgreSQL.
    - Verify the Gate 5 SQL output confirms `is_superuser = false`, `has_bypassrls = false`, `rls_enabled = true`, and `rls_forced = true`.
 
 ### Step 3 — Run Hosted Gates `G1`–`G9` & End-to-End Checks (`E2E1`–`E2E6`)
-Run [`tests/staging-hatchable-gates.cjs`](../tests/staging-hatchable-gates.cjs) using the local operator env file:
+Run [`tests/staging-hatchable-gates.cjs`](../../../tests/staging-hatchable-gates.cjs) using the local operator env file:
 
 ```bash
 node --env-file=.env.staging tests/staging-hatchable-gates.cjs --require-live
@@ -59,6 +59,6 @@ This verifies:
 - **E2E1–E2E6:** Pacific booking validation/idempotency, concurrent pager creation idempotency, `YYYY-MM-DD` date contract, moderator separation, write-pause controls, and isolated customer pager demo (`0` writes).
 
 ### Step 4 — Remove Ephemeral Probe & Verify Post-Cleanup Behavior
-1. Run [`scripts/staging-cleanup.sql`](../scripts/staging-cleanup.sql) (with `SET LOCAL app.confirm_staging = 'true';`) on staging PostgreSQL to delete all `[STG-E2E-*]` bookings, community posts, `STG-*` pagers, schedules, live location notes, and staging audit markers.
+1. Run [`scripts/staging-cleanup.sql`](../../../scripts/staging-cleanup.sql) (with `SET LOCAL app.confirm_staging = 'true';`) on staging PostgreSQL to delete all `[STG-E2E-*]` bookings, community posts, `STG-*` pagers, schedules, live location notes, and staging audit markers.
 2. Delete `api/_staging_gate_probe.js` and `TRUCKLY_STAGING_PROBE_TOKEN` from the staging project and redeploy so staging matches the exact **30-route** repository tree.
 3. Confirm `POST /api/_staging_gate_probe` returns `404`, `GET /api/trucks` returns `200` (`total: 59`), and `GET /api/owner/stats` (anonymous) returns `401`.

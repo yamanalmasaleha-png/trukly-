@@ -1,4 +1,4 @@
-import { db, auth } from "hatchable";
+import { db, auth } from "@biteshark/runtime-adapter";
 import {
   UUID_RE,
   loadAccessContext,

@@ -1,4 +1,4 @@
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 
 export const access = "public";
 export const methods = ["GET"];

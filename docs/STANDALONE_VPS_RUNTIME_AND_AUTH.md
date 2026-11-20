@@ -1,3 +1,5 @@
+> Current deployment policy: VPS only. See [VPS operations](VPS_OPERATIONS.md). Earlier dated results below remain historical.
+
 # BiteShark Standalone Node Runtime, PostgreSQL Adapter & Authentication Architecture (Formerly Truckly)
 
 ## 1. Scope & Baseline Lineage
@@ -5,22 +7,16 @@
 - **Active VPS installation candidate branch:** `working/biteshark-vps` (branched from `migrate/vps-standalone-staging` @ `74c0a7e81ca44a26fd668baf84b3a640563a762c`, executable base `614dc997e1b903c94948dc7ff13d02e51c434acd`)
 - **Historical Hatchable executable baseline:** `fa4e40affb574d3da5a98e4874b301ad5251e17c`
 - **Historical verification report baseline:** `3f89401e11ff4c0d376e58e1df216a8b0ee5ce13` (documentation-only commit on `docs/RELEASE_VERIFICATION_REPORT.md`)
-- **Feature freeze & BiteShark public rename:** Product features remain frozen. On `working/biteshark-vps`, all active user-facing branding is **BiteShark**, paired with runtime portability off Hatchable (`server/index.js`, `packages/hatchable-adapter`), safe server-side authentication (`migrations/017_standalone_auth_and_sessions.sql`, `lib/standalone-auth.js`, `public/auth-client.js`), environment alias compatibility (`lib/env-compat.js`), bounded deployment templates & single-SHA installer (`deploy/`), and VPS staging verification (`tests/vps-staging-gates.cjs`).
+- **Feature freeze & BiteShark public rename:** Product features remain frozen. On `working/biteshark-vps`, all active user-facing branding is **BiteShark**, paired with runtime portability off Hatchable (`server/index.js`, `packages/runtime-adapter`), safe server-side authentication (`migrations/017_standalone_auth_and_sessions.sql`, `lib/standalone-auth.js`, `public/auth-client.js`), environment alias compatibility (`lib/env-compat.js`), bounded deployment templates & single-SHA installer (`deploy/`), and VPS staging verification (`tests/vps-staging-gates.cjs`).
 - **Developer simulator isolation:** `scripts/dev-server.cjs` and `scripts/dev-workbench/debug-admin.{js,css}` are local-only developer preview facilities excluded from `public/` and excluded from Linux release archives via `.gitattributes` `export-ignore`. `server/index.js` exposes zero `/__debug/*` or `/debug-admin.*` routes and strips/ignores `x-biteshark-debug-role`, `x-truckly-debug-role`, and `truckly_debug_role`.
 
 ---
 
 ## 2. Module Resolution & Standalone HTTP Runtime
 
-### Why a Local Package (`"hatchable": "file:./packages/hatchable-adapter"`) Was Chosen
+### Repository-owned runtime adapter
 
-Twenty-seven of Truckly's 30 route handlers in `api/**/*.js` import `{ db }` or `{ db, auth }` from bare specifier `"hatchable"`. Node.js `package.json` subpath `"imports"` only supports `#`-prefixed specifiers (`#hatchable`) and cannot remap a bare `"hatchable"` specifier.
-
-Using an explicit local package (`"hatchable": "file:./packages/hatchable-adapter"` in [`package.json`](../package.json), locked in [`package-lock.json`](../package-lock.json)):
-
-1. Installs `node_modules/hatchable` through normal `npm ci --omit=dev` so `node server/index.js` starts directly with **zero** experimental `--import` or `module.register()` test loaders.
-2. Preserves all **30** domain route files in `api/**/*.js` without adding helper files inside `api/` or breaking Hatchable compatibility during staging evaluation.
-3. Delegates `db.query`, `db.connect`, and `db.transaction` to a bounded `pg.Pool` (`pg@8.23.1`, `DATE` OID `1082` preserved as `YYYY-MM-DD`), preserving every P0/P1 single-connection transaction (`lib/db-tx.js`), `FOR SHARE` / `FOR NO KEY UPDATE` row lock, and `SET LOCAL` RLS GUC.
+`@biteshark/runtime-adapter` is installed from `packages/runtime-adapter` by `npm ci`. All domain handlers and the standalone server use this local PostgreSQL/verified-session adapter. No external SDK or alternative hosted deployment is supported. It delegates query, pinned connection and transaction operations to the bounded PostgreSQL pool without changing RLS or authorization semantics.
 
 ### HTTP Server Safeguards (`server/index.js` & `server/app.js`)
 
@@ -77,7 +73,7 @@ Before implementation, maintained Node.js + PostgreSQL authentication packages w
    - Staging mailbox entries are encrypted at rest with `AES-256-GCM` (HKDF-derived key + AAD binding email and challenge ID), purged immediately upon consumption or invalidation, and readable only via `POST /api/auth/staging-mailbox` with `X-Staging-Mailbox-Secret` (returning `404` otherwise).
    - Server logs and `audit_logs` never record OTP codes, session tokens, or cookies. `cleanupExpiredAuthRecords` purges expired mailbox rows immediately, OTP/rate-limit rows after `24h`, and expired/revoked sessions after `7d`.
 10. **Frontend Auth Bridge (`public/auth-client.js`, `public/login.html`):**
-    - Narrowly implements `window.hatchable.auth` over `/api/auth/{start,verify,session,logout}` with `supportsPasskeys() === false` and displays a visible notice on `/login.html` disclosing that passkeys are unavailable in standalone staging.
+    - Narrowly implements `window.biteshark.auth` over `/api/auth/{start,verify,session,logout}` with `supportsPasskeys() === false` and displays a visible notice on `/login.html` disclosing that passkeys are unavailable in standalone staging.
 
 ---
 
@@ -144,7 +140,7 @@ To prevent orphaned units, competing ports, or unnecessary database rebuilds on 
    ```
 3. **Application vs Database Rollback Separation:**
    - `deploy/install-staging-release.sh` acquires an exclusive deployment lock (`flock`), keeps Web Push disabled during installation unless `--allow-live-push` is explicitly passed, verifies existing release directories byte-for-byte before reuse, and automatically restores `/srv/truckly-staging/current` + `/etc/truckly-staging/staging.env` (`0640`) and verifies recovery of **both** `truckly-staging-api` and `truckly-staging-worker` if env update, symlink activation, API restart, worker restart, API readiness/release-SHA check, worker CWD/active check, co-tenant check, public HTTPS asset check, or holding-page check fails (`exit 1` on verified rollback; `exit 4` if rollback recovery itself fails).
-   - **Important limitation:** Symlink/env rollback (`--rollback-to <40-hex-sha>`) reverses **application code and `staging.env` only** — it does **not** reverse already-committed PostgreSQL DDL/DML migrations. (For `working/biteshark-vps`, all 17 SQL migration checksums `001`–`017` are identical to `614dc997e1b903c94948dc7ff13d02e51c434acd`, so `newly_applied` is `0`.)
+   - **Important limitation:** Symlink/env rollback (`--rollback-to <40-hex-sha>`) reverses **application code and `staging.env` only** — it does **not** reverse already-committed PostgreSQL DDL/DML migrations. (For `working/biteshark-vps`, migration changes must be assessed for the exact target release; do not assume `newly_applied` is zero.)
    ```bash
    sudo bash /srv/truckly-staging/current/deploy/install-staging-release.sh \
      --rollback-to 614dc997e1b903c94948dc7ff13d02e51c434acd

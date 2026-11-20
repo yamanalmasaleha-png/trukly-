@@ -274,7 +274,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     fs.writeFileSync(path.join(prevReleaseDir, 'public', 'index.html'), '<!doctype html><title>Staging</title>\n');
     fs.writeFileSync(path.join(prevReleaseDir, 'scripts', 'run-pager-worker.cjs'), '// prev worker\n');
     fs.writeFileSync(path.join(prevReleaseDir, 'node_modules', 'pg', 'package.json'), '{"name":"pg"}\n');
-    fs.writeFileSync(path.join(prevReleaseDir, 'node_modules', 'hatchable', 'package.json'), '{"name":"hatchable"}\n');
+    fs.writeFileSync(path.join(prevReleaseDir, 'node_modules', 'hatchable', 'package.json'), '{"name":"@biteshark/runtime-adapter"}\n');
 
     if (process.platform === 'win32') {
       fs.symlinkSync(prevReleaseDir, currentLink, 'junction');
@@ -516,8 +516,8 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     });
     await new Promise(r => mockHttpServer.listen(httpPort, '127.0.0.1', r));
 
-    // Fast `npm ci` stub for failure-matrix runs that creates `node_modules/{pg,hatchable}` cleanly
-    const npmStubCmd = `"${nodePosix}" -e 'const fs=require("node:fs");fs.mkdirSync("node_modules/pg",{recursive:true});fs.mkdirSync("node_modules/hatchable",{recursive:true});fs.writeFileSync("node_modules/pg/package.json","{\\"name\\":\\"pg\\"}");fs.writeFileSync("node_modules/hatchable/package.json","{\\"name\\":\\"hatchable\\"}");'`;
+    // Fast `npm ci` stub for failure-matrix runs that creates `node_modules/{pg,@biteshark/runtime-adapter}` cleanly
+    const npmStubCmd = `"${nodePosix}" -e 'const fs=require("node:fs");fs.mkdirSync("node_modules/pg",{recursive:true});fs.mkdirSync("node_modules/@biteshark/runtime-adapter",{recursive:true});fs.writeFileSync("node_modules/pg/package.json","{\\"name\\":\\"pg\\"}");fs.writeFileSync("node_modules/@biteshark/runtime-adapter/package.json","{\\"name\\":\\"hatchable\\"}");'`;
 
     const baseEnv = {
       BITESHARK_STAGING_ROOT: toPosixPath(srvRoot),
@@ -661,9 +661,9 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     fs.mkdirSync(tamperedDir, { recursive: true });
     execFileSync('tar', ['-xzf', TARBALL_PATH, '-C', tamperedDir], { windowsHide: true });
     fs.mkdirSync(path.join(tamperedDir, 'node_modules', 'pg'), { recursive: true });
-    fs.mkdirSync(path.join(tamperedDir, 'node_modules', 'hatchable'), { recursive: true });
+    fs.mkdirSync(path.join(tamperedDir, 'node_modules', '@biteshark/runtime-adapter'), { recursive: true });
     fs.writeFileSync(path.join(tamperedDir, 'node_modules', 'pg', 'package.json'), '{}');
-    fs.writeFileSync(path.join(tamperedDir, 'node_modules', 'hatchable', 'package.json'), '{}');
+    fs.writeFileSync(path.join(tamperedDir, 'node_modules', '@biteshark/runtime-adapter', 'package.json'), '{}');
     // Tamper 1 file inside existing release dir
     fs.appendFileSync(path.join(tamperedDir, 'server', 'app.js'), '\n// TAMPERED\n');
 

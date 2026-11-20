@@ -36,7 +36,7 @@ const { Pool } = requirePg();
 const requestAls = new AsyncLocalStorage();
 let activeDb = null;
 
-globalThis.__TRUCKLY_NOTIF_TEST_HATCHABLE__ = {
+globalThis.__BITESHARK_NOTIF_TEST_RUNTIME__ = {
   db: {
     query: (text, params) => {
       const dbRef = requestAls.getStore()?.db || activeDb;
@@ -71,10 +71,10 @@ register(
   'data:text/javascript,' +
     encodeURIComponent(`
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
+  if (specifier === "@biteshark/runtime-adapter") {
     return {
       shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_NOTIF_TEST_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_NOTIF_TEST_HATCHABLE__.auth;"
+      url: "data:text/javascript,export const db = globalThis.__BITESHARK_NOTIF_TEST_RUNTIME__.db; export const auth = globalThis.__BITESHARK_NOTIF_TEST_RUNTIME__.auth;"
     };
   }
   return nextResolve(specifier, context);

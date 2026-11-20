@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { UUID_RE, recordAuditLog, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { withTransaction } from "../../lib/db-tx.js";
 import {

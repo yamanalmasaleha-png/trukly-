@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db, auth } from "hatchable";
+import { db, auth } from "@biteshark/runtime-adapter";
 import { BOOKING_PACKAGES } from "../../lib/catalog.js";
 import {
   resolveIdentity,

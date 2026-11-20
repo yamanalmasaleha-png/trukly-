@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { isValidCalendarDate, getPacificToday } from "../../lib/dates.js";
 import { applyDiscoveryCacheHeaders } from "../../lib/discovery.js";
 

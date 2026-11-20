@@ -1,4 +1,4 @@
-const API = (window.__HATCHABLE__ && window.__HATCHABLE__.api) || '/api';
+const API = '/api';
 
 const OFFLINE_FALLBACK_TRUCKS = [
   {"id":"mitote","name":"Mitote Food Park","cuisine":"Mexican","section":"Mexican","emoji":"🎉","city":"Santa Rosa","lat":38.43,"lng":-122.72,"location":"100 Sebastopol Rd, Santa Rosa","blurb":"Mexican food park with a rotating vendor lineup.","source":"https://www.mitotefoodpark.com/","tags":["Mexican"],"rating":null,"reviews":null,"distance":null,"open":null,"price":"","color":"#f6bd4b","photo":null,"verified":false,"verification_status":"needs_review","location_source":"curated_illustrative","location_accuracy":"illustrative_pin","listing_type":"Offline directory sample","hours":"Confirm the operator's current schedule","event_bookable":true,"accepting_bookings":true,"is_demo":true},
@@ -610,11 +610,11 @@ function updateAuthUI() {
 
 async function syncAuthAndUserData() {
   try {
-    if (window.hatchable && window.hatchable.auth && typeof window.hatchable.auth.getUser === 'function') {
-      const u = await window.hatchable.auth.getUser().catch(() => null);
+    if (window.biteshark && window.biteshark.auth && typeof window.biteshark.auth.getUser === 'function') {
+      const u = await window.biteshark.auth.getUser().catch(() => null);
       if (u) currentUser = u;
-    } else if (window.__HATCHABLE__ && window.__HATCHABLE__.user) {
-      currentUser = window.__HATCHABLE__.user;
+    } else if (window.__BITESHARK__ && window.__BITESHARK__.user) {
+      currentUser = window.__BITESHARK__.user;
     }
   } catch {}
 
@@ -657,7 +657,7 @@ async function syncAuthAndUserData() {
 
 async function signOutUser() {
   try {
-    const auth = window.hatchable && window.hatchable.auth;
+    const auth = window.biteshark && window.biteshark.auth;
     if (auth) {
       if (typeof auth.logout === 'function') await auth.logout();
       else if (typeof auth.signOut === 'function') await auth.signOut();

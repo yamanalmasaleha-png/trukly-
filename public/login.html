@@ -453,7 +453,7 @@
       const errEl = document.getElementById('error');
 
       function getAuth() {
-        if (window.hatchable && window.hatchable.auth) return window.hatchable.auth;
+        if (window.biteshark && window.biteshark.auth) return window.biteshark.auth;
         throw new Error('Email sign-in is unavailable right now. Guest mode remains active on this device.');
       }
 
@@ -857,7 +857,7 @@
       });
 
       document.getElementById('addPasskeyBtn').addEventListener('click', async function () {
-        const auth = window.hatchable && window.hatchable.auth;
+        const auth = window.biteshark && window.biteshark.auth;
         const saved = auth ? await auth.registerPasskey({ name: 'My BiteShark passkey' }).catch(function () { return null; }) : null;
         if (!saved) localStorage.setItem('passkey_offer_declined', '1');
         finish();

@@ -1,4 +1,4 @@
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import {
   CATALOG_SECTIONS,
   validateCoordinates,

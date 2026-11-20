@@ -10,7 +10,7 @@ const {loadSeedVendorsFromMigration014}=require('../scripts/seed-sql-reader.cjs'
 
 let currentMockDb={async query(){return {rows:[]};},async transaction(fn){return fn(currentMockDb);}};
 let currentMockAuth={async getUser(){return null;}};
-globalThis.__TRUCKLY_HATCHABLE__={
+globalThis.__BITESHARK_RUNTIME__={
   db:{
     query:(...args)=>currentMockDb.query(...args),
     transaction:(fn)=>currentMockDb.transaction?currentMockDb.transaction(fn):fn(currentMockDb)
@@ -21,10 +21,10 @@ globalThis.__TRUCKLY_HATCHABLE__={
 };
 register('data:text/javascript,'+encodeURIComponent(`
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
+  if (specifier === "@biteshark/runtime-adapter") {
     return {
       shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_HATCHABLE__.auth;"
+      url: "data:text/javascript,export const db = globalThis.__BITESHARK_RUNTIME__.db; export const auth = globalThis.__BITESHARK_RUNTIME__.auth;"
     };
   }
   return nextResolve(specifier, context);
@@ -295,7 +295,7 @@ function makeEl(id,extra={}){
     console,
     Date,Math,JSON,Number,String,Array,Object,Set,Promise,RegExp,encodeURIComponent
   };
-  sandbox.window.__HATCHABLE__=undefined;
+  sandbox.window.__BITESHARK__=undefined;
   vm.createContext(sandbox);
   vm.runInContext(app,sandbox);
   vm.runInContext(highlight,sandbox);
@@ -354,7 +354,7 @@ function makeEl(id,extra={}){
   assert(elements.bookingError.textContent.includes('sign in'),'sign-in guidance surfaced to guest');
 
   // Sign in user, then verify package guest-count check, 400 handling, and 201 idempotency header
-  sandbox.window.__HATCHABLE__={user:{id:'usr_maya',email:'maya@sonoma.example'}};
+  sandbox.window.__BITESHARK__={user:{id:'usr_maya',email:'maya@sonoma.example'}};
   fetchHandler=async(url,opts={})=>{
     if(url==='/api/favorites/list')return {ok:true,status:200,json:async()=>({favorites:[{truck_id:'mitote'},{truck_id:'fruta'}]})};
     if(url==='/api/bookings/list')return {ok:true,status:200,json:async()=>({bookings:[{id:'srv-1',truck_name:'Mitote <script>alert(1)</script>',event_type:'Wedding',event_date:'2026-12-05T00:00:00.000Z',guest_count:90,location:'Santa Rosa',package_name:'Party Favorite',package_price:1500,status:'accepted'}]})};
@@ -428,7 +428,7 @@ function makeEl(id,extra={}){
   // 3. Cross-endpoint API parity & stale-data regression checks
   // (Full real-PostgreSQL RBAC, RLS, constraint, and concurrency tests live in tests/backend-hardening.integration.cjs and tests/p1-unified-discovery.integration.cjs)
 
-  // Ensure exact 30 Hatchable server function files (20 base + 6 pager + 4 community) and no legacy Austin strings
+  // Ensure exact 30 VPS domain handler files (20 base + 6 pager + 4 community) and no legacy Austin strings
   function listJs(dir){
     const out=[];
     for(const e of fs.readdirSync(dir,{withFileTypes:true})){
@@ -439,7 +439,7 @@ function makeEl(id,extra={}){
     return out;
   }
   const apiFiles=listJs('api');
-  assert.equal(apiFiles.length,30,'preserves exact 30 Hatchable function routes (20 base + 6 pager + 4 community)');
+  assert.equal(apiFiles.length,30,'preserves exact 30 VPS domain handler routes (20 base + 6 pager + 4 community)');
   for(const f of apiFiles){
     const txt=fs.readFileSync(f,'utf8');
     assert(!txt.includes('Mueller Lake Park')&&!txt.includes("'estrella'"),'no legacy Austin defaults in '+f);

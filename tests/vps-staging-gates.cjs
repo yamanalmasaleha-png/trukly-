@@ -8,7 +8,7 @@
 //
 //   2. Local Pre-Flight Self-Test (`--preflight-local`):
 //      Spins up a disposable PostgreSQL cluster with separate `migrator` and `NOBYPASSRLS` `app`
-//      roles, runs `scripts/run-migrations.cjs` (`001`..`017`), starts the REAL standalone HTTP
+//      roles, runs `scripts/run-migrations.cjs` (`001`..`021`), starts the REAL standalone HTTP
 //      server (`server/app.js` — zero test module loaders!), authenticates all 7 personas via
 //      real `/api/auth/*` OTP flows, applies `scripts/staging-seed.sql`, runs all 11 gates + 6 E2E
 //      flows, and verifies `scripts/staging-cleanup.sql`.
@@ -21,7 +21,7 @@ const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
-const { runStagingSuite, assertNotProductionUrl } = require('./staging-hatchable-gates.cjs');
+const { runStagingSuite, assertNotProductionUrl } = require('./staging-http-gates.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -134,7 +134,7 @@ async function runVpsSpecificGates({ baseOrigin, mailboxSecret, emailDomain, cus
     '/hatchable.toml',
     '/server/index.js',
     '/server/app.js',
-    '/packages/hatchable-adapter/index.js',
+    '/packages/runtime-adapter/index.js',
     '/migrations/017_standalone_auth_and_sessions.sql',
     '/deploy/staging.env.example',
     '/__debug/state'
@@ -324,7 +324,7 @@ async function runLocalPreflight() {
     const migratorUrl = buildUrl(migratorRole, migratorPass);
     const appUrl = buildUrl(appRole, appPass);
 
-    // Run real `scripts/run-migrations.cjs` (`001`..`017`) + grant DML to `appRole`
+    // Run real `scripts/run-migrations.cjs` (`001`..`021`) + grant DML to `appRole`
     execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole], {
       cwd: ROOT,
       env: { ...process.env, MIGRATION_DATABASE_URL: migratorUrl },
@@ -468,7 +468,7 @@ async function runLocalPreflight() {
     assert.deepEqual(bareAuthLeak.rows[0], { u: 0, s: 0, c: 0 }, 'auth_* FORCE RLS leaked rows to bare app query');
 
     console.log('MODE: LOCAL STANDALONE VPS PRE-FLIGHT VALIDATION (REAL server/app.js + NOBYPASSRLS PG)');
-    console.log('PASS: Migrations 001..017, real OTP login + __Host- cookies, G1..G9, VPS_G10..G11, E2E1..E2E6, probe disable, and staging-cleanup.sql verified.');
+    console.log('PASS: Migrations 001..021, real OTP login + __Host- cookies, G1..G9, VPS_G10..G11, E2E1..E2E6, probe disable, and staging-cleanup.sql verified.');
   } finally {
     for (const k of Object.keys(process.env)) {
       if (!(k in savedEnv)) delete process.env[k];

@@ -1,7 +1,7 @@
 // LOCAL DEVELOPMENT PREVIEW & ROLE SIMULATOR ONLY — DO NOT DEPLOY TO PRODUCTION.
 // Usage: node scripts/dev-server.cjs
 // Note: Simulated role headers/cookies exist strictly in this local harness.
-// Production Hatchable routes in api/**/*.js never read debug headers or cookies.
+// Production VPS routes in api/**/*.js never read debug headers or cookies.
 
 const http = require('node:http');
 const fs = require('node:fs');
@@ -644,7 +644,7 @@ if (process.env.DATABASE_URL) {
   };
 }
 
-globalThis.__TRUCKLY_HATCHABLE__ = {
+globalThis.__BITESHARK_RUNTIME__ = {
   db: {
     query: (...args) => activeDb.query(...args),
     transaction: fn => activeDb.transaction(fn)
@@ -653,10 +653,10 @@ globalThis.__TRUCKLY_HATCHABLE__ = {
 };
 const loaderCode = `
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
+  if (specifier === "@biteshark/runtime-adapter") {
     return {
       shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_HATCHABLE__.auth;"
+      url: "data:text/javascript,export const db = globalThis.__BITESHARK_RUNTIME__.db; export const auth = globalThis.__BITESHARK_RUNTIME__.auth;"
     };
   }
   return nextResolve(specifier, context);

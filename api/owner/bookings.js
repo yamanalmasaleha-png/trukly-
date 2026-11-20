@@ -1,4 +1,4 @@
-import { db, auth } from "hatchable";
+import { db, auth } from "@biteshark/runtime-adapter";
 import { loadAccessContext, authorizeVendorScope, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import { normalizeCalendarDate } from "../../lib/dates.js";
 

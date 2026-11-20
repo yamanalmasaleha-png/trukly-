@@ -1,6 +1,6 @@
 /* BiteShark Standalone Authentication Client Bridge
  *
- * Replaces Hatchable's browser auth dependency with real same-origin HTTP requests
+ * Provides BiteShark authentication through real same-origin HTTP requests
  * to `/api/auth/{start,verify,session,logout}` backed by HttpOnly `__Host-truckly_session`
  * cookies (preserved internal cookie name for same-origin session continuity) and PostgreSQL session records.
  *
@@ -13,7 +13,7 @@
   'use strict';
 
   if (typeof window === 'undefined') return;
-  if (window.hatchable && window.hatchable.auth) return;
+  if (window.biteshark && window.biteshark.auth) return;
 
   var AUTH_CLIENT_HEADER = 'web-auth-v1';
 
@@ -128,7 +128,7 @@
 
   window.bitesharkAuth = standaloneAuthClient;
   window.trucklyAuth = standaloneAuthClient;
-  window.hatchable = Object.assign({}, window.hatchable || {}, {
+  window.biteshark = Object.assign({}, window.biteshark || {}, {
     auth: standaloneAuthClient
   });
 })();

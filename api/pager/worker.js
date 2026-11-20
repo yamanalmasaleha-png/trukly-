@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db } from "hatchable";
+import { db } from "@biteshark/runtime-adapter";
 import { applyPrivateNoStoreHeaders } from "../../lib/authz.js";
 import {
   DEFAULT_WORKER_CONCURRENCY,

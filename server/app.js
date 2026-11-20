@@ -7,7 +7,7 @@ import {
   bindVerifiedRequestUser,
   runWithRequestContext,
   auth
-} from 'hatchable';
+} from '@biteshark/runtime-adapter';
 import { applyPrivateNoStoreHeaders, loadAccessContext } from '../lib/authz.js';
 import { SessionEligibilityError } from '../lib/db-tx.js';
 import {
@@ -34,7 +34,7 @@ import {
   isGovernanceApiPath,
   handleGovernanceApiRequest
 } from './admin-routes.js';
-import * as stagingGateProbe from '../scripts/staging-runtime-probe.template.js';
+import * as stagingGateProbe from '../scripts/staging-runtime-probe.js';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PUBLIC_DIR = path.resolve(SERVER_DIR, '..', 'public');

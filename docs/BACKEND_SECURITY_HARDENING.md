@@ -1,3 +1,5 @@
+> VPS-only deployment: follow [VPS operations](VPS_OPERATIONS.md). Historical hosted-platform references below are provenance, not release requirements.
+
 # Truckly P0 Backend Security & Integrity Hardening
 
 This document records the architecture, permission matrix, date-only serialization contract, database invariants, legacy-data quarantine rules, tested two-tier rollback plan, and blocked Hatchable staging gates for `harden/p0-vendor-booking-community`.
@@ -59,7 +61,7 @@ Identity is resolved strictly on the server via `resolveIdentity(req, auth)` (`r
 
 ## 3. Community Privacy & Direct-Table Defense-in-Depth (P0-C)
 
-1. **Direct Table Exposure Removed:** `[db.tables.community_reviews]` was removed from `hatchable.toml` (`public/community.js` uses `/api/community/*` functions exclusively).
+1. **No public table gateway:** the VPS exposes only explicit API routes. Community reads use the approved-only projection; PostgreSQL FORCE RLS remains mandatory. The retired hosted configuration is not a security control for this runtime.
 2. **Approved-Only Public Projection:** `community_public_posts` (`013_harden_community_privacy.sql`) projects only `status = 'approved'` rows and omits `author_id`, `status`, `moderated_at`, and `moderated_by`.
 3. **PostgreSQL `FORCE ROW LEVEL SECURITY` + Triggers:** `community_reviews` enables `FORCE ROW LEVEL SECURITY` with four policies:
    - `community_select_approved`: allows `SELECT` where `status = 'approved'` even if a connection runs without GUC context.
@@ -126,13 +128,4 @@ If an emergency forces redeploying the prior `8bbbbe3` application bundle agains
 
 ## 6. Hatchable Deployment Feasibility & Blocked Staging Gates
 
-No Hatchable staging credentials or hosted runtime access exist in this development workspace. Production deployment is **BLOCKED** until each gate below passes on an isolated Hatchable staging project using the step-by-step runbook in [`docs/HATCHABLE_STAGING_RUNBOOK.md`](./HATCHABLE_STAGING_RUNBOOK.md) and automated runner [`tests/staging-hatchable-gates.cjs`](../tests/staging-hatchable-gates.cjs):
-
-| Gate | Platform Requirement | Current Status | Staging Verification Procedure |
-|---|---|---|---|
-| **G1. Module & built-in imports** | Hatchable bundler/runtime resolves `../../lib/*.js` outside `api/` and Node built-in `node:crypto` without registering `lib/*.js` as public routes. | **Blocked pending Hatchable staging** (supported per public Hatchable Node ESM docs, unverified on live worker) | Deploy to isolated staging; confirm `GET /api/owner/stats` (unauthenticated -> `401`, not `500` import error) and `GET /lib/authz` -> `404`. |
-| **G2. Transaction adapter (`withTransaction`)** | Hatchable `db` exposes either `db.transaction(async tx => ...)` passing `{ query }` pinned to one backend connection, or `db.connect()` / `db.pool.connect()`. (`lib/db-tx.js` refuses unpinned pool `BEGIN` and fails closed with `503`.) | **Blocked pending Hatchable staging** | Submit an authenticated staging booking (`POST /api/bookings/create` -> `201`, not `503`) and trigger a `409`/rollback case to confirm atomic commit/rollback. |
-| **G3. Transaction-local GUC isolation (`SET LOCAL`)** | `set_config('app.user_id', ..., true)` and `set_config('app.can_moderate', 'true', true)` execute on a single pinned transaction connection and do not leak across pooled requests (or break under statement-mode pooling). | **Verified locally on `pg.Pool(max:1)`; blocked pending Hatchable staging** | In staging, call `GET /api/community/moderate` as a moderator, then immediately call `GET /api/community/list` and a diagnostic query confirming `current_setting('app.can_moderate', true)` is empty on subsequent requests. |
-| **G4. Trusted hosted identity contract** | Hosted Hatchable populates `req.user.id` / `req.user.email` (or `auth.getUser(req)`) matching `resolveIdentity` on `access = "user"` routes. | **Partially evidenced by `8bbbbe3` `req.user.id` usage; blocked pending Hatchable staging** | Sign in via `/login.html` on staging as two distinct test users; verify `/api/bookings/list` and `/api/community/mine` isolate each user's records by stable `id`. |
-| **G5. PostgreSQL role RLS enforcement** | Hatchable's runtime DB user is `NOSUPERUSER` and `NOBYPASSRLS` so `FORCE ROW LEVEL SECURITY` on `community_reviews` is enforced at the database engine layer. | **Verified locally with `NOBYPASSRLS` role; blocked pending Hatchable staging** | Run a temporary staging admin check querying `SELECT current_user, usesuper, usebypassrls FROM pg_user WHERE usename = current_user;` — require `usesuper = false` and `usebypassrls = false`. |
-| **G6. Direct table gateway de-exposure** | Removing `[db.tables.community_reviews]` from `hatchable.toml` disables any Hatchable client/REST direct table endpoint for `community_reviews` (no stale config cache). | **Blocked pending Hatchable staging** | Probe Hatchable's client table endpoint for `community_reviews` anonymously and as a regular signed-in user on staging; confirm `403`/`404` and zero unpublished row access. |
+VPS release checks replace hosted-platform checks. Run `tests/vps-staging-gates.cjs --preflight-local`, then its live staging mode; use `docs/VPS_OPERATIONS.md` for the protected probe lifecycle. Verify pinned transactions, GUC isolation, restricted application role and forced RLS, cross-vendor denials, CSRF, direct-table-path 404s and write pause behavior on the actual VPS runtime. Historical hosted-only blockers are preserved in `docs/archive/hatchable/HATCHABLE_STAGING_RUNBOOK.md`; they are not current release prerequisites. This change does not assert any unrun VPS or device gate passed.

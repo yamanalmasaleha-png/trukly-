@@ -1,0 +1,11 @@
+{
+  "name": "@biteshark/runtime-adapter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BiteShark VPS PostgreSQL and verified request-session adapter.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js"
+  }
+}

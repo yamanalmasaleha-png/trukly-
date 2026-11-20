@@ -36,7 +36,7 @@ const { Pool } = requireExternal('pg');
 let activeDb = null;
 let activeUser = null;
 
-globalThis.__TRUCKLY_TEST_HATCHABLE__ = {
+globalThis.__BITESHARK_TEST_RUNTIME__ = {
   db: {
     query: (text, params) => {
       if (!activeDb) throw new Error('No active PostgreSQL pool bound');
@@ -72,10 +72,10 @@ register(
   'data:text/javascript,' +
     encodeURIComponent(`
 export async function resolve(specifier, context, nextResolve) {
-  if (specifier === "hatchable") {
+  if (specifier === "@biteshark/runtime-adapter") {
     return {
       shortCircuit: true,
-      url: "data:text/javascript,export const db = globalThis.__TRUCKLY_TEST_HATCHABLE__.db; export const auth = globalThis.__TRUCKLY_TEST_HATCHABLE__.auth;"
+      url: "data:text/javascript,export const db = globalThis.__BITESHARK_TEST_RUNTIME__.db; export const auth = globalThis.__BITESHARK_TEST_RUNTIME__.auth;"
     };
   }
   return nextResolve(specifier, context);
