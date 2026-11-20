@@ -24,6 +24,7 @@
     acctTab: 'invitations',
     mod: { queue: 'pending', page: 1, total: 0, pageSize: 15, items: [], selectedId: null },
     issues: { page: 1, total: 0, pageSize: 15, items: [], selectedId: null, selectedDetail: null },
+    readiness: { items: [], selectedKey: null, summary: null, statusesCatalog: [] },
     audit: { page: 1, total: 0, pageSize: 25, items: [] }
   };
 
@@ -230,6 +231,7 @@
       else loadAccounts(1);
     } else if (sectionName === 'moderation') loadModeration(1);
     else if (sectionName === 'issues') loadIssues(1);
+    else if (sectionName === 'readiness') loadReadiness();
     else if (sectionName === 'audit') loadAudit(1);
     else if (sectionName === 'health') loadHealth();
   }
@@ -268,11 +270,35 @@
       document.getElementById('ovHealthSub').textContent =
         (q.pending || 0) + ' queued · ' + (q.retrying || 0) + ' retrying · ' + (q.dead_letter || 0) + ' dead-letter';
 
+      var lr = data.launch_readiness || {};
+      var unresCrit = Number(c.unresolved_launch_critical != null ? c.unresolved_launch_critical : lr.unresolved_launch_critical) || 0;
+      var needsReRev = Number(c.needs_re_review_items != null ? c.needs_re_review_items : lr.needs_re_review_count) || 0;
+      var ovUnresEl = document.getElementById('ovUnresolvedReadiness');
+      var ovReadSubEl = document.getElementById('ovReadinessSub');
+      if (ovUnresEl) ovUnresEl.textContent = String(unresCrit);
+      if (ovReadSubEl) {
+        ovReadSubEl.textContent =
+          needsReRev > 0
+            ? needsReRev + ' needs re-review · ' + (lr.legally_approved_count || 0) + ' approved'
+            : (lr.legally_approved_count || 0) + ' scoped approvals · Drafts pending';
+      }
+
+      var remBanner = document.getElementById('adminLaunchReminderBanner');
+      if (remBanner) {
+        // Prominent Top-admin governance reminder while launch readiness remains incomplete
+        var showReminder = state.isTop && lr.launch_ready !== true;
+        remBanner.hidden = !showReminder;
+        if (showReminder && lr.reminder_banner) {
+          document.getElementById('launchReminderHeadline').textContent = lr.reminder_banner;
+        }
+      }
+
       setNavBadge('badgeApplications', c.pending_applications || 0);
       setNavBadge('badgeVendors', c.restricted_vendors || 0);
       setNavBadge('badgeInvitations', c.pending_privileged_invitations || 0);
       setNavBadge('badgeModeration', (c.pending_comments || 0) + (c.reported_comments || 0));
       setNavBadge('badgeIssues', c.open_issues || 0);
+      setNavBadge('badgeReadiness', unresCrit);
 
       loadingEl.hidden = true;
       cardsEl.hidden = false;
@@ -1711,6 +1737,380 @@
   }
 
   // =========================================================================
+  // 6B. Business & Compliance Readiness Checklist
+  // =========================================================================
+  var READINESS_STATUS_LABELS = {
+    not_assessed: 'Not assessed',
+    decision_pending: 'Decision pending',
+    proposed: 'Proposed',
+    implemented_verification_pending: 'Implemented — verification pending',
+    verified_internally: 'Verified internally',
+    submitted_for_legal_review: 'Submitted for legal review',
+    changes_requested: 'Changes requested',
+    legally_approved: 'Legally approved (scoped)',
+    not_applicable: 'Not applicable (explained)',
+    needs_re_review: 'Needs re-review'
+  };
+
+  function readinessStatusPill(status) {
+    var s = String(status || '').toLowerCase();
+    var label = READINESS_STATUS_LABELS[s] || status;
+    var cls = 'pill';
+    if (s === 'legally_approved') cls += ' pill-ok';
+    else if (s === 'not_applicable') cls += ' pill-info';
+    else if (s === 'needs_re_review' || s === 'changes_requested' || s === 'not_assessed') cls += ' pill-danger';
+    else cls += ' pill-warn';
+    return '<span class="' + cls + '">' + esc(label) + '</span>';
+  }
+
+  function renderStageChips(item) {
+    var st = item.stages || {};
+    var chip = function (done, text) {
+      return '<span class="stage-chip' + (done ? ' done' : '') + '">' + (done ? '✓ ' : '○ ') + esc(text) + '</span>';
+    };
+    return (
+      '<div class="stage-track" aria-label="Readiness stage progression">' +
+      chip(st.decision_recorded, 'Decision') +
+      chip(st.implemented_recorded, 'Implemented') +
+      chip(st.tested_recorded, 'Tested') +
+      chip(st.legally_reviewed, 'Legally reviewed') +
+      '</div>'
+    );
+  }
+
+  async function loadReadiness() {
+    var stateEl = document.getElementById('readinessListState');
+    var listEl = document.getElementById('readinessList');
+    stateEl.hidden = false;
+    stateEl.className = 'state-box';
+    stateEl.textContent = 'Loading Business & Compliance Readiness register…';
+    listEl.hidden = true;
+
+    var qs = new URLSearchParams();
+    var cat = document.getElementById('readinessCategoryFilter').value;
+    var st = document.getElementById('readinessStatusFilter').value;
+    var crit = document.getElementById('readinessCriticalOnly').checked;
+    var q = document.getElementById('readinessSearchInput').value.trim();
+    if (cat && cat !== 'all') qs.set('category', cat);
+    if (st && st !== 'all') qs.set('status', st);
+    if (crit) qs.set('critical_only', '1');
+    if (q) qs.set('q', q);
+
+    try {
+      var data = await apiJson('/api/admin/readiness' + (qs.toString() ? '?' + qs.toString() : ''));
+      state.readiness.items = Array.isArray(data.items) ? data.items : [];
+      state.readiness.summary = data.summary || {};
+      state.readiness.statusesCatalog = Array.isArray(data.statuses_catalog) ? data.statuses_catalog : [];
+
+      var sum = state.readiness.summary;
+      document.getElementById('rsUnresolvedCritical').textContent = String(sum.unresolved_launch_critical || 0);
+      document.getElementById('rsPendingDecision').textContent = String(sum.unassessed_or_pending_count || 0);
+      document.getElementById('rsNeedsReReview').textContent = String(sum.needs_re_review_count || 0);
+      document.getElementById('rsLegallyApproved').textContent = String(sum.legally_approved_count || 0);
+      document.getElementById('rsVisibleTotal').textContent = String(sum.visible_items || 0);
+
+      setNavBadge('badgeReadiness', sum.unresolved_launch_critical || 0);
+
+      if (!state.readiness.items.length) {
+        stateEl.textContent = 'No readiness items match the selected filters.';
+        return;
+      }
+
+      if (!state.readiness.selectedKey || !state.readiness.items.some(function (i) { return i.item_key === state.readiness.selectedKey; })) {
+        state.readiness.selectedKey = state.readiness.items[0].item_key;
+      }
+
+      stateEl.hidden = true;
+      listEl.hidden = false;
+      listEl.innerHTML = state.readiness.items
+        .map(function (item) {
+          var isSel = state.readiness.selectedKey === item.item_key;
+          var critTag = item.is_launch_critical
+            ? '<span class="pill pill-danger">Launch-Critical</span>'
+            : '<span class="pill">Pre-Activation</span>';
+          return (
+            '<button type="button" class="record-card' +
+            (isSel ? ' selected' : '') +
+            '" data-readiness-key="' +
+            esc(item.item_key) +
+            '">' +
+            '<div class="record-card-top"><span class="record-title">' +
+            esc(item.topic) +
+            '</span><span>' +
+            critTag +
+            ' ' +
+            readinessStatusPill(item.status) +
+            '</span></div>' +
+            renderStageChips(item) +
+            '<div class="record-meta">Owner: <strong>' +
+            esc(item.owner_label) +
+            '</strong>' +
+            (item.policy_version ? ' · Version: <code>' + esc(item.policy_version) + '</code>' : ' · Version: <em>Unset</em>') +
+            (item.target_review_date ? ' · Target: ' + esc(String(item.target_review_date).slice(0, 10)) : '') +
+            '</div>' +
+            '</button>'
+          );
+        })
+        .join('');
+
+      listEl.querySelectorAll('[data-readiness-key]').forEach(function (btn) {
+        btn.onclick = function () {
+          state.readiness.selectedKey = btn.dataset.readinessKey;
+          listEl.querySelectorAll('[data-readiness-key]').forEach(function (b) {
+            b.classList.toggle('selected', b === btn);
+          });
+          renderReadinessDetail();
+        };
+      });
+
+      renderReadinessDetail();
+    } catch (err) {
+      stateEl.className = 'state-box state-error';
+      stateEl.textContent = err.message;
+    }
+  }
+
+  function renderReadinessDetail() {
+    var pane = document.getElementById('readinessDetailPane');
+    var item = state.readiness.items.find(function (i) {
+      return i.item_key === state.readiness.selectedKey;
+    });
+    if (!item) {
+      pane.innerHTML = '<div class="empty-detail">Select a readiness item to view details and governance controls.</div>';
+      return;
+    }
+
+    var depsHtml = item.dependencies && item.dependencies.length
+      ? item.dependencies.map(function (d) { return '<code>' + esc(d) + '</code>'; }).join(', ')
+      : 'None';
+
+    var legalApprovalSummary = item.approved_doc_version
+      ? '<div class="card-panel" style="margin:10px 0;background:#f4f9f6">' +
+        '<h3 style="margin:0 0 6px;font-size:14px">Recorded Legal Review Evidence ' +
+        (item.status === 'needs_re_review' ? '<span class="pill pill-danger">NEEDS RE-REVIEW</span>' : '') +
+        '</h3>' +
+        '<div class="kv-grid">' +
+        '<div><strong>Reviewed Version</strong><code>' + esc(item.approved_doc_version) + '</code></div>' +
+        '<div><strong>Jurisdiction / Scope</strong>' + esc(item.approved_jurisdiction_scope || '—') + '</div>' +
+        '<div><strong>Legal Reviewer</strong>' + esc(item.legal_reviewer_name || '—') + '</div>' +
+        '<div><strong>Review Date</strong>' + esc(item.legal_reviewed_at ? String(item.legal_reviewed_at).slice(0, 10) : '—') + '</div>' +
+        '</div></div>'
+      : '<p class="record-meta"><strong>Legal Review Evidence:</strong> None recorded yet (Legal review pending).</p>';
+
+    var counselDisplay = '';
+    if (state.isTop || item.mod_counsel_access_granted) {
+      counselDisplay =
+        '<div class="detail-section"><h3>Confidential Counsel Material</h3><p>' +
+        (item.confidential_counsel_notes ? esc(item.confidential_counsel_notes) : '<em>No confidential counsel notes recorded.</em>') +
+        '</p></div>';
+    } else {
+      counselDisplay =
+        '<div class="detail-section"><h3>Confidential Counsel Material</h3><p class="record-meta">' +
+        (item.confidential_counsel_redacted
+          ? '🔒 Confidential counsel notes exist on this item and are restricted to <strong>Admin: Top</strong> unless explicit Mod access is granted.'
+          : '🔒 Restricted to <strong>Admin: Top</strong> unless explicit Mod permission is granted.') +
+        '</p></div>';
+    }
+
+    var formHtml = '';
+    if (!state.isTop) {
+      formHtml =
+        '<div class="policy-callout" style="margin:12px 0">' +
+        '<strong>Admin: Mod Scope:</strong> You may record operational notes and supporting evidence links below. Declaring legal approval, modifying governing age/business policies, accessing confidential counsel notes without explicit permission, or completing final launch authorization requires <strong>Admin: Top</strong>.' +
+        '</div>' +
+        '<form class="admin-form" id="readinessModNoteForm">' +
+        '<h3>Add Operational Note / Evidence (Admin: Mod)</h3>' +
+        '<label for="rmSupportingEvidence">Supporting Evidence / File or Test Reference' +
+        '<input type="text" id="rmSupportingEvidence" maxlength="1000" value="' + esc(item.supporting_evidence || '') + '" placeholder="e.g. Manual NVDA walkthrough log or policy draft section">' +
+        '</label>' +
+        '<label for="rmOperationalNote">Operational Note (3–800 characters)' +
+        '<textarea id="rmOperationalNote" rows="3" minlength="3" maxlength="800" required placeholder="Add operational findings, verification notes, or open items for Admin: Top…"></textarea>' +
+        '</label>' +
+        '<button type="submit" class="admin-btn admin-btn-primary">Save Operational Note</button>' +
+        '</form>';
+    } else {
+      var statusOptions = (state.readiness.statusesCatalog.length
+        ? state.readiness.statusesCatalog
+        : Object.keys(READINESS_STATUS_LABELS).map(function (k) { return { code: k, label: READINESS_STATUS_LABELS[k] }; })
+      )
+        .map(function (s) {
+          return '<option value="' + esc(s.code) + '" ' + (item.status === s.code ? 'selected' : '') + '>' + esc(s.label) + '</option>';
+        })
+        .join('');
+
+      var targetIso = item.target_review_date ? String(item.target_review_date).slice(0, 10) : '';
+      var reviewedIso = item.legal_reviewed_at ? String(item.legal_reviewed_at).slice(0, 10) : '';
+
+      formHtml =
+        '<form class="admin-form" id="readinessTopUpdateForm">' +
+        '<h3>Manage Readiness &amp; Legal Review Record (Admin: Top)</h3>' +
+        '<div class="form-row-2">' +
+        '<label for="rtStatus">Readiness Status<select id="rtStatus">' + statusOptions + '</select></label>' +
+        '<label for="rtPolicyVersion">Policy / Document Version<input type="text" id="rtPolicyVersion" maxlength="80" value="' + esc(item.policy_version || '') + '" placeholder="e.g. draft-14plus-v0.1"></label>' +
+        '</div>' +
+        '<fieldset class="legal-approval-fieldset">' +
+        '<legend>Independent Stage Progression (Decision → Implemented → Tested)</legend>' +
+        '<div class="check-grid">' +
+        '<label class="checkbox-inline" for="rtStageDecision"><input type="checkbox" id="rtStageDecision" ' + (item.decision_recorded ? 'checked' : '') + '><span>1. Policy decision made</span></label>' +
+        '<label class="checkbox-inline" for="rtStageImplemented"><input type="checkbox" id="rtStageImplemented" ' + (item.implemented_recorded ? 'checked' : '') + '><span>2. Implemented in system/process</span></label>' +
+        '<label class="checkbox-inline" for="rtStageTested"><input type="checkbox" id="rtStageTested" ' + (item.tested_recorded ? 'checked' : '') + '><span>3. Verified / tested internally</span></label>' +
+        '</div>' +
+        '</fieldset>' +
+        '<label id="rtNaWrap" for="rtNaExplanation" ' + (item.status === 'not_applicable' ? '' : 'hidden') + '>Not Applicable Explanation (required when status is Not applicable)' +
+        '<input type="text" id="rtNaExplanation" maxlength="600" value="' + esc(item.not_applicable_explanation || '') + '" placeholder="Explain why this requirement does not apply to the specified launch scope">' +
+        '</label>' +
+        '<label for="rtCurrentPractice">Current Setting or Documented Practice (editing an approved item marks it Needs re-review)' +
+        '<textarea id="rtCurrentPractice" rows="3" required minlength="4" maxlength="2000">' + esc(item.current_practice || '') + '</textarea>' +
+        '</label>' +
+        '<label for="rtUnresolved">Unresolved Questions / Facts Requiring Confirmation' +
+        '<textarea id="rtUnresolved" rows="2" maxlength="2000">' + esc(item.unresolved_questions || '') + '</textarea>' +
+        '</label>' +
+        '<div class="form-row-2">' +
+        '<label for="rtOwner">Responsible Owner<input type="text" id="rtOwner" required minlength="2" maxlength="120" value="' + esc(item.owner_label || '') + '"></label>' +
+        '<label for="rtTargetDate">Target / Review Date (YYYY-MM-DD)<input type="date" id="rtTargetDate" value="' + esc(targetIso) + '"></label>' +
+        '</div>' +
+        '<label for="rtNextAction">Next Action<input type="text" id="rtNextAction" required minlength="4" maxlength="600" value="' + esc(item.next_action || '') + '"></label>' +
+        '<label for="rtEvidence">Supporting Evidence / Artifact Reference<input type="text" id="rtEvidence" maxlength="1000" value="' + esc(item.supporting_evidence || '') + '"></label>' +
+        '<label for="rtOpNotes">Operational Notes<textarea id="rtOpNotes" rows="2" maxlength="2000">' + esc(item.operational_notes || '') + '</textarea></label>' +
+        '<fieldset class="legal-approval-fieldset">' +
+        '<legend>4. Structured Legal Review Sign-Off (all 4 fields required for Legally approved)</legend>' +
+        '<div class="form-row-2">' +
+        '<label for="rtApprovedVersion">Reviewed Document Version<input type="text" id="rtApprovedVersion" maxlength="80" value="' + esc(item.approved_doc_version || '') + '" placeholder="e.g. terms-v1.0-ca"></label>' +
+        '<label for="rtApprovedScope">Approved Jurisdiction / Scope<input type="text" id="rtApprovedScope" maxlength="240" value="' + esc(item.approved_jurisdiction_scope || '') + '" placeholder="e.g. California, USA initial launch"></label>' +
+        '</div>' +
+        '<div class="form-row-2">' +
+        '<label for="rtReviewerName">Legal Reviewer (Name &amp; Firm/Role)<input type="text" id="rtReviewerName" maxlength="160" value="' + esc(item.legal_reviewer_name || '') + '" placeholder="e.g. Jane Doe, Esq., Outside Counsel"></label>' +
+        '<label for="rtReviewedAt">Legal Review Date (YYYY-MM-DD)<input type="date" id="rtReviewedAt" value="' + esc(reviewedIso) + '"></label>' +
+        '</div>' +
+        '</fieldset>' +
+        '<fieldset class="legal-approval-fieldset">' +
+        '<legend>Confidential Counsel Notes (Admin: Top Controlled)</legend>' +
+        '<label for="rtCounselNotes">Confidential Counsel Summary (never expose raw user DOB or secrets)<textarea id="rtCounselNotes" rows="2" maxlength="2000">' + esc(item.confidential_counsel_notes || '') + '</textarea></label>' +
+        '<label class="checkbox-inline" for="rtModCounselAccess"><input type="checkbox" id="rtModCounselAccess" ' + (item.mod_counsel_access_granted ? 'checked' : '') + '><span>Explicitly allow Admin: Mod to view confidential counsel notes on this item</span></label>' +
+        '</fieldset>' +
+        '<label for="rtChangeSummary">Audit Change Summary (optional)<input type="text" id="rtChangeSummary" maxlength="400" placeholder="Brief summary for append-only readiness history"></label>' +
+        '<button type="submit" class="admin-btn admin-btn-primary">Save Readiness Governance Record</button>' +
+        '</form>';
+    }
+
+    var historyList = Array.isArray(item.history) ? item.history : [];
+    var historyHtml = historyList.length
+      ? '<ul class="history-list">' +
+        historyList
+          .map(function (h) {
+            return (
+              '<li class="history-entry">' +
+              '<div><strong>' + esc(h.change_kind) + '</strong> · ' +
+              (h.from_status ? '<code>' + esc(h.from_status) + '</code> → ' : '') +
+              '<code>' + esc(h.to_status) + '</code> · <small>' + fmtDate(h.created_at) + ' by ' + esc(h.actor_role) + ' (<code>' + esc(h.actor_id) + '</code>)</small></div>' +
+              '<div>' + esc(h.summary) + '</div>' +
+              '</li>'
+            );
+          })
+          .join('') +
+        '</ul>'
+      : '<p class="record-meta">No history entries recorded.</p>';
+
+    pane.innerHTML =
+      '<div class="detail-head">' +
+      '<span class="sec-kicker">ITEM KEY: <code>' + esc(item.item_key) + '</code> · CATEGORY: ' + esc(item.category) + '</span>' +
+      '<h2>' + esc(item.topic) + '</h2>' +
+      '<div>' +
+      (item.is_launch_critical ? '<span class="pill pill-danger">Launch-Critical</span> ' : '<span class="pill">Pre-Activation</span> ') +
+      readinessStatusPill(item.status) +
+      '</div>' +
+      renderStageChips(item) +
+      '</div>' +
+      '<div class="detail-section"><h3>Current Setting / Documented Practice</h3><p>' + esc(item.current_practice) + '</p></div>' +
+      (item.unresolved_questions
+        ? '<div class="unresolved-callout"><strong>[UNRESOLVED — CONFIRMATION REQUIRED]:</strong> ' + esc(item.unresolved_questions) + '</div>'
+        : '') +
+      '<div class="kv-grid" style="margin:10px 0">' +
+      '<div><strong>Responsible Owner</strong>' + esc(item.owner_label) + '</div>' +
+      '<div><strong>Policy / Doc Version</strong>' + (item.policy_version ? '<code>' + esc(item.policy_version) + '</code>' : '<em>Unset</em>') + '</div>' +
+      '<div><strong>Target / Review Date</strong>' + esc(item.target_review_date ? String(item.target_review_date).slice(0, 10) : 'Not scheduled') + '</div>' +
+      '<div><strong>Dependencies</strong>' + depsHtml + '</div>' +
+      '</div>' +
+      '<div class="detail-section"><h3>Next Action</h3><p>' + esc(item.next_action) + '</p></div>' +
+      (item.operational_notes
+        ? '<div class="detail-section"><h3>Operational Notes</h3><pre style="white-space:pre-wrap;font-family:inherit;background:#f8f5ec;padding:10px;border-radius:8px;font-size:12.5px">' + esc(item.operational_notes) + '</pre></div>'
+        : '') +
+      legalApprovalSummary +
+      counselDisplay +
+      formHtml +
+      '<div class="detail-section" style="margin-top:16px"><h3>Append-Only Readiness Change History</h3>' + historyHtml + '</div>';
+
+    var modForm = document.getElementById('readinessModNoteForm');
+    if (modForm) {
+      modForm.onsubmit = async function (e) {
+        e.preventDefault();
+        try {
+          await apiJson('/api/admin/readiness/note', {
+            method: 'POST',
+            body: {
+              item_key: item.item_key,
+              supporting_evidence: document.getElementById('rmSupportingEvidence').value.trim() || null,
+              note: document.getElementById('rmOperationalNote').value.trim()
+            }
+          });
+          showBanner('Operational note recorded on ' + item.topic + '.', false);
+          await loadReadiness();
+        } catch (err) {
+          showBanner(err.message, true);
+        }
+      };
+    }
+
+    var topForm = document.getElementById('readinessTopUpdateForm');
+    if (topForm) {
+      var stSel = document.getElementById('rtStatus');
+      stSel.onchange = function () {
+        document.getElementById('rtNaWrap').hidden = stSel.value !== 'not_applicable';
+      };
+      topForm.onsubmit = async function (e) {
+        e.preventDefault();
+        try {
+          var out = await apiJson('/api/admin/readiness/update', {
+            method: 'POST',
+            body: {
+              item_key: item.item_key,
+              expected_updated_at: item.updated_at,
+              status: document.getElementById('rtStatus').value,
+              policy_version: document.getElementById('rtPolicyVersion').value.trim() || null,
+              decision_recorded: document.getElementById('rtStageDecision').checked,
+              implemented_recorded: document.getElementById('rtStageImplemented').checked,
+              tested_recorded: document.getElementById('rtStageTested').checked,
+              not_applicable_explanation: document.getElementById('rtNaExplanation').value.trim() || null,
+              current_practice: document.getElementById('rtCurrentPractice').value.trim(),
+              unresolved_questions: document.getElementById('rtUnresolved').value.trim() || null,
+              owner_label: document.getElementById('rtOwner').value.trim(),
+              target_review_date: document.getElementById('rtTargetDate').value || null,
+              next_action: document.getElementById('rtNextAction').value.trim(),
+              supporting_evidence: document.getElementById('rtEvidence').value.trim() || null,
+              operational_notes: document.getElementById('rtOpNotes').value.trim() || null,
+              approved_doc_version: document.getElementById('rtApprovedVersion').value.trim() || null,
+              approved_jurisdiction_scope: document.getElementById('rtApprovedScope').value.trim() || null,
+              legal_reviewer_name: document.getElementById('rtReviewerName').value.trim() || null,
+              legal_reviewed_at: document.getElementById('rtReviewedAt').value || null,
+              confidential_counsel_notes: document.getElementById('rtCounselNotes').value.trim() || null,
+              mod_counsel_access_granted: document.getElementById('rtModCounselAccess').checked,
+              change_summary: document.getElementById('rtChangeSummary').value.trim() || undefined
+            }
+          });
+          if (out.auto_needs_re_review) {
+            showBanner('Material policy/practice update saved — prior legal approval was automatically marked "Needs re-review" with history preserved.', false);
+          } else {
+            showBanner('Readiness item "' + item.topic + '" updated.', false);
+          }
+          await Promise.all([loadReadiness(), loadOverview()]);
+        } catch (err) {
+          showBanner(err.message, true);
+        }
+      };
+    }
+  }
+
+  // =========================================================================
   // 7. Audit & Activity History
   // =========================================================================
   async function loadAudit(page) {
@@ -1858,6 +2258,13 @@
 
       updateInviteFormHints();
       await Promise.all([loadVendorSelectorCatalog(), loadOverview()]);
+
+      var initialHash = String(window.location.hash || '').replace(/^#/, '').trim();
+      var initialQuerySec = new URLSearchParams(window.location.search || '').get('section') || '';
+      var targetInitialSection = initialHash || initialQuerySec;
+      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
+        switchSection(targetInitialSection);
+      }
     } catch (err) {
       showBanner(err.message, true);
     }
@@ -1946,6 +2353,13 @@
 
   document.getElementById('refreshIssuesBtn').onclick = function () { loadIssues(state.issues.page); };
   document.getElementById('issuesFilterForm').onsubmit = function (e) { e.preventDefault(); loadIssues(1); };
+
+  document.getElementById('refreshReadinessBtn').onclick = loadReadiness;
+  document.getElementById('readinessFilterForm').onsubmit = function (e) { e.preventDefault(); loadReadiness(); };
+  document.getElementById('launchReminderOpenReadinessBtn').onclick = function () {
+    window.location.hash = 'readiness';
+    switchSection('readiness');
+  };
 
   document.getElementById('refreshAuditBtn').onclick = function () { loadAudit(state.audit.page); };
   document.getElementById('auditFilterForm').onsubmit = function (e) { e.preventDefault(); loadAudit(1); };

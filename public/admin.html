@@ -86,6 +86,11 @@
           <span class="nav-label">Customer / Vendor Issues</span>
           <span class="nav-badge nav-badge-danger" id="badgeIssues" hidden>0</span>
         </button>
+        <button type="button" class="admin-nav-item" data-section="readiness">
+          <span class="nav-icon" aria-hidden="true">⚖️</span>
+          <span class="nav-label">Business &amp; Compliance</span>
+          <span class="nav-badge nav-badge-warn" id="badgeReadiness" hidden>0</span>
+        </button>
         <button type="button" class="admin-nav-item" data-section="audit">
           <span class="nav-icon" aria-hidden="true">📜</span>
           <span class="nav-label">Audit &amp; Activity History</span>
@@ -97,6 +102,18 @@
       </nav>
 
       <main class="admin-main" id="adminMain" tabindex="-1">
+        <section id="adminLaunchReminderBanner" class="launch-reminder-banner" role="region" aria-label="Launch readiness governance reminder" hidden>
+          <div class="launch-reminder-copy">
+            <span class="launch-reminder-tag">⚠️ TOP ADMIN LAUNCH REMINDER · DRAFT STATUS</span>
+            <strong id="launchReminderHeadline">Legal review and launch readiness remain incomplete. Draft policies are not approved for public rollout.</strong>
+            <p id="launchReminderSubnote">Governance reminder only: deployment automation (<code>deploy/install-staging-release.sh</code>) runs via operator SSH/CLI and is not technically prevented by this dashboard flag.</p>
+          </div>
+          <div class="launch-reminder-actions">
+            <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="launchReminderOpenReadinessBtn">Open Readiness Checklist →</button>
+            <a href="/policies/index.html" class="admin-btn admin-btn-secondary admin-btn-sm">Staging Policy Drafts ↗</a>
+          </div>
+        </section>
+
         <div id="adminGlobalBanner" class="admin-alert" role="status" aria-live="polite" hidden></div>
 
         <!-- 1. OVERVIEW -->
@@ -138,6 +155,11 @@
               <span class="metric-label">Suspended / Restricted Vendors</span>
               <strong class="metric-value" id="ovRestrictedVendors">0</strong>
               <small class="metric-sub" id="ovVendorsBreakdown">0 suspended · 0 restricted</small>
+            </button>
+            <button type="button" class="metric-card" data-goto="readiness" id="ovReadinessCard">
+              <span class="metric-label">Unresolved Launch-Critical Readiness</span>
+              <strong class="metric-value" id="ovUnresolvedReadiness">0</strong>
+              <small class="metric-sub" id="ovReadinessSub">Legal &amp; business checklist</small>
             </button>
             <button type="button" class="metric-card" data-goto="health">
               <span class="metric-label">Worker &amp; Outbox Health</span>
@@ -519,6 +541,80 @@
             </div>
             <aside class="detail-pane" id="issuesDetailPane">
               <div class="empty-detail">Select an issue to inspect linked records, post internal or reporter-visible notes, assign ownership, or record resolution.</div>
+            </aside>
+          </div>
+        </section>
+
+        <!-- 6B. BUSINESS & COMPLIANCE READINESS -->
+        <section class="admin-section" id="sec-readiness" aria-labelledby="heading-readiness" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">PRE-ROLLOUT GOVERNANCE REGISTER · WORKING CHECKLIST (NO COMPLIANCE SCORE)</span>
+              <h1 id="heading-readiness">Business &amp; Compliance Readiness</h1>
+              <p>Track legal, privacy, age-eligibility, entity, accessibility, IP, and operational prerequisites before public rollout. Tracks discrete stages: <strong>Policy decision made → Implemented → Tested → Legally reviewed</strong>.</p>
+            </div>
+            <div class="action-row">
+              <a href="/policies/index.html" class="admin-btn admin-btn-secondary">📄 Policy Drafts Hub ↗</a>
+              <button type="button" class="admin-btn admin-btn-secondary" id="refreshReadinessBtn">↻ Refresh</button>
+            </div>
+          </div>
+
+          <div class="readiness-summary-strip" id="readinessSummaryStrip" role="region" aria-label="Readiness register counts">
+            <div class="rs-stat"><small>Unresolved Launch-Critical</small><strong id="rsUnresolvedCritical">—</strong></div>
+            <div class="rs-stat"><small>Unassessed / Decision Pending</small><strong id="rsPendingDecision">—</strong></div>
+            <div class="rs-stat"><small>Needs Re-Review</small><strong id="rsNeedsReReview">—</strong></div>
+            <div class="rs-stat"><small>Legally Approved (Scoped)</small><strong id="rsLegallyApproved">—</strong></div>
+            <div class="rs-stat"><small>Visible Checklist Items</small><strong id="rsVisibleTotal">—</strong></div>
+          </div>
+
+          <div class="policy-callout" style="margin-bottom:14px">
+            <strong>Deployment Control Disclosure:</strong> This register is a governance tracking tool and reminder — deployment scripts (<code>deploy/install-staging-release.sh</code>) execute via operator SSH/CLI and are not technically blocked by this dashboard. Draft staging policies (<a href="/policies/terms.html">Terms</a> · <a href="/policies/privacy.html">Privacy</a> · <a href="/policies/vendor-terms.html">Vendor Terms</a> · <a href="/policies/community-moderation.html">Moderation</a> · <a href="/policies/advertising-sponsored.html">Advertising</a> · <a href="/policies/accessibility.html">Accessibility</a> · <a href="/policies/cookies-storage.html">Cookies</a>) remain <code>noindex</code> working drafts awaiting legal review.
+          </div>
+
+          <form class="filter-bar" id="readinessFilterForm">
+            <label for="readinessCategoryFilter">Category
+              <select id="readinessCategoryFilter">
+                <option value="all">All categories</option>
+                <option value="business_and_entity">Business &amp; Entity</option>
+                <option value="age_and_eligibility">Age &amp; Eligibility (14+)</option>
+                <option value="legal_and_privacy">Legal &amp; Privacy</option>
+                <option value="moderation_and_ip">Moderation &amp; IP</option>
+                <option value="accessibility_and_ops">Accessibility, Security &amp; Backups</option>
+                <option value="launch_authorization">Final Launch Authorization</option>
+              </select>
+            </label>
+            <label for="readinessStatusFilter">Status
+              <select id="readinessStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="not_assessed">Not assessed</option>
+                <option value="decision_pending">Decision pending</option>
+                <option value="proposed">Proposed</option>
+                <option value="implemented_verification_pending">Implemented — verification pending</option>
+                <option value="verified_internally">Verified internally</option>
+                <option value="submitted_for_legal_review">Submitted for legal review</option>
+                <option value="changes_requested">Changes requested</option>
+                <option value="needs_re_review">Needs re-review</option>
+                <option value="legally_approved">Legally approved (scoped)</option>
+                <option value="not_applicable">Not applicable (explained)</option>
+              </select>
+            </label>
+            <label class="checkbox-inline" for="readinessCriticalOnly">
+              <input type="checkbox" id="readinessCriticalOnly">
+              <span>Launch-critical only</span>
+            </label>
+            <label class="grow" for="readinessSearchInput">Search topic, practice, or open question
+              <input type="search" id="readinessSearchInput" placeholder="e.g. 14+, DBA, DMCA, deletion, backup…">
+            </label>
+            <button type="submit" class="admin-btn admin-btn-primary">Filter checklist</button>
+          </form>
+
+          <div class="split-workspace">
+            <div class="list-pane">
+              <div id="readinessListState" class="state-box">Loading Business &amp; Compliance Readiness register…</div>
+              <div id="readinessList" class="record-list" hidden></div>
+            </div>
+            <aside class="detail-pane" id="readinessDetailPane" aria-live="polite">
+              <div class="empty-detail">Select a checklist item to inspect current practice, unresolved legal questions, stage progression, dependencies, structured counsel sign-off, and append-only change history.</div>
             </aside>
           </div>
         </section>

@@ -18,6 +18,7 @@ import {
   resolveSessionFromRequest,
   revokeSessionFromRequest,
   readProtectedStagingMailboxCode,
+  submitExistingAccountAgeAssessment,
   verifySameOriginMutationRequest
 } from '../lib/standalone-auth.js';
 import { matchDomainApiRoute, REGISTERED_DOMAIN_ROUTE_COUNT } from './routes.js';
@@ -294,7 +295,13 @@ function resolveSafePublicFile(realPublicRoot, rawPathname) {
   if (decoded.includes('\0') || decoded.includes('\\')) return null;
   if (decoded.startsWith('/__debug') || decoded.startsWith('/api/') || decoded === '/api') return null;
 
-  const relUrl = decoded === '/' ? '/index.html' : decoded;
+  let relUrl = decoded === '/' ? '/index.html' : decoded;
+  if (relUrl === '/policies' || relUrl === '/policies/') {
+    relUrl = '/policies/index.html';
+  } else if (relUrl.startsWith('/policies/') && !path.extname(relUrl)) {
+    const cleanRel = relUrl.endsWith('/') ? relUrl.slice(0, -1) : relUrl;
+    relUrl = `${cleanRel}.html`;
+  }
   const segments = relUrl.split('/').filter(Boolean);
   if (segments.length === 0) return null;
 
@@ -339,11 +346,13 @@ function resolveSafePublicFile(realPublicRoot, rawPathname) {
   }
 
   const canonicalUrlPath = '/' + segments.join('/');
+  const isPolicyDraftAsset = canonicalUrlPath.startsWith('/policies/');
   return {
     filePath: realCandidate,
     mime,
     size: stat.size,
-    noCache: NO_CACHE_STATIC_FILES.has(canonicalUrlPath)
+    noCache: NO_CACHE_STATIC_FILES.has(canonicalUrlPath) || isPolicyDraftAsset,
+    noIndex: isPolicyDraftAsset
   };
 }
 
@@ -479,6 +488,7 @@ export function createStandaloneServer({
           return sendJsonResponse(res, 200, {
             authenticated: sess.authenticated,
             user: sess.user,
+            requires_age_assessment: Boolean(sess.user?.requires_age_assessment),
             passkeys_supported: false
           });
         }
@@ -492,10 +502,50 @@ export function createStandaloneServer({
             return sendJsonResponse(res, csrf.status, { error: csrf.error, code: csrf.code });
           }
           const body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
-          const out = await startEmailOtpChallenge(dbAdapter, req, { email: body.email });
+          const out = await startEmailOtpChallenge(dbAdapter, req, {
+            email: body.email,
+            intent: body.intent,
+            dob: body.dob,
+            dob_year: body.dob_year,
+            dob_month: body.dob_month,
+            dob_day: body.dob_day
+          });
+          if (out.setCookieHeader) {
+            appendSetCookie(res, out.setCookieHeader);
+          }
           if (!out.ok) {
             const hdrs = out.retryAfterSeconds ? { 'Retry-After': String(out.retryAfterSeconds) } : {};
             return sendJsonResponse(res, out.status, { error: out.error, code: out.code }, hdrs);
+          }
+          return sendJsonResponse(res, out.status, out.body);
+        }
+
+        if (pathname === '/api/auth/age-assessment') {
+          if (method !== 'POST') {
+            return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+          }
+          const csrf = verifySameOriginMutationRequest(req, { requireAuthClientHeader: true });
+          if (!csrf.ok) {
+            return sendJsonResponse(res, csrf.status, { error: csrf.error, code: csrf.code });
+          }
+          const body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
+          const out = await submitExistingAccountAgeAssessment(dbAdapter, req, {
+            dob: body.dob,
+            dob_year: body.dob_year,
+            dob_month: body.dob_month,
+            dob_day: body.dob_day
+          });
+          if (out.refreshedCookieHeader) {
+            appendSetCookie(res, out.refreshedCookieHeader);
+          }
+          if (out.setCookieHeader) {
+            appendSetCookie(res, out.setCookieHeader);
+          }
+          if (Array.isArray(out.setCookieHeaders)) {
+            for (const c of out.setCookieHeaders) appendSetCookie(res, c);
+          }
+          if (!out.ok) {
+            return sendJsonResponse(res, out.status, { error: out.error, code: out.code });
           }
           return sendJsonResponse(res, out.status, out.body);
         }
@@ -848,6 +898,9 @@ export function createStandaloneServer({
       res.statusCode = 200;
       res.setHeader('Content-Type', resolvedStatic.mime);
       res.setHeader('Content-Length', resolvedStatic.size);
+      if (resolvedStatic.noIndex) {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      }
       res.setHeader(
         'Cache-Control',
         resolvedStatic.noCache ? 'no-cache, must-revalidate' : 'public, max-age=300'

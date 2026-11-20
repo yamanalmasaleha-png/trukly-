@@ -103,3 +103,32 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
      ```bash
      ssh root@172.233.140.74 "/opt/nodejs/node-v22-lts/bin/node /srv/truckly-staging/current/scripts/operator-read-my-otp.cjs --email <operator-email>"
      ```
+
+---
+
+## 6. Preliminary Legal-Policy Framework, Proposed 14+ Age Policy & Launch Readiness Register (`migrations/019`)
+
+> **Important Status Notice:** All policy pages (`/policies/*.html`), age-eligibility rules (`lib/age-policy.js`), and readiness records (`compliance_readiness_items`) are **preliminary working drafts and internal tracking tools — NOT approved legal documents or declarations of compliance**. Qualified counsel must review, revise, and sign off before public rollout.
+
+### 6.1 Proposed Minimum Account Age (`14+`) & Data Minimization
+
+- **Proposed Operator Policy (Pending Legal Review)**: Users aged **13 and younger cannot create accounts**. Minimum account age is **14** (`PROPOSED_MIN_ACCOUNT_AGE = 14`, `AGE_POLICY_VERSION = 'draft-14plus-v0.1'`). Customer account eligibility does **not** establish contractual capacity for vendor agreements, commercial representation, or paid transactions.
+- **Timezone & Leap-Day Boundary**: Evaluated server-side against the current civil calendar date in `America/Los_Angeles` (Sonoma County local calendar). Leap-day (`02-29`) births reach their Nth birthday on `02-29` in leap years and on `03-01` in non-leap years (still age `N - 1` on `02-28`).
+- **Pre-OTP Enforcement & Zero Raw DOB Storage**:
+  - Eligibility is evaluated on `POST /api/auth/start` **before** issuing any signup verification code or creating a new `auth_users` row; returning sign-in requests (`{ email }` without DOB) preserve exact non-enumerating `200` responses while issuing OTP challenges **only** for existing `auth_users` accounts.
+  - BiteShark **never** stores raw date of birth, birth year, birth month, or birth day in PostgreSQL, logs, URLs, cookies, analytics, or responses. Only `age_eligibility_status` (`'not_assessed' | 'eligible_14_plus'`), `age_policy_version`, `age_assessed_at`, and `age_assessment_basis` are persisted.
+  - Rejected `< 14` signups create **zero** accounts, **zero** OTP challenges, and **zero** marketing records, setting only a 15-minute non-PII HttpOnly cooldown cookie (`__Host-bs_age_gate=1`) and a truncated IP rate-limit bucket (`age_ineligible_ip`, purged after 24 hours).
+  - Pre-existing accounts default honestly to `'not_assessed'` (no fabricated birth dates, no automatic approvals, no automatic deletions) and complete a one-time check via `POST /api/auth/age-assessment` (required before redeeming invitations on `POST /api/invitations/accept`).
+
+### 6.2 Business & Compliance Readiness Register (`/admin#readiness`) & Non-Blocking Portal Reminder
+
+- **23 Seeded Readiness Items (`22` Launch-Critical + `1` Pre-Activation Monetization Gate)**:
+  - Out of 22 launch-critical items, **all 22 remain unresolved for legal sign-off (`0` `legally_approved`)** on initial seed:
+    - Unassessed / Decision Pending / Proposed: `legal_operator_identity` (`[LEGAL OPERATOR NAME], doing business as BiteShark`), `dba_registration`, `entity_structure`, `banking_and_tax`, `insurance_assessment`, `launch_jurisdictions`, `teen_user_safeguards`, `contractual_eligibility_split`, `terms_and_vendor_agreement`, `marketing_consent_unsubscribe`, `user_privacy_requests`, `copyright_dmca_process`, `security_incident_procedures`, `final_legal_launch_gate` (plus pre-activation `payment_subscription_prereqs`).
+    - Implemented / Verified Internally (Still Awaiting Counsel Sign-Off): `minimum_signup_age_14`, `dob_collection_minimization`, `privacy_inventory_retention`, `cookie_analytics_ad_inventory`, `vendor_review_verification_defs`, `content_moderation_appeals`, `accessibility_statement_testing`, `backups_offserver_restore` (local GPG backups active; off-server replication still unresolved).
+- **Permissions & Versioned Legal Sign-Off**:
+  - `Admin: Mod` may view `mod_visible` items and record operational notes/evidence (`POST /api/admin/readiness/note`), but cannot change statuses, modify governing policies, view `confidential_counsel_notes` (unless `mod_counsel_access_granted = true`), or mark `final_legal_launch_gate` complete.
+  - `Admin: Top` (`POST /api/admin/readiness/update`) cannot mark an item `legally_approved` without structured `approved_doc_version`, `approved_jurisdiction_scope`, `legal_reviewer_name`, and `legal_reviewed_at`. Modifying `policy_version` or `current_practice` on a `legally_approved` item automatically transitions it to `needs_re_review` while preserving append-only `compliance_readiness_history`.
+- **Deployment Control Limitation (Explicit)**:
+  - `/admin` displays the prominent `Admin: Top` reminder **“Legal review and launch readiness remain incomplete. Draft policies are not approved for public rollout.”** alongside the unresolved launch-critical count on Overview.
+  - **Deployment automation (`deploy/install-staging-release.sh`) is executed by operators over SSH/CLI and is NOT technically controlled or blocked by the Admin Portal database register.** Production cutover remains operationally gated by keeping `https://biteshark.live` on its static holding page until explicit operator & counsel sign-off.

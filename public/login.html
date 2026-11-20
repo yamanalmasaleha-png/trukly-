@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
   <title>Sign in · BiteShark</title>
   <meta name="application-name" content="BiteShark">
   <meta name="apple-mobile-web-app-title" content="BiteShark">
@@ -12,23 +13,226 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/theme.css">
   <style>
-    body{overflow:auto;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 15% 20%,#ffd9d1,transparent 30%),radial-gradient(circle at 90% 80%,#d3f2e6,transparent 35%),#fff9ed}
-    .login-card{width:min(100%,430px);background:white;padding:30px;border-radius:30px;box-shadow:var(--shadow)}
-    .home-return{display:inline-flex;align-items:center;min-height:44px;margin-bottom:8px;color:var(--muted);font-size:14px;font-weight:600;text-decoration:none}
-    .login-logo{display:grid;place-items:center;width:65px;height:65px;border-radius:22px;background:var(--coral);color:white;transform:rotate(-4deg);overflow:hidden}
-    .login-logo svg{width:44px;height:44px;display:block}
-    .login-card h1{font-size:32px;margin-top:20px}
-    .login-card p{color:var(--muted)}
-    .login-card button{margin-top:10px}
-    .code{font-size:25px;letter-spacing:8px;text-align:center}
-    .back{border:0;background:transparent;color:var(--muted);margin-bottom:5px}
-    .error{color:#b33;font-size:13px;font-weight:600}
-    .passkey-note{background:#f5f4ef;color:#4f5853;padding:10px 13px;border-radius:14px;font-size:12.5px;line-height:1.45;margin-top:14px}
-    .passkey-offer{background:#eef9f5;padding:15px;border-radius:17px;margin-top:15px}
+    body {
+      overflow: auto;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px 14px;
+      background:
+        radial-gradient(circle at 15% 20%, #ffd9d1, transparent 30%),
+        radial-gradient(circle at 90% 80%, #d3f2e6, transparent 35%),
+        #fff9ed;
+    }
+    .login-card {
+      width: min(100%, 470px);
+      background: #ffffff;
+      padding: 28px 26px;
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      border: 1px solid #ece3d2;
+    }
+    @media (max-width: 420px) {
+      .login-card {
+        padding: 20px 16px;
+        border-radius: 22px;
+      }
+    }
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 3px solid #214b3b;
+      outline-offset: 2px;
+    }
+    .home-return {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      margin-bottom: 8px;
+      color: #3f4a45;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .login-logo {
+      display: grid;
+      place-items: center;
+      width: 60px;
+      height: 60px;
+      border-radius: 20px;
+      background: var(--coral);
+      color: white;
+      transform: rotate(-4deg);
+      overflow: hidden;
+    }
+    .login-logo svg { width: 40px; height: 40px; display: block; }
+    .login-card h1 { font-size: 28px; margin: 16px 0 6px; line-height: 1.2; }
+    .login-card p { color: #4a544f; line-height: 1.5; }
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: #f4efe3;
+      padding: 5px;
+      border-radius: 14px;
+      margin: 14px 0 16px;
+    }
+    .mode-tab {
+      margin: 0;
+      min-height: 44px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: #38433d;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+    .mode-tab[aria-selected="true"] {
+      background: #ffffff;
+      color: #183a2d;
+      border-color: #d6cbb6;
+      box-shadow: 0 2px 6px rgba(24, 58, 45, 0.08);
+    }
+    .mode-helper {
+      font-size: 13px;
+      background: #f8f5ec;
+      border: 1px solid #e6decb;
+      color: #38433d;
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin: 0 0 14px;
+    }
+    .dob-fieldset {
+      border: 1px solid #dcd3c0;
+      border-radius: 14px;
+      padding: 12px 14px 14px;
+      margin: 14px 0 12px;
+      background: #fcfaf4;
+    }
+    .dob-fieldset legend {
+      font-weight: 700;
+      font-size: 14px;
+      color: #1c2520;
+      padding: 0 6px;
+    }
+    .dob-grid {
+      display: grid;
+      grid-template-columns: minmax(120px, 1.5fr) minmax(70px, 0.8fr) minmax(88px, 1fr);
+      gap: 8px;
+      margin-top: 6px;
+    }
+    @media (max-width: 390px) {
+      .dob-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .dob-grid .dob-month-wrap {
+        grid-column: 1 / -1;
+      }
+    }
+    .dob-field label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #2b3530;
+      margin-bottom: 4px;
+    }
+    .dob-field select,
+    .dob-field input {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #c9bfab;
+      background: #ffffff;
+      font-size: 15px;
+      color: #1c2520;
+    }
+    .dob-purpose {
+      margin: 10px 0 0;
+      font-size: 12px;
+      line-height: 1.48;
+      color: #46514b;
+    }
+    .login-card button.primary,
+    .login-card button.secondary {
+      width: 100%;
+      min-height: 46px;
+      margin-top: 10px;
+    }
+    .code {
+      font-size: 25px;
+      letter-spacing: 8px;
+      text-align: center;
+    }
+    .back {
+      border: 0;
+      background: transparent;
+      color: #3f4a45;
+      min-height: 40px;
+      padding: 4px 0;
+      margin-bottom: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .error-banner {
+      background: #fde8e6;
+      border: 1px solid #f2b8b5;
+      color: #8c1d18;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    .error-banner:empty {
+      display: none;
+    }
+    .passkey-note {
+      background: #f5f4ef;
+      color: #454f4a;
+      padding: 10px 13px;
+      border-radius: 14px;
+      font-size: 12.5px;
+      line-height: 1.45;
+      margin-top: 14px;
+    }
+    .policy-draft-footer {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #ece3d2;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #4a544f;
+    }
+    .policy-draft-footer a {
+      color: #184a38;
+      font-weight: 600;
+      text-decoration: underline;
+    }
+    .draft-pill {
+      display: inline-block;
+      background: #fff3cd;
+      border: 1px solid #e5c76b;
+      color: #5c4300;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-right: 4px;
+    }
+    .passkey-offer {
+      background: #eef9f5;
+      padding: 15px;
+      border-radius: 17px;
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
-  <main class="login-card">
+  <main class="login-card" id="loginMain">
     <a class="home-return" id="returnLink" href="/">← Back to BiteShark</a>
     <div class="login-logo" aria-hidden="true">
       <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,132 +242,477 @@
         <path d="M9 43 Q 20 38, 32 43 T 55 43 L 55 49 Q 43 53, 32 49 T 9 49 Z" fill="#214b3b"/>
       </svg>
     </div>
+
     <div id="emailStep">
-      <small>YOUR FAVORITES ARE WAITING</small>
-      <h1>Roll back in</h1>
-      <p>Sign in to save trucks, manage bookings, and get nearby alerts.</p>
-      <form id="emailForm" onsubmit="send(event)">
-        <label>Email address
+      <small id="stepKicker">SONOMA COUNTY FOOD SPOTS</small>
+      <h1 id="stepHeading">Roll back in</h1>
+
+      <div class="mode-tabs" role="tablist" aria-label="Account access mode">
+        <button type="button" role="tab" class="mode-tab" id="tabSignIn" aria-selected="true" aria-controls="emailForm">
+          Sign in
+        </button>
+        <button type="button" role="tab" class="mode-tab" id="tabSignUp" aria-selected="false" aria-controls="emailForm">
+          Create account (14+)
+        </button>
+      </div>
+
+      <p class="mode-helper" id="modeHelperText">
+        Already have a BiteShark account? Enter your email for a 6-digit sign-in code. New to BiteShark? Select <strong>Create account (14+)</strong> first — codes are sent to new addresses only after the 14+ age check.
+      </p>
+
+      <form id="emailForm" novalidate>
+        <label for="email">Email address
           <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
         </label>
+
+        <fieldset class="dob-fieldset" id="dobFieldset" aria-describedby="dobPurposeNote" hidden disabled>
+          <legend>Date of birth (required — minimum age 14)</legend>
+          <div class="dob-grid">
+            <div class="dob-field dob-month-wrap">
+              <label for="dobMonth">Birth month</label>
+              <select id="dobMonth" autocomplete="bday-month">
+                <option value="">Select month…</option>
+                <option value="01">01 — January</option>
+                <option value="02">02 — February</option>
+                <option value="03">03 — March</option>
+                <option value="04">04 — April</option>
+                <option value="05">05 — May</option>
+                <option value="06">06 — June</option>
+                <option value="07">07 — July</option>
+                <option value="08">08 — August</option>
+                <option value="09">09 — September</option>
+                <option value="10">10 — October</option>
+                <option value="11">11 — November</option>
+                <option value="12">12 — December</option>
+              </select>
+            </div>
+            <div class="dob-field">
+              <label for="dobDay">Day</label>
+              <input id="dobDay" type="text" inputmode="numeric" pattern="[0-9]{1,2}" maxlength="2" placeholder="DD" autocomplete="bday-day">
+            </div>
+            <div class="dob-field">
+              <label for="dobYear">Year</label>
+              <input id="dobYear" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="YYYY" autocomplete="bday-year">
+            </div>
+          </div>
+          <p class="dob-purpose" id="dobPurposeNote">
+            <strong>Why we ask:</strong> Under BiteShark’s proposed account policy (pending legal review), users aged 13 and younger cannot create accounts; minimum account age is <strong>14</strong>. Your birth date is checked on our server to confirm eligibility (<code>America/Los_Angeles</code> calendar) and is <strong>not stored</strong> — we keep only the eligibility result, policy version, and timestamp. Self-reported date of birth is not verified age, and customer account eligibility does not establish authority to enter vendor agreements.
+          </p>
+        </fieldset>
+
         <button class="primary" id="sendBtn" type="submit">Email me a code →</button>
       </form>
+
       <p class="passkey-note" id="passkeyDisclosure" role="note">
         Sign-in uses a single-use 6-digit email verification code. Passkeys are currently unavailable in standalone staging.
       </p>
     </div>
+
     <div id="codeStep" hidden>
-      <button class="back" type="button" onclick="back()">← Use another email</button>
+      <button class="back" type="button" id="backBtn">← Use another email</button>
       <h1>Check your inbox</h1>
-      <p>Enter the 6-digit code we sent to <b id="emailLabel"></b>.</p>
-      <form id="codeForm" onsubmit="verify(event)">
-        <label>Verification code
+      <p>Enter the 6-digit code sent to <b id="emailLabel"></b>.</p>
+      <form id="codeForm">
+        <label for="code">Verification code
           <input id="code" class="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
         </label>
-        <button class="primary" id="verifyBtn" type="submit">Sign in →</button>
+        <button class="primary" id="verifyBtn" type="submit">Continue →</button>
       </form>
     </div>
+
+    <div id="ageAssessmentStep" hidden>
+      <small>ONE-TIME ACCOUNT ELIGIBILITY CHECK</small>
+      <h1>Confirm minimum account age (14+)</h1>
+      <p>
+        Your existing account (<b id="assessEmailLabel"></b>) was created before BiteShark’s minimum-age eligibility check was recorded. Enter your date of birth once to continue.
+      </p>
+      <form id="ageAssessmentForm" novalidate>
+        <fieldset class="dob-fieldset" aria-describedby="assessPurposeNote">
+          <legend>Date of birth (required — minimum age 14)</legend>
+          <div class="dob-grid">
+            <div class="dob-field dob-month-wrap">
+              <label for="assessDobMonth">Birth month</label>
+              <select id="assessDobMonth" autocomplete="bday-month" required>
+                <option value="">Select month…</option>
+                <option value="01">01 — January</option>
+                <option value="02">02 — February</option>
+                <option value="03">03 — March</option>
+                <option value="04">04 — April</option>
+                <option value="05">05 — May</option>
+                <option value="06">06 — June</option>
+                <option value="07">07 — July</option>
+                <option value="08">08 — August</option>
+                <option value="09">09 — September</option>
+                <option value="10">10 — October</option>
+                <option value="11">11 — November</option>
+                <option value="12">12 — December</option>
+              </select>
+            </div>
+            <div class="dob-field">
+              <label for="assessDobDay">Day</label>
+              <input id="assessDobDay" type="text" inputmode="numeric" pattern="[0-9]{1,2}" maxlength="2" placeholder="DD" autocomplete="bday-day" required>
+            </div>
+            <div class="dob-field">
+              <label for="assessDobYear">Year</label>
+              <input id="assessDobYear" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="YYYY" autocomplete="bday-year" required>
+            </div>
+          </div>
+          <p class="dob-purpose" id="assessPurposeNote">
+            Your full birth date is evaluated server-side and is <strong>never stored</strong>. Only derived 14+ eligibility status, policy version, and timestamp are recorded.
+          </p>
+        </fieldset>
+        <button class="primary" id="assessSubmitBtn" type="submit">Confirm eligibility &amp; continue →</button>
+        <button class="secondary" id="assessSignOutBtn" type="button">Sign out instead</button>
+      </form>
+    </div>
+
     <div id="passkeyOffer" class="passkey-offer" hidden>
       <h2>Make next time instant</h2>
       <p>Add a passkey to sign in with Face ID, fingerprint, or your screen lock.</p>
-      <button class="primary" type="button" onclick="addPasskey()">Add a passkey</button>
-      <button class="secondary" type="button" onclick="finish()">Not now</button>
+      <button class="primary" type="button" id="addPasskeyBtn">Add a passkey</button>
+      <button class="secondary" type="button" id="skipPasskeyBtn">Not now</button>
     </div>
-    <p id="error" class="error" role="alert"></p>
+
+    <div id="error" class="error-banner" role="alert" aria-live="assertive"></div>
+
+    <footer class="policy-draft-footer" aria-label="Preliminary staging policy drafts">
+      <span class="draft-pill">DRAFT · LEGAL REVIEW PENDING</span>
+      Staging policy working drafts (not finalized legal agreements):
+      <a href="/policies/terms.html">Terms</a> ·
+      <a href="/policies/privacy.html">Privacy</a> ·
+      <a href="/policies/accessibility.html">Accessibility</a> ·
+      <a href="/policies/cookies-storage.html">Cookies &amp; Storage</a> ·
+      <a href="/policies/index.html">All Draft Policies</a>
+    </footer>
   </main>
+
   <script src="/auth-client.js"></script>
   <script>
-    let email = '', hasPasskey = false;
-    const next = (() => {
-      const n = new URLSearchParams(location.search).get('next') || '/';
-      return n.startsWith('/') && !n.startsWith('//') ? n : '/';
-    })();
-    document.getElementById('returnLink').href = next;
+    (function () {
+      'use strict';
 
-    function getAuth() {
-      if (window.hatchable && window.hatchable.auth) return window.hatchable.auth;
-      throw new Error('Email sign-in is unavailable right now. Guest mode remains active on this device.');
-    }
+      let email = '';
+      let hasPasskey = false;
+      let authMode = 'signin'; // 'signin' | 'signup'
+      let signupLockedByAgeGate = false;
 
-    (function syncPasskeyNote() {
-      try {
-        const auth = getAuth();
-        const note = document.getElementById('passkeyDisclosure');
-        if (note && typeof auth.supportsPasskeys === 'function' && auth.supportsPasskeys()) {
-          note.hidden = true;
-        }
-      } catch {}
-    })();
+      const params = new URLSearchParams(location.search);
+      const next = (function () {
+        const n = params.get('next') || '/';
+        return n.startsWith('/') && !n.startsWith('//') ? n : '/';
+      })();
+      document.getElementById('returnLink').href = next;
 
-    async function send(e) {
-      e.preventDefault();
+      const tabSignIn = document.getElementById('tabSignIn');
+      const tabSignUp = document.getElementById('tabSignUp');
+      const stepKicker = document.getElementById('stepKicker');
+      const stepHeading = document.getElementById('stepHeading');
+      const modeHelperText = document.getElementById('modeHelperText');
+      const dobFieldset = document.getElementById('dobFieldset');
+      const sendBtn = document.getElementById('sendBtn');
       const errEl = document.getElementById('error');
-      const btn = document.getElementById('sendBtn');
-      errEl.textContent = '';
-      email = document.getElementById('email').value.trim();
-      btn.disabled = true;
-      try {
-        const auth = getAuth();
-        const r = await auth.startLogin({ email });
-        hasPasskey = !!r.has_passkey;
-        if (hasPasskey && auth.supportsPasskeys()) {
-          try {
-            await auth.signInWithPasskey({ email });
-            location.href = next;
-            return;
-          } catch {}
-        }
-        document.getElementById('emailLabel').textContent = email;
-        document.getElementById('emailStep').hidden = true;
-        document.getElementById('codeStep').hidden = false;
-        document.getElementById('code').focus();
-      } catch (x) {
-        errEl.textContent = x.message || 'Could not send a code. Please try again.';
-      } finally {
-        btn.disabled = false;
+
+      function getAuth() {
+        if (window.hatchable && window.hatchable.auth) return window.hatchable.auth;
+        throw new Error('Email sign-in is unavailable right now. Guest mode remains active on this device.');
       }
-    }
 
-    async function verify(e) {
-      e.preventDefault();
-      const errEl = document.getElementById('error');
-      const btn = document.getElementById('verifyBtn');
-      const codeInput = document.getElementById('code');
-      errEl.textContent = '';
-      btn.disabled = true;
-      try {
-        const auth = getAuth();
-        await auth.verifyCode({ email, code: codeInput.value.trim() });
-        if (!hasPasskey && auth.supportsPasskeys() && localStorage.getItem('passkey_offer_declined') !== '1') {
-          document.getElementById('codeStep').hidden = true;
-          document.getElementById('passkeyOffer').hidden = false;
+      function clearError() {
+        errEl.textContent = '';
+      }
+
+      function showError(msg) {
+        errEl.textContent = msg || 'Request could not be completed.';
+      }
+
+      function setMode(nextMode) {
+        authMode = nextMode === 'signup' ? 'signup' : 'signin';
+        clearError();
+        const isSignup = authMode === 'signup';
+        tabSignIn.setAttribute('aria-selected', isSignup ? 'false' : 'true');
+        tabSignUp.setAttribute('aria-selected', isSignup ? 'true' : 'false');
+        dobFieldset.hidden = !isSignup;
+        dobFieldset.disabled = !isSignup || signupLockedByAgeGate;
+        if (isSignup) {
+          stepKicker.textContent = 'CREATE A BITESHARK ACCOUNT (14+)';
+          stepHeading.textContent = 'Create your account';
+          modeHelperText.innerHTML =
+            'New accounts require users to be at least <strong>14 years old</strong> (proposed policy pending legal review). Enter your email and date of birth to request a verification code.';
+          sendBtn.textContent = 'Check eligibility & email code →';
+          sendBtn.disabled = signupLockedByAgeGate;
         } else {
-          finish();
+          stepKicker.textContent = 'SONOMA COUNTY FOOD SPOTS';
+          stepHeading.textContent = 'Roll back in';
+          modeHelperText.innerHTML =
+            'Already have a BiteShark account? Enter your email for a 6-digit sign-in code. New to BiteShark? Select <strong>Create account (14+)</strong> first — codes are sent to new addresses only after the 14+ age check.';
+          sendBtn.textContent = 'Email me a code →';
+          sendBtn.disabled = false;
         }
-      } catch (x) {
-        errEl.textContent = x.message || 'That code did not work.';
-      } finally {
-        btn.disabled = false;
       }
-    }
 
-    async function addPasskey() {
-      const auth = window.hatchable && window.hatchable.auth;
-      const saved = auth ? await auth.registerPasskey({ name: 'My BiteShark passkey' }).catch(() => null) : null;
-      if (!saved) localStorage.setItem('passkey_offer_declined', '1');
-      finish();
-    }
+      tabSignIn.addEventListener('click', function () { setMode('signin'); });
+      tabSignUp.addEventListener('click', function () { setMode('signup'); });
 
-    function finish() {
-      localStorage.setItem('passkey_offer_declined', '1');
-      location.href = next;
-    }
+      [tabSignIn, tabSignUp].forEach(function (tab) {
+        tab.addEventListener('keydown', function (ev) {
+          if (ev.key === 'ArrowRight' || ev.key === 'ArrowLeft') {
+            ev.preventDefault();
+            const target = tab === tabSignIn ? tabSignUp : tabSignIn;
+            target.focus();
+            setMode(target === tabSignUp ? 'signup' : 'signin');
+          }
+        });
+      });
 
-    function back() {
-      document.getElementById('codeStep').hidden = true;
-      document.getElementById('emailStep').hidden = false;
-      document.getElementById('error').textContent = '';
-    }
+      function isLeapYear(y) {
+        return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+      }
+
+      function daysInMonth(y, m) {
+        if (m === 2) return isLeapYear(y) ? 29 : 28;
+        if (m === 4 || m === 6 || m === 9 || m === 11) return 30;
+        if (m >= 1 && m <= 12) return 31;
+        return 0;
+      }
+
+      function readDobParts(prefix) {
+        const mEl = document.getElementById(prefix + 'Month');
+        const dEl = document.getElementById(prefix + 'Day');
+        const yEl = document.getElementById(prefix + 'Year');
+        const mRaw = String(mEl.value || '').trim();
+        const dRaw = String(dEl.value || '').trim();
+        const yRaw = String(yEl.value || '').trim();
+
+        [mEl, dEl, yEl].forEach(function (el) { el.removeAttribute('aria-invalid'); });
+
+        if (!mRaw || !dRaw || !yRaw) {
+          if (!mRaw) mEl.setAttribute('aria-invalid', 'true');
+          if (!dRaw) dEl.setAttribute('aria-invalid', 'true');
+          if (!yRaw) yEl.setAttribute('aria-invalid', 'true');
+          return { ok: false, error: 'Select your birth month and enter both day and 4-digit birth year.' };
+        }
+        if (!/^\d{1,2}$/.test(mRaw) || !/^\d{1,2}$/.test(dRaw) || !/^\d{4}$/.test(yRaw)) {
+          return { ok: false, error: 'Enter a valid numeric birth month, day (1–31), and 4-digit year.' };
+        }
+        const month = Number(mRaw);
+        const day = Number(dRaw);
+        const year = Number(yRaw);
+        const maxD = daysInMonth(year, month);
+        if (month < 1 || month > 12 || day < 1 || day > maxD) {
+          dEl.setAttribute('aria-invalid', 'true');
+          return { ok: false, error: 'That calendar date does not exist. Check the selected month, day, and year.' };
+        }
+        if (year < 1900) {
+          yEl.setAttribute('aria-invalid', 'true');
+          return { ok: false, error: 'Enter a valid 4-digit birth year (1900 or later).' };
+        }
+        return {
+          ok: true,
+          dob_year: String(year),
+          dob_month: String(month).padStart(2, '0'),
+          dob_day: String(day).padStart(2, '0')
+        };
+      }
+
+      function lockSignupAfterIneligible() {
+        signupLockedByAgeGate = true;
+        dobFieldset.disabled = true;
+        sendBtn.disabled = true;
+        // Clear entered birth date fields in memory/DOM immediately
+        ['dobMonth', 'dobDay', 'dobYear'].forEach(function (id) {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+      }
+
+      function showAgeAssessmentStep(userEmail) {
+        document.getElementById('emailStep').hidden = true;
+        document.getElementById('codeStep').hidden = true;
+        document.getElementById('passkeyOffer').hidden = true;
+        document.getElementById('assessEmailLabel').textContent = userEmail || email || 'Signed-in account';
+        document.getElementById('ageAssessmentStep').hidden = false;
+        document.getElementById('assessDobMonth').focus();
+      }
+
+      (function syncInitialState() {
+        try {
+          const auth = getAuth();
+          const note = document.getElementById('passkeyDisclosure');
+          if (note && typeof auth.supportsPasskeys === 'function' && auth.supportsPasskeys()) {
+            note.hidden = true;
+          }
+          if (params.get('mode') === 'signup') {
+            setMode('signup');
+          } else {
+            setMode('signin');
+          }
+          if (params.get('assess') === '1' && typeof auth.getUser === 'function') {
+            auth.getUser().then(function (u) {
+              if (u && u.requires_age_assessment) {
+                email = u.email || '';
+                showAgeAssessmentStep(email);
+              }
+            }).catch(function () {});
+          }
+        } catch {}
+      })();
+
+      document.getElementById('emailForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        clearError();
+        email = document.getElementById('email').value.trim();
+        if (!email) {
+          document.getElementById('email').setAttribute('aria-invalid', 'true');
+          showError('Enter your email address.');
+          document.getElementById('email').focus();
+          return;
+        }
+        document.getElementById('email').removeAttribute('aria-invalid');
+
+        const startPayload = { email: email };
+        if (authMode === 'signup') {
+          if (signupLockedByAgeGate) {
+            showError('Accounts on BiteShark require users to be at least 14 years old under our proposed account policy. Registration cannot be completed.');
+            return;
+          }
+          const dobParts = readDobParts('dob');
+          if (!dobParts.ok) {
+            showError(dobParts.error);
+            return;
+          }
+          startPayload.intent = 'signup';
+          startPayload.dob_year = dobParts.dob_year;
+          startPayload.dob_month = dobParts.dob_month;
+          startPayload.dob_day = dobParts.dob_day;
+        }
+
+        sendBtn.disabled = true;
+        try {
+          const auth = getAuth();
+          const r = await auth.startLogin(startPayload);
+          // Scrub DOB inputs from DOM immediately after server evaluation
+          ['dobMonth', 'dobDay', 'dobYear'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+          });
+
+          hasPasskey = !!r.has_passkey;
+          if (hasPasskey && auth.supportsPasskeys()) {
+            try {
+              await auth.signInWithPasskey({ email: email });
+              location.href = next;
+              return;
+            } catch {}
+          }
+          document.getElementById('emailLabel').textContent = email;
+          document.getElementById('emailStep').hidden = true;
+          document.getElementById('codeStep').hidden = false;
+          document.getElementById('code').focus();
+        } catch (x) {
+          if (x && x.code === 'AGE_INELIGIBLE') {
+            lockSignupAfterIneligible();
+          }
+          showError(x.message || 'Could not send a code. Please try again.');
+        } finally {
+          if (!(authMode === 'signup' && signupLockedByAgeGate)) {
+            sendBtn.disabled = false;
+          }
+        }
+      });
+
+      document.getElementById('codeForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        clearError();
+        const verifyBtn = document.getElementById('verifyBtn');
+        const codeInput = document.getElementById('code');
+        verifyBtn.disabled = true;
+        try {
+          const auth = getAuth();
+          const res = await auth.verifyCode({ email: email, code: codeInput.value.trim() });
+          if (res && (res.requires_age_assessment || (res.user && res.user.requires_age_assessment))) {
+            showAgeAssessmentStep(res.user && res.user.email ? res.user.email : email);
+            return;
+          }
+          if (!hasPasskey && auth.supportsPasskeys() && localStorage.getItem('passkey_offer_declined') !== '1') {
+            document.getElementById('codeStep').hidden = true;
+            document.getElementById('passkeyOffer').hidden = false;
+          } else {
+            finish();
+          }
+        } catch (x) {
+          showError(x.message || 'That code did not work.');
+        } finally {
+          verifyBtn.disabled = false;
+        }
+      });
+
+      document.getElementById('ageAssessmentForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        clearError();
+        const dobParts = readDobParts('assessDob');
+        if (!dobParts.ok) {
+          showError(dobParts.error);
+          return;
+        }
+        const btn = document.getElementById('assessSubmitBtn');
+        btn.disabled = true;
+        try {
+          const auth = getAuth();
+          await auth.submitAgeAssessment({
+            dob_year: dobParts.dob_year,
+            dob_month: dobParts.dob_month,
+            dob_day: dobParts.dob_day
+          });
+          ['assessDobMonth', 'assessDobDay', 'assessDobYear'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+          });
+          finish();
+        } catch (x) {
+          ['assessDobMonth', 'assessDobDay', 'assessDobYear'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+          });
+          if (x && x.code === 'AGE_INELIGIBLE') {
+            btn.disabled = true;
+            document.getElementById('ageAssessmentForm').querySelector('fieldset').disabled = true;
+          } else {
+            btn.disabled = false;
+          }
+          showError(x.message || 'Could not complete age eligibility check.');
+        }
+      });
+
+      document.getElementById('assessSignOutBtn').addEventListener('click', async function () {
+        try {
+          await getAuth().signOut();
+        } catch {}
+        location.href = '/';
+      });
+
+      document.getElementById('backBtn').addEventListener('click', function () {
+        document.getElementById('codeStep').hidden = true;
+        document.getElementById('emailStep').hidden = false;
+        clearError();
+        document.getElementById('email').focus();
+      });
+
+      document.getElementById('addPasskeyBtn').addEventListener('click', async function () {
+        const auth = window.hatchable && window.hatchable.auth;
+        const saved = auth ? await auth.registerPasskey({ name: 'My BiteShark passkey' }).catch(function () { return null; }) : null;
+        if (!saved) localStorage.setItem('passkey_offer_declined', '1');
+        finish();
+      });
+
+      document.getElementById('skipPasskeyBtn').addEventListener('click', finish);
+
+      function finish() {
+        localStorage.setItem('passkey_offer_declined', '1');
+        location.href = next;
+      }
+
+      window.__bitesharkLoginReady = true;
+    })();
   </script>
 </body>
 </html>

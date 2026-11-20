@@ -985,3 +985,153 @@ input:focus, select:focus, textarea:focus {
     padding: 16px 14px 40px;
   }
 }
+
+/* Focus Visibility & Business/Compliance Readiness Styles */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--forest);
+  outline-offset: 2px;
+}
+
+.launch-reminder-banner {
+  background: #fff4ce;
+  border: 2px solid #d9b13b;
+  color: #4b3600;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.launch-reminder-copy {
+  flex: 1 1 420px;
+}
+
+.launch-reminder-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: #4b3600;
+  color: #fffaf0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+}
+
+.launch-reminder-copy strong {
+  display: block;
+  font-size: 15px;
+  color: #2c1f00;
+  margin-bottom: 3px;
+}
+
+.launch-reminder-copy p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #543e05;
+}
+
+.launch-reminder-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.readiness-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rs-stat {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.rs-stat small {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.rs-stat strong {
+  font-size: 20px;
+  color: var(--forest);
+}
+
+.stage-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.stage-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid #d5ccb8;
+  background: #f7f3e9;
+  color: #4b5550;
+}
+
+.stage-chip.done {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.unresolved-callout {
+  background: #fdebe8;
+  border: 1px solid #e39b91;
+  color: #7a1c14;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  margin: 10px 0;
+}
+
+.legal-approval-fieldset {
+  border: 1px solid #c9bfab;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 10px 0;
+  background: #fcfaf4;
+}
+
+.legal-approval-fieldset legend {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--forest);
+  padding: 0 6px;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-entry {
+  background: #f8f5ec;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+}

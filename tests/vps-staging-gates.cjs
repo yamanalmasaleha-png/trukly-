@@ -60,7 +60,7 @@ async function authenticatePersonaViaStagingMailbox(baseOrigin, email, mailboxSe
       'X-Truckly-Client': 'web-auth-v1',
       ...extraHeaders
     },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ email, intent: 'signup', dob: '1990-06-15' })
   });
   const startJson = await startRes.json().catch(() => ({}));
   assert.equal(startRes.status, 200, `OTP start failed for ${email}: ${startRes.status} ${startJson.error || ''}`);

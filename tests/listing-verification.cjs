@@ -664,6 +664,7 @@ function makeEl(id,extra={}){
   const adminJs=fs.readFileSync(join('public','admin.js'),'utf8');
   const roleExpCss=fs.readFileSync(join('public','role-experience.css'),'utf8');
   const roleExpJs=fs.readFileSync(join('public','role-experience.js'),'utf8');
+  const policyFiles=fs.readdirSync(join('public','policies')).map(f=>[`public/policies/${f}`,fs.readFileSync(join('public','policies',f),'utf8')]);
 
   for(const [name,content] of [
     ['public/index.html',html],
@@ -675,7 +676,8 @@ function makeEl(id,extra={}){
     ['public/role-experience.js',roleExpJs],
     ['public/manifest.json',manifestRaw],
     ['public/sw.js',swJs],
-    ['public/smart.js',smartJs]
+    ['public/smart.js',smartJs],
+    ...policyFiles
   ]){
     assert(!/truc?kly/i.test(content),`${name} must contain zero Truckly/Trukly strings`);
   }

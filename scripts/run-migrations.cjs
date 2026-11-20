@@ -137,6 +137,7 @@ function assertSafeIdentifier(ident, label) {
       await client.query(`REVOKE UPDATE, DELETE ON vendor_status_history FROM ${safeRole}`);
       await client.query(`REVOKE UPDATE, DELETE ON community_moderation_history FROM ${safeRole}`);
       await client.query(`REVOKE UPDATE, DELETE ON admin_bootstrap_grants FROM ${safeRole}`);
+      await client.query(`REVOKE UPDATE, DELETE ON compliance_readiness_history FROM ${safeRole}`);
       await client.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${safeRole}`);
       console.log(JSON.stringify({ event: 'app_role_grants_verified', app_role: safeRole }));
     }

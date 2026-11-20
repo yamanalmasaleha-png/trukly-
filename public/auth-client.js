@@ -42,8 +42,32 @@
 
   var standaloneAuthClient = {
     async startLogin(opts) {
-      var email = opts && typeof opts.email === 'string' ? opts.email.trim() : '';
-      return postAuthJson('start', { email: email });
+      var o = opts || {};
+      var payload = {
+        email: typeof o.email === 'string' ? o.email.trim() : ''
+      };
+      if (typeof o.intent === 'string' && o.intent.trim()) {
+        payload.intent = o.intent.trim();
+      }
+      if (typeof o.dob === 'string' && o.dob.trim()) {
+        payload.dob = o.dob.trim();
+      }
+      if (o.dob_year !== undefined) payload.dob_year = o.dob_year;
+      if (o.dob_month !== undefined) payload.dob_month = o.dob_month;
+      if (o.dob_day !== undefined) payload.dob_day = o.dob_day;
+      return postAuthJson('start', payload);
+    },
+
+    async submitAgeAssessment(opts) {
+      var o = opts || {};
+      var payload = {};
+      if (typeof o.dob === 'string' && o.dob.trim()) {
+        payload.dob = o.dob.trim();
+      }
+      if (o.dob_year !== undefined) payload.dob_year = o.dob_year;
+      if (o.dob_month !== undefined) payload.dob_month = o.dob_month;
+      if (o.dob_day !== undefined) payload.dob_day = o.dob_day;
+      return postAuthJson('age-assessment', payload);
     },
 
     async verifyCode(opts) {

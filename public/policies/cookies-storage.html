@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Cookie &amp; Browser Storage Notice (Staging Draft) · BiteShark</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="/policies/policies.css">
+</head>
+<body>
+  <a class="skip-link" href="#policyMain">Skip to main policy content</a>
+  <header class="policy-header" role="banner">
+    <div class="policy-header-inner">
+      <a class="policy-brand" href="/">← BiteShark (Staging)</a>
+      <nav class="policy-nav" aria-label="Preliminary staging policy navigation">
+        <a href="/policies/index.html">Policy Hub</a>
+        <a href="/policies/terms.html">Terms</a>
+        <a href="/policies/privacy.html">Privacy</a>
+        <a href="/policies/vendor-terms.html">Vendor Terms</a>
+        <a href="/policies/community-moderation.html">Community &amp; Moderation</a>
+        <a href="/policies/advertising-sponsored.html">Advertising &amp; Revenue</a>
+        <a href="/policies/accessibility.html">Accessibility</a>
+        <a href="/policies/cookies-storage.html" aria-current="page">Cookies &amp; Storage</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="policy-wrap" id="policyMain" tabindex="-1">
+    <section class="draft-banner" aria-label="Staging draft and legal review notice">
+      <p class="draft-banner-title">
+        <span class="status-tag status-tag-draft">Staging Working Draft</span>
+        <span class="status-tag status-tag-pending">Legal Review Pending</span>
+      </p>
+      <p style="margin:0">
+        This Cookie and Browser Storage Notice is a <strong>preliminary working draft</strong> documenting the exact cookies, browser storage keys, and service-worker caches used in BiteShark staging today.
+      </p>
+    </section>
+
+    <div class="meta-grid" role="region" aria-label="Document metadata">
+      <div class="meta-item">
+        <small>Operator Identity</small>
+        <strong><span class="placeholder-token">[LEGAL OPERATOR NAME], doing business as BiteShark</span></strong>
+      </div>
+      <div class="meta-item">
+        <small>Version &amp; Last Updated</small>
+        <strong>Version 0.1-draft · November 19, 2026</strong>
+      </div>
+      <div class="meta-item">
+        <small>Responsible Internal Owner</small>
+        <strong>Engineering &amp; Privacy Counsel</strong>
+      </div>
+      <div class="meta-item">
+        <small>Review Status</small>
+        <strong>Legal review pending · No effective date</strong>
+      </div>
+    </div>
+
+    <article class="policy-card">
+      <h1>7. Cookie and Browser Storage Notice (Preliminary Working Draft)</h1>
+
+      <h2>7.1 Zero Advertising or Analytics Trackers</h2>
+      <p>
+        BiteShark staging sets <strong>zero advertising cookies, zero cross-site tracking pixels, and zero analytics or session-recording scripts</strong>. We use only strictly necessary HTTP cookies for authentication/security and functional browser storage for user-requested app features.
+      </p>
+
+      <h2>7.2 HTTP Cookies Used by BiteShark</h2>
+      <div class="policy-table-wrap">
+        <table class="policy-table">
+          <thead>
+            <tr>
+              <th scope="col">Cookie Type</th>
+              <th scope="col">Attributes &amp; Purpose</th>
+              <th scope="col">Lifetime</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Strictly Necessary Authentication Session Cookie</strong> (<code>__Host-</code> prefix)</td>
+              <td><code>HttpOnly; Secure; SameSite=Lax; Path=/</code> (host-only; retains an internal legacy session key name for same-origin session continuity). Stores an opaque random session token matched via SHA-256 against PostgreSQL when you sign in. Never set for unauthenticated public discovery requests.</td>
+              <td>14-day sliding window (30-day maximum lifetime), or cleared immediately upon Sign Out.</td>
+            </tr>
+            <tr>
+              <td><strong>Strictly Necessary Age-Gate Cooldown Cookie</strong> (<code>__Host-bs_age_gate</code>)</td>
+              <td><code>HttpOnly; Secure; SameSite=Lax; Path=/</code>. Stores only the literal value <code>1</code> (never a birth date or email) after an under-14 registration attempt is declined, preventing immediate birth-date fishing in the same browser.</td>
+              <td>15 minutes (<code>Max-Age=900</code>).</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>7.3 Functional Browser Storage &amp; Service Worker</h2>
+      <ul>
+        <li><strong><code>localStorage</code> (device-local functional preferences &amp; caches):</strong> Stores your saved favorite spot IDs for offline/guest viewing, a cached copy of the public Sonoma County food-spot catalog for resilient loading, optional nearby-alert radius preferences, passkey-offer dismissal state, active pickup pager token references on your device, and any personal notes/photos you save in the local Dish Notebook. <strong>Date of birth is never written to <code>localStorage</code> or <code>sessionStorage</code>.</strong></li>
+        <li><strong><code>sessionStorage</code> (administrator preview state only):</strong> Used exclusively when an authenticated <code>Admin: Mod</code> or <code>Admin: Top</code> enters read-only Customer Preview, Vendor Preview, or audited Act-on-Behalf mode; cleared when exiting preview or closing the browser tab.</li>
+        <li><strong>Service Worker (<code>/sw.js</code>):</strong> Caches core static shell assets (icons, stylesheets, and app scripts) for progressive web app reliability and handles incoming order-ready web-push notifications if push delivery is enabled in the future (push delivery is disabled on staging).</li>
+      </ul>
+
+      <h2>7.4 Managing Cookies &amp; Local Data</h2>
+      <p>
+        Signing out clears your authentication session cookie and revokes the server session immediately. You can clear <code>localStorage</code>, <code>sessionStorage</code>, cookies, and service-worker caches at any time through your browser’s site-data settings (note that clearing site data removes device-only Dish Notebook entries and guest favorites).
+      </p>
+
+      <div class="unresolved-box">
+        <h2>[UNRESOLVED — CONFIRMATION REQUIRED] Open Storage &amp; Notice Questions</h2>
+        <ul>
+          <li><strong>Strictly-necessary exemption confirmation:</strong> Have privacy counsel confirm whether any jurisdiction targeted for public launch requires an explicit cookie banner when only strictly necessary authentication/security cookies and user-initiated functional storage are used.</li>
+          <li><strong>Mandatory re-review before adding third-party scripts:</strong> If any analytics tool, error-monitoring SDK, embedded third-party widget, or sponsored-content measurement is proposed in the future, this notice and consent controls must be updated and legally approved before deployment.</li>
+        </ul>
+      </div>
+    </article>
+
+    <footer class="policy-footer">
+      Isolated Staging Environment · <code>noindex, nofollow, noarchive</code> · Version 0.1-draft · Legal review pending.
+    </footer>
+  </main>
+</body>
+</html>

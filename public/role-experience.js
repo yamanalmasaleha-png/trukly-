@@ -289,10 +289,17 @@
         openSupportIssuesModal();
       };
 
+      var policiesLink = document.createElement('a');
+      policiesLink.id = 'rxPolicyDraftsLink';
+      policiesLink.href = '/policies/index.html';
+      policiesLink.style.cssText = 'display:block;padding:8px 10px;border-radius:10px;text-decoration:none;color:inherit;font-size:14px;font-weight:600';
+      policiesLink.textContent = '📄 Policy & legal drafts';
+
       dropdown.insertBefore(adminLink, signOutBtn);
       dropdown.insertBefore(vendorHubBtn, signOutBtn);
       dropdown.insertBefore(applyVendorBtn, signOutBtn);
       dropdown.insertBefore(supportBtn, signOutBtn);
+      dropdown.insertBefore(policiesLink, signOutBtn);
     }
 
     // Inject Owner Team Card & Restriction Notice container on #ownerScreen
@@ -409,9 +416,37 @@
         // 4. Invitation Acceptance Modal
         '<div class="rx-modal-backdrop" id="inviteAcceptModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="iaModalTitle">' +
-        '<div class="rx-modal-head"><div><small>BITESHARK ACCOUNT INVITATION</small><h2 id="iaModalTitle">Verify &amp; Redeem Invitation</h2></div><button type="button" class="rx-close" data-rx-close="inviteAcceptModal">×</button></div>' +
+        '<div class="rx-modal-head"><div><small>BITESHARK ACCOUNT INVITATION</small><h2 id="iaModalTitle">Verify &amp; Redeem Invitation</h2></div><button type="button" class="rx-close" data-rx-close="inviteAcceptModal" aria-label="Close invitation dialog">×</button></div>' +
         '<div id="iaBody"></div>' +
-        '</div></div>';
+        '</div></div>' +
+
+        // 5. Existing-Account One-Time Minimum Age Assessment Modal (14+)
+        '<div class="rx-modal-backdrop" id="rxAgeAssessmentModal" hidden>' +
+        '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="rxAgeModalTitle">' +
+        '<div class="rx-modal-head"><div><small>ONE-TIME ELIGIBILITY CHECK</small><h2 id="rxAgeModalTitle">Confirm Minimum Account Age (14+)</h2></div></div>' +
+        '<p style="margin:6px 0 12px;font-size:14px;line-height:1.5">Your pre-existing BiteShark account (<strong id="rxAgeModalEmail"></strong>) has not yet completed the minimum-age check. Under our proposed account policy (pending legal review), users aged 13 and younger cannot hold accounts; minimum account age is <strong>14</strong>.</p>' +
+        '<form id="rxAgeModalForm" class="rx-form" novalidate>' +
+        '<fieldset style="border:1px solid #dfd6c4;border-radius:12px;padding:10px 12px;margin:0 0 10px" aria-describedby="rxAgeModalPurpose">' +
+        '<legend style="font-weight:700;font-size:13.5px;padding:0 5px">Date of birth (required — minimum age 14)</legend>' +
+        '<div class="rx-row-2" style="grid-template-columns:1.4fr 0.8fr 1fr;gap:8px">' +
+        '<label for="rxAgeMonth">Birth month<select id="rxAgeMonth" required>' +
+        '<option value="">Select month…</option>' +
+        '<option value="01">01 — January</option><option value="02">02 — February</option><option value="03">03 — March</option>' +
+        '<option value="04">04 — April</option><option value="05">05 — May</option><option value="06">06 — June</option>' +
+        '<option value="07">07 — July</option><option value="08">08 — August</option><option value="09">09 — September</option>' +
+        '<option value="10">10 — October</option><option value="11">11 — November</option><option value="12">12 — December</option>' +
+        '</select></label>' +
+        '<label for="rxAgeDay">Day<input type="text" id="rxAgeDay" inputmode="numeric" maxlength="2" placeholder="DD" required></label>' +
+        '<label for="rxAgeYear">Year<input type="text" id="rxAgeYear" inputmode="numeric" maxlength="4" placeholder="YYYY" required></label>' +
+        '</div>' +
+        '<p id="rxAgeModalPurpose" style="margin:8px 0 0;font-size:12px;color:#4a544f;line-height:1.45">Evaluated server-side (<code>America/Los_Angeles</code> calendar). Your full birth date is <strong>never stored</strong>; only derived 14+ eligibility, policy version, and timestamp are saved.</p>' +
+        '</fieldset>' +
+        '<div id="rxAgeModalMsg" class="rx-msg" role="alert" hidden></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button type="submit" class="primary" id="rxAgeSubmitBtn">Confirm 14+ Eligibility →</button>' +
+        '<button type="button" class="secondary" id="rxAgeSignOutBtn">Sign Out</button>' +
+        '</div>' +
+        '</form></div></div>';
 
       document.body.appendChild(root);
 
@@ -442,6 +477,64 @@
       });
       document.getElementById('siNewPane').onsubmit = submitNewSupportIssue;
       document.getElementById('crReportForm').onsubmit = submitCommunityReport;
+      document.getElementById('rxAgeModalForm').onsubmit = submitNextSignInAgeAssessment;
+      document.getElementById('rxAgeSignOutBtn').onclick = async function () {
+        try {
+          if (window.bitesharkAuth && window.bitesharkAuth.signOut) {
+            await window.bitesharkAuth.signOut();
+          }
+        } catch (_e) {}
+        window.location.reload();
+      };
+    }
+  }
+
+  async function submitNextSignInAgeAssessment(e) {
+    e.preventDefault();
+    var msgEl = document.getElementById('rxAgeModalMsg');
+    var btn = document.getElementById('rxAgeSubmitBtn');
+    var mVal = String(document.getElementById('rxAgeMonth').value || '').trim();
+    var dVal = String(document.getElementById('rxAgeDay').value || '').trim();
+    var yVal = String(document.getElementById('rxAgeYear').value || '').trim();
+    msgEl.hidden = true;
+
+    if (!mVal || !dVal || !yVal) {
+      msgEl.hidden = false;
+      msgEl.className = 'rx-msg error';
+      msgEl.textContent = 'Select your birth month and enter both day and 4-digit birth year.';
+      return;
+    }
+
+    btn.disabled = true;
+    try {
+      if (!window.bitesharkAuth || !window.bitesharkAuth.submitAgeAssessment) {
+        throw new Error('Authentication client is unavailable.');
+      }
+      await window.bitesharkAuth.submitAgeAssessment({
+        dob_month: mVal,
+        dob_day: dVal,
+        dob_year: yVal
+      });
+      ['rxAgeMonth', 'rxAgeDay', 'rxAgeYear'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      document.getElementById('rxAgeAssessmentModal').hidden = true;
+      await refreshAccountRoleContext();
+      await checkInviteRedemptionHash();
+    } catch (err) {
+      ['rxAgeMonth', 'rxAgeDay', 'rxAgeYear'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      msgEl.hidden = false;
+      msgEl.className = 'rx-msg error';
+      msgEl.textContent = err.message || 'Could not complete age eligibility check.';
+      if (err && err.code === 'AGE_INELIGIBLE') {
+        btn.disabled = true;
+      } else {
+        btn.disabled = false;
+      }
     }
   }
 
@@ -476,10 +569,21 @@
         if (vendorHubBtn) {
           vendorHubBtn.hidden = !(Array.isArray(ctx.memberships) && ctx.memberships.length > 0);
         }
+        var ageModal = document.getElementById('rxAgeAssessmentModal');
+        if (ageModal) {
+          if (ctx.requires_age_assessment) {
+            document.getElementById('rxAgeModalEmail').textContent = (ctx.user && ctx.user.email) || 'Signed-in account';
+            ageModal.hidden = false;
+          } else {
+            ageModal.hidden = true;
+          }
+        }
       } else {
         if (roleBox) roleBox.hidden = true;
         if (adminLink) adminLink.hidden = true;
         if (vendorHubBtn) vendorHubBtn.hidden = true;
+        var ageModalGuest = document.getElementById('rxAgeAssessmentModal');
+        if (ageModalGuest) ageModalGuest.hidden = true;
       }
 
       syncOwnerTeamAndRestrictionUI();
@@ -937,7 +1041,14 @@
         method: 'POST',
         body: { token: token }
       });
-      var inv = data.invitation;
+      var inv = data.invitation || {
+        id: data.invitation_id,
+        masked_email: data.email_hint,
+        requested_role: data.requested_role,
+        role_label: data.requested_role_label,
+        vendor_id: data.vendor_id,
+        vendor_name: data.vendor_name
+      };
       if (!rxState.ctx || !rxState.ctx.authenticated) {
         var nextParam = encodeURIComponent('/#accept-invite=' + token);
         body.innerHTML =
@@ -946,9 +1057,32 @@
           '<p>Target Email: <strong>' + rxEsc(inv.masked_email) + '</strong>' +
           (inv.vendor_name ? ' · Vendor: <strong>' + rxEsc(inv.vendor_name) + '</strong>' : '') +
           '</p>' +
-          '<p>Sign in with your 6-digit email verification code for <strong>' + rxEsc(inv.masked_email) + '</strong> to verify ownership and activate this invitation.</p>' +
-          '<a class="primary" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?next=' + nextParam + '">Verify Email &amp; Sign In →</a>' +
+          '<p>Verify email ownership and minimum account age eligibility (<strong>14+</strong>) for <strong>' + rxEsc(inv.masked_email) + '</strong> before redeeming this invitation.</p>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">' +
+          '<a class="primary" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?mode=signup&amp;next=' + nextParam + '">Create Account (14+) &amp; Verify →</a>' +
+          '<a class="secondary" style="display:inline-block;text-decoration:none;padding:9px 15px;border-radius:9px" href="/login.html?next=' + nextParam + '">Existing Account Sign In →</a>' +
+          '</div>' +
           '</div>';
+        return;
+      }
+
+      if (rxState.ctx.requires_age_assessment) {
+        body.innerHTML =
+          '<div class="rx-card">' +
+          '<h3>Invited Role: ' + rxEsc(inv.role_label) + '</h3>' +
+          '<p>Signed in as: <strong>' + rxEsc(rxState.ctx.user.email) + '</strong></p>' +
+          '<p>Complete the one-time minimum account age check (<strong>14+</strong>) before accepting this invitation.</p>' +
+          '<button type="button" class="primary" id="iaOpenAgeCheckBtn">Complete 14+ Age Check →</button>' +
+          '</div>';
+        document.getElementById('iaOpenAgeCheckBtn').onclick = function () {
+          modal.hidden = true;
+          var ageModal = document.getElementById('rxAgeAssessmentModal');
+          if (ageModal) {
+            document.getElementById('rxAgeModalEmail').textContent = rxState.ctx.user.email || '';
+            ageModal.hidden = false;
+            document.getElementById('rxAgeMonth').focus();
+          }
+        };
         return;
       }
 

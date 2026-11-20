@@ -20,6 +20,7 @@ import {
 import { withTransaction } from '../lib/db-tx.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
+import { daysInGregorianMonth, resolvePacificCalendarDateParts } from '../lib/age-policy.js';
 import {
   INVITATION_TTL_MS,
   MAX_EVIDENCE_BYTES,
@@ -69,6 +70,9 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/moderation/decision',
   '/api/admin/issues',
   '/api/admin/issues/update',
+  '/api/admin/readiness',
+  '/api/admin/readiness/note',
+  '/api/admin/readiness/update',
   '/api/admin/audit'
 ]);
 
@@ -82,6 +86,95 @@ function maskEmail(email) {
   const [local, dom] = email.split('@');
   const head = local.slice(0, Math.min(2, local.length));
   return `${head}***@${dom}`;
+}
+
+const READINESS_STATUS_CATALOG = Object.freeze([
+  { code: 'not_assessed', label: 'Not assessed' },
+  { code: 'decision_pending', label: 'Decision pending' },
+  { code: 'proposed', label: 'Proposed' },
+  { code: 'implemented_verification_pending', label: 'Implemented — verification pending' },
+  { code: 'verified_internally', label: 'Verified internally' },
+  { code: 'submitted_for_legal_review', label: 'Submitted for legal review' },
+  { code: 'changes_requested', label: 'Changes requested' },
+  { code: 'legally_approved', label: 'Legally approved for specified scope/version' },
+  { code: 'not_applicable', label: 'Not applicable — with explanation' },
+  { code: 'needs_re_review', label: 'Needs re-review' }
+]);
+
+const VALID_READINESS_STATUSES = new Set(READINESS_STATUS_CATALOG.map(s => s.code));
+
+const LAUNCH_INCOMPLETE_REMINDER_TEXT =
+  'Legal review and launch readiness remain incomplete. Draft policies are not approved for public rollout.';
+
+const DEPLOYMENT_PORTAL_REMINDER_NOTE =
+  'Governance reminder only: deployment automation (deploy/install-staging-release.sh) runs via operator SSH/CLI and is not technically blocked by this dashboard flag.';
+
+function validateIsoCalendarDate(raw, { allowFuture = true } = {}) {
+  if (raw === null || raw === undefined || String(raw).trim() === '') {
+    return { ok: true, value: null };
+  }
+  const s = String(raw).trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) {
+    return { ok: false, error: 'Date must use YYYY-MM-DD format.' };
+  }
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const maxD = daysInGregorianMonth(year, month);
+  if (year < 2020 || year > 2100 || month < 1 || month > 12 || day < 1 || day > maxD) {
+    return { ok: false, error: 'Enter an actual Gregorian calendar date (YYYY-MM-DD).' };
+  }
+  if (!allowFuture) {
+    const today = resolvePacificCalendarDateParts();
+    if (s > today.iso) {
+      return { ok: false, error: 'Legal review date cannot be in the future.' };
+    }
+  }
+  return { ok: true, value: s };
+}
+
+function serializeReadinessItemForActor(row, actorRole, historyRows = []) {
+  const canViewCounsel = actorRole === 'top' || row.mod_counsel_access_granted === true;
+  return {
+    item_key: row.item_key,
+    sort_order: row.sort_order,
+    category: row.category,
+    topic: row.topic,
+    is_launch_critical: Boolean(row.is_launch_critical),
+    mod_visible: Boolean(row.mod_visible),
+    mod_counsel_access_granted: Boolean(row.mod_counsel_access_granted),
+    current_practice: row.current_practice,
+    unresolved_questions: row.unresolved_questions || null,
+    status: row.status,
+    not_applicable_explanation: row.not_applicable_explanation || null,
+    stages: {
+      decision_recorded: Boolean(row.decision_recorded),
+      implemented_recorded: Boolean(row.implemented_recorded),
+      tested_recorded: Boolean(row.tested_recorded),
+      legally_reviewed: row.status === 'legally_approved'
+    },
+    decision_recorded: Boolean(row.decision_recorded),
+    implemented_recorded: Boolean(row.implemented_recorded),
+    tested_recorded: Boolean(row.tested_recorded),
+    owner_label: row.owner_label,
+    next_action: row.next_action,
+    target_review_date: row.target_review_date || null,
+    policy_version: row.policy_version || null,
+    supporting_evidence: row.supporting_evidence || null,
+    operational_notes: row.operational_notes || null,
+    confidential_counsel_notes: canViewCounsel ? row.confidential_counsel_notes || null : null,
+    confidential_counsel_redacted: !canViewCounsel && Boolean(row.confidential_counsel_notes),
+    approved_doc_version: row.approved_doc_version || null,
+    approved_jurisdiction_scope: row.approved_jurisdiction_scope || null,
+    legal_reviewer_name: row.legal_reviewer_name || null,
+    legal_reviewed_at: row.legal_reviewed_at || null,
+    dependencies: Array.isArray(row.dependencies) ? row.dependencies : [],
+    updated_by: row.updated_by || null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    history: historyRows
+  };
 }
 
 async function enableAdminTxGuards(tx, ctx) {
@@ -136,9 +229,22 @@ export async function handleGovernanceApiRequest({
 
     let myAppsCount = 0;
     let myIssuesCount = 0;
+    let ageEligibilityStatus = 'not_assessed';
+    let agePolicyVersion = null;
     try {
       await withTransaction(dbAdapter, async tx => {
-        await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
+        await tx.query(
+          "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
+          [ctx.user.id]
+        );
+        const ageRes = await tx.query(
+          'SELECT age_eligibility_status, age_policy_version FROM auth_users WHERE id = $1',
+          [ctx.user.id]
+        );
+        if (ageRes.rows[0]) {
+          ageEligibilityStatus = ageRes.rows[0].age_eligibility_status || 'not_assessed';
+          agePolicyVersion = ageRes.rows[0].age_policy_version || null;
+        }
         const appsRes = await tx.query(
           'SELECT count(*)::int AS c FROM vendor_applications WHERE applicant_user_id = $1',
           [ctx.user.id]
@@ -152,10 +258,19 @@ export async function handleGovernanceApiRequest({
       });
     } catch {}
 
+    const requiresAgeAssessment = ageEligibilityStatus !== 'eligible_14_plus';
     const memList = Array.from(ctx.memberships.values());
     return sendJson(200, {
       authenticated: true,
-      user: { id: ctx.user.id, email: ctx.user.email },
+      user: {
+        id: ctx.user.id,
+        email: ctx.user.email,
+        age_eligibility_status: ageEligibilityStatus,
+        requires_age_assessment: requiresAgeAssessment
+      },
+      age_eligibility_status: ageEligibilityStatus,
+      age_policy_version: agePolicyVersion,
+      requires_age_assessment: requiresAgeAssessment,
       role_labels: ctx.roleLabels,
       admin_level: ctx.adminLevel,
       admin_label: ctx.adminLabel,
@@ -206,14 +321,31 @@ export async function handleGovernanceApiRequest({
       if (inv.status !== 'issued' || inv.consumed_at || inv.revoked_at || expired) {
         return { valid: false, status: expired ? 'expired' : inv.status };
       }
+      let vendorName = null;
+      if (inv.vendor_id) {
+        const vr = await tx.query('SELECT canonical_name FROM vendors WHERE id = $1', [inv.vendor_id]);
+        vendorName = vr.rows[0]?.canonical_name || null;
+      }
+      const masked = maskEmail(inv.email_normalized);
+      const roleLabel = INVITATION_ROLE_LABELS[inv.requested_role] || inv.requested_role;
       return {
         valid: true,
         invitation_id: inv.id,
-        email_hint: maskEmail(inv.email_normalized),
+        email_hint: masked,
         requested_role: inv.requested_role,
-        requested_role_label: INVITATION_ROLE_LABELS[inv.requested_role] || inv.requested_role,
+        requested_role_label: roleLabel,
         vendor_id: inv.vendor_id,
-        expires_at: inv.expires_at
+        vendor_name: vendorName,
+        expires_at: inv.expires_at,
+        invitation: {
+          id: inv.id,
+          masked_email: masked,
+          requested_role: inv.requested_role,
+          role_label: roleLabel,
+          vendor_id: inv.vendor_id,
+          vendor_name: vendorName,
+          expires_at: inv.expires_at
+        }
       };
     });
     if (!out || !out.valid) {
@@ -247,6 +379,22 @@ export async function handleGovernanceApiRequest({
       });
       if (!rl.allowed) {
         return { status: 429, body: { error: 'Too many invitation attempts. Try again shortly.' } };
+      }
+
+      // Enforce 14+ minimum-age eligibility check before any invitation can be redeemed
+      const ageRes = await tx.query(
+        'SELECT age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE',
+        [ctx.user.id]
+      );
+      if (!ageRes.rows.length || ageRes.rows[0].age_eligibility_status !== 'eligible_14_plus') {
+        return {
+          status: 403,
+          body: {
+            error:
+              'Complete the minimum account age check (14+) on your BiteShark account before accepting an invitation.',
+            code: 'AGE_ASSESSMENT_REQUIRED'
+          }
+        };
       }
 
       const { rows } = await tx.query(
@@ -1359,6 +1507,15 @@ export async function handleGovernanceApiRequest({
             count(*) FILTER (WHERE status = 'failed_permanent')::int AS outbox_failed_permanent
           FROM pager_notification_deliveries
         `);
+      const readinessQ = await tx.query(`
+          SELECT
+            count(*) FILTER (WHERE is_launch_critical = true AND status NOT IN ('legally_approved', 'not_applicable'))::int AS unresolved_launch_critical,
+            count(*) FILTER (WHERE status = 'legally_approved')::int AS legally_approved_count,
+            count(*) FILTER (WHERE status = 'needs_re_review')::int AS needs_re_review_count,
+            count(*)::int AS total_items,
+            COALESCE(bool_or(item_key = 'final_legal_launch_gate' AND status = 'legally_approved'), false) AS final_launch_approved
+          FROM compliance_readiness_items
+        `);
 
       const notifCfg = inspectNotificationRuntimeConfig();
       const writePause = inspectWritePauseConfig();
@@ -1370,6 +1527,9 @@ export async function handleGovernanceApiRequest({
       const issRow = issQ.rows[0] || {};
       const vendRow = vendQ.rows[0] || {};
       const delivRow = delivQ.rows[0] || {};
+      const readinessRow = readinessQ.rows[0] || {};
+      const unresolvedCritical = readinessRow.unresolved_launch_critical || 0;
+      const launchReady = Boolean(readinessRow.final_launch_approved) && unresolvedCritical === 0;
 
       return {
         actor: {
@@ -1387,7 +1547,19 @@ export async function handleGovernanceApiRequest({
           open_issues: issRow.open_issues || 0,
           overdue_issues: issRow.overdue_issues || 0,
           suspended_vendors: vendRow.restricted_or_suspended_vendors || 0,
-          restricted_vendors: vendRow.restricted_or_suspended_vendors || 0
+          restricted_vendors: vendRow.restricted_or_suspended_vendors || 0,
+          unresolved_launch_critical: unresolvedCritical,
+          needs_re_review_items: readinessRow.needs_re_review_count || 0
+        },
+        launch_readiness: {
+          launch_ready: launchReady,
+          launch_readiness_incomplete: !launchReady,
+          unresolved_launch_critical: unresolvedCritical,
+          legally_approved_count: readinessRow.legally_approved_count || 0,
+          needs_re_review_count: readinessRow.needs_re_review_count || 0,
+          total_items: readinessRow.total_items || 0,
+          reminder_banner: LAUNCH_INCOMPLETE_REMINDER_TEXT,
+          deployment_portal_notice: DEPLOYMENT_PORTAL_REMINDER_NOTE
         },
         queues: {
           vendor_applications: appsRow,
@@ -3565,6 +3737,619 @@ export async function handleGovernanceApiRequest({
   }
 
   // -------------------------------------------------------------------------
+  // 6G-Readiness. Business & Compliance Readiness Checklist (`/api/admin/readiness*`)
+  // -------------------------------------------------------------------------
+  if (normPath === '/api/admin/readiness') {
+    if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    const categoryFilter = typeof query.category === 'string' && query.category.trim() ? query.category.trim() : '';
+    const statusFilter = typeof query.status === 'string' && query.status.trim() ? query.status.trim() : '';
+    const criticalOnly = query.critical_only === '1' || query.critical_only === 'true';
+    const itemKeyFilter = typeof query.item_key === 'string' && query.item_key.trim() ? query.item_key.trim() : '';
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { denied: verified };
+      await enableAdminTxGuards(tx, ctx);
+
+      const summaryRes = await tx.query(`
+        SELECT
+          count(*)::int AS total_items,
+          count(*) FILTER (WHERE is_launch_critical = true)::int AS total_launch_critical,
+          count(*) FILTER (WHERE is_launch_critical = true AND status NOT IN ('legally_approved', 'not_applicable'))::int AS unresolved_launch_critical,
+          count(*) FILTER (WHERE status = 'legally_approved')::int AS legally_approved_count,
+          count(*) FILTER (WHERE status = 'needs_re_review')::int AS needs_re_review_count,
+          count(*) FILTER (WHERE status IN ('not_assessed', 'decision_pending'))::int AS unassessed_or_pending_count,
+          COALESCE(bool_or(item_key = 'final_legal_launch_gate' AND status = 'legally_approved'), false) AS final_launch_approved
+        FROM compliance_readiness_items
+      `);
+
+      const conds = ['1=1'];
+      const params = [];
+      if (verified.actorRole !== 'top') {
+        conds.push('i.mod_visible = true');
+      }
+      if (categoryFilter && categoryFilter !== 'all') {
+        params.push(categoryFilter);
+        conds.push(`i.category = $${params.length}`);
+      }
+      if (statusFilter && statusFilter !== 'all') {
+        params.push(statusFilter);
+        conds.push(`i.status = $${params.length}`);
+      }
+      if (criticalOnly) {
+        conds.push('i.is_launch_critical = true');
+      }
+      if (itemKeyFilter) {
+        params.push(itemKeyFilter);
+        conds.push(`i.item_key = $${params.length}`);
+      }
+      if (qText) {
+        params.push(qText);
+        conds.push(
+          `(i.topic ILIKE $${params.length} OR i.current_practice ILIKE $${params.length} OR COALESCE(i.unresolved_questions, '') ILIKE $${params.length} OR i.owner_label ILIKE $${params.length})`
+        );
+      }
+
+      const whereSql = conds.join(' AND ');
+      const { rows } = await tx.query(
+        `SELECT i.*
+         FROM compliance_readiness_items i
+         WHERE ${whereSql}
+         ORDER BY i.sort_order ASC, i.item_key ASC`,
+        params
+      );
+
+      const itemKeys = rows.map(r => r.item_key);
+      const historyByItem = new Map();
+      if (itemKeys.length) {
+        const { rows: histRows } = await tx.query(
+          `SELECT id, item_key, actor_id, actor_role, change_kind, from_status, to_status, summary, metadata, created_at
+           FROM compliance_readiness_history
+           WHERE item_key = ANY($1::text[])
+           ORDER BY created_at DESC`,
+          [itemKeys]
+        );
+        for (const h of histRows) {
+          if (!historyByItem.has(h.item_key)) historyByItem.set(h.item_key, []);
+          const arr = historyByItem.get(h.item_key);
+          if (arr.length < 25) {
+            arr.push(h);
+          }
+        }
+      }
+
+      const sum = summaryRes.rows[0] || {};
+      const launchReady = Boolean(sum.final_launch_approved) && (sum.unresolved_launch_critical || 0) === 0;
+
+      return {
+        actor: {
+          id: ctx.user.id,
+          email: ctx.user.email,
+          level: verified.actorRole,
+          label: verified.actorRole === 'top' ? ROLE_LABELS.top : ROLE_LABELS.mod
+        },
+        launch_ready: launchReady,
+        launch_readiness_incomplete: !launchReady,
+        reminder_banner: LAUNCH_INCOMPLETE_REMINDER_TEXT,
+        deployment_portal_notice: DEPLOYMENT_PORTAL_REMINDER_NOTE,
+        summary: {
+          total_items: sum.total_items || 0,
+          visible_items: rows.length,
+          total_launch_critical: sum.total_launch_critical || 0,
+          unresolved_launch_critical: sum.unresolved_launch_critical || 0,
+          legally_approved_count: sum.legally_approved_count || 0,
+          needs_re_review_count: sum.needs_re_review_count || 0,
+          unassessed_or_pending_count: sum.unassessed_or_pending_count || 0
+        },
+        statuses_catalog: READINESS_STATUS_CATALOG,
+        items: rows.map(r => serializeReadinessItemForActor(r, verified.actorRole, historyByItem.get(r.item_key) || []))
+      };
+    });
+    if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
+    return sendJson(200, out);
+  }
+
+  if (normPath === '/api/admin/readiness/note') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const itemKey = typeof body.item_key === 'string' ? body.item_key.trim() : '';
+    if (!/^[a-z0-9_]{3,64}$/.test(itemKey)) {
+      return sendJson(400, { error: 'Valid item_key is required.' });
+    }
+
+    const forbiddenModKeys = [
+      'status',
+      'decision_recorded',
+      'implemented_recorded',
+      'tested_recorded',
+      'policy_version',
+      'current_practice',
+      'unresolved_questions',
+      'owner_label',
+      'next_action',
+      'target_review_date',
+      'approved_doc_version',
+      'approved_jurisdiction_scope',
+      'legal_reviewer_name',
+      'legal_reviewed_at',
+      'confidential_counsel_notes',
+      'mod_counsel_access_granted',
+      'not_applicable_explanation'
+    ];
+
+    const noteText = typeof body.note === 'string' ? body.note.trim() : '';
+    const hasEvidenceUpdate = body.supporting_evidence !== undefined;
+    const nextEvidence =
+      hasEvidenceUpdate && body.supporting_evidence !== null && String(body.supporting_evidence).trim()
+        ? String(body.supporting_evidence).trim().slice(0, 1000)
+        : hasEvidenceUpdate
+          ? null
+          : undefined;
+
+    if (!noteText && !hasEvidenceUpdate) {
+      return sendJson(400, { error: 'Provide an operational note or supporting_evidence reference.' });
+    }
+    if (noteText && (noteText.length < 3 || noteText.length > 800)) {
+      return sendJson(400, { error: 'Operational note must be 3–800 characters.' });
+    }
+
+    const outcome = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+
+      if (verified.actorRole !== 'top') {
+        for (const k of forbiddenModKeys) {
+          if (body[k] !== undefined) {
+            return {
+              status: 403,
+              body: {
+                error:
+                  'Admin: Mod may add operational notes and supporting evidence only; readiness status, governing policies, counsel notes, and legal approvals require Admin: Top.',
+                code: 'MOD_READINESS_FORBIDDEN'
+              }
+            };
+          }
+        }
+      }
+
+      await enableAdminTxGuards(tx, ctx);
+      const { rows } = await tx.query('SELECT * FROM compliance_readiness_items WHERE item_key = $1 FOR UPDATE', [
+        itemKey
+      ]);
+      if (!rows.length) return { status: 404, body: { error: 'Readiness item not found.' } };
+      const cur = rows[0];
+
+      if (verified.actorRole !== 'top' && (!cur.mod_visible || cur.item_key === 'final_legal_launch_gate')) {
+        return {
+          status: 403,
+          body: {
+            error: 'Admin: Mod does not have access to modify this governance item.',
+            code: 'MOD_READINESS_FORBIDDEN'
+          }
+        };
+      }
+
+      const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ') + 'Z';
+      const appendedNotes = noteText
+        ? [cur.operational_notes, `[${stamp} · ${verified.actorRole.toUpperCase()}] ${noteText}`]
+            .filter(Boolean)
+            .join('\n')
+            .slice(-2000)
+        : cur.operational_notes;
+      const effEvidence = nextEvidence !== undefined ? nextEvidence : cur.supporting_evidence;
+
+      const { rows: updatedRows } = await tx.query(
+        `UPDATE compliance_readiness_items
+         SET operational_notes = $2,
+             supporting_evidence = $3,
+             updated_by = $4,
+             updated_at = now()
+         WHERE item_key = $1
+         RETURNING *`,
+        [itemKey, appendedNotes, effEvidence, ctx.user.id]
+      );
+
+      const summary = noteText
+        ? `Operational note added: ${noteText.slice(0, 180)}`
+        : 'Supporting evidence reference updated';
+
+      await tx.query(
+        `INSERT INTO compliance_readiness_history
+           (item_key, actor_id, actor_role, change_kind, from_status, to_status, summary, metadata)
+         VALUES ($1, $2, $3, 'mod_operational_note', $4, $4, $5, $6::jsonb)`,
+        [
+          itemKey,
+          ctx.user.id,
+          verified.actorRole,
+          cur.status,
+          summary,
+          JSON.stringify({
+            note_added: Boolean(noteText),
+            evidence_updated: hasEvidenceUpdate
+          })
+        ]
+      );
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: verified.actorRole,
+        targetType: 'compliance_readiness_item',
+        targetId: itemKey,
+        action: 'readiness.note_added',
+        metadata: {
+          status: cur.status,
+          note_added: Boolean(noteText),
+          evidence_updated: hasEvidenceUpdate
+        }
+      });
+
+      const { rows: histRows } = await tx.query(
+        `SELECT id, item_key, actor_id, actor_role, change_kind, from_status, to_status, summary, metadata, created_at
+         FROM compliance_readiness_history
+         WHERE item_key = $1
+         ORDER BY created_at DESC
+         LIMIT 25`,
+        [itemKey]
+      );
+
+      return {
+        status: 200,
+        body: {
+          item: serializeReadinessItemForActor(updatedRows[0], verified.actorRole, histRows)
+        }
+      };
+    });
+
+    return sendJson(outcome.status, outcome.body);
+  }
+
+  if (normPath === '/api/admin/readiness/update') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const itemKey = typeof body.item_key === 'string' ? body.item_key.trim() : '';
+    if (!/^[a-z0-9_]{3,64}$/.test(itemKey)) {
+      return sendJson(400, { error: 'Valid item_key is required.' });
+    }
+
+    if (body.status !== undefined && !VALID_READINESS_STATUSES.has(String(body.status).trim())) {
+      return sendJson(400, { error: 'Unrecognized readiness status value.' });
+    }
+
+    const targetDateCheck =
+      body.target_review_date !== undefined
+        ? validateIsoCalendarDate(body.target_review_date, { allowFuture: true })
+        : { ok: true, value: undefined };
+    if (!targetDateCheck.ok) {
+      return sendJson(400, { error: `target_review_date: ${targetDateCheck.error}` });
+    }
+
+    const legalDateCheck =
+      body.legal_reviewed_at !== undefined
+        ? validateIsoCalendarDate(body.legal_reviewed_at, { allowFuture: false })
+        : { ok: true, value: undefined };
+    if (!legalDateCheck.ok) {
+      return sendJson(400, { error: `legal_reviewed_at: ${legalDateCheck.error}` });
+    }
+
+    const outcome = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verified.ok) {
+        return {
+          status: verified.status,
+          body: {
+            error:
+              'Only Admin: Top may modify readiness statuses, governing policies, confidential counsel notes, or legal-review approvals.',
+            code: 'TOP_ADMIN_REQUIRED'
+          }
+        };
+      }
+
+      await enableAdminTxGuards(tx, ctx);
+      const { rows } = await tx.query('SELECT * FROM compliance_readiness_items WHERE item_key = $1 FOR UPDATE', [
+        itemKey
+      ]);
+      if (!rows.length) return { status: 404, body: { error: 'Readiness item not found.' } };
+      const cur = rows[0];
+
+      if (body.expected_updated_at) {
+        const expMs = new Date(body.expected_updated_at).getTime();
+        const curMs = new Date(cur.updated_at).getTime();
+        if (Number.isFinite(expMs) && Math.abs(expMs - curMs) > 5) {
+          return {
+            status: 409,
+            body: {
+              error: 'This readiness item was modified concurrently. Refresh before saving.',
+              code: 'CONCURRENT_UPDATE_CONFLICT'
+            }
+          };
+        }
+      }
+
+      const cleanOptStr = (val, maxLen) => {
+        if (val === undefined) return undefined;
+        if (val === null) return null;
+        const s = String(val).trim();
+        return s ? s.slice(0, maxLen) : null;
+      };
+
+      const effPractice =
+        body.current_practice !== undefined ? String(body.current_practice || '').trim() : cur.current_practice;
+      if (effPractice.length < 4 || effPractice.length > 2000) {
+        return { status: 400, body: { error: 'current_practice must be 4–2000 characters.' } };
+      }
+
+      const effOwner = body.owner_label !== undefined ? String(body.owner_label || '').trim() : cur.owner_label;
+      if (effOwner.length < 2 || effOwner.length > 120) {
+        return { status: 400, body: { error: 'owner_label must be 2–120 characters.' } };
+      }
+
+      const effNextAction = body.next_action !== undefined ? String(body.next_action || '').trim() : cur.next_action;
+      if (effNextAction.length < 4 || effNextAction.length > 600) {
+        return { status: 400, body: { error: 'next_action must be 4–600 characters.' } };
+      }
+
+      const effUnresolved =
+        body.unresolved_questions !== undefined
+          ? cleanOptStr(body.unresolved_questions, 2000)
+          : cur.unresolved_questions;
+      const effPolicyVersion =
+        body.policy_version !== undefined ? cleanOptStr(body.policy_version, 80) : cur.policy_version;
+      const effEvidence =
+        body.supporting_evidence !== undefined ? cleanOptStr(body.supporting_evidence, 1000) : cur.supporting_evidence;
+      const effOpNotes =
+        body.operational_notes !== undefined ? cleanOptStr(body.operational_notes, 2000) : cur.operational_notes;
+      const effCounselNotes =
+        body.confidential_counsel_notes !== undefined
+          ? cleanOptStr(body.confidential_counsel_notes, 2000)
+          : cur.confidential_counsel_notes;
+      const effModCounselAccess =
+        body.mod_counsel_access_granted !== undefined
+          ? Boolean(body.mod_counsel_access_granted)
+          : Boolean(cur.mod_counsel_access_granted);
+      const effTargetDate =
+        targetDateCheck.value !== undefined ? targetDateCheck.value : cur.target_review_date;
+
+      // Stage flags remain independent — selecting a policy decision never auto-marks implemented/tested/approved
+      const effDecision =
+        body.decision_recorded !== undefined ? Boolean(body.decision_recorded) : Boolean(cur.decision_recorded);
+      const effImplemented =
+        body.implemented_recorded !== undefined
+          ? Boolean(body.implemented_recorded)
+          : Boolean(cur.implemented_recorded);
+      const effTested =
+        body.tested_recorded !== undefined ? Boolean(body.tested_recorded) : Boolean(cur.tested_recorded);
+
+      let requestedStatus = body.status !== undefined ? String(body.status).trim() : cur.status;
+      const effNaExplanation =
+        body.not_applicable_explanation !== undefined
+          ? cleanOptStr(body.not_applicable_explanation, 600)
+          : cur.not_applicable_explanation;
+
+      let effApprovedDocVersion =
+        body.approved_doc_version !== undefined
+          ? cleanOptStr(body.approved_doc_version, 80)
+          : cur.approved_doc_version;
+      let effApprovedScope =
+        body.approved_jurisdiction_scope !== undefined
+          ? cleanOptStr(body.approved_jurisdiction_scope, 240)
+          : cur.approved_jurisdiction_scope;
+      let effReviewerName =
+        body.legal_reviewer_name !== undefined
+          ? cleanOptStr(body.legal_reviewer_name, 160)
+          : cur.legal_reviewer_name;
+      let effReviewedAt =
+        legalDateCheck.value !== undefined ? legalDateCheck.value : cur.legal_reviewed_at;
+
+      const policyVersionChanged = (effPolicyVersion || null) !== (cur.policy_version || null);
+      const practiceChanged = effPractice !== cur.current_practice;
+      const materialPolicyChanged = policyVersionChanged || practiceChanged;
+
+      // Determine whether caller supplied a brand-new legal sign-off alongside a material change
+      const freshApprovalProvided =
+        body.status === 'legally_approved' &&
+        Boolean(body.approved_doc_version && String(body.approved_doc_version).trim() !== (cur.approved_doc_version || '')) &&
+        Boolean(body.legal_reviewer_name) &&
+        Boolean(body.legal_reviewed_at);
+
+      let autoTransitionedToReReview = false;
+      if (cur.status === 'legally_approved' && materialPolicyChanged && !freshApprovalProvided) {
+        requestedStatus = 'needs_re_review';
+        autoTransitionedToReReview = true;
+      }
+
+      if (requestedStatus === 'not_applicable') {
+        if (!effNaExplanation || effNaExplanation.length < 8) {
+          return {
+            status: 400,
+            body: {
+              error: 'Marking an item "not_applicable" requires a clear explanation (at least 8 characters).',
+              code: 'NA_EXPLANATION_REQUIRED'
+            }
+          };
+        }
+      }
+
+      if (requestedStatus === 'legally_approved') {
+        if (
+          !effApprovedDocVersion ||
+          effApprovedDocVersion.length < 2 ||
+          !effApprovedScope ||
+          effApprovedScope.length < 3 ||
+          !effReviewerName ||
+          effReviewerName.length < 3 ||
+          !effReviewedAt
+        ) {
+          return {
+            status: 400,
+            body: {
+              error:
+                'Legal approval requires approved_doc_version, approved_jurisdiction_scope, legal_reviewer_name, and legal_reviewed_at (YYYY-MM-DD). Generic checkbox approval is forbidden.',
+              code: 'LEGAL_APPROVAL_EVIDENCE_REQUIRED'
+            }
+          };
+        }
+      }
+
+      if (
+        itemKey === 'final_legal_launch_gate' &&
+        (requestedStatus === 'legally_approved' || requestedStatus === 'not_applicable')
+      ) {
+        const depRes = await tx.query(
+          `SELECT count(*)::int AS unresolved_count
+           FROM compliance_readiness_items
+           WHERE item_key <> 'final_legal_launch_gate'
+             AND is_launch_critical = true
+             AND status NOT IN ('legally_approved', 'not_applicable')`
+        );
+        const unresolvedDeps = depRes.rows[0]?.unresolved_count || 0;
+        if (unresolvedDeps > 0) {
+          return {
+            status: 409,
+            body: {
+              error: `Cannot mark final_legal_launch_gate complete while ${unresolvedDeps} launch-critical readiness item(s) remain unresolved.`,
+              code: 'UNRESOLVED_LAUNCH_DEPENDENCIES',
+              unresolved_launch_critical: unresolvedDeps
+            }
+          };
+        }
+      }
+
+      const { rows: updatedRows } = await tx.query(
+        `UPDATE compliance_readiness_items
+         SET current_practice = $2,
+             unresolved_questions = $3,
+             status = $4,
+             not_applicable_explanation = $5,
+             decision_recorded = $6,
+             implemented_recorded = $7,
+             tested_recorded = $8,
+             owner_label = $9,
+             next_action = $10,
+             target_review_date = $11,
+             policy_version = $12,
+             supporting_evidence = $13,
+             operational_notes = $14,
+             confidential_counsel_notes = $15,
+             mod_counsel_access_granted = $16,
+             approved_doc_version = $17,
+             approved_jurisdiction_scope = $18,
+             legal_reviewer_name = $19,
+             legal_reviewed_at = $20,
+             updated_by = $21,
+             updated_at = now()
+         WHERE item_key = $1
+         RETURNING *`,
+        [
+          itemKey,
+          effPractice,
+          effUnresolved,
+          requestedStatus,
+          effNaExplanation,
+          effDecision,
+          effImplemented,
+          effTested,
+          effOwner,
+          effNextAction,
+          effTargetDate,
+          effPolicyVersion,
+          effEvidence,
+          effOpNotes,
+          effCounselNotes,
+          effModCounselAccess,
+          effApprovedDocVersion,
+          effApprovedScope,
+          effReviewerName,
+          effReviewedAt,
+          ctx.user.id
+        ]
+      );
+
+      let changeKind = 'top_update';
+      let summaryText =
+        typeof body.change_summary === 'string' && body.change_summary.trim()
+          ? body.change_summary.trim().slice(0, 400)
+          : `Updated readiness item (${cur.status} -> ${requestedStatus})`;
+
+      const histMeta = {
+        decision_recorded: effDecision,
+        implemented_recorded: effImplemented,
+        tested_recorded: effTested,
+        policy_version: effPolicyVersion
+      };
+
+      if (autoTransitionedToReReview) {
+        changeKind = 'auto_needs_re_review';
+        summaryText = `Material policy/practice update automatically marked prior approval (${cur.approved_doc_version || 'unspecified'}) as Needs re-review.`;
+        histMeta.changed_fields = [
+          ...(policyVersionChanged ? ['policy_version'] : []),
+          ...(practiceChanged ? ['current_practice'] : [])
+        ];
+        histMeta.prior_approval = {
+          approved_doc_version: cur.approved_doc_version,
+          approved_jurisdiction_scope: cur.approved_jurisdiction_scope,
+          legal_reviewer_name: cur.legal_reviewer_name,
+          legal_reviewed_at: cur.legal_reviewed_at
+        };
+      } else if (requestedStatus === 'legally_approved') {
+        changeKind = 'legal_approval_recorded';
+        summaryText = `Legal review recorded for ${effApprovedDocVersion} (${effApprovedScope}) by ${effReviewerName} on ${effReviewedAt}.`;
+        histMeta.approval = {
+          approved_doc_version: effApprovedDocVersion,
+          approved_jurisdiction_scope: effApprovedScope,
+          legal_reviewer_name: effReviewerName,
+          legal_reviewed_at: effReviewedAt
+        };
+      }
+
+      await tx.query(
+        `INSERT INTO compliance_readiness_history
+           (item_key, actor_id, actor_role, change_kind, from_status, to_status, summary, metadata)
+         VALUES ($1, $2, 'top', $3, $4, $5, $6, $7::jsonb)`,
+        [itemKey, ctx.user.id, changeKind, cur.status, requestedStatus, summaryText, JSON.stringify(histMeta)]
+      );
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: 'top',
+        targetType: 'compliance_readiness_item',
+        targetId: itemKey,
+        action: autoTransitionedToReReview
+          ? 'readiness.auto_needs_re_review'
+          : requestedStatus === 'legally_approved'
+            ? 'readiness.legal_approval_recorded'
+            : 'readiness.update',
+        metadata: {
+          from_status: cur.status,
+          to_status: requestedStatus,
+          policy_version: effPolicyVersion,
+          approved_doc_version: requestedStatus === 'legally_approved' ? effApprovedDocVersion : undefined,
+          approved_jurisdiction_scope: requestedStatus === 'legally_approved' ? effApprovedScope : undefined,
+          legal_reviewer_name: requestedStatus === 'legally_approved' ? effReviewerName : undefined,
+          legal_reviewed_at: requestedStatus === 'legally_approved' ? effReviewedAt : undefined
+        }
+      });
+
+      const { rows: histRows } = await tx.query(
+        `SELECT id, item_key, actor_id, actor_role, change_kind, from_status, to_status, summary, metadata, created_at
+         FROM compliance_readiness_history
+         WHERE item_key = $1
+         ORDER BY created_at DESC
+         LIMIT 25`,
+        [itemKey]
+      );
+
+      return {
+        status: 200,
+        body: {
+          auto_needs_re_review: autoTransitionedToReReview,
+          item: serializeReadinessItemForActor(updatedRows[0], 'top', histRows)
+        }
+      };
+    });
+
+    return sendJson(outcome.status, outcome.body);
+  }
+
+  // -------------------------------------------------------------------------
   // 6H. Redacted Audit & Activity History (`GET /api/admin/audit`)
   // -------------------------------------------------------------------------
   if (normPath === '/api/admin/audit') {
@@ -3580,10 +4365,10 @@ export async function handleGovernanceApiRequest({
 
       const conds = ['1=1'];
       const params = [];
-      // Scope `Admin: Mod` audit view to moderation, vendor review, issue, and invitation actions
+      // Scope `Admin: Mod` audit view to moderation, vendor review, issue, invitation, and Mod readiness-note actions
       if (verified.actorRole !== 'top') {
         conds.push(
-          "(action LIKE 'community.%' OR action LIKE 'vendor_application.%' OR action LIKE 'vendor.%' OR action LIKE 'issue.%' OR action LIKE 'invitation.%' OR action LIKE 'onboarding.%')"
+          "(action LIKE 'community.%' OR action LIKE 'vendor_application.%' OR action LIKE 'vendor.%' OR action LIKE 'issue.%' OR action LIKE 'invitation.%' OR action LIKE 'onboarding.%' OR action = 'readiness.note_added')"
         );
       }
       if (actionFilter) {

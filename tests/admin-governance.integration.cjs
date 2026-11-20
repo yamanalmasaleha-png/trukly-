@@ -168,7 +168,7 @@ function futureDateISO(days = 10) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":18'));
+    assert(migRes.stdout.includes('"newly_applied":19'));
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });
@@ -231,7 +231,7 @@ function futureDateISO(days = 10) {
       const start = await httpReq('/api/auth/start', {
         method: 'POST',
         headers: { 'X-BiteShark-Client': 'web-auth-v1' },
-        body: { email }
+        body: { email, intent: 'signup', dob: '1990-06-15' }
       });
       assert.equal(start.status, 200, `OTP start failed for ${email}: ${JSON.stringify(start.json)}`);
 
@@ -276,7 +276,7 @@ function futureDateISO(days = 10) {
     await httpReq('/api/auth/start', {
       method: 'POST',
       headers: { 'X-BiteShark-Client': 'web-auth-v1' },
-      body: { email: 'matt.operator@gmail.test' }
+      body: { email: 'matt.operator@gmail.test', intent: 'signup', dob: '1988-04-12' }
     });
     const otpCliRes = await runChild(
       [path.join(ROOT, 'scripts', 'operator-read-my-otp.cjs'), '--email', 'matt.operator@gmail.test', `--port=${port}`],

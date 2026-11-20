@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Privacy Notice (Staging Draft) · BiteShark</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="/policies/policies.css">
+</head>
+<body>
+  <a class="skip-link" href="#policyMain">Skip to main policy content</a>
+  <header class="policy-header" role="banner">
+    <div class="policy-header-inner">
+      <a class="policy-brand" href="/">← BiteShark (Staging)</a>
+      <nav class="policy-nav" aria-label="Preliminary staging policy navigation">
+        <a href="/policies/index.html">Policy Hub</a>
+        <a href="/policies/terms.html">Terms</a>
+        <a href="/policies/privacy.html" aria-current="page">Privacy</a>
+        <a href="/policies/vendor-terms.html">Vendor Terms</a>
+        <a href="/policies/community-moderation.html">Community &amp; Moderation</a>
+        <a href="/policies/advertising-sponsored.html">Advertising &amp; Revenue</a>
+        <a href="/policies/accessibility.html">Accessibility</a>
+        <a href="/policies/cookies-storage.html">Cookies &amp; Storage</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="policy-wrap" id="policyMain" tabindex="-1">
+    <section class="draft-banner" aria-label="Staging draft and legal review notice">
+      <p class="draft-banner-title">
+        <span class="status-tag status-tag-draft">Staging Working Draft</span>
+        <span class="status-tag status-tag-pending">Legal Review Pending</span>
+      </p>
+      <p style="margin:0">
+        This Privacy Notice is a <strong>preliminary working draft</strong> describing actual BiteShark staging data flows and highlighting open privacy-engineering and legal tasks. It is <strong>not a finalized privacy policy or compliance certification</strong>.
+      </p>
+    </section>
+
+    <div class="meta-grid" role="region" aria-label="Document metadata">
+      <div class="meta-item">
+        <small>Operator Identity</small>
+        <strong><span class="placeholder-token">[LEGAL OPERATOR NAME], doing business as BiteShark</span></strong>
+      </div>
+      <div class="meta-item">
+        <small>Version &amp; Last Updated</small>
+        <strong>Version 0.1-draft · November 19, 2026</strong>
+      </div>
+      <div class="meta-item">
+        <small>Responsible Internal Owner</small>
+        <strong>Operator (Admin: Top), Engineering &amp; Privacy Counsel</strong>
+      </div>
+      <div class="meta-item">
+        <small>Review Status</small>
+        <strong>Legal review pending · No effective date</strong>
+      </div>
+    </div>
+
+    <article class="policy-card">
+      <h1>2. Privacy Notice (Preliminary Working Draft)</h1>
+
+      <h2>2.1 Data Controller / Operator</h2>
+      <p>
+        BiteShark is operated by <span class="placeholder-token">[LEGAL OPERATOR NAME], doing business as BiteShark</span>. Official postal and privacy-request contact addresses remain to be confirmed before public launch.
+      </p>
+
+      <h2>2.2 Categories of Information Processed Today</h2>
+      <div class="policy-table-wrap">
+        <table class="policy-table">
+          <thead>
+            <tr>
+              <th scope="col">Feature / Surface</th>
+              <th scope="col">Data Processed in Current Application</th>
+              <th scope="col">Current Retention / Storage Behavior</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Account Registration &amp; Sign-In</strong></td>
+              <td>Normalized email address, opaque account ID, single-use OTP HMAC challenges, SHA-256 hashed session token, truncated IP/user-agent hashes for rate-limiting and session security, and derived 14+ age-eligibility metadata.</td>
+              <td>OTP challenges/rate limits cleaned up after 24 hours; revoked/expired sessions purged after 7 days; account rows persist until disabled/deleted (automated self-service deletion not yet built).</td>
+            </tr>
+            <tr>
+              <td><strong>Date of Birth (14+ Check)</strong></td>
+              <td>Self-reported Month, Day, and Year submitted over HTTPS during account creation or one-time existing-account check. <strong>No identity documents are collected.</strong></td>
+              <td><strong>Raw date of birth is never stored.</strong> Only <code>age_eligibility_status</code> (<code>eligible_14_plus</code> or <code>not_assessed</code>), policy version, assessment timestamp, and self-reported basis are saved. Rejected under-14 attempts create zero accounts, zero OTP challenges, and zero marketing records.</td>
+            </tr>
+            <tr>
+              <td><strong>Abuse Cooldown on Rejected Signup</strong></td>
+              <td>HttpOnly cookie <code>__Host-bs_age_gate=1</code> (15-minute max-age) and truncated SHA-256 IP rate-limit bucket (<code>age_ineligible_ip</code>) to deter automated birth-date fishing.</td>
+              <td>Cookie expires in 15 minutes; IP rate-limit bucket is purged within 24 hours. Stores zero DOB and zero email address.</td>
+            </tr>
+            <tr>
+              <td><strong>Location &amp; Nearby Discovery</strong></td>
+              <td>Optional browser geolocation coordinates sent to <code>/api/trucks/nearby</code> when you tap “Near me” to compute distance to Sonoma County listings.</td>
+              <td>Processed transiently in memory to calculate distances; customer geolocation coordinates are <strong>not</strong> written to user profiles or sold.</td>
+            </tr>
+            <tr>
+              <td><strong>Favorites &amp; Dish Notebook</strong></td>
+              <td>Saved truck IDs (stored in PostgreSQL when signed in and cached in browser <code>localStorage</code>); personal dish notebook notes/photos.</td>
+              <td>Dish notebook notes and photos stay locally in your browser’s <code>localStorage</code> and are not uploaded to BiteShark servers.</td>
+            </tr>
+            <tr>
+              <td><strong>Event / Catering Booking Inquiries</strong></td>
+              <td>Requester user ID/email, target vendor ID, requested event date, guest count, package interest, and optional note shared with the selected vendor.</td>
+              <td>Stored in <code>bookings</code> for requester and vendor tracking; formal archival/deletion schedule is pending legal review.</td>
+            </tr>
+            <tr>
+              <td><strong>Digital Pickup Pagers &amp; Web Push</strong></td>
+              <td>Order ticket label/number, opaque status token, optional web-push endpoint and P-256DH/auth keys when subscribed.</td>
+              <td>Pager tickets expire automatically; web-push delivery is currently <strong>disabled</strong> on staging (<code>PUSH_PROVIDER_MODE=disabled</code>).</td>
+            </tr>
+            <tr>
+              <td><strong>Community Reviews, Reports &amp; Support Issues</strong></td>
+              <td>Display name/nickname, star rating, comment text, moderation history, abuse reports, and private support ticket threads.</td>
+              <td>Moderation preserves original submitted text internally for audit/appeals; retention period pending counsel review.</td>
+            </tr>
+            <tr>
+              <td><strong>Vendor Onboarding Applications &amp; Proof</strong></td>
+              <td>Business contact details, permit/license summary, ownership statement, and optional PNG/JPEG/WebP/PDF ownership proof (up to 512 KiB per file, max 3 files).</td>
+              <td>Uploaded onboarding evidence records carry a 90-day <code>retention_expires_at</code> timestamp and scrub raw file bytes upon deletion.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>2.3 Proposed Age Policy (14+) &amp; Youth Privacy</h2>
+      <p>
+        Under the operator’s proposed account policy (awaiting legal approval), <strong>users aged 13 and younger cannot create accounts; minimum account age is 14</strong>. BiteShark does not knowingly create accounts for children aged 13 or younger, does not run behavioral advertising, and does not sell or share personal information for cross-context behavioral advertising.
+      </p>
+      <p>
+        <strong>Important limitation:</strong> Self-reported date of birth is not verified age, and restricting account signup to 14+ does not by itself resolve all legal questions regarding teen users (ages 14–17), EU/UK digital-consent rules, or unauthenticated public browsing and anonymous pickup pager use. Those items remain explicitly open for legal review.
+      </p>
+
+      <h2>2.4 Third-Party Service Providers &amp; Data Sharing</h2>
+      <ul>
+        <li><strong>Hosting &amp; infrastructure:</strong> Application and PostgreSQL database run on a dedicated Linux virtual private server in the United States behind TLS encryption.</li>
+        <li><strong>Map tiles:</strong> Interactive discovery maps load street map tiles from OpenStreetMap / CARTO tile endpoints in the browser, which receive standard HTTP request metadata (such as IP address and browser user-agent) when map view is displayed.</li>
+        <li><strong>Transactional email &amp; push providers:</strong> External email delivery is not yet connected on staging (restricted operator test mailbox is active); web push delivery is disabled on staging.</li>
+        <li><strong>No analytics or ad networks:</strong> Zero analytics SDKs, ad pixels, session-replay scripts, or data brokers are integrated.</li>
+      </ul>
+
+      <h2>2.5 Current Limitations on Privacy Rights &amp; Account Deletion</h2>
+      <p>
+        Signed-in users can currently open a private support ticket in the app (<em>Profile → Support &amp; issues</em>), and administrators can disable accounts and revoke active sessions. However, <strong>automated self-service account deletion, data export, and formal privacy-request (DSAR) workflows are not yet implemented or verified</strong> and must be completed before public launch.
+      </p>
+
+      <div class="unresolved-box">
+        <h2>[UNRESOLVED — CONFIRMATION REQUIRED] Open Privacy &amp; Compliance Tasks</h2>
+        <ul>
+          <li><strong>Confirmed operator identity &amp; privacy contact inbox:</strong> Replace <span class="placeholder-token">[LEGAL OPERATOR NAME]</span> and publish a monitored privacy request contact method and postal address.</li>
+          <li><strong>Account deletion &amp; DSAR procedure:</strong> Build and verify user-initiated account deletion and data-access/correction workflows, including rules for records retained for security, fraud prevention, or legal obligations.</li>
+          <li><strong>Retention schedule sign-off:</strong> Finalize exact retention periods for bookings, community posts, support issues, onboarding applications, backups, and append-only audit logs.</li>
+          <li><strong>Jurisdictional notices (California CCPA/CPRA, CalOPPA, CA AADC, state privacy laws, EU/UK GDPR):</strong> Determine applicability based on confirmed launch jurisdictions and operator thresholds, and add required statutory disclosures.</li>
+          <li><strong>Public browsing &amp; anonymous pager review:</strong> Confirm with counsel whether unauthenticated map browsing or pickup pager status checks require additional youth-privacy safeguards.</li>
+        </ul>
+      </div>
+    </article>
+
+    <footer class="policy-footer">
+      Isolated Staging Environment · <code>noindex, nofollow, noarchive</code> · Version 0.1-draft · Legal review pending.
+    </footer>
+  </main>
+</body>
+</html>

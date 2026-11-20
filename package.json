@@ -19,13 +19,15 @@
     "test:deploy": "node tests/install-staging-release.test.cjs",
     "test:standalone": "node tests/standalone-runtime-auth.integration.cjs",
     "test:admin": "node tests/admin-governance.integration.cjs",
+    "test:legal": "node tests/legal-readiness.integration.cjs",
     "test:hardening": "node tests/backend-hardening.integration.cjs",
     "test:discovery": "node tests/p1-unified-discovery.integration.cjs",
     "test:notifications": "node tests/pager-notifications.integration.cjs",
     "test:gates:preflight": "node tests/vps-staging-gates.cjs --preflight-local",
     "test:e2e:discovery": "node tests/discovery-browser.e2e.cjs",
     "test:e2e:notifications": "node tests/pager-notifications-browser.e2e.cjs",
-    "test:e2e:admin": "node tests/admin-portal-browser.e2e.cjs"
+    "test:e2e:admin": "node tests/admin-portal-browser.e2e.cjs",
+    "test:e2e:legal": "node tests/legal-readiness-browser.e2e.cjs"
   },
   "dependencies": {
     "cookie": "1.1.1",

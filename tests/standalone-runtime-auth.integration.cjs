@@ -190,7 +190,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRun1.code, 0, `First migration run failed: ${migRun1.stderr}`);
-    assert(migRun1.stdout.includes('"newly_applied":18'), 'Expected all 18 migrations applied on fresh DB');
+    assert(migRun1.stdout.includes('"newly_applied":19'), 'Expected all 19 migrations applied on fresh DB');
 
     // Second run must be a zero-op idempotent checksum verification
     const migRun2 = await runChildExpectExit(
@@ -214,7 +214,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     try {
       const legacyFiles = fs
         .readdirSync(path.join(ROOT, 'migrations'))
-        .filter(f => /^\d{3}_.+\.sql$/.test(f) && !f.startsWith('017_') && !f.startsWith('018_'))
+        .filter(f => /^\d{3}_.+\.sql$/.test(f) && Number(f.slice(0, 3)) <= 16)
         .sort();
       for (const f of legacyFiles) {
         await upgPool.query(fs.readFileSync(path.join(ROOT, 'migrations', f), 'utf8'));
@@ -495,7 +495,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
 
     // Brute-force 5-attempt lockout test
     const bruteEmail = `brute@${allowedDomain}`;
-    assert.equal((await postAuth('start', { email: bruteEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: bruteEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const bruteValidCode = await getStagingOtp(bruteEmail);
     const wrongCode = bruteValidCode === '999999' ? '888888' : '999999';
 
@@ -509,9 +509,9 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
 
     // Issuing a newer OTP invalidates prior unconsumed OTP
     const replaceEmail = `replace@${allowedDomain}`;
-    assert.equal((await postAuth('start', { email: replaceEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: replaceEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const firstOtp = await getStagingOtp(replaceEmail);
-    assert.equal((await postAuth('start', { email: `  REPLACE@${allowedDomain.toUpperCase()}  ` })).status, 200);
+    assert.equal((await postAuth('start', { email: `  REPLACE@${allowedDomain.toUpperCase()}  `, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const secondOtp = await getStagingOtp(replaceEmail);
     assert.equal((await postAuth('verify', { email: replaceEmail, code: firstOtp })).status, 401, 'Superseded OTP must fail');
 
@@ -556,7 +556,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
 
     // Re-login on a fresh account while presenting session 1 must rotate session & revoke session 1!
     const rotateEmail = `rotate@${allowedDomain}`;
-    assert.equal((await postAuth('start', { email: rotateEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: rotateEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const rotateCode = await getStagingOtp(rotateEmail);
     const reloginRes = await postAuth(
       'verify',
@@ -580,7 +580,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     assert.equal(newSessUse.status, 200);
 
     const logoutEmail = `logout-${suffix}@${allowedDomain}`;
-    assert.equal((await postAuth('start', { email: logoutEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: logoutEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const logoutOtp = await getStagingOtp(logoutEmail);
     const logoutLoginRes = await postAuth('verify', { email: logoutEmail, code: logoutOtp });
     const logoutCookie = extractSessionCookie(logoutLoginRes).cookiePair;
@@ -607,7 +607,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
     // Regression REV-04a: Concurrent `POST /api/auth/start` for the same email leaves exact 1 active challenge
     const concStartEmail = `conc-start-${suffix}@${allowedDomain}`;
     const concStarts = await Promise.all(
-      Array.from({ length: 4 }, () => postAuth('start', { email: concStartEmail }))
+      Array.from({ length: 4 }, () => postAuth('start', { email: concStartEmail, intent: 'signup', dob: '1990-06-15' }))
     );
     assert(concStarts.every(r => r.status === 200), 'Concurrent valid OTP starts should succeed cleanly');
     await migratorPool.query('BEGIN');
@@ -622,7 +622,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
 
     // Regression REV-04b: Disabled account returns 403 on verify WITHOUT updating `last_login_at` & revokes active sessions
     const disEmail = `disabled-${suffix}@${allowedDomain}`;
-    assert.equal((await postAuth('start', { email: disEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: disEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const disCode1 = await getStagingOtp(disEmail);
     const disLogin1 = await postAuth('verify', { email: disEmail, code: disCode1 });
     assert.equal(disLogin1.status, 200);
@@ -675,7 +675,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       [legacyEmail]
     );
 
-    assert.equal((await postAuth('start', { email: legacyEmail })).status, 200);
+    assert.equal((await postAuth('start', { email: legacyEmail, intent: 'signup', dob: '1990-06-15' })).status, 200);
     const legacyOtp = await getStagingOtp(legacyEmail);
     const legacyLogin = await postAuth('verify', { email: legacyEmail, code: legacyOtp });
     assert.equal(legacyLogin.status, 200);

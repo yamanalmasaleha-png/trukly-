@@ -394,7 +394,11 @@ class CdpClient {
       await cdp.eval(
         sessionId,
         `(async () => {
-          await window.bitesharkAuth.startLogin({ email: ${JSON.stringify(email)} });
+          await window.bitesharkAuth.startLogin({
+            email: ${JSON.stringify(email)},
+            intent: 'signup',
+            dob: '1990-06-15'
+          });
           return true;
         })()`
       );

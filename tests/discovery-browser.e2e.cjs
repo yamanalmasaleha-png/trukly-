@@ -487,12 +487,16 @@ class CdpClient {
     assert.equal(loginPageInfo.disclosureVisible, true, 'Passkey unavailability disclosure must be visible on /login.html');
     assert(loginPageInfo.disclosureText.toLowerCase().includes('passkeys are currently unavailable'));
 
-    // Submit email on `/login.html`
+    // Submit email + 14+ DOB on `/login.html` Create Account tab
     await cdp.eval(
       ownerSession,
       `(async () => {
+        document.getElementById('tabSignUp').click();
         document.getElementById('email').value = ${JSON.stringify(ownerEmail)};
-        await send(new Event('submit', { cancelable: true }));
+        document.getElementById('dobMonth').value = '06';
+        document.getElementById('dobDay').value = '15';
+        document.getElementById('dobYear').value = '1990';
+        document.getElementById('emailForm').requestSubmit();
       })()`
     );
     await waitForCondition(
@@ -517,7 +521,7 @@ class CdpClient {
       ownerSession,
       `(async () => {
         document.getElementById('code').value = ${JSON.stringify(ownerOtpCode)};
-        await verify(new Event('submit', { cancelable: true }));
+        document.getElementById('codeForm').requestSubmit();
       })()`
     );
 

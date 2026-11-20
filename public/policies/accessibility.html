@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Accessibility Statement (Staging Draft) · BiteShark</title>
+  <link rel="icon" type="image/svg+xml" href="/logo.svg">
+  <link rel="stylesheet" href="/policies/policies.css">
+</head>
+<body>
+  <a class="skip-link" href="#policyMain">Skip to main policy content</a>
+  <header class="policy-header" role="banner">
+    <div class="policy-header-inner">
+      <a class="policy-brand" href="/">← BiteShark (Staging)</a>
+      <nav class="policy-nav" aria-label="Preliminary staging policy navigation">
+        <a href="/policies/index.html">Policy Hub</a>
+        <a href="/policies/terms.html">Terms</a>
+        <a href="/policies/privacy.html">Privacy</a>
+        <a href="/policies/vendor-terms.html">Vendor Terms</a>
+        <a href="/policies/community-moderation.html">Community &amp; Moderation</a>
+        <a href="/policies/advertising-sponsored.html">Advertising &amp; Revenue</a>
+        <a href="/policies/accessibility.html" aria-current="page">Accessibility</a>
+        <a href="/policies/cookies-storage.html">Cookies &amp; Storage</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="policy-wrap" id="policyMain" tabindex="-1">
+    <section class="draft-banner" aria-label="Staging draft and legal review notice">
+      <p class="draft-banner-title">
+        <span class="status-tag status-tag-draft">Staging Working Draft</span>
+        <span class="status-tag status-tag-pending">Legal Review Pending</span>
+      </p>
+      <p style="margin:0">
+        This Accessibility Statement is a <strong>working draft</strong> documenting current engineering practices and remaining manual testing work. <strong>BiteShark does not claim formal WCAG certification or “ADA compliance” based on automated checks alone.</strong>
+      </p>
+    </section>
+
+    <div class="meta-grid" role="region" aria-label="Document metadata">
+      <div class="meta-item">
+        <small>Operator Identity</small>
+        <strong><span class="placeholder-token">[LEGAL OPERATOR NAME], doing business as BiteShark</span></strong>
+      </div>
+      <div class="meta-item">
+        <small>Version &amp; Last Updated</small>
+        <strong>Version 0.1-draft · November 19, 2026</strong>
+      </div>
+      <div class="meta-item">
+        <small>Responsible Internal Owner</small>
+        <strong>Engineering, Product &amp; Operator (Admin: Top)</strong>
+      </div>
+      <div class="meta-item">
+        <small>Review Status</small>
+        <strong>Legal &amp; manual assistive-tech review pending</strong>
+      </div>
+    </div>
+
+    <article class="policy-card">
+      <h1>6. Accessibility Statement (Preliminary Working Draft)</h1>
+
+      <h2>6.1 Accessibility Target</h2>
+      <p>
+        <span class="placeholder-token">[LEGAL OPERATOR NAME], doing business as BiteShark</span> aims to make local food-spot discovery, account sign-in, pickup pagers, vendor tools, policy pages, and administration screens usable for everyone, using the <strong>Web Content Accessibility Guidelines (WCAG) 2.1 Level AA</strong> as our ongoing design and engineering target.
+      </p>
+
+      <h2>6.2 Practices Implemented in the Current Staging Build</h2>
+      <ul>
+        <li><strong>Keyboard navigation &amp; visible focus:</strong> Interactive buttons, mode tabs, links, policy skip-links, form controls, and admin checklists are operable by keyboard with visible focus indicators.</li>
+        <li><strong>Programmatic labels &amp; understandable date entry:</strong> Registration and age-eligibility forms use explicit Month, Day, and 4-digit Year fields inside labeled fieldsets with plain-language purpose explanations and <code>role="alert"</code> validation messages rather than relying on opaque calendar widgets.</li>
+        <li><strong>Status text beyond color:</strong> Open/closed states (“● OPEN”, “◐ EST. OPEN”, “○ CLOSED”), moderation tags, draft banners, and readiness checklist stages pair text labels and symbols with color.</li>
+        <li><strong>List-view alternative to interactive maps:</strong> Discovery provides a full text List view alongside the interactive Leaflet map so users do not need to pan or tap map pins to browse or filter Sonoma County food spots.</li>
+        <li><strong>Zoom &amp; small-screen reflow:</strong> Policy pages, sign-in/signup forms, and admin readiness views are built to reflow cleanly on narrow mobile viewports (375px) and at 200% browser zoom without horizontal text clipping.</li>
+      </ul>
+
+      <h2>6.3 Honest Testing Status &amp; Known Limitations</h2>
+      <div class="info-box">
+        <strong>What has and has not been tested:</strong> Automated headless Chrome tests verify keyboard tab traversal, focus visibility, form labels, alert announcements, mobile viewport reflow, and non-color status text across signup, policy pages, and the Admin Portal. <strong>However, automated checks catch only a subset of accessibility barriers.</strong> No independent third-party accessibility audit has been performed, and end-to-end manual screen-reader testing (such as NVDA, JAWS, VoiceOver, and TalkBack across map markers, modals, and live pager updates) remains in progress prior to public rollout.
+      </div>
+      <ul>
+        <li><strong>Third-party map canvas:</strong> Interactive Leaflet / OpenStreetMap map tiles can be harder to navigate with screen readers than structured lists; we recommend switching to the <strong>List</strong> view toggle for assistive-technology navigation while we continue improving map-marker announcements.</li>
+        <li><strong>Vendor-submitted text &amp; attachments:</strong> Uploaded vendor onboarding documents and user-written reviews may not always include complete alt text or accessible PDF structure.</li>
+      </ul>
+
+      <h2>6.4 Reporting Accessibility Barriers</h2>
+      <p>
+        Signed-in users on staging can report accessibility issues through <strong>Profile → Support &amp; issues</strong>. Before public rollout, BiteShark will publish a dedicated, sign-in-free accessibility feedback email address and response target so anyone encountering a barrier can request assistance without needing an account.
+      </p>
+
+      <div class="unresolved-box">
+        <h2>[UNRESOLVED — CONFIRMATION REQUIRED] Pre-Launch Accessibility Work</h2>
+        <ul>
+          <li><strong>Manual assistive-technology testing:</strong> Complete structured manual testing with desktop and mobile screen readers (VoiceOver, NVDA/TalkBack), high-contrast modes, and reduced-motion settings across all primary customer and vendor journeys, and remediate discovered defects.</li>
+          <li><strong>Unauthenticated accessibility contact channel:</strong> Confirm <span class="placeholder-token">[LEGAL OPERATOR NAME]</span> and publish a monitored email/contact method for users who cannot complete sign-in due to an accessibility barrier.</li>
+          <li><strong>Legal review:</strong> Review statement language and remediation commitments with counsel prior to public rollout.</li>
+        </ul>
+      </div>
+    </article>
+
+    <footer class="policy-footer">
+      Isolated Staging Environment · <code>noindex, nofollow, noarchive</code> · Version 0.1-draft · Legal review pending.
+    </footer>
+  </main>
+</body>
+</html>

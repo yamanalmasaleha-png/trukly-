@@ -318,7 +318,7 @@ class CdpClient {
     const otpStartRes = await fetch(`${baseUrl}/api/auth/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Truckly-Client': 'web-auth-v1' },
-      body: JSON.stringify({ email: staffEmail })
+      body: JSON.stringify({ email: staffEmail, intent: 'signup', dob: '1990-06-15' })
     });
     assert.equal(otpStartRes.status, 200);
     const otpMbRes = await fetch(`${baseUrl}/api/auth/staging-mailbox`, {
