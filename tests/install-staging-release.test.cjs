@@ -373,7 +373,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
            console.error('Job for truckly-staging-worker.service failed.');
            process.exit(1);
          }
-         const crashMs = (unit === 'truckly-staging-worker.service' && cfg.workerCrashAfterMsOnSha === activeSha) ? 150 : 0;
+         const crashMs = (unit === 'truckly-staging-worker.service' && cfg.workerCrashAfterMsOnSha === activeSha) ? 60 : 0;
          const child = spawn(process.execPath, [daemonScript, String(crashMs)], {
            cwd: resolvedDir,
            detached: true,
@@ -755,7 +755,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     const wrkCrashRun = await runInstaller(
       bashBin,
       ['--sha', TARGET_SHA, '--tarball', toPosixPath(TARBALL_PATH), '--expected-sha256', EXPECTED_SHA256],
-      { ...baseEnv, BITESHARK_WORKER_SETTLE_SEC: '0.4' }
+      { ...baseEnv, BITESHARK_WORKER_SETTLE_SEC: '1.2' }
     );
     assert.equal(wrkCrashRun.code, 1);
     assert(wrkCrashRun.stderr.includes('"failed_phase":"verify_worker_active_and_identity"'));
