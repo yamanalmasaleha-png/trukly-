@@ -711,18 +711,29 @@ class CdpClient {
     // =========================================================================
     await cdp.send('Page.navigate', { url: `${baseUrl}/admin#features` }, topTab.sessionId);
     await waitForCondition(
-      async () => cdp.eval(topTab.sessionId, `Boolean(document.getElementById('fc-save-community_submissions'))`),
+      async () =>
+        cdp.eval(
+          topTab.sessionId,
+          `Boolean(
+            document.getElementById('sec-features') &&
+            !document.getElementById('sec-features').hidden &&
+            document.getElementById('fc-save-community_submissions') &&
+            !document.getElementById('fc-save-community_submissions').disabled
+          )`
+        ),
       { label: 'Top Admin returned to /admin#features' }
     );
 
     for (const item of [
-      { key: 'flavor_lab_tools', state: 'enabled', aud: 'all' },
-      { key: 'community_submissions', state: 'enabled', aud: 'all' },
-      { key: 'local_guides_passport', state: 'enabled', aud: 'all' }
+      { key: 'flavor_lab_tools', titlePrefix: 'Flavor Finder', state: 'enabled', aud: 'all' },
+      { key: 'community_submissions', titlePrefix: 'New Community Reviews', state: 'enabled', aud: 'all' },
+      { key: 'local_guides_passport', titlePrefix: 'Local Guides', state: 'enabled', aud: 'all' }
     ]) {
       await cdp.eval(
         topTab.sessionId,
         `(() => {
+          const st = document.getElementById('fcLiveStatus');
+          if (st) st.textContent = '';
           document.getElementById('fc-state-${item.key}').value = '${item.state}';
           const audEl = document.getElementById('fc-aud-${item.key}');
           if (audEl && !audEl.disabled) audEl.value = '${item.aud}';
@@ -735,9 +746,17 @@ class CdpClient {
         async () =>
           cdp.eval(
             topTab.sessionId,
-            `document.getElementById('fc-card-${item.key}')?.querySelector('.fc-badges')?.textContent.includes('Effective: enabled')`
+            `(() => {
+              const st = document.getElementById('fcLiveStatus')?.textContent || '';
+              const badges = document.getElementById('fc-card-${item.key}')?.querySelector('.fc-badges')?.textContent || '';
+              return (
+                st.includes('Server confirmed: "${item.titlePrefix}') &&
+                badges.includes('Effective: enabled') &&
+                badges.includes('Audience: All eligible users')
+              );
+            })()`
           ),
-        { label: `Re-enabled ${item.key}` }
+        { label: `Re-enabled ${item.key} confirmed by server` }
       );
     }
 

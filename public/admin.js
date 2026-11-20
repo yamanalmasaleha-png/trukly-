@@ -2847,11 +2847,8 @@
     submitBtn.disabled = false;
     submitBtn.textContent = 'Confirm & Apply Server Change';
     modal.hidden = false;
-
-    setTimeout(function () {
-      if (reasonEl.value.trim().length >= 4) submitBtn.focus();
-      else reasonEl.focus();
-    }, 0);
+    if (reasonEl.value.trim().length >= 4) submitBtn.focus();
+    else reasonEl.focus();
   }
 
   function closeFeatureConfirmModal(restoreFocus) {
