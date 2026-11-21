@@ -228,7 +228,7 @@ async function main() {
     const migDir = path.join(ROOT, 'migrations');
     const pre025Files = fs
       .readdirSync(migDir)
-      .filter(f => f.endsWith('.sql') && !f.startsWith('025_'))
+      .filter(f => /^\d{3}_.+\.sql$/.test(f) && Number(f.slice(0, 3)) < 25)
       .sort();
     assert.equal(pre025Files.length, 24, 'Expected 24 migrations prior to 025');
 

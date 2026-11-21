@@ -422,6 +422,26 @@ function futurePacificDate(daysAhead = 12) {
       padmin: { id: 'usr_platform_admin', email: 'padmin@sonoma.test' }
     };
 
+    {
+      const seedClient = await cleanPool.connect();
+      try {
+        await seedClient.query('BEGIN');
+        await seedClient.query("SELECT set_config('app.auth_internal', 'true', true)");
+        await seedClient.query(
+          `INSERT INTO auth_users (
+             id, email_normalized, age_eligibility_status, age_assessed_at, age_policy_version, age_assessment_basis
+           )
+           VALUES
+             ($1, $2, 'eligible_14_plus', now(), '2026-04-min14-v1', 'self_reported_dob_at_signup'),
+             ($3, $4, 'eligible_14_plus', now(), '2026-04-min14-v1', 'self_reported_dob_at_signup')
+           ON CONFLICT (id) DO NOTHING`,
+          [ACTORS.padmin.id, ACTORS.padmin.email, ACTORS.mod.id, ACTORS.mod.email]
+        );
+        await seedClient.query('COMMIT');
+      } finally {
+        seedClient.release();
+      }
+    }
     await cleanPool.query(
       `INSERT INTO platform_roles (user_id, role, granted_by) VALUES
          ($1, 'platform_admin', 'bootstrap'),

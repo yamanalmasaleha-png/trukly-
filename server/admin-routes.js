@@ -4224,9 +4224,10 @@ export async function handleGovernanceApiRequest({
       ]);
       if (!userRows.length) return { status: 404, body: { error: 'Target account not found.' } };
 
-      // Lock ALL `platform_roles` rows so concurrent Top demotions strictly serialize
+      // Lock `platform_roles` and inspect joined active, age-eligible `auth_users` rows so orphaned,
+      // suspended, or unassessed rows never satisfy last-Top protection.
       const { rows: allRoleRows } = await tx.query(
-        `SELECT pr.user_id, pr.role, au.disabled_at
+        `SELECT pr.user_id, pr.role, au.id AS auth_user_id, au.disabled_at, au.age_eligibility_status
          FROM platform_roles pr
          LEFT JOIN auth_users au ON au.id = pr.user_id
          FOR UPDATE OF pr`
@@ -4245,10 +4246,15 @@ export async function handleGovernanceApiRequest({
       }
 
       if (curLevel === 'top' && nextRole !== 'top') {
-        const otherActiveTops = allRoleRows.filter(
-          r => r.user_id !== targetUserId && normalizeAdminLevel(r.role) === 'top' && !r.disabled_at
+        const otherActiveEligibleTops = allRoleRows.filter(
+          r =>
+            r.user_id !== targetUserId &&
+            Boolean(r.auth_user_id) &&
+            normalizeAdminLevel(r.role) === 'top' &&
+            !r.disabled_at &&
+            r.age_eligibility_status === 'eligible_14_plus'
         );
-        if (otherActiveTops.length < 1) {
+        if (otherActiveEligibleTops.length < 1) {
           return {
             status: 409,
             body: {
@@ -4326,6 +4332,26 @@ export async function handleGovernanceApiRequest({
           admin_label: nextRole === 'none' ? null : ROLE_LABELS[nextRole]
         }
       };
+    }).catch(err => {
+      if (String(err?.message || '').includes('LAST_TOP_ADMIN_PROTECTED')) {
+        return {
+          status: 409,
+          body: {
+            error: 'Cannot remove or demote the last active Admin: Top account.',
+            code: 'LAST_TOP_ADMIN_PROTECTED'
+          }
+        };
+      }
+      if (err?.code === '40P01' || err?.code === '40001') {
+        return {
+          status: 409,
+          body: {
+            error: 'Another administrative privilege update ran concurrently. Refresh and retry.',
+            code: 'CONCURRENT_PRIVILEGE_CHANGE'
+          }
+        };
+      }
+      throw err;
     });
 
     return sendJson(outcome.status, outcome.body);
@@ -4359,7 +4385,7 @@ export async function handleGovernanceApiRequest({
 
       if (action === 'suspend') {
         const { rows: allTops } = await tx.query(
-          `SELECT pr.user_id, au.disabled_at
+          `SELECT pr.user_id, au.disabled_at, au.age_eligibility_status
            FROM platform_roles pr
            JOIN auth_users au ON au.id = pr.user_id
            WHERE pr.role IN ('top', 'platform_admin')
@@ -4367,7 +4393,9 @@ export async function handleGovernanceApiRequest({
         );
         const targetIsTop = allTops.some(r => r.user_id === targetUserId);
         if (targetIsTop) {
-          const remainingActiveTops = allTops.filter(r => r.user_id !== targetUserId && !r.disabled_at);
+          const remainingActiveTops = allTops.filter(
+            r => r.user_id !== targetUserId && !r.disabled_at && r.age_eligibility_status === 'eligible_14_plus'
+          );
           if (remainingActiveTops.length < 1) {
             return {
               status: 409,
@@ -4408,6 +4436,26 @@ export async function handleGovernanceApiRequest({
       });
 
       return { status: 200, body: { ok: true, user_id: targetUserId, is_disabled: action === 'suspend' } };
+    }).catch(err => {
+      if (String(err?.message || '').includes('LAST_TOP_ADMIN_PROTECTED')) {
+        return {
+          status: 409,
+          body: {
+            error: 'Cannot suspend the last active Admin: Top account.',
+            code: 'LAST_TOP_ADMIN_PROTECTED'
+          }
+        };
+      }
+      if (err?.code === '40P01' || err?.code === '40001') {
+        return {
+          status: 409,
+          body: {
+            error: 'Another administrative account status update ran concurrently. Refresh and retry.',
+            code: 'CONCURRENT_PRIVILEGE_CHANGE'
+          }
+        };
+      }
+      throw err;
     });
 
     return sendJson(outcome.status, outcome.body);
