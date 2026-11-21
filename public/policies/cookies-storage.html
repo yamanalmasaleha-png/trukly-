@@ -85,6 +85,11 @@
               <td><code>HttpOnly; Secure; SameSite=Lax; Path=/</code>. Stores only the constant literal value <code>1</code> (never a birth date, email, or user identifier) after an under-14 registration attempt is declined, preventing immediate birth-date fishing in the same browser. Server-side network throttling separately uses a minimized, pseudonymous truncated SHA-256 IP rate-limit bucket purged after 24 hours (described in our <a href="/policies/privacy.html">Draft Privacy Notice</a>).</td>
               <td>15 minutes (<code>Max-Age=900</code>).</td>
             </tr>
+            <tr>
+              <td><strong>Optional User-Requested Starting Preference Cookie</strong> (<code>bs_start_pref</code>)</td>
+              <td><code>SameSite=Lax; Path=/; Secure</code> (on HTTPS). Set <strong>only</strong> when an unauthenticated visitor explicitly checks <em>“Remember my choice on this device”</em> on the first-visit welcome screen. Stores solely the literal token <code>customer</code> or <code>vendor</code> to select the initial screen on return visits — never an account ID, role, email, location, or tracking identifier, and never consulted for authentication or authorization. Independent of analytics/advertising (none used). Can be cleared anytime from the top-right menu (<em>“Forget saved start preference”</em>) without signing out or clearing saved places.</td>
+              <td>90 days (<code>Max-Age=7776000</code>), or cleared immediately when forgotten by the user.</td>
+            </tr>
           </tbody>
         </table>
       </div>

@@ -301,6 +301,7 @@
       </div>
 
       <div id="inviteContextBanner" class="invite-context-banner" role="region" aria-label="Pending BiteShark invitation" hidden></div>
+      <div id="vendorContextBanner" class="invite-context-banner" role="region" aria-label="Vendor listing application step" hidden></div>
       <div id="stagingModeNotice" class="staging-mode-banner" role="status" hidden></div>
 
       <p class="mode-helper" id="modeHelperText">
@@ -510,6 +511,25 @@
         return n.startsWith('/') && !n.startsWith('//') ? n : '/';
       })();
       document.getElementById('returnLink').href = next;
+
+      (function inspectVendorOnboardingReturn() {
+        const vBanner = document.getElementById('vendorContextBanner');
+        if (!vBanner || pendingInviteToken) return;
+        const qIdx = next.indexOf('?');
+        if (qIdx === -1) return;
+        const nextParams = new URLSearchParams(next.slice(qIdx + 1).split('#')[0]);
+        const vMode = nextParams.get('vendor_onboard');
+        if (vMode !== 'claim' && vMode !== 'new') return;
+        const rawSlug = String(nextParams.get('claim_vendor') || '').trim();
+        const safeSlug = /^[a-z0-9_-]{1,64}$/i.test(rawSlug) ? rawSlug : '';
+        vBanner.hidden = false;
+        vBanner.innerHTML =
+          '<strong>Step 1 of 2 · Verify your 14+ BiteShark account</strong><br>' +
+          (vMode === 'claim' && safeSlug
+            ? 'Selected listing to claim next: <code>' + loginEsc(safeSlug) + '</code>. '
+            : 'Continuing to new business listing application next. ') +
+          'Account sign-in and business ownership approval are separate steps — selecting a listing does not grant automatic vendor access.';
+      })();
 
       (function inspectPendingInvitationBanner() {
         if (!pendingInviteToken) return;

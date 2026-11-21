@@ -553,11 +553,430 @@
   font-size: 12px;
 }
 
+/* =========================================================================
+ * First-Visit Welcome, Vendor Introduction & Area Switcher
+ * ========================================================================= */
+.welcome-screen,
+.vendor-intro-screen {
+  padding: calc(var(--header, 68px) + 18px) 16px calc(var(--nav, 64px) + var(--safe, 0px) + 24px);
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 12% 16%, rgba(243, 193, 79, 0.22), transparent 34%),
+    radial-gradient(circle at 88% 82%, rgba(33, 75, 59, 0.1), transparent 36%),
+    #fff9ed;
+}
+
+.welcome-shell,
+.vendor-intro-shell {
+  max-width: 680px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.welcome-card,
+.vendor-intro-card {
+  background: #ffffff;
+  border: 1px solid #e6dcc8;
+  border-radius: 24px;
+  padding: 22px 22px;
+  box-shadow: 0 12px 30px rgba(24, 58, 45, 0.08);
+}
+
+.welcome-card h1,
+.vendor-intro-card h1 {
+  margin: 6px 0 6px;
+  font-size: clamp(22px, 3.8vw, 28px);
+  line-height: 1.2;
+  color: #183a2d;
+}
+
+.welcome-card h1:focus,
+.welcome-card h1:focus-visible,
+.vendor-intro-card h1:focus,
+.vendor-intro-card h1:focus-visible {
+  outline: none;
+}
+
+.welcome-lead,
+.vendor-intro-lead {
+  margin: 0 0 14px;
+  color: #3f4b45;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+
+.welcome-paths {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.welcome-path-btn {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 92px;
+  padding: 16px 15px;
+  border-radius: 18px;
+  border: 2px solid #d9cfbc;
+  background: #fdfbf6;
+  color: #183a2d;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.12s ease;
+}
+
+.welcome-path-btn.is-customer {
+  background: #f1f8f4;
+  border-color: #9ec9b4;
+}
+
+.welcome-path-btn:hover {
+  border-color: #214b3b;
+  background: #ffffff;
+}
+
+.welcome-path-btn:focus-visible,
+.welcome-secondary-actions button:focus-visible,
+.welcome-signin-link:focus-visible,
+.welcome-remember input:focus-visible,
+.vendor-intro-shell button:focus-visible,
+.vendor-intro-shell a:focus-visible,
+.vendor-intro-shell input:focus-visible,
+.vendor-intro-shell select:focus-visible,
+.area-modal button:focus-visible,
+.coarse-area-banner button:focus-visible {
+  outline: 3px solid #214b3b;
+  outline-offset: 2px;
+}
+
+.welcome-path-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.welcome-path-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.welcome-path-copy strong {
+  font-size: 16.5px;
+  line-height: 1.25;
+  color: #16372a;
+}
+
+.welcome-path-copy span {
+  font-size: 13.5px;
+  line-height: 1.42;
+  color: #3e4a44;
+  font-weight: 500;
+}
+
+.welcome-path-arrow {
+  font-size: 18px;
+  font-weight: 700;
+  color: #214b3b;
+  align-self: center;
+}
+
+.welcome-remember {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: #f8f5ec;
+  border: 1px solid #e4dbc8;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.welcome-remember input[type="checkbox"] {
+  width: 19px;
+  height: 19px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: #214b3b;
+}
+
+.welcome-remember strong {
+  display: block;
+  font-size: 13.5px;
+  color: #1c2621;
+}
+
+.welcome-remember small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #45514b;
+}
+
+.welcome-remember small a {
+  color: #184a38;
+  font-weight: 600;
+}
+
+.welcome-secondary-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.welcome-signin-link {
+  color: #184a38;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: underline;
+  padding: 8px 4px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.welcome-feedback {
+  margin: 12px 0 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #fff8e6;
+  border: 1px solid #e2c574;
+  color: #4c3800;
+  font-size: 13px;
+}
+
+.vendor-intro-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.vi-remembered-pill {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #eef7f2;
+  border: 1px solid #b8dbc8;
+  color: #1a3f30;
+  font-size: 12px;
+}
+
+.vi-remembered-pill button {
+  border: 0;
+  background: transparent;
+  color: #164331;
+  font-weight: 700;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.vendor-intro-list {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  color: #2b3631;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.vendor-intro-list li {
+  margin-bottom: 5px;
+}
+
+.vendor-intro-governance {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8f5ec;
+  border: 1px solid #dfd5c0;
+  color: #2c3732;
+  font-size: 12.5px;
+  line-height: 1.45;
+  margin-bottom: 12px;
+}
+
+.vendor-intro-picker {
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: #fcfaf4;
+  border: 1px solid #e3dac7;
+  margin-bottom: 12px;
+}
+
+.vendor-intro-picker label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #23312b;
+  margin-bottom: 8px;
+}
+
+.vendor-intro-picker-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 8px;
+}
+
+.vendor-intro-picker-row input,
+.vendor-intro-picker-row select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #c9bfab;
+  background: #ffffff;
+  color: #1c2520;
+  font-size: 14px;
+}
+
+.vendor-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.vendor-intro-actions button {
+  flex: 1 1 210px;
+  width: auto;
+  margin: 0;
+}
+
+.welcome-secondary-actions button {
+  width: auto;
+  min-width: 140px;
+  margin: 0;
+}
+
+.vendor-intro-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #ece3d2;
+}
+
+.vendor-intro-links a,
+.vi-link-btn {
+  color: #184a38;
+  font-weight: 700;
+  font-size: 13.5px;
+  text-decoration: underline;
+  background: transparent;
+  border: 0;
+  padding: 6px 2px;
+  cursor: pointer;
+}
+
+.area-modal-copy {
+  margin: 6px 0 12px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #434f49;
+}
+
+.area-locate-btn {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.area-town-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.area-town-btn {
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  border: 1px solid #d5ccb9;
+  background: #faf7ef;
+  color: #23312b;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.area-town-btn.active {
+  background: #214b3b;
+  border-color: #214b3b;
+  color: #ffffff;
+}
+
+.coarse-area-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #eef7f2;
+  border: 1px solid #b8dbc8;
+  color: #193e2f;
+  padding: 8px 11px;
+  border-radius: 11px;
+  margin-top: 6px;
+}
+
+.coarse-area-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coarse-area-action {
+  border: 1px solid #96c4ae;
+  background: #ffffff;
+  color: #173d2e;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .welcome-card,
+  .vendor-intro-card {
+    padding: 18px 15px;
+    border-radius: 18px;
+  }
+  .welcome-paths,
+  .vendor-intro-picker-row,
+  .area-town-grid {
+    grid-template-columns: 1fr;
+  }
+  .vendor-intro-actions button {
+    width: 100%;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rx-modal,
   .rx-tab,
   .si-pill-btn,
-  .owner-support-btn {
+  .owner-support-btn,
+  .welcome-path-btn {
     transition: none !important;
     animation: none !important;
   }

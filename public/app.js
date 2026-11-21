@@ -28,7 +28,26 @@ function kindMatches(t) {
   return t.kind === 'Food Trucks' || (!t.extra && !(t.tags || []).includes('Markets'));
 }
 
+function ensureDiscoverScreenActive() {
+  if (typeof window !== 'undefined' && typeof window.bitesharkMarkDiscoveryInteraction === 'function') {
+    window.bitesharkMarkDiscoveryInteraction();
+  }
+  if (typeof document === 'undefined') return;
+  const disc = document.getElementById('discoverScreen');
+  if (disc && disc.classList && !disc.classList.contains('active')) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    disc.classList.add('active');
+    document.querySelectorAll('.bottom-nav button[data-screen]').forEach(b => {
+      b.classList.toggle('active', b.dataset.screen === 'discover');
+    });
+    if (typeof window !== 'undefined' && typeof window.bitesharkOnScreenChange === 'function') {
+      window.bitesharkOnScreenChange('discover');
+    }
+  }
+}
+
 function chooseKind(kind) {
+  ensureDiscoverScreenActive();
   activeKind = kind;
   activeCuisine = 'All';
   const search = document.getElementById('searchInput');
@@ -52,6 +71,7 @@ function chooseKind(kind) {
 }
 
 function chooseCuisine(s) {
+  ensureDiscoverScreenActive();
   activeCuisine = s;
   activeKind = 'All';
   const search = document.getElementById('searchInput');
@@ -248,6 +268,7 @@ function esc(value) {
 
 let map, markers = {}, userMarker = null, userCoords = null;
 let activeCuisine = 'All', openOnly = false, maxDistance = 30, selectedTruck = trucks[0].id;
+let manualAreaTown = '', manualAreaOverridden = false;
 let isSignedIn = false, currentUser = null;
 
 const favs = new Set((() => {
@@ -995,10 +1016,12 @@ function foldText(s) {
 
 function filtered() {
   const q = foldText((document.getElementById('searchInput')?.value || '').trim());
+  const areaNorm = foldText(manualAreaTown);
   const list = trucks.filter(t =>
     kindMatches(t) &&
     (activeCuisine === 'All' || (activeCuisine === 'Coffee' && (t.kind === 'Coffee' || /coffee/i.test(t.name))) || (t.tags || [t.cuisine]).includes(activeCuisine)) &&
     (!openOnly || t.open === true) &&
+    (!areaNorm || foldText([t.city || '', t.location || ''].join(' ')).includes(areaNorm)) &&
     (t.distance == null ? maxDistance === 30 : t.distance <= maxDistance) &&
     (!q || foldText([t.name, t.cuisine, t.kind || '', ...(t.tags || []), t.location, t.city].join(' ')).includes(q))
   );
@@ -1117,12 +1140,24 @@ function resetFilters() {
   activeKind = 'All';
   openOnly = false;
   maxDistance = 30;
+  manualAreaTown = '';
   const search = document.getElementById('searchInput');
   if (search) search.value = '';
   const openBtn = document.getElementById('openNow');
   if (openBtn) {
     openBtn.classList.remove('active');
     openBtn.setAttribute('aria-pressed', 'false');
+  }
+  document.querySelectorAll('[data-area-town]').forEach(b => {
+    const isAll = !b.dataset.areaTown;
+    b.classList.toggle('active', isAll);
+    b.setAttribute('aria-pressed', String(isAll));
+  });
+  if (!userCoords) {
+    const locLbl = document.getElementById('locationLabel');
+    if (locLbl) locLbl.textContent = 'Sonoma County';
+    const locBtn = document.getElementById('locationPillBtn');
+    if (locBtn) locBtn.setAttribute('aria-label', 'Current area: Sonoma County (change area or use location)');
   }
   document.querySelectorAll('[data-cuisine]').forEach(b => {
     const isAll = b.dataset.cuisine === 'All';
@@ -1193,6 +1228,11 @@ function selectTruck(id) {
 function openDetail(id) {
   const t = trucks.find(x => x.id === id);
   if (!t) return;
+  const welcomeEl = document.getElementById('welcomeScreen');
+  const vendorIntroEl = document.getElementById('vendorIntroScreen');
+  if ((welcomeEl && welcomeEl.classList?.contains('active')) || (vendorIntroEl && vendorIntroEl.classList?.contains('active'))) {
+    ensureDiscoverScreenActive();
+  }
   selectedTruck = id;
   if (t.extra) {
     extraDetail(t);
@@ -1681,7 +1721,70 @@ function setDistance(v) {
   document.getElementById('rangeValue').textContent = maxDistance + (maxDistance === 1 ? ' mile' : ' miles');
 }
 
+function openAreaPicker() {
+  if (typeof window !== 'undefined' && typeof window.bitesharkMarkDiscoveryInteraction === 'function') {
+    window.bitesharkMarkDiscoveryInteraction();
+  }
+  openAppModal('areaModal', {
+    initialFocusSelector: '#areaUseLocationBtn',
+    onClose: closeAreaModal
+  });
+}
+
+function closeAreaModal() {
+  closeAppModal('areaModal');
+}
+
+function selectManualArea(town) {
+  ensureDiscoverScreenActive();
+  manualAreaTown = typeof town === 'string' ? town.trim() : '';
+  manualAreaOverridden = true;
+  userCoords = null;
+  if (userMarker && map && typeof map.removeLayer === 'function') {
+    map.removeLayer(userMarker);
+    userMarker = null;
+  }
+  recomputeDistances();
+
+  const label = manualAreaTown || 'Sonoma County';
+  const locLbl = document.getElementById('locationLabel');
+  if (locLbl) locLbl.textContent = label;
+  const locBtn = document.getElementById('locationPillBtn');
+  if (locBtn) locBtn.setAttribute('aria-label', `Current area: ${label} (change area or use location)`);
+
+  document.querySelectorAll('[data-area-town]').forEach(b => {
+    const match = (b.dataset.areaTown || '') === manualAreaTown;
+    b.classList.toggle('active', match);
+    b.setAttribute('aria-pressed', String(match));
+  });
+
+  const coarseBanner = document.getElementById('coarseAreaBanner');
+  if (coarseBanner) {
+    coarseBanner.hidden = true;
+    coarseBanner.innerHTML = '';
+  }
+
+  if (map && typeof map.flyTo === 'function') {
+    const hub = manualAreaTown
+      ? HUBS.find(h => h.city.toLowerCase() === manualAreaTown.toLowerCase())
+      : null;
+    const target = hub ? [hub.lat, hub.lng] : [38.43, -122.70];
+    const targetZoom = hub ? 12 : 11;
+    map.flyTo(target, targetZoom, isReducedMotion() ? { animate: false, duration: 0 } : { duration: 0.5 });
+  }
+
+  closeAreaModal();
+  applyFilters();
+}
+
+if (typeof window !== 'undefined') {
+  window.bitesharkHasManualOrPreciseLocation = () => Boolean(manualAreaOverridden || userCoords);
+  window.bitesharkSelectManualArea = selectManualArea;
+  window.bitesharkOpenAreaPicker = openAreaPicker;
+}
+
 function setMode(mode) {
+  ensureDiscoverScreenActive();
   if (mode === 'map' && isInteractiveMapDisabledByControl()) {
     mode = 'list';
   }
@@ -1793,9 +1896,16 @@ function retryInteractiveMap() {
 }
 
 function showScreen(name) {
+  if (name !== 'welcome' && typeof window !== 'undefined' && typeof window.bitesharkMarkDiscoveryInteraction === 'function') {
+    window.bitesharkMarkDiscoveryInteraction();
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(name + 'Screen').classList.add('active');
+  const targetScreen = document.getElementById(name + 'Screen');
+  if (targetScreen) targetScreen.classList.add('active');
   document.querySelectorAll('.bottom-nav button[data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
+  if (typeof window !== 'undefined' && typeof window.bitesharkOnScreenChange === 'function') {
+    window.bitesharkOnScreenChange(name);
+  }
   if (name === 'discover') {
     if (map) setTimeout(() => map.invalidateSize(), 30);
     refreshDiscoveryCatalog({ fresh: false });
@@ -1810,10 +1920,47 @@ function showScreen(name) {
 
 function locateMe() {
   if (!navigator.geolocation) return toast('Location isn’t available on this device');
+  manualAreaOverridden = true;
   navigator.geolocation.getCurrentPosition(
     async p => {
-      userCoords = { lat: p.coords.latitude, lng: p.coords.longitude };
+      const candidateLat = p.coords.latitude;
+      const candidateLng = p.coords.longitude;
+      const nearestHubLocal = HUBS
+        .map(h => ({ ...h, d: milesBetween(candidateLat, candidateLng, h.lat, h.lng) }))
+        .sort((a, b) => a.d - b.d)[0];
+
+      // Visitors outside the supported Sonoma County area (> 28 miles from nearest Sonoma hub)
+      // keep the Sonoma County directory visible with a clear explanation rather than an empty radius filter!
+      if (nearestHubLocal && nearestHubLocal.d > 28) {
+        userCoords = null;
+        manualAreaTown = '';
+        recomputeDistances();
+        const locLbl = document.getElementById('locationLabel');
+        if (locLbl) locLbl.textContent = 'Sonoma County';
+        const locBtn = document.getElementById('locationPillBtn');
+        if (locBtn) locBtn.setAttribute('aria-label', 'Current area: Sonoma County (outside area — exploring Sonoma County)');
+        const coarseBanner = document.getElementById('coarseAreaBanner');
+        if (coarseBanner) {
+          coarseBanner.hidden = false;
+          coarseBanner.innerHTML =
+            '<span><b>BiteShark is starting in Sonoma County</b> — Your location is outside Sonoma County, so we’re showing Sonoma County food spots you can explore.</span> ' +
+            '<button type="button" class="coarse-area-action" onclick="openAreaPicker()">Choose town</button>';
+        }
+        applyFilters();
+        renderFavorites();
+        toast('BiteShark is starting in Sonoma County — explore Sonoma County spots');
+        return;
+      }
+
+      manualAreaTown = '';
+      userCoords = { lat: candidateLat, lng: candidateLng };
       recomputeDistances();
+
+      const coarseBanner = document.getElementById('coarseAreaBanner');
+      if (coarseBanner) {
+        coarseBanner.hidden = true;
+        coarseBanner.innerHTML = '';
+      }
 
       if (map && typeof L !== 'undefined') {
         const userIcon = L.divIcon({
@@ -1838,16 +1985,13 @@ function locateMe() {
           throw new Error('fallback');
         }
       } catch {
-        const nearest = HUBS
-          .map(h => ({ ...h, d: milesBetween(userCoords.lat, userCoords.lng, h.lat, h.lng) }))
-          .sort((a, b) => a.d - b.d)[0];
-        if (nearest && nearest.d <= 15) label = `Near ${nearest.city}`;
+        if (nearestHubLocal && nearestHubLocal.d <= 15) label = `Near ${nearestHubLocal.city}`;
       }
 
       const locLbl = document.getElementById('locationLabel');
       if (locLbl) locLbl.textContent = label;
       const locBtn = document.getElementById('locationPillBtn');
-      if (locBtn) locBtn.setAttribute('aria-label', `Use my location (currently ${label})`);
+      if (locBtn) locBtn.setAttribute('aria-label', `Current area: ${label} (change area or use location)`);
       applyFilters();
       renderFavorites();
       toast('Distances updated from your location');

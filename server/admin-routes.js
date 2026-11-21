@@ -18,6 +18,7 @@ import {
   normalizeAdminLevel
 } from '../lib/authz.js';
 import { withTransaction } from '../lib/db-tx.js';
+import { isLoopbackIp } from '../lib/client-ip.js';
 import { readEnvCompat } from '../lib/env-compat.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import { inspectNotificationRuntimeConfig } from '../lib/pager-notifications.js';
@@ -687,6 +688,57 @@ export async function handleGovernanceApiRequest({
   // =========================================================================
   if (normPath === '/api/account/context') {
     if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+
+    const coarseArea = (() => {
+      const enabled = String(readEnvCompat('ENABLE_PROXY_COARSE_GEO', { defaultValue: '0' }) || '').trim() === '1';
+      if (!enabled) {
+        return { status: 'deferred', suggested_town: null, supported_region: 'Sonoma County' };
+      }
+      const peerAddr = req?.socket?.remoteAddress;
+      if (peerAddr && !isLoopbackIp(peerAddr)) {
+        return { status: 'deferred', suggested_town: null, supported_region: 'Sonoma County' };
+      }
+      const rawCity = String(req?.headers?.['x-geo-city'] || '')
+        .replace(/[\x00-\x1f\x7f]/g, ' ')
+        .trim()
+        .slice(0, 64);
+      const rawRegion = String(req?.headers?.['x-geo-region'] || '')
+        .replace(/[\x00-\x1f\x7f]/g, ' ')
+        .trim()
+        .toUpperCase()
+        .slice(0, 16);
+      const rawCountry = String(req?.headers?.['x-geo-country'] || '')
+        .replace(/[\x00-\x1f\x7f]/g, ' ')
+        .trim()
+        .toUpperCase()
+        .slice(0, 8);
+      if (!rawCity && !rawRegion && !rawCountry) {
+        return { status: 'deferred', suggested_town: null, supported_region: 'Sonoma County' };
+      }
+      const supportedTowns = [
+        'Santa Rosa',
+        'Petaluma',
+        'Rohnert Park',
+        'Cotati',
+        'Sonoma',
+        'Sebastopol',
+        'Healdsburg',
+        'Windsor',
+        'Cloverdale',
+        'Glen Ellen',
+        'Guerneville',
+        'Bodega Bay'
+      ];
+      if ((!rawCountry || rawCountry === 'US') && (!rawRegion || rawRegion === 'CA' || rawRegion === 'US-CA')) {
+        const lowerCity = rawCity.toLowerCase();
+        const match = supportedTowns.find(t => t.toLowerCase() === lowerCity);
+        if (match) {
+          return { status: 'suggested', suggested_town: match, supported_region: 'Sonoma County' };
+        }
+      }
+      return { status: 'outside_supported_area', suggested_town: null, supported_region: 'Sonoma County' };
+    })();
+
     if (!ctx.authenticated || !ctx.user) {
       return sendJson(200, {
         authenticated: false,
@@ -704,7 +756,8 @@ export async function handleGovernanceApiRequest({
         vendor_memberships: [],
         my_applications_count: 0,
         my_open_issues_count: 0,
-        unread_support_count: 0
+        unread_support_count: 0,
+        coarse_area: coarseArea
       });
     }
 
@@ -801,7 +854,8 @@ export async function handleGovernanceApiRequest({
         vendor_memberships: [],
         my_applications_count: 0,
         my_open_issues_count: 0,
-        unread_support_count: 0
+        unread_support_count: 0,
+        coarse_area: coarseArea
       });
     }
 
@@ -838,7 +892,8 @@ export async function handleGovernanceApiRequest({
       vendor_memberships: memList,
       my_applications_count: myAppsCount,
       my_open_issues_count: myIssuesCount,
-      unread_support_count: unreadSupportCount
+      unread_support_count: unreadSupportCount,
+      coarse_area: coarseArea
     });
   }
 

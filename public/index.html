@@ -25,7 +25,7 @@
 <div id="app">
   <header class="topbar">
     <button class="brand" onclick="showScreen('owner')" aria-label="BiteShark owner mode"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="56" cy="9" r="10" fill="var(--cream)"/><circle cx="50" cy="17" r="6.5" fill="var(--cream)"/><path d="M12 44 C 18 24, 29 13, 42 11 C 38 22, 38 33, 44 44 Z" fill="currentColor"/><path d="M8 44 Q 20 39, 32 44 T 56 44 L 56 51 Q 44 55, 32 51 T 8 51 Z" fill="#f3c14f"/></svg></span><span>BiteShark</span></button>
-    <button class="location-pill" id="locationPillBtn" type="button" onclick="locateMe()" aria-label="Use my location (currently Sonoma County)"><span aria-hidden="true">⌖</span><span id="locationLabel">Sonoma County</span><b aria-hidden="true">⌄</b></button>
+    <button class="location-pill" id="locationPillBtn" type="button" onclick="openAreaPicker()" aria-label="Current area: Sonoma County (change area or use location)"><span aria-hidden="true">⌖</span><span id="locationLabel">Sonoma County</span><b aria-hidden="true">⌄</b></button>
     <div class="header-actions">
       <button class="guides-launch" onclick="openLocalGuides()" aria-label="Local guides"><span data-doodle="paper" aria-hidden="true"></span><span class="guides-label">Local guides</span></button>
       <button class="pager-launch" onclick="openPager()" aria-label="Food pager"><span aria-hidden="true">🍽️</span><span class="pager-launch-label">Food pager</span></button>
@@ -63,12 +63,13 @@
       </div>
       <div class="mode-switch" role="group" aria-label="Choose map or list view"><button id="mapMode" aria-pressed="false" onclick="setMode('map')">Map</button><button id="listMode" class="active" aria-pressed="true" onclick="setMode('list')">List</button></div>
       <div class="discovery-toolbar">
-        <div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search local food spots" placeholder="Find your next “you have to try this”…" oninput="applyFilters()"></label><button class="round-btn" onclick="locateMe()" aria-label="Find my location">⌖</button></div>
+        <div class="search-row"><label class="search"><span>⌕</span><input id="searchInput" aria-label="Search local food spots" placeholder="Find your next “you have to try this”…" oninput="applyFilters()"></label><button class="round-btn" id="searchLocateBtn" type="button" onclick="locateMe()" aria-label="Use my location">⌖</button></div>
         <div class="filters" id="filters" role="group" aria-label="Filter by cuisine">
           <button type="button" class="chip active" aria-pressed="true" data-cuisine="All">🍴 All</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Mexican">🌮 Mexican</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Burgers">🍔 Smash burgers</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Hot Dogs">🌭 Hot dogs</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Global">🥟 Global</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Sweets">🍦 Sweets</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Coffee">☕ Coffee</button><button type="button" class="chip" aria-pressed="false" data-cuisine="Markets">🧺 Market vendors</button>
         </div>
         <details class="extra-filters" id="extraFilters"><summary aria-label="More discovery filters">☷ <span>Filters</span></summary><div class="map-actions"><button type="button" class="map-chip" id="openNow" aria-pressed="false" onclick="toggleOpen()">Open now</button><button type="button" class="map-chip" id="distanceFilterBtn" onclick="openDistance()"><span id="distanceText">30 mi</span> radius</button><button class="map-chip" id="refreshCatalogBtn" type="button" onclick="refreshDiscoveryCatalog({fresh:true,announce:true})">↻ Refresh</button></div></details>
         <div class="nearby-count" id="nearbyCount" role="status" aria-live="polite">Loading places…</div>
+        <div id="coarseAreaBanner" class="hours-note coarse-area-banner" role="region" aria-label="Area notice" hidden></div>
         <div id="openHoursNote" class="hours-note" role="status" hidden>Showing places within published or vendor-reported hours — confirm unverified schedules before visiting.</div>
         <div id="catalogOfflineNote" class="hours-note" role="status" hidden>Live catalog temporarily unavailable — showing saved or offline Sonoma County directory snapshot.</div>
       </div>
@@ -279,6 +280,90 @@
     </section>
   </main>
 
+  <main id="welcomeScreen" class="screen page-screen welcome-screen" aria-labelledby="welcomeHeading">
+    <section class="welcome-shell">
+      <div class="welcome-card">
+        <span class="edition-label">SONOMA COUNTY LOCAL FOOD</span>
+        <h1 id="welcomeHeading" tabindex="-1">Welcome to BiteShark. What brings you here?</h1>
+        <p class="welcome-lead">No account, email, or location permission needed to look around.</p>
+        <div class="welcome-paths" role="group" aria-label="Choose how to start">
+          <button type="button" class="welcome-path-btn is-customer" id="welcomeCustomerBtn">
+            <span class="welcome-path-icon" aria-hidden="true">🌮</span>
+            <span class="welcome-path-copy">
+              <strong>Find something good</strong>
+              <span>Explore local food and discover your next stop.</span>
+            </span>
+            <span class="welcome-path-arrow" aria-hidden="true">→</span>
+          </button>
+          <button type="button" class="welcome-path-btn is-vendor" id="welcomeVendorBtn">
+            <span class="welcome-path-icon" aria-hidden="true">🚚</span>
+            <span class="welcome-path-copy">
+              <strong>I run a food business</strong>
+              <span>Help customers find you and make service a little easier.</span>
+            </span>
+            <span class="welcome-path-arrow" aria-hidden="true">→</span>
+          </button>
+        </div>
+        <label class="welcome-remember" for="welcomeRememberChoice">
+          <input type="checkbox" id="welcomeRememberChoice">
+          <span>
+            <strong>Remember my choice on this device</strong>
+            <small>Optional 90-day preference cookie (<code>bs_start_pref</code>) for your starting screen only — no identity, location, or tracking data. <a href="/policies/cookies-storage.html">Cookies &amp; Storage</a></small>
+          </span>
+        </label>
+        <div class="welcome-secondary-actions">
+          <button type="button" class="secondary" id="welcomeJustBrowseBtn">Just browse</button>
+          <a class="welcome-signin-link" id="welcomeSignInLink" href="/login.html?next=%2F">Already have an account? Sign in →</a>
+        </div>
+        <p id="welcomeFeedbackMsg" class="welcome-feedback" role="status" aria-live="polite" hidden></p>
+      </div>
+    </section>
+  </main>
+
+  <main id="vendorIntroScreen" class="screen page-screen vendor-intro-screen" aria-labelledby="vendorIntroHeading">
+    <section class="vendor-intro-shell">
+      <div class="vendor-intro-top">
+        <button type="button" class="back-link" id="viBackToBrowseBtn">← Switch to browsing</button>
+        <span id="viRememberedBadge" class="vi-remembered-pill" hidden>
+          <span>Starting view remembered on this device</span>
+          <button type="button" id="viForgetPrefBtn">Forget preference</button>
+        </span>
+      </div>
+      <div class="vendor-intro-card">
+        <span class="edition-label">FOR FOOD TRUCKS, STANDS &amp; POP-UPS</span>
+        <h1 id="vendorIntroHeading" tabindex="-1">Your customers should find your food—not give you more admin work.</h1>
+        <p class="vendor-intro-lead">BiteShark is starting in Sonoma County with practical tools you can update in a minute before or during service.</p>
+        <ul class="vendor-intro-list" id="viCapabilitiesList" aria-label="Available vendor capabilities">
+          <li><strong>Publish your live spot &amp; service schedule</strong> — Share where you’re parked today (with automatic shift expiry) and post upcoming open hours on the Sonoma County directory.</li>
+          <li data-vi-feature="event_inquiries"><strong>Review catering &amp; event inquiries</strong> — Receive structured event requests with date, guest count, and neighborhood in one queue.</li>
+          <li data-vi-feature="pickup_pager_creation"><strong>Share browser pickup links</strong> — Give waiting customers a private web link (<code>Cooking</code> → <code>Ready</code>) they can check in their open browser tab (no app download; background push alerts are not enabled).</li>
+          <li><strong>Invite counter or kitchen staff</strong> — Approved owners can grant scoped staff access via verified email invitation and reach BiteShark support privately.</li>
+        </ul>
+        <div class="vendor-intro-governance" role="note">
+          <strong>Account creation and business approval are separate steps:</strong> You’ll sign in or create a verified <strong>14+</strong> BiteShark account first, then submit an ownership claim or new listing application for administrator review. Selecting a listing below never grants automatic ownership, staff membership, or administrative access.
+        </div>
+        <div id="viOnboardingPausedNotice" class="owner-banner" role="status" hidden></div>
+        <div class="vendor-intro-picker" id="viListingPickerWrap">
+          <label for="viListingSearch">Already in our Sonoma County directory? Search or select your listing before signing in (optional)</label>
+          <div class="vendor-intro-picker-row">
+            <input type="search" id="viListingSearch" placeholder="Filter by business name or Sonoma town…" autocomplete="off">
+            <select id="viListingSelect" aria-label="Select existing Sonoma County listing to claim">
+              <option value="">Choose an existing listing…</option>
+            </select>
+          </div>
+        </div>
+        <div class="vendor-intro-actions">
+          <button type="button" class="primary" id="viClaimBusinessBtn">Find and claim my business →</button>
+          <button type="button" class="secondary" id="viAddBusinessBtn">Add my business</button>
+        </div>
+        <div class="vendor-intro-links">
+          <a id="viManageSignInLink" href="/login.html?next=%2F%23owner">Already manage a listing? Sign in →</a>
+          <button type="button" class="vi-link-btn" id="viJustExploreBtn">Just exploring? Browse local food</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
   <nav class="bottom-nav" aria-label="Main navigation">
     <button class="active" data-screen="discover" onclick="showScreen('discover')"><span aria-hidden="true">🧭</span><small>Discover</small></button>
     <button data-screen="favorites" onclick="showScreen('favorites')"><span aria-hidden="true">💛</span><small>Saved</small></button>
@@ -315,6 +400,7 @@
   <button class="primary" id="ownerProfileSaveBtn" type="submit">Save profile <span aria-hidden="true">→</span></button>
 </form></div>
 <div class="modal-backdrop" id="distanceModal" onclick="if(event.target===this)closeDistanceModal()"><div class="distance-modal" role="dialog" aria-modal="true" aria-labelledby="distanceModalTitle"><button type="button" class="modal-close" aria-label="Close distance filter" onclick="closeDistanceModal()">×</button><small>DISTANCE</small><h2 id="distanceModalTitle">How far would you roam?</h2><label for="distanceRange" class="sr-only">Search radius in miles</label><input id="distanceRange" type="range" min="1" max="30" value="30" aria-describedby="rangeValue" oninput="setDistance(this.value)"><div class="range-labels"><span>1 mi</span><b id="rangeValue">30 miles</b><span>30 mi</span></div><button type="button" class="primary" onclick="closeDistanceModal();applyFilters()">Show trucks</button></div></div>
+<div class="modal-backdrop" id="areaModal" onclick="if(event.target===this)closeAreaModal()"><div class="distance-modal area-modal" role="dialog" aria-modal="true" aria-labelledby="areaModalTitle"><button type="button" class="modal-close" aria-label="Close area selector" onclick="closeAreaModal()">×</button><small>BROWSING AREA</small><h2 id="areaModalTitle">Explore Sonoma County</h2><p class="area-modal-copy">Choose an area to filter listings, or request your device location to calculate measured distances.</p><button type="button" class="primary area-locate-btn" id="areaUseLocationBtn" onclick="closeAreaModal();locateMe()">⌖ Use my location</button><div class="area-town-grid" role="group" aria-label="Choose Sonoma County area"><button type="button" class="area-town-btn active" id="areaAllSonomaBtn" data-area-town="" aria-pressed="true" onclick="selectManualArea('')">All Sonoma County</button><button type="button" class="area-town-btn" data-area-town="Santa Rosa" aria-pressed="false" onclick="selectManualArea('Santa Rosa')">Santa Rosa</button><button type="button" class="area-town-btn" data-area-town="Petaluma" aria-pressed="false" onclick="selectManualArea('Petaluma')">Petaluma</button><button type="button" class="area-town-btn" data-area-town="Rohnert Park" aria-pressed="false" onclick="selectManualArea('Rohnert Park')">Rohnert Park</button><button type="button" class="area-town-btn" data-area-town="Cotati" aria-pressed="false" onclick="selectManualArea('Cotati')">Cotati</button><button type="button" class="area-town-btn" data-area-town="Sonoma" aria-pressed="false" onclick="selectManualArea('Sonoma')">Sonoma</button><button type="button" class="area-town-btn" data-area-town="Sebastopol" aria-pressed="false" onclick="selectManualArea('Sebastopol')">Sebastopol</button><button type="button" class="area-town-btn" data-area-town="Healdsburg" aria-pressed="false" onclick="selectManualArea('Healdsburg')">Healdsburg</button></div></div></div>
 <div id="toast" class="toast" role="status"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/diagnostics-client.js"></script>

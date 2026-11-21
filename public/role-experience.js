@@ -10,6 +10,82 @@
   var FEATURE_BROADCAST_CHANNEL = 'biteshark_feature_controls_v1';
   var PENDING_INVITE_STORAGE_KEY = 'biteshark_pending_invite_v1';
   var SUPPORT_DRAFT_STORAGE_KEY = 'bs_support_draft_v1';
+  var START_PREF_COOKIE_NAME = 'bs_start_pref';
+  var START_PREF_MAX_AGE_SEC = 90 * 24 * 60 * 60; // 90 days (7,776,000s)
+
+  // Capture initial arrival URL synchronously before hash scrubbers (e.g. pager.js) run
+  var INITIAL_ARRIVAL_PATH = typeof window !== 'undefined' && window.location ? String(window.location.pathname || '/') : '/';
+  var INITIAL_ARRIVAL_SEARCH = typeof window !== 'undefined' && window.location ? String(window.location.search || '') : '';
+  var INITIAL_ARRIVAL_HASH = typeof window !== 'undefined' && window.location ? String(window.location.hash || '') : '';
+
+  function buildStartPrefCookieString(val, maxAgeSec) {
+    var exp = new Date(Date.now() + maxAgeSec * 1000).toUTCString();
+    var isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+    return (
+      START_PREF_COOKIE_NAME +
+      '=' +
+      val +
+      '; Path=/; Max-Age=' +
+      String(maxAgeSec) +
+      '; Expires=' +
+      exp +
+      '; SameSite=Lax' +
+      (isHttps ? '; Secure' : '')
+    );
+  }
+
+  function clearStartPreferenceCookie() {
+    try {
+      var isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
+      document.cookie =
+        START_PREF_COOKIE_NAME +
+        '=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax' +
+        (isHttps ? '; Secure' : '');
+    } catch (_e) {}
+  }
+
+  function readStartPreferenceCookie() {
+    try {
+      var rawCookie = String(document.cookie || '');
+      if (!rawCookie) return null;
+      var parts = rawCookie.split(';');
+      for (var i = 0; i < parts.length; i++) {
+        var pair = parts[i].trim();
+        if (pair.indexOf(START_PREF_COOKIE_NAME + '=') === 0) {
+          var rawVal = pair.slice(START_PREF_COOKIE_NAME.length + 1).trim();
+          var decoded = '';
+          try {
+            decoded = decodeURIComponent(rawVal);
+          } catch (_decErr) {
+            clearStartPreferenceCookie();
+            return null;
+          }
+          if (decoded === 'customer' || decoded === 'vendor') {
+            return decoded;
+          }
+          // Scrub malformed, expired-sentinel, or tampered values safely
+          clearStartPreferenceCookie();
+          return null;
+        }
+      }
+      return null;
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function writeStartPreferenceCookie(val) {
+    if (val !== 'customer' && val !== 'vendor') return false;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.cookieEnabled === false) {
+        return false;
+      }
+      document.cookie = buildStartPrefCookieString(val, START_PREF_MAX_AGE_SEC);
+      return readStartPreferenceCookie() === val;
+    } catch (_e) {
+      return false;
+    }
+  }
 
   function savePendingInviteToken(token) {
     if (!token) return;
@@ -64,7 +140,10 @@
     mapConfig: null,
     featuresLoaded: false,
     featuresTrusted: true,
-    featuresPollSeconds: 60
+    featuresPollSeconds: 60,
+    sessionCheckSucceeded: false,
+    welcomeEvaluated: false,
+    userInteractedBeforeWelcome: false
   };
 
   var resolveInitialFeatures = null;
@@ -438,6 +517,31 @@
         openSupportIssuesModal();
       };
 
+      var switchExpBtn = document.createElement('button');
+      switchExpBtn.type = 'button';
+      switchExpBtn.id = 'rxSwitchExperienceBtn';
+      switchExpBtn.textContent = '🏪 For food businesses';
+      switchExpBtn.onclick = function () {
+        document.getElementById('profileMenu').open = false;
+        var onVendorView = isVendorScreenCurrentlyActive();
+        if (onVendorView) {
+          if (typeof showScreen === 'function') showScreen('discover');
+        } else {
+          openVendorIntroScreen({ focusHeading: true });
+        }
+        syncStartPreferenceMenuUI();
+      };
+
+      var forgetPrefBtn = document.createElement('button');
+      forgetPrefBtn.type = 'button';
+      forgetPrefBtn.id = 'rxForgetStartPrefBtn';
+      forgetPrefBtn.hidden = true;
+      forgetPrefBtn.textContent = '↺ Forget saved start preference';
+      forgetPrefBtn.onclick = function () {
+        document.getElementById('profileMenu').open = false;
+        forgetSavedStartPreference();
+      };
+
       var policiesLink = document.createElement('a');
       policiesLink.id = 'rxPolicyDraftsLink';
       policiesLink.href = '/policies/index.html';
@@ -447,9 +551,14 @@
       dropdown.insertBefore(adminLink, signOutBtn);
       dropdown.insertBefore(vendorHubBtn, signOutBtn);
       dropdown.insertBefore(applyVendorBtn, signOutBtn);
+      dropdown.insertBefore(switchExpBtn, signOutBtn);
+      dropdown.insertBefore(forgetPrefBtn, signOutBtn);
       dropdown.insertBefore(supportBtn, signOutBtn);
       dropdown.insertBefore(policiesLink, signOutBtn);
     }
+
+    bindWelcomeAndVendorIntroControls();
+    syncStartPreferenceMenuUI();
 
     // Inject Customer Help & Feedback bar at bottom of Discover sheet, Bookings & Favorites
     [
@@ -897,6 +1006,7 @@
     try {
       var ctx = await rxJson('/api/account/context');
       rxState.ctx = ctx;
+      rxState.sessionCheckSucceeded = true;
 
       var roleBox = document.getElementById('rxProfileRoleBox');
       var adminLink = document.getElementById('navAdminPortalLink');
@@ -942,10 +1052,17 @@
         if (ageModalGuest) ageModalGuest.hidden = true;
       }
 
+      if (ctx.coarse_area) {
+        syncCoarseAreaSuggestion(ctx.coarse_area);
+      }
+
       syncOwnerTeamAndRestrictionUI();
+      syncStartPreferenceMenuUI();
       await applyActiveViewpointExperience();
       await refreshFeatureControls({ reason: 'account_context' });
     } catch (_e) {
+      rxState.sessionCheckSucceeded = false;
+      renderSessionCheckFallbackNotice();
       await refreshFeatureControls({ reason: 'account_context_fallback' });
     }
   }
@@ -1202,6 +1319,8 @@
     var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
     var vaSel = document.getElementById('vaTargetVendor');
     var siSel = document.getElementById('siVendorId');
+    var prevVa = vaSel ? vaSel.value : '';
+    var prevSi = siSel ? siSel.value : '';
     var opts = list
       .slice()
       .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
@@ -1209,8 +1328,16 @@
         return '<option value="' + rxEsc(t.id) + '">' + rxEsc(t.name) + ' (' + rxEsc(t.city || 'Sonoma') + ')</option>';
       })
       .join('');
-    if (vaSel) vaSel.innerHTML = '<option value="">Select listing…</option>' + opts;
-    if (siSel) siSel.innerHTML = '<option value="">None / General</option>' + opts;
+    if (vaSel) {
+      vaSel.innerHTML = '<option value="">Select listing…</option>' + opts;
+      if (prevVa && list.some(function (t) { return t.id === prevVa; })) {
+        vaSel.value = prevVa;
+      }
+    }
+    if (siSel) {
+      siSel.innerHTML = '<option value="">None / General</option>' + opts;
+      if (prevSi) siSel.value = prevSi;
+    }
   }
 
   function switchVaTab(tab) {
@@ -1224,14 +1351,61 @@
     if (tab === 'status') loadMyVendorApplications();
   }
 
-  async function openVendorApplyModal() {
+  function prefillVendorApplyFormFromCatalog(vendorId) {
+    var vid = String(vendorId || '').trim();
+    if (!vid) return;
+    var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
+    var item = list.find(function (t) { return t.id === vid; });
+    if (!item) return;
+    var vaSel = document.getElementById('vaTargetVendor');
+    if (vaSel) vaSel.value = vid;
+    var bName = document.getElementById('vaBusinessName');
+    if (bName && !bName.value.trim()) bName.value = item.name || '';
+    var pTown = document.getElementById('vaPrimaryTown');
+    if (pTown && !pTown.value.trim()) pTown.value = item.city || 'Santa Rosa';
+    var cuis = document.getElementById('vaCuisine');
+    if (cuis && !cuis.value.trim()) cuis.value = item.cuisine || '';
+    var cat = document.getElementById('vaCategory');
+    if (cat && item.kind) cat.value = item.kind;
+  }
+
+  async function openVendorApplyModal(opts) {
+    var options = opts && typeof opts === 'object' ? opts : {};
     injectRoleNavigationAndModals();
     populateModalVendorSelects();
+    var targetWrap = document.getElementById('vaTargetVendor');
+    if (targetWrap && targetWrap.dataset.rxPrefillBound !== '1') {
+      targetWrap.dataset.rxPrefillBound = '1';
+      targetWrap.addEventListener('change', function () {
+        prefillVendorApplyFormFromCatalog(targetWrap.value);
+      });
+    }
     rxOpenModal('vendorApplyModal');
     applyFeatureControlsToDom();
     if (!rxState.ctx || !rxState.ctx.authenticated) {
+      var preSlug = options.preselectVendorId && /^[a-z0-9_-]{1,64}$/i.test(options.preselectVendorId) ? options.preselectVendorId : '';
+      var nextRel =
+        options.mode === 'new_listing'
+          ? '/?vendor_onboard=new'
+          : preSlug
+            ? '/?vendor_onboard=claim&claim_vendor=' + encodeURIComponent(preSlug)
+            : '/?vendor_onboard=claim';
       document.getElementById('vaStatusPane').innerHTML =
-        '<div class="rx-card"><h3>Sign in required</h3><p>Sign in with your email verification code to submit or track a vendor ownership application.</p><a class="primary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html?next=/">Sign in →</a></div>';
+        '<div class="rx-card"><h3>Sign in required</h3><p>Sign in or create a verified 14+ BiteShark account first to submit or track a vendor ownership application. Account sign-in and business ownership approval are separate steps.</p><a class="primary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html?mode=signup&amp;next=' +
+        encodeURIComponent(nextRel) +
+        '">Create account or sign in →</a></div>';
+      return;
+    }
+    if ((options.mode === 'claim_existing' || options.mode === 'new_listing') && getFeatureState('vendor_onboarding') === 'enabled') {
+      switchVaTab('form');
+      var typeSel = document.getElementById('vaType');
+      if (typeSel) {
+        typeSel.value = options.mode === 'new_listing' ? 'new_listing' : 'claim_existing';
+        if (typeof typeSel.onchange === 'function') typeSel.onchange();
+      }
+      if (options.mode !== 'new_listing' && options.preselectVendorId) {
+        prefillVendorApplyFormFromCatalog(options.preselectVendorId);
+      }
       return;
     }
     switchVaTab('status');
@@ -2995,6 +3169,8 @@
       }
     }
 
+    syncVendorIntroCapabilitiesUI();
+
     // 6. Interactive Pickup Demo (`pickup_pager_demo`) & New Pager Creation (`pickup_pager_creation`)
     var demoHidden = isFeatureHidden('pickup_pager_demo');
     document.querySelectorAll('.pager-example-hero, #ownerScreen button[onclick*="startPagerDemo"]').forEach(function (el) {
@@ -3153,17 +3329,549 @@
     syncDom: applyFeatureControlsToDom
   };
 
+  // =========================================================================
+  // 9. First-Visit Welcome, Vendor Introduction, Coarse Area & Preference Cookie
+  // =========================================================================
+  function isVendorScreenCurrentlyActive() {
+    var ownerSc = document.getElementById('ownerScreen');
+    var introSc = document.getElementById('vendorIntroScreen');
+    return Boolean(
+      (ownerSc && ownerSc.classList.contains('active')) ||
+      (introSc && introSc.classList.contains('active'))
+    );
+  }
+
+  function syncStartPreferenceMenuUI() {
+    var savedPref = readStartPreferenceCookie();
+    var forgetBtn = document.getElementById('rxForgetStartPrefBtn');
+    if (forgetBtn) {
+      forgetBtn.hidden = !savedPref;
+      if (savedPref) {
+        forgetBtn.textContent = '↺ Forget saved start preference (' + savedPref + ')';
+      }
+    }
+    var viBadge = document.getElementById('viRememberedBadge');
+    if (viBadge) {
+      viBadge.hidden = savedPref !== 'vendor';
+    }
+    var swBtn = document.getElementById('rxSwitchExperienceBtn');
+    if (swBtn) {
+      var onVendor = isVendorScreenCurrentlyActive();
+      swBtn.textContent = onVendor ? '🧭 Switch to browsing' : '🏪 For food businesses';
+    }
+  }
+
+  function forgetSavedStartPreference() {
+    clearStartPreferenceCookie();
+    var chk = document.getElementById('welcomeRememberChoice');
+    if (chk) chk.checked = false;
+    syncStartPreferenceMenuUI();
+    if (typeof toast === 'function') {
+      toast('Saved starting preference cleared on this device');
+    }
+  }
+
+  function populateVendorIntroPicker(preferredId) {
+    var sel = document.getElementById('viListingSelect');
+    var searchEl = document.getElementById('viListingSearch');
+    if (!sel) return;
+    var q = String((searchEl && searchEl.value) || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+    var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
+    var prev = preferredId !== undefined ? String(preferredId || '') : String(sel.value || '');
+    var filteredList = list
+      .slice()
+      .filter(function (t) {
+        if (!q) return true;
+        var hay = String([t.name || '', t.city || '', t.cuisine || '', t.location || ''].join(' '))
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase();
+        return hay.indexOf(q) !== -1;
+      })
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+
+    sel.innerHTML =
+      '<option value="">Choose an existing listing (' + filteredList.length + ')…</option>' +
+      filteredList
+        .map(function (t) {
+          return '<option value="' + rxEsc(t.id) + '">' + rxEsc(t.name) + ' · ' + rxEsc(t.city || 'Sonoma County') + '</option>';
+        })
+        .join('');
+    if (prev && filteredList.some(function (t) { return t.id === prev; })) {
+      sel.value = prev;
+    } else if (q && filteredList.length === 1) {
+      sel.value = filteredList[0].id;
+    }
+  }
+
+  function syncVendorIntroCapabilitiesUI() {
+    var listEl = document.getElementById('viCapabilitiesList');
+    if (listEl) {
+      listEl.querySelectorAll('[data-vi-feature]').forEach(function (li) {
+        var fKey = li.getAttribute('data-vi-feature');
+        if (fKey) {
+          li.hidden = getFeatureState(fKey) !== 'enabled';
+        }
+      });
+    }
+    var onbState = getFeatureState('vendor_onboarding');
+    var pausedBox = document.getElementById('viOnboardingPausedNotice');
+    var claimBtn = document.getElementById('viClaimBusinessBtn');
+    var addBtn = document.getElementById('viAddBusinessBtn');
+    var pickerWrap = document.getElementById('viListingPickerWrap');
+    if (onbState !== 'enabled') {
+      if (pausedBox) {
+        pausedBox.hidden = false;
+        pausedBox.innerHTML = '<span><b>Notice:</b> ' + rxEsc(getFeatureMessage('vendor_onboarding')) + '</span>';
+      }
+      if (claimBtn) claimBtn.disabled = true;
+      if (addBtn) addBtn.disabled = true;
+      if (pickerWrap) pickerWrap.hidden = onbState === 'hidden';
+    } else {
+      if (pausedBox) pausedBox.hidden = true;
+      if (claimBtn) claimBtn.disabled = false;
+      if (addBtn) addBtn.disabled = false;
+      if (pickerWrap) pickerWrap.hidden = false;
+    }
+
+    var manageLink = document.getElementById('viManageSignInLink');
+    if (manageLink) {
+      if (rxState.ctx && rxState.ctx.authenticated && hasVendorMembership()) {
+        manageLink.textContent = 'Open your vendor operations hub →';
+        manageLink.href = '#owner';
+        manageLink.onclick = function (ev) {
+          ev.preventDefault();
+          if (typeof showScreen === 'function') showScreen('owner');
+        };
+      } else {
+        manageLink.textContent = 'Already manage a listing? Sign in →';
+        manageLink.href = '/login.html?next=%2F%23owner';
+        manageLink.onclick = null;
+      }
+    }
+  }
+
+  function openVendorIntroScreen(opts) {
+    var options = opts && typeof opts === 'object' ? opts : {};
+    populateVendorIntroPicker(options.preselectVendorId);
+    syncVendorIntroCapabilitiesUI();
+    syncStartPreferenceMenuUI();
+    if (typeof showScreen === 'function') {
+      showScreen('vendorIntro');
+    } else {
+      document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+      var vi = document.getElementById('vendorIntroScreen');
+      if (vi) vi.classList.add('active');
+    }
+    if (options.focusHeading) {
+      var h = document.getElementById('vendorIntroHeading');
+      if (h && typeof h.focus === 'function') {
+        try { h.focus({ preventScroll: true }); } catch (_e) { h.focus(); }
+      }
+    }
+  }
+
+  function showWelcomeScreen() {
+    var w = document.getElementById('welcomeScreen');
+    if (!w) return;
+    var chk = document.getElementById('welcomeRememberChoice');
+    if (chk) chk.checked = false;
+    var fb = document.getElementById('welcomeFeedbackMsg');
+    if (fb) fb.hidden = true;
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+    w.classList.add('active');
+    syncStartPreferenceMenuUI();
+    var h = document.getElementById('welcomeHeading');
+    if (h && typeof h.focus === 'function') {
+      try { h.focus({ preventScroll: true }); } catch (_e) { h.focus(); }
+    }
+  }
+
+  function handleWelcomeChoice(choice) {
+    var rememberEl = document.getElementById('welcomeRememberChoice');
+    var shouldRemember = Boolean(rememberEl && rememberEl.checked);
+    var prefVal = choice === 'vendor' ? 'vendor' : 'customer';
+    var saveFailed = false;
+    if (shouldRemember) {
+      var savedOk = writeStartPreferenceCookie(prefVal);
+      if (!savedOk) saveFailed = true;
+    }
+    syncStartPreferenceMenuUI();
+    if (choice === 'vendor') {
+      openVendorIntroScreen({ focusHeading: true });
+    } else {
+      if (typeof showScreen === 'function') showScreen('discover');
+    }
+    if (saveFailed && typeof toast === 'function') {
+      toast('Continuing — your browser blocked saving the preference cookie, so this choice was not remembered.');
+    }
+  }
+
+  function startVendorClaimOrAddFlow(mode) {
+    if (getFeatureState('vendor_onboarding') !== 'enabled') {
+      if (typeof toast === 'function') toast(getFeatureMessage('vendor_onboarding'));
+      return;
+    }
+    var sel = document.getElementById('viListingSelect');
+    var rawSelected = sel ? String(sel.value || '').trim() : '';
+    var safeSlug = /^[a-z0-9_-]{1,64}$/i.test(rawSelected) ? rawSelected : '';
+
+    if (rxState.ctx && rxState.ctx.authenticated) {
+      if (rxState.ctx.requires_age_assessment) {
+        var ageModal = document.getElementById('rxAgeAssessmentModal');
+        if (ageModal) ageModal.hidden = false;
+        return;
+      }
+      if (typeof showScreen === 'function') showScreen('discover');
+      openVendorApplyModal({
+        mode: mode === 'new' ? 'new_listing' : 'claim_existing',
+        preselectVendorId: safeSlug
+      });
+      return;
+    }
+
+    var nextTarget =
+      mode === 'new'
+        ? '/?vendor_onboard=new'
+        : safeSlug
+          ? '/?vendor_onboard=claim&claim_vendor=' + encodeURIComponent(safeSlug)
+          : '/?vendor_onboard=claim';
+    window.location.href = '/login.html?mode=signup&next=' + encodeURIComponent(nextTarget);
+  }
+
+  function bindWelcomeAndVendorIntroControls() {
+    var wCust = document.getElementById('welcomeCustomerBtn');
+    if (wCust && wCust.dataset.rxBound !== '1') {
+      wCust.dataset.rxBound = '1';
+      wCust.onclick = function () { handleWelcomeChoice('customer'); };
+    }
+    var wVend = document.getElementById('welcomeVendorBtn');
+    if (wVend && wVend.dataset.rxBound !== '1') {
+      wVend.dataset.rxBound = '1';
+      wVend.onclick = function () { handleWelcomeChoice('vendor'); };
+    }
+    var wBrowse = document.getElementById('welcomeJustBrowseBtn');
+    if (wBrowse && wBrowse.dataset.rxBound !== '1') {
+      wBrowse.dataset.rxBound = '1';
+      wBrowse.onclick = function () { handleWelcomeChoice('browse'); };
+    }
+    var viBack = document.getElementById('viBackToBrowseBtn');
+    if (viBack && viBack.dataset.rxBound !== '1') {
+      viBack.dataset.rxBound = '1';
+      viBack.onclick = function () {
+        if (typeof showScreen === 'function') showScreen('discover');
+      };
+    }
+    var viExplore = document.getElementById('viJustExploreBtn');
+    if (viExplore && viExplore.dataset.rxBound !== '1') {
+      viExplore.dataset.rxBound = '1';
+      viExplore.onclick = function () {
+        if (typeof showScreen === 'function') showScreen('discover');
+      };
+    }
+    var viForget = document.getElementById('viForgetPrefBtn');
+    if (viForget && viForget.dataset.rxBound !== '1') {
+      viForget.dataset.rxBound = '1';
+      viForget.onclick = function () { forgetSavedStartPreference(); };
+    }
+    var viSearch = document.getElementById('viListingSearch');
+    if (viSearch && viSearch.dataset.rxBound !== '1') {
+      viSearch.dataset.rxBound = '1';
+      viSearch.addEventListener('input', function () {
+        populateVendorIntroPicker();
+      });
+    }
+    var viClaim = document.getElementById('viClaimBusinessBtn');
+    if (viClaim && viClaim.dataset.rxBound !== '1') {
+      viClaim.dataset.rxBound = '1';
+      viClaim.onclick = function () { startVendorClaimOrAddFlow('claim'); };
+    }
+    var viAdd = document.getElementById('viAddBusinessBtn');
+    if (viAdd && viAdd.dataset.rxBound !== '1') {
+      viAdd.dataset.rxBound = '1';
+      viAdd.onclick = function () { startVendorClaimOrAddFlow('new'); };
+    }
+
+    var searchInp = document.getElementById('searchInput');
+    if (searchInp && searchInp.dataset.rxInteractBound !== '1') {
+      searchInp.dataset.rxInteractBound = '1';
+      searchInp.addEventListener('input', function () {
+        rxState.userInteractedBeforeWelcome = true;
+      });
+      searchInp.addEventListener('focus', function () {
+        rxState.userInteractedBeforeWelcome = true;
+      });
+    }
+  }
+
+  function syncCoarseAreaSuggestion(coarseArea) {
+    var banner = document.getElementById('coarseAreaBanner');
+    if (!banner || !coarseArea || typeof coarseArea !== 'object') return;
+    if (typeof window.bitesharkHasManualOrPreciseLocation === 'function' && window.bitesharkHasManualOrPreciseLocation()) {
+      return;
+    }
+    if (coarseArea.status === 'suggested' && coarseArea.suggested_town) {
+      var town = String(coarseArea.suggested_town).trim();
+      banner.hidden = false;
+      banner.innerHTML =
+        '<span>Near <strong>' +
+        rxEsc(town) +
+        '</strong>? <small>(approximate area)</small></span>' +
+        '<span class="coarse-area-actions">' +
+        '<button type="button" class="coarse-area-action" id="coarseUseSuggestedBtn">Explore ' +
+        rxEsc(town) +
+        '</button>' +
+        '<button type="button" class="coarse-area-action" id="coarseChangeAreaBtn">Change area</button>' +
+        '<button type="button" class="coarse-area-action" id="coarseDismissBtn" aria-label="Dismiss area suggestion">×</button>' +
+        '</span>';
+      var useBtn = document.getElementById('coarseUseSuggestedBtn');
+      if (useBtn) {
+        useBtn.onclick = function () {
+          if (typeof window.bitesharkSelectManualArea === 'function') {
+            window.bitesharkSelectManualArea(town);
+          }
+        };
+      }
+      var chgBtn = document.getElementById('coarseChangeAreaBtn');
+      if (chgBtn) {
+        chgBtn.onclick = function () {
+          if (typeof window.bitesharkOpenAreaPicker === 'function') {
+            window.bitesharkOpenAreaPicker();
+          }
+        };
+      }
+      var disBtn = document.getElementById('coarseDismissBtn');
+      if (disBtn) {
+        disBtn.onclick = function () {
+          banner.hidden = true;
+          banner.innerHTML = '';
+        };
+      }
+      return;
+    }
+
+    if (coarseArea.status === 'outside_supported_area') {
+      banner.hidden = false;
+      banner.innerHTML =
+        '<span><strong>BiteShark is starting in Sonoma County</strong> — explore Sonoma County food trucks, markets, and farm stands below.</span>' +
+        '<span class="coarse-area-actions">' +
+        '<button type="button" class="coarse-area-action" id="coarseChangeAreaBtn">Change area</button>' +
+        '<button type="button" class="coarse-area-action" id="coarseDismissBtn" aria-label="Dismiss area notice">×</button>' +
+        '</span>';
+      var chgOutBtn = document.getElementById('coarseChangeAreaBtn');
+      if (chgOutBtn) {
+        chgOutBtn.onclick = function () {
+          if (typeof window.bitesharkOpenAreaPicker === 'function') {
+            window.bitesharkOpenAreaPicker();
+          }
+        };
+      }
+      var disOutBtn = document.getElementById('coarseDismissBtn');
+      if (disOutBtn) {
+        disOutBtn.onclick = function () {
+          banner.hidden = true;
+          banner.innerHTML = '';
+        };
+      }
+    }
+  }
+
+  function renderSessionCheckFallbackNotice() {
+    var banner = document.getElementById('coarseAreaBanner');
+    if (!banner || !banner.hidden) return;
+    banner.hidden = false;
+    banner.innerHTML =
+      '<span>Account status could not be verified right now — browsing Sonoma County food spots in guest mode.</span>' +
+      '<span class="coarse-area-actions"><button type="button" class="coarse-area-action" id="sessionNoticeDismissBtn" aria-label="Dismiss account notice">×</button></span>';
+    var dBtn = document.getElementById('sessionNoticeDismissBtn');
+    if (dBtn) {
+      dBtn.onclick = function () {
+        banner.hidden = true;
+        banner.innerHTML = '';
+      };
+    }
+  }
+
+  function anyModalCurrentlyOpen() {
+    var rxIds = ['vendorApplyModal', 'supportIssuesModal', 'communityReportModal', 'inviteAcceptModal', 'rxAgeAssessmentModal'];
+    for (var i = 0; i < rxIds.length; i++) {
+      var m = document.getElementById(rxIds[i]);
+      if (m && !m.hidden) return true;
+    }
+    var appIds = ['detailModal', 'bookingModal', 'ownerProfileModal', 'distanceModal', 'areaModal'];
+    for (var j = 0; j < appIds.length; j++) {
+      var am = document.getElementById(appIds[j]);
+      if (am && am.classList && am.classList.contains('show')) return true;
+    }
+    return false;
+  }
+
+  async function waitBoundedForCatalogReady(maxMs) {
+    if (!window.bitesharkReady) return;
+    try {
+      await Promise.race([
+        window.bitesharkReady,
+        new Promise(function (resolve) { setTimeout(resolve, maxMs || 2500); })
+      ]);
+    } catch (_e) {}
+  }
+
+  async function evaluateInitialWelcomeAndDeepLinks() {
+    if (rxState.welcomeEvaluated) return;
+    rxState.welcomeEvaluated = true;
+
+    var rawSearch = INITIAL_ARRIVAL_SEARCH || String(window.location.search || '');
+    var rawHash = INITIAL_ARRIVAL_HASH || String(window.location.hash || '');
+    var qp = new URLSearchParams(rawSearch);
+
+    // 1. `#owner` return target from "Already manage a listing? Sign in"
+    if (rawHash === '#owner') {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      if (
+        rxState.ctx &&
+        rxState.ctx.authenticated &&
+        (hasVendorMembership() || (rxState.ctx.capabilities && rxState.ctx.capabilities.can_access_admin_portal))
+      ) {
+        if (typeof showScreen === 'function') showScreen('owner');
+      } else if (rxState.ctx && rxState.ctx.authenticated && typeof toast === 'function') {
+        toast('Signed in — no approved vendor membership is linked yet. Use Claim or apply as vendor in your account menu.');
+      }
+      return;
+    }
+
+    // 2. Validated vendor onboarding return (`?vendor_onboard=claim|new&claim_vendor=<slug>`)
+    var vOnb = qp.get('vendor_onboard');
+    var vIntroParam = qp.get('vendor_intro');
+    if (vOnb === 'claim' || vOnb === 'new' || vIntroParam === '1') {
+      var rawClaimSlug = String(qp.get('claim_vendor') || '').trim();
+      var safeClaimSlug = /^[a-z0-9_-]{1,64}$/i.test(rawClaimSlug) ? rawClaimSlug : '';
+      await waitBoundedForCatalogReady(2500);
+      populateModalVendorSelects();
+      populateVendorIntroPicker(safeClaimSlug);
+
+      if (rxState.ctx && rxState.ctx.authenticated && !rxState.ctx.requires_age_assessment) {
+        qp.delete('vendor_onboard');
+        qp.delete('claim_vendor');
+        qp.delete('vendor_intro');
+        var cleanQ = qp.toString();
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(
+            null,
+            '',
+            window.location.pathname + (cleanQ ? '?' + cleanQ : '') + (window.location.hash || '')
+          );
+        }
+        await openVendorApplyModal({
+          mode: vOnb === 'new' ? 'new_listing' : 'claim_existing',
+          preselectVendorId: safeClaimSlug
+        });
+      } else if (!rxState.ctx || !rxState.ctx.authenticated) {
+        openVendorIntroScreen({ preselectVendorId: safeClaimSlug, focusHeading: true });
+      }
+      return;
+    }
+
+    // 3. Query-string direct listing link (`?place=<id>` or `?spot=<id>`)
+    var directSpot = String(qp.get('place') || qp.get('spot') || '').trim();
+    if (directSpot && /^[a-z0-9_-]{1,64}$/i.test(directSpot)) {
+      await waitBoundedForCatalogReady(2500);
+      if (typeof openDetail === 'function') openDetail(directSpot);
+      return;
+    }
+
+    // 4. Explicit `#welcome` hash for manual opening by signed-out visitors
+    if (rawHash === '#welcome') {
+      if (!rxState.ctx || !rxState.ctx.authenticated) {
+        showWelcomeScreen();
+      }
+      return;
+    }
+
+    // 5. Skip welcome for all signed-in users (server-verified session always wins over cookies!)
+    if (rxState.ctx && rxState.ctx.authenticated) {
+      return;
+    }
+
+    // 6. Skip welcome if session check failed/timed out (leave public discovery usable with feedback)
+    if (!rxState.sessionCheckSucceeded) {
+      return;
+    }
+
+    // 7. Skip welcome on non-homepage paths or any intentional query/hash destination
+    var normArrivalPath = INITIAL_ARRIVAL_PATH || '/';
+    if (normArrivalPath !== '/' && normArrivalPath !== '/index.html') {
+      return;
+    }
+    if ((rawHash && rawHash !== '#') || (rawSearch && rawSearch !== '?')) {
+      return;
+    }
+
+    // 8. Skip welcome if visitor already started interacting with discovery or opened a modal/screen
+    var discEl = document.getElementById('discoverScreen');
+    if (
+      rxState.userInteractedBeforeWelcome ||
+      anyModalCurrentlyOpen() ||
+      (discEl && !discEl.classList.contains('active'))
+    ) {
+      return;
+    }
+
+    // 9. Honor valid remembered preference cookie (`customer` or `vendor`)
+    var remembered = readStartPreferenceCookie();
+    if (remembered === 'customer') {
+      return;
+    }
+    if (remembered === 'vendor') {
+      await waitBoundedForCatalogReady(1500);
+      openVendorIntroScreen({ focusHeading: false });
+      return;
+    }
+
+    // 10. Ordinary signed-out first visit -> show welcome screen
+    showWelcomeScreen();
+  }
+
+  window.bitesharkMarkDiscoveryInteraction = function () {
+    rxState.userInteractedBeforeWelcome = true;
+  };
+  window.bitesharkOnScreenChange = function () {
+    syncStartPreferenceMenuUI();
+  };
+  window.bitesharkWelcome = {
+    openWelcome: showWelcomeScreen,
+    openVendorIntro: openVendorIntroScreen,
+    readPreference: readStartPreferenceCookie,
+    forgetPreference: forgetSavedStartPreference
+  };
+
   window.addEventListener('hashchange', checkInviteRedemptionHash);
 
-  // Boot after main app settles
+  // Boot features, server-verified session context, and catalog in parallel so session
+  // resolution is never delayed behind catalog fetches and never traps discovery on failure.
   async function bootRoleExperience() {
+    injectRoleNavigationAndModals();
     setupFeaturePropagationListeners();
-    await refreshFeatureControls({ reason: 'boot' });
-    try {
-      if (window.bitesharkReady) await window.bitesharkReady;
-    } catch (_e) {}
+    var featPromise = refreshFeatureControls({ reason: 'boot' });
     await refreshAccountRoleContext();
+    await Promise.race([
+      featPromise,
+      new Promise(function (resolve) { setTimeout(resolve, 400); })
+    ]);
     await checkInviteRedemptionHash();
+    await evaluateInitialWelcomeAndDeepLinks();
+    if (window.bitesharkReady) {
+      try {
+        await window.bitesharkReady;
+        populateModalVendorSelects();
+        populateVendorIntroPicker();
+      } catch (_e) {}
+    }
   }
 
   if (document.readyState === 'loading') {
