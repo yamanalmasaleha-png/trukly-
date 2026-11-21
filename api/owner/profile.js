@@ -25,7 +25,9 @@ export default async function(req, res) {
 
       const b = req.body && typeof req.body === "object" ? req.body : {};
       const authz = await authorizeVendorTarget(ctx, b.truck_id || req.query?.truck_id, "owner", db);
-      if (!authz.ok) return res.status(authz.status).json({ error: authz.error });
+      if (!authz.ok) {
+        return res.status(authz.status).json({ error: authz.error, ...(authz.code ? { code: authz.code } : {}) });
+      }
 
       const forbiddenField = findForbiddenSelfElevationField(b);
       if (forbiddenField) {
@@ -60,7 +62,10 @@ export default async function(req, res) {
           vendorLockMode: "NO KEY UPDATE"
         });
         if (!verifiedAuthz.ok) {
-          return { status: verifiedAuthz.status, body: { error: verifiedAuthz.error } };
+          return {
+            status: verifiedAuthz.status,
+            body: { error: verifiedAuthz.error, ...(verifiedAuthz.code ? { code: verifiedAuthz.code } : {}) }
+          };
         }
 
         const { rows } = await tx.query(

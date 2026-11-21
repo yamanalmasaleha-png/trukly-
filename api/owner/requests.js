@@ -62,7 +62,10 @@ export default async function(req, res) {
             allowInactiveForAdmin: true
           });
           if (!authz.ok) {
-            return { status: authz.status, body: { error: authz.error } };
+            return {
+              status: authz.status,
+              body: { error: authz.error, ...(authz.code ? { code: authz.code } : {}) }
+            };
           }
           actorRole = authz.actorRole;
         }

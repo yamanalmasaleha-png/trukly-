@@ -1,6 +1,7 @@
 import { db } from "@biteshark/runtime-adapter";
 import { isValidCalendarDate, validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
 import { evaluateEffectiveVendorRestrictions } from "../../lib/authz.js";
+import { isVendorPubliclyDiscoverable } from "../../lib/discovery.js";
 
 export const access = "public";
 export const methods = ["GET"];
@@ -56,10 +57,10 @@ export default async function(req, res) {
     }
 
     const vendor = vendorRows[0];
-    const effRestr = evaluateEffectiveVendorRestrictions(vendor, now.getTime());
-    if (effRestr.hidden_from_discovery) {
+    if (!isVendorPubliclyDiscoverable({ ...vendor, is_active: true }, now.getTime())) {
       return res.status(404).json({ error: "Vendor not found." });
     }
+    const effRestr = evaluateEffectiveVendorRestrictions(vendor, now.getTime());
     if (!vendor.is_active || !vendor.event_bookable) {
       return res.json({
         truck_id: id,

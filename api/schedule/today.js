@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { db } from "@biteshark/runtime-adapter";
 import { isValidCalendarDate, getPacificToday } from "../../lib/dates.js";
-import { applyDiscoveryCacheHeaders } from "../../lib/discovery.js";
+import { applyDiscoveryCacheHeaders, isVendorPubliclyDiscoverable } from "../../lib/discovery.js";
 
 export const access = "public";
 export const methods = ["GET"];
@@ -18,25 +18,53 @@ export default async function(req, res) {
   const freshRequested = req.query?.fresh === "1";
 
   try {
-    const { rows } = await db.query(
-      `SELECT
-         s.truck_id,
-         COALESCE(NULLIF(btrim(p.display_name), ''), v.canonical_name, s.truck_id) AS vendor,
-         COALESCE(NULLIF(btrim(s.location), ''), v.curated_location, 'Sonoma County · check vendor listing') AS location,
-         s.opens_at,
-         s.closes_at,
-         s.status,
-         GREATEST(v.updated_at, COALESCE(p.updated_at, 'epoch'::timestamptz), COALESCE(s.updated_at, 'epoch'::timestamptz)) AS row_updated_at
-       FROM owner_schedule s
-       JOIN vendors v ON v.id = s.truck_id AND v.is_active = true
-       LEFT JOIN owner_profiles p ON p.truck_id = s.truck_id
-       WHERE s.service_date = $1 AND s.status <> 'unavailable'
-       ORDER BY s.opens_at ASC NULLS LAST, s.truck_id ASC
-       LIMIT 50`,
-      [date]
-    );
+    let rows;
+    try {
+      ({ rows } = await db.query(
+        `SELECT
+           s.truck_id,
+           COALESCE(NULLIF(btrim(p.display_name), ''), v.canonical_name, s.truck_id) AS vendor,
+           COALESCE(NULLIF(btrim(s.location), ''), v.curated_location, 'Sonoma County · check vendor listing') AS location,
+           s.opens_at,
+           s.closes_at,
+           s.status,
+           v.is_active,
+           v.hidden_from_discovery,
+           v.restriction_authority,
+           v.temp_restriction_expires_at,
+           GREATEST(v.updated_at, COALESCE(p.updated_at, 'epoch'::timestamptz), COALESCE(s.updated_at, 'epoch'::timestamptz)) AS row_updated_at
+         FROM owner_schedule s
+         JOIN vendors v ON v.id = s.truck_id AND v.is_active = true
+         LEFT JOIN owner_profiles p ON p.truck_id = s.truck_id
+         WHERE s.service_date = $1 AND s.status <> 'unavailable'
+         ORDER BY s.opens_at ASC NULLS LAST, s.truck_id ASC`,
+        [date]
+      ));
+    } catch (colErr) {
+      if (colErr?.code !== "42703") throw colErr;
+      ({ rows } = await db.query(
+        `SELECT
+           s.truck_id,
+           COALESCE(NULLIF(btrim(p.display_name), ''), v.canonical_name, s.truck_id) AS vendor,
+           COALESCE(NULLIF(btrim(s.location), ''), v.curated_location, 'Sonoma County · check vendor listing') AS location,
+           s.opens_at,
+           s.closes_at,
+           s.status,
+           v.is_active,
+           GREATEST(v.updated_at, COALESCE(p.updated_at, 'epoch'::timestamptz), COALESCE(s.updated_at, 'epoch'::timestamptz)) AS row_updated_at
+         FROM owner_schedule s
+         JOIN vendors v ON v.id = s.truck_id AND v.is_active = true
+         LEFT JOIN owner_profiles p ON p.truck_id = s.truck_id
+         WHERE s.service_date = $1 AND s.status <> 'unavailable'
+         ORDER BY s.opens_at ASC NULLS LAST, s.truck_id ASC`,
+        [date]
+      ));
+    }
 
-    const events = rows.map(r => ({
+    const nowMs = now.getTime();
+    const visibleRows = rows.filter(r => isVendorPubliclyDiscoverable(r, nowMs)).slice(0, 50);
+
+    const events = visibleRows.map(r => ({
       truck_id: r.truck_id,
       vendor: r.vendor,
       location: r.location,

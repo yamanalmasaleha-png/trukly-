@@ -581,6 +581,10 @@ export async function handleGovernanceApiRequest({
   rawRes
 }) {
   const normPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const isPreviewViewpoint =
+    String(req?.headers?.['x-biteshark-viewpoint'] || '')
+      .trim()
+      .toLowerCase() === 'preview';
 
   // =========================================================================
   // 0. Untrusted Browser Operational Failure Report (`POST /api/diagnostics/report`)
@@ -1281,11 +1285,11 @@ export async function handleGovernanceApiRequest({
     if (!vendorId) return sendJson(400, { error: 'vendor_id is required.' });
 
     if (method === 'GET') {
-      const mem = ctx.memberships.get(vendorId);
-      if ((!mem || mem.role !== 'owner' || mem.restrictions?.vendor_access_suspended) && !ctx.isTopAdmin) {
-        return sendJson(403, { error: 'Approved Vendor Owner permission is required.' });
-      }
       const out = await withTransaction(dbAdapter, async tx => {
+        const verified = await reverifyVendorMembershipInTx(tx, ctx, vendorId, 'owner');
+        if (!verified.ok) {
+          return { denied: verified };
+        }
         await tx.query("SELECT set_config('app.auth_internal', 'true', true), set_config('app.admin_portal', 'true', true)");
         const { rows } = await tx.query(
           `SELECT m.user_id, m.role, m.created_at, au.email_normalized
@@ -1295,15 +1299,23 @@ export async function handleGovernanceApiRequest({
            ORDER BY m.role ASC, m.created_at ASC`,
           [vendorId]
         );
-        return rows.map(r => ({
-          user_id: r.user_id,
-          email: r.email_normalized || null,
-          role: r.role,
-          role_label: r.role === 'owner' ? ROLE_LABELS.owner : ROLE_LABELS.staff,
-          created_at: r.created_at
-        }));
+        return {
+          members: rows.map(r => ({
+            user_id: r.user_id,
+            email: r.email_normalized || null,
+            role: r.role,
+            role_label: r.role === 'owner' ? ROLE_LABELS.owner : ROLE_LABELS.staff,
+            created_at: r.created_at
+          }))
+        };
       });
-      return sendJson(200, { vendor_id: vendorId, members: out });
+      if (out.denied) {
+        return sendJson(out.denied.status, {
+          error: out.denied.error,
+          ...(out.denied.code ? { code: out.denied.code } : {})
+        });
+      }
+      return sendJson(200, { vendor_id: vendorId, members: out.members });
     }
 
     if (method === 'DELETE') {
@@ -1311,13 +1323,18 @@ export async function handleGovernanceApiRequest({
       if (!targetUserId) return sendJson(400, { error: 'user_id is required.' });
       const outcome = await withTransaction(dbAdapter, async tx => {
         const verified = await reverifyVendorMembershipInTx(tx, ctx, vendorId, 'owner');
-        if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+        if (!verified.ok) {
+          return {
+            status: verified.status,
+            body: { error: verified.error, ...(verified.code ? { code: verified.code } : {}) }
+          };
+        }
         const { rows } = await tx.query(
           'SELECT role FROM vendor_memberships WHERE vendor_id = $1 AND user_id = $2 FOR UPDATE',
           [vendorId, targetUserId]
         );
         if (!rows.length) return { status: 404, body: { error: 'Member not found on this vendor.' } };
-        if (rows[0].role === 'owner' && !ctx.isTopAdmin) {
+        if (rows[0].role === 'owner' && verified.actorRole !== 'platform_admin') {
           return { status: 403, body: { error: 'Only Admin: Top can remove a Vendor Owner membership.' } };
         }
         await tx.query('DELETE FROM vendor_memberships WHERE vendor_id = $1 AND user_id = $2', [
@@ -1356,7 +1373,12 @@ export async function handleGovernanceApiRequest({
 
     const outcome = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyVendorMembershipInTx(tx, ctx, vendorId, 'owner');
-      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+      if (!verified.ok) {
+        return {
+          status: verified.status,
+          body: { error: verified.error, ...(verified.code ? { code: verified.code } : {}) }
+        };
+      }
       await tx.query(
         "SELECT set_config('app.admin_portal', 'true', true), set_config('app.auth_internal', 'true', true), set_config('app.user_id', $1, true)",
         [ctx.user.id]
@@ -1890,26 +1912,57 @@ export async function handleGovernanceApiRequest({
       const evId = typeof (body?.id || query.id) === 'string' ? String(body?.id || query.id).trim() : '';
       if (!UUID_RE.test(evId)) return sendJson(400, { error: 'Valid evidence UUID is required.' });
 
+      const rawReason =
+        typeof (body?.reason || query.reason || req?.headers?.['x-biteshark-support-reason']) === 'string'
+          ? String(body?.reason || query.reason || req?.headers?.['x-biteshark-support-reason']).trim()
+          : '';
+
       const outcome = await withTransaction(dbAdapter, async tx => {
-        if (ctx.isTopAdmin) {
+        const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+        const isLiveTop = Boolean(verifiedTop.ok);
+        if (isLiveTop) {
           await enableAdminTxGuards(tx, ctx);
+          await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
         } else {
           await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
         }
         const { rows } = await tx.query(
-          `SELECT e.id, e.uploaded_by, e.deleted_at, a.status
+          `SELECT e.id, e.application_id, e.uploaded_by, e.deleted_at, a.status, a.target_vendor_id
            FROM vendor_application_evidence e
            JOIN vendor_applications a ON a.id = e.application_id
            WHERE e.id = $1
-           FOR UPDATE OF e`,
+           FOR UPDATE OF e, a`,
           [evId]
         );
         if (!rows.length || rows[0].deleted_at) {
           return { status: 404, body: { error: 'Evidence file not found.' } };
         }
-        if (!ctx.isTopAdmin && rows[0].uploaded_by !== ctx.user.id) {
-          return { status: 403, body: { error: 'Not authorized to delete this evidence file.' } };
+        const isUploader = rows[0].uploaded_by === ctx.user.id;
+        const applicantEditable = isUploader && ['draft', 'needs_info', 'submitted'].includes(rows[0].status);
+
+        if (!applicantEditable) {
+          if (!isLiveTop) {
+            return { status: 403, body: { error: 'Not authorized to delete this evidence file.' } };
+          }
+          if (rawReason.length < 4 || rawReason.length > 500) {
+            return {
+              status: 400,
+              body: {
+                error: 'A clear governance reason (4–500 characters) is required when deleting third-party or finalized onboarding evidence.',
+                code: 'EVIDENCE_DELETE_REASON_REQUIRED'
+              }
+            };
+          }
+        } else if (isLiveTop && !isUploader && (rawReason.length < 4 || rawReason.length > 500)) {
+          return {
+            status: 400,
+            body: {
+              error: 'A clear governance reason (4–500 characters) is required when deleting another applicant’s evidence.',
+              code: 'EVIDENCE_DELETE_REASON_REQUIRED'
+            }
+          };
         }
+
         // Scrub raw bytes on deletion per retention/deletion policy
         await tx.query(
           `UPDATE vendor_application_evidence
@@ -1919,12 +1972,19 @@ export async function handleGovernanceApiRequest({
            WHERE id = $1`,
           [evId, ctx.user.id]
         );
+        const actorRoleForAudit = !applicantEditable || !isUploader ? 'top' : 'customer';
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
-          actorRole: ctx.isTopAdmin ? 'top' : 'customer',
+          actorRole: actorRoleForAudit,
+          vendorId: rows[0].target_vendor_id || null,
           targetType: 'vendor_application_evidence',
           targetId: evId,
-          action: 'onboarding.evidence_delete'
+          action: 'onboarding.evidence_delete',
+          metadata: {
+            application_id: rows[0].application_id,
+            third_party_delete: !isUploader,
+            ...(rawReason ? { reason: rawReason.slice(0, 500) } : {})
+          }
         });
         return { status: 200, body: { ok: true } };
       });
@@ -2083,8 +2143,8 @@ export async function handleGovernanceApiRequest({
 
         const { rows: issues } = await tx.query(issuesQuerySql, issuesParams);
 
-        // If viewing a single ticket owned by the reporter, mark it read
-        if (singleId || singleTicketNo) {
+        // If viewing a single ticket owned by the reporter (and NOT in read-only admin preview), mark it read
+        if ((singleId || singleTicketNo) && !isPreviewViewpoint) {
           const target = issues.find(i => (singleId ? i.id === singleId : i.ticket_number === singleTicketNo));
           if (target && target.reporter_user_id === ctx.user.id) {
             await tx.query(
@@ -5508,7 +5568,9 @@ export async function handleGovernanceApiRequest({
         if (!sRows.length) return { notFound: true };
         const target = sRows[0];
 
-        await tx.query('UPDATE support_issues SET staff_last_read_at = now() WHERE id = $1', [target.id]);
+        if (!isPreviewViewpoint) {
+          await tx.query('UPDATE support_issues SET staff_last_read_at = now() WHERE id = $1', [target.id]);
+        }
 
         const { rows: sNotes } = await tx.query(
           `SELECT id, issue_id, author_user_id, author_role, author_display_label, visibility, body, created_at
