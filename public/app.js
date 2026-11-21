@@ -2414,6 +2414,9 @@ function renderOwnerHeader() {
     pillEl.classList.toggle('paused', !accepting);
   }
   syncOwnerPermissionsUI();
+  if (typeof window !== 'undefined' && typeof window.bitesharkSyncOwnerVendorContext === 'function') {
+    window.bitesharkSyncOwnerVendorContext(ownerTruckId);
+  }
 }
 
 function renderOwnerStats(stats) {

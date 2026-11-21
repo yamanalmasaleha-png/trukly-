@@ -523,6 +523,36 @@
   border: 1px solid #ecd093;
 }
 
+.si-incepted-vendor-banner,
+.owner-support-vendor-pill {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: #eef7f2;
+  border: 1px solid #b8dbc8;
+  color: #1a3f30;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.owner-support-vendor-pill {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+}
+
+.si-incepted-vendor-banner code,
+.owner-support-vendor-pill code {
+  background: #ffffff;
+  border: 1px solid #c9e2d4;
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: #16382a;
+  font-size: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rx-modal,
   .rx-tab,

@@ -449,7 +449,7 @@ class CdpClient {
     );
     await privQuery(
       `INSERT INTO vendor_memberships (vendor_id, user_id, role, granted_by)
-       VALUES ('mitote', $1, 'owner', $2)`,
+       VALUES ('mitote', $1, 'owner', $2), ('iniguez', $1, 'owner', $2)`,
       [vendorAuth.user.id, topAuth.user.id]
     );
 
@@ -617,8 +617,95 @@ class CdpClient {
 
     await cdp.eval(vendorTab.sessionId, `showScreen('owner')`);
     await waitForCondition(
-      () => cdp.eval(vendorTab.sessionId, `document.getElementById('ownerScreen').classList.contains('active')`),
-      { label: 'ownerScreen active' }
+      () =>
+        cdp.eval(
+          vendorTab.sessionId,
+          `document.getElementById('ownerScreen').classList.contains('active') && document.getElementById('ownerTruckSelect').options.length >= 2`
+        ),
+      { label: 'ownerScreen active with multi-vendor options loaded' }
+    );
+
+    // Switch #ownerScreen to 'iniguez' first and verify VENDOR HELP & FEEDBACK assumes 'iniguez' without asking!
+    await cdp.eval(
+      vendorTab.sessionId,
+      `(async () => {
+        const sel = document.getElementById('ownerTruckSelect');
+        sel.value = 'iniguez';
+        await selectOwnerTruck('iniguez');
+      })()`
+    );
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          vendorTab.sessionId,
+          `document.getElementById('ownerSupportVendorContext') && document.getElementById('ownerSupportVendorContext').textContent.includes('iniguez')`
+        ),
+      { label: 'ownerSupportCard context updated to iniguez' }
+    );
+    await cdp.eval(vendorTab.sessionId, `document.getElementById('ownerShareFeedbackBtn').click()`);
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          vendorTab.sessionId,
+          `!document.getElementById('supportIssuesModal').hidden && !document.getElementById('siNewPane').hidden`
+        ),
+      { label: 'vendor support modal opened from iniguez page' }
+    );
+    const iniguezInceptedState = await cdp.eval(
+      vendorTab.sessionId,
+      `(() => ({
+        vendVal: document.getElementById('siVendorId').value,
+        modeHidden: document.getElementById('siModeSwitchWrap').hidden,
+        vendorPickerHidden: document.getElementById('siVendorWrap').hidden,
+        bannerVisible: !document.getElementById('siInceptedVendorBanner').hidden,
+        bannerText: document.getElementById('siInceptedVendorBanner').textContent
+      }))()`
+    );
+    assert.equal(iniguezInceptedState.vendVal, 'iniguez');
+    assert.equal(iniguezInceptedState.modeHidden, true, 'Submitting-as toggle must be hidden when incepted from vendor page');
+    assert.equal(iniguezInceptedState.vendorPickerHidden, true, 'Vendor dropdown must be hidden when incepted from vendor page');
+    assert.equal(iniguezInceptedState.bannerVisible, true);
+    assert(iniguezInceptedState.bannerText.includes('iniguez'));
+
+    // Close modal, switch to Discover global Help & Feedback, and verify non-vendor-page entry still shows full pickers
+    await cdp.eval(vendorTab.sessionId, `document.querySelector('[data-rx-close="supportIssuesModal"]').click()`);
+    await cdp.eval(vendorTab.sessionId, `showScreen('discover')`);
+    await cdp.eval(vendorTab.sessionId, `document.getElementById('rxSupportIssuesBtn').click()`);
+    await waitForCondition(
+      () => cdp.eval(vendorTab.sessionId, `!document.getElementById('supportIssuesModal').hidden`),
+      { label: 'global support modal opened from Discover' }
+    );
+    await cdp.eval(vendorTab.sessionId, `document.querySelector('[data-si-tab="new"]').click()`);
+    const globalModalState = await cdp.eval(
+      vendorTab.sessionId,
+      `(() => ({
+        modeHidden: document.getElementById('siModeSwitchWrap').hidden,
+        vendorPickerHidden: document.getElementById('siVendorWrap').hidden,
+        bannerHidden: document.getElementById('siInceptedVendorBanner').hidden
+      }))()`
+    );
+    assert.equal(globalModalState.modeHidden, false);
+    assert.equal(globalModalState.vendorPickerHidden, false);
+    assert.equal(globalModalState.bannerHidden, true);
+    await cdp.eval(vendorTab.sessionId, `document.querySelector('[data-rx-close="supportIssuesModal"]').click()`);
+
+    // Return to #ownerScreen, switch to 'mitote', and open VENDOR HELP & FEEDBACK -> automatically assumes 'mitote'!
+    await cdp.eval(vendorTab.sessionId, `showScreen('owner')`);
+    await cdp.eval(
+      vendorTab.sessionId,
+      `(async () => {
+        const sel = document.getElementById('ownerTruckSelect');
+        sel.value = 'mitote';
+        await selectOwnerTruck('mitote');
+      })()`
+    );
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          vendorTab.sessionId,
+          `document.getElementById('ownerSupportVendorContext').textContent.includes('mitote')`
+        ),
+      { label: 'ownerSupportCard context updated to mitote' }
     );
 
     await cdp.eval(vendorTab.sessionId, `document.getElementById('ownerReportProblemBtn').click()`);
@@ -631,13 +718,16 @@ class CdpClient {
       { label: 'vendor support modal opened on new request tab' }
     );
 
-    // Check modal ARIA, background inert, auto-selected vendor `mitote`, and progressive disclosure
+    // Check modal ARIA, background inert, auto-assumed vendor `mitote`, and progressive disclosure
     const vendorModalState = await cdp.eval(
       vendorTab.sessionId,
       `(() => {
         const dlg = document.querySelector('#supportIssuesModal [role="dialog"]');
         const appInert = document.getElementById('app').inert;
         const vendVal = document.getElementById('siVendorId').value;
+        const modeHidden = document.getElementById('siModeSwitchWrap').hidden;
+        const vendorPickerHidden = document.getElementById('siVendorWrap').hidden;
+        const bannerText = document.getElementById('siInceptedVendorBanner').textContent;
         // Switch category to suggestion_feedback -> urgency hidden
         const cat = document.getElementById('siCategory');
         cat.value = 'suggestion_feedback';
@@ -659,6 +749,9 @@ class CdpClient {
           ariaModal: dlg ? dlg.getAttribute('aria-modal') : null,
           appInert,
           vendVal,
+          modeHidden,
+          vendorPickerHidden,
+          bannerText,
           urgHiddenForIdea,
           scopeLockedForAccess,
           critNoticeVisible: !document.getElementById('siCriticalNotice').hidden
@@ -668,6 +761,9 @@ class CdpClient {
     assert.equal(vendorModalState.ariaModal, 'true');
     assert.equal(vendorModalState.appInert, true);
     assert.equal(vendorModalState.vendVal, 'mitote');
+    assert.equal(vendorModalState.modeHidden, true);
+    assert.equal(vendorModalState.vendorPickerHidden, true);
+    assert(vendorModalState.bannerText.includes('mitote'));
     assert.equal(vendorModalState.urgHiddenForIdea, true);
     assert.equal(vendorModalState.scopeLockedForAccess, true);
     assert.equal(vendorModalState.critNoticeVisible, true);

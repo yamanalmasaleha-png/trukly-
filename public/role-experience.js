@@ -58,6 +58,7 @@
     unreadSupportCount: 0,
     supportReporterMode: 'customer', // 'vendor' | 'customer'
     supportCustomerKind: 'problem', // 'problem' | 'question' | 'suggestion'
+    supportInceptedVendorId: null, // active vendor slug when opened from #ownerScreen / VENDOR HELP & FEEDBACK
     supportContextPrefill: null,
     features: {},
     mapConfig: null,
@@ -482,9 +483,22 @@
       ownerSupBtn.className = 'owner-support-btn';
       ownerSupBtn.innerHTML = '<span>🛟 Help &amp; feedback</span><span id="ownerSupportUnreadBadge" class="rx-unread-badge" hidden>0</span>';
       ownerSupBtn.onclick = function () {
-        openSupportIssuesModal({ reporterContext: 'vendor' });
+        openSupportIssuesModal({
+          inceptedFromVendorPage: true,
+          vendorId: getActiveOwnerPageVendorId(),
+          reporterContext: 'vendor'
+        });
       };
       ownerHeroControls.appendChild(ownerSupBtn);
+    }
+
+    var ownerTruckSel = document.getElementById('ownerTruckSelect');
+    if (ownerTruckSel && ownerTruckSel.dataset.rxContextBound !== '1') {
+      ownerTruckSel.dataset.rxContextBound = '1';
+      ownerTruckSel.addEventListener('change', function () {
+        syncOwnerSupportCardContext();
+        syncOwnerTeamAndRestrictionUI();
+      });
     }
 
     var ownerGrid = ownerScreen ? ownerScreen.querySelector('.owner-grid') : null;
@@ -504,6 +518,7 @@
         '<div class="card-label">VENDOR HELP &amp; FEEDBACK</div>' +
         '<h2>Need help during service?</h2>' +
         '<p>Report a technical, listing, inquiry, or pickup-pager problem, ask a question, or suggest an improvement. Private tickets stay off public pages.</p>' +
+        '<div id="ownerSupportVendorContext" class="owner-support-vendor-pill" role="note"></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
         '<button type="button" class="primary" id="ownerReportProblemBtn">Report service problem →</button>' +
         '<button type="button" class="secondary" id="ownerShareFeedbackBtn">Question or suggestion</button>' +
@@ -511,15 +526,33 @@
         '</div>';
       ownerGrid.insertBefore(supCard, ownerGrid.firstChild);
       document.getElementById('ownerReportProblemBtn').onclick = function () {
-        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'new', category: 'technical_problem' });
+        openSupportIssuesModal({
+          inceptedFromVendorPage: true,
+          vendorId: getActiveOwnerPageVendorId(),
+          reporterContext: 'vendor',
+          tab: 'new',
+          category: 'technical_problem'
+        });
       };
       document.getElementById('ownerShareFeedbackBtn').onclick = function () {
-        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'new', category: 'suggestion_feedback' });
+        openSupportIssuesModal({
+          inceptedFromVendorPage: true,
+          vendorId: getActiveOwnerPageVendorId(),
+          reporterContext: 'vendor',
+          tab: 'new',
+          category: 'suggestion_feedback'
+        });
       };
       document.getElementById('ownerMyTicketsBtn').onclick = function () {
-        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'list' });
+        openSupportIssuesModal({
+          inceptedFromVendorPage: true,
+          vendorId: getActiveOwnerPageVendorId(),
+          reporterContext: 'vendor',
+          tab: 'list'
+        });
       };
     }
+    syncOwnerSupportCardContext();
     if (ownerGrid && !document.getElementById('ownerTeamCard')) {
       var teamCard = document.createElement('article');
       teamCard.id = 'ownerTeamCard';
@@ -591,7 +624,7 @@
         // 2. Support & Feedback Modal
         '<div class="rx-modal-backdrop" id="supportIssuesModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="siModalTitle">' +
-        '<div class="rx-modal-head"><div><small>PRIVATE SUPPORT &amp; FEEDBACK</small><h2 id="siModalTitle">Help &amp; Feedback</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal" aria-label="Close help and feedback dialog">×</button></div>' +
+        '<div class="rx-modal-head"><div><small id="siModalEyebrow">PRIVATE SUPPORT &amp; FEEDBACK</small><h2 id="siModalTitle">Help &amp; Feedback</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal" aria-label="Close help and feedback dialog">×</button></div>' +
         '<div class="rx-tabs" id="siTabsBar" role="tablist" aria-label="Support and feedback views">' +
         '<button type="button" role="tab" aria-selected="true" class="rx-tab active" data-si-tab="list">My support requests <span id="siTabUnreadBadge" class="rx-unread-badge" hidden>0</span></button>' +
         '<button type="button" role="tab" aria-selected="false" class="rx-tab" data-si-tab="new">New request / feedback</button>' +
@@ -601,6 +634,7 @@
         '<div id="siGuestPane" hidden></div>' +
         '<div id="siListPane"></div>' +
         '<form id="siNewPane" class="rx-form" hidden novalidate>' +
+        '<div id="siInceptedVendorBanner" class="si-incepted-vendor-banner" role="note" hidden></div>' +
         '<div id="siModeSwitchWrap" hidden>' +
         '<span style="display:block;font-size:12px;font-weight:700;color:#3d4a44;margin-bottom:4px">Submitting as</span>' +
         '<div class="si-mode-switch" role="group" aria-label="Choose vendor or customer support context">' +
@@ -616,7 +650,7 @@
         '<button type="button" class="si-pill-btn" data-si-kind="suggestion" aria-pressed="false">💡 Share a suggestion</button>' +
         '</div>' +
         '</div>' +
-        '<div class="rx-row-2">' +
+        '<div class="rx-row-2" id="siCategoryVendorRow">' +
         '<label id="siCategoryWrap"><span id="siCategoryLabel">Topic *</span><select id="siCategory">' +
         '<option value="technical_problem">Technical / App Problem</option>' +
         '<option value="listing_hours_location">Listing, Hours, or Location</option>' +
@@ -916,7 +950,52 @@
     }
   }
 
+  function getActiveOwnerPageVendorId() {
+    var sel = document.getElementById('ownerTruckSelect');
+    if (sel && sel.value) return String(sel.value).trim();
+    if (typeof ownerTruckId === 'string' && ownerTruckId.trim()) return ownerTruckId.trim();
+    if (rxState.viewpoint && rxState.viewpoint.vendorId) return String(rxState.viewpoint.vendorId).trim();
+    return '';
+  }
+
+  function getVendorDisplayName(vendorId) {
+    var vid = String(vendorId || '').trim();
+    if (!vid) return '';
+    if (rxState.ctx && Array.isArray(rxState.ctx.memberships)) {
+      var mem = rxState.ctx.memberships.find(function (m) { return m.vendor_id === vid; });
+      if (mem && mem.vendor_name) return mem.vendor_name;
+    }
+    var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
+    var cat = list.find(function (t) { return t.id === vid; });
+    if (cat && cat.name) return cat.name;
+    var titleEl = document.getElementById('ownerTitle');
+    if (titleEl && typeof ownerTruckId === 'string' && ownerTruckId === vid) {
+      var t = String(titleEl.textContent || '').trim();
+      if (t && t !== 'Your Food Truck') return t;
+    }
+    return vid;
+  }
+
+  function syncOwnerSupportCardContext() {
+    var box = document.getElementById('ownerSupportVendorContext');
+    if (!box) return;
+    var vid = getActiveOwnerPageVendorId();
+    if (!vid) {
+      box.hidden = true;
+      return;
+    }
+    var vName = getVendorDisplayName(vid);
+    box.hidden = false;
+    box.innerHTML =
+      '<span>🚚 Tickets from this card are automatically scoped to <strong>' +
+      rxEsc(vName) +
+      '</strong> (<code>' +
+      rxEsc(vid) +
+      '</code>)</span>';
+  }
+
   async function syncOwnerTeamAndRestrictionUI() {
+    syncOwnerSupportCardContext();
     var ctx = rxState.ctx;
     var teamCard = document.getElementById('ownerTeamCard');
     var rNotice = document.getElementById('ownerRestrictionNotice');
@@ -926,7 +1005,7 @@
       return;
     }
 
-    var activeVid = typeof ownerTruckId === 'string' && ownerTruckId ? ownerTruckId : null;
+    var activeVid = getActiveOwnerPageVendorId() || null;
     var memberships = Array.isArray(ctx.memberships) ? ctx.memberships : [];
     var mem = memberships.find(function (m) { return m.vendor_id === activeVid; }) || memberships[0] || null;
 
@@ -1408,11 +1487,30 @@
     return false;
   }
 
+  function isAuthorizedMemberOfVendor(vendorId) {
+    var vid = String(vendorId || '').trim();
+    var ctx = rxState.ctx;
+    if (!vid || !ctx || !ctx.authenticated) return false;
+    if (Array.isArray(ctx.memberships) && ctx.memberships.some(function (m) { return m.vendor_id === vid; })) {
+      return true;
+    }
+    if (
+      rxState.viewpoint &&
+      rxState.viewpoint.mode === 'act_on_behalf' &&
+      rxState.viewpoint.vendorId === vid &&
+      ctx.admin_level === 'top'
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   function populateSupportVendorSelector() {
     var siSel = document.getElementById('siVendorId');
     var siLabel = document.getElementById('siVendorLabel');
     if (!siSel) return;
 
+    var inceptedVid = rxState.supportInceptedVendorId || '';
     var prevVal = siSel.value || '';
     if (rxState.supportReporterMode === 'vendor' && hasVendorMembership()) {
       var memberships = Array.isArray(rxState.ctx.memberships) ? rxState.ctx.memberships.slice() : [];
@@ -1422,7 +1520,11 @@
         rxState.viewpoint.vendorId &&
         !memberships.some(function (m) { return m.vendor_id === rxState.viewpoint.vendorId; })
       ) {
-        memberships.push({ vendor_id: rxState.viewpoint.vendorId, vendor_name: rxState.viewpoint.vendorId, role: 'owner' });
+        memberships.push({
+          vendor_id: rxState.viewpoint.vendorId,
+          vendor_name: getVendorDisplayName(rxState.viewpoint.vendorId),
+          role: 'owner'
+        });
       }
       if (siLabel) siLabel.textContent = 'Managed Vendor *';
       siSel.innerHTML = memberships
@@ -1430,8 +1532,10 @@
           return '<option value="' + rxEsc(m.vendor_id) + '">' + rxEsc(m.vendor_name || m.vendor_id) + ' (' + rxEsc(m.vendor_id) + ')</option>';
         })
         .join('');
-      var activeOwnerVid = typeof ownerTruckId === 'string' ? ownerTruckId : '';
-      if (prevVal && memberships.some(function (m) { return m.vendor_id === prevVal; })) {
+      var activeOwnerVid = getActiveOwnerPageVendorId();
+      if (inceptedVid && memberships.some(function (m) { return m.vendor_id === inceptedVid; })) {
+        siSel.value = inceptedVid;
+      } else if (prevVal && memberships.some(function (m) { return m.vendor_id === prevVal; })) {
         siSel.value = prevVal;
       } else if (activeOwnerVid && memberships.some(function (m) { return m.vendor_id === activeOwnerVid; })) {
         siSel.value = activeOwnerVid;
@@ -1443,6 +1547,7 @@
 
     if (siLabel) siLabel.textContent = 'Related Food Spot (optional)';
     var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
+    var hasInceptedInList = !inceptedVid || list.some(function (t) { return t.id === inceptedVid; });
     var opts = list
       .slice()
       .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
@@ -1450,8 +1555,12 @@
         return '<option value="' + rxEsc(t.id) + '">' + rxEsc(t.name) + ' (' + rxEsc(t.city || 'Sonoma') + ')</option>';
       })
       .join('');
+    if (inceptedVid && !hasInceptedInList) {
+      opts = '<option value="' + rxEsc(inceptedVid) + '">' + rxEsc(getVendorDisplayName(inceptedVid)) + '</option>' + opts;
+    }
     siSel.innerHTML = '<option value="">None / General</option>' + opts;
-    if (prevVal) siSel.value = prevVal;
+    if (inceptedVid) siSel.value = inceptedVid;
+    else if (prevVal) siSel.value = prevVal;
   }
 
   function syncSupportContextSummary() {
@@ -1460,6 +1569,7 @@
     var d = rxDiag();
     var parts = [];
     var pre = rxState.supportContextPrefill || {};
+    if (rxState.supportInceptedVendorId) parts.push('vendor ' + rxState.supportInceptedVendorId);
     if (pre.correlationId) parts.push('ref ' + pre.correlationId);
     if (pre.featureKey) parts.push('feature ' + pre.featureKey);
     if (d && d.CLIENT_BUNDLE_VERSION) parts.push('build ' + d.CLIENT_BUNDLE_VERSION);
@@ -1471,10 +1581,18 @@
   }
 
   function syncSupportFormUI() {
+    var inceptedVid = rxState.supportInceptedVendorId || '';
+    if (inceptedVid) {
+      rxState.supportReporterMode = isAuthorizedMemberOfVendor(inceptedVid) ? 'vendor' : 'customer';
+    }
     var isVendor = rxState.supportReporterMode === 'vendor' && hasVendorMembership();
+    var eyebrowEl = document.getElementById('siModalEyebrow');
+    var inceptedBanner = document.getElementById('siInceptedVendorBanner');
     var modeWrap = document.getElementById('siModeSwitchWrap');
     var kindWrap = document.getElementById('siCustomerKindWrap');
     var catSel = document.getElementById('siCategory');
+    var catVendRow = document.getElementById('siCategoryVendorRow');
+    var vendorWrap = document.getElementById('siVendorWrap');
     var subjLabel = document.getElementById('siSubjectLabel');
     var descLabel = document.getElementById('siDescriptionLabel');
     var urgWrap = document.getElementById('siUrgencyWrap');
@@ -1484,13 +1602,40 @@
     var critNote = document.getElementById('siCriticalNotice');
     var clearBtn = document.getElementById('siClearDraftBtn');
 
+    if (eyebrowEl) {
+      eyebrowEl.textContent = inceptedVid
+        ? 'VENDOR HELP & FEEDBACK · ' + getVendorDisplayName(inceptedVid).toUpperCase()
+        : 'PRIVATE SUPPORT & FEEDBACK';
+    }
+    if (inceptedBanner) {
+      if (inceptedVid) {
+        inceptedBanner.hidden = false;
+        inceptedBanner.innerHTML =
+          '<span>🚚 Ticket for vendor: <strong>' +
+          rxEsc(getVendorDisplayName(inceptedVid)) +
+          '</strong> (<code>' +
+          rxEsc(inceptedVid) +
+          '</code>)</span>';
+      } else {
+        inceptedBanner.hidden = true;
+        inceptedBanner.innerHTML = '';
+      }
+    }
+
     if (modeWrap) {
-      modeWrap.hidden = !hasVendorMembership();
+      modeWrap.hidden = Boolean(inceptedVid) || !hasVendorMembership();
       modeWrap.querySelectorAll('[data-si-mode]').forEach(function (btn) {
         var active = (btn.dataset.siMode === 'vendor') === isVendor;
         btn.classList.toggle('active', active);
         btn.setAttribute('aria-pressed', String(active));
       });
+    }
+
+    if (vendorWrap) {
+      vendorWrap.hidden = Boolean(inceptedVid);
+    }
+    if (catVendRow) {
+      catVendRow.style.gridTemplateColumns = inceptedVid ? '1fr' : '';
     }
 
     if (kindWrap) {
@@ -1583,8 +1728,9 @@
     saveSupportDraft({
       reporterMode: rxState.supportReporterMode,
       customerKind: rxState.supportCustomerKind,
+      inceptedVendorId: rxState.supportInceptedVendorId || null,
       category: (document.getElementById('siCategory') && document.getElementById('siCategory').value) || '',
-      vendorId: (document.getElementById('siVendorId') && document.getElementById('siVendorId').value) || '',
+      vendorId: rxState.supportInceptedVendorId || (document.getElementById('siVendorId') && document.getElementById('siVendorId').value) || '',
       subject: subj,
       description: desc,
       urgency: (document.getElementById('siReporterUrgency') && document.getElementById('siReporterUrgency').value) || 'normal',
@@ -1599,11 +1745,27 @@
 
   function restoreSavedDraftIntoForm() {
     var draft = readSupportDraft();
-    if (!draft) return false;
-    if (draft.reporterMode === 'vendor' && hasVendorMembership()) {
-      rxState.supportReporterMode = 'vendor';
-    } else if (draft.reporterMode === 'customer') {
-      rxState.supportReporterMode = 'customer';
+    var inceptedVid = rxState.supportInceptedVendorId || '';
+    if (!draft) {
+      syncSupportFormUI();
+      return false;
+    }
+    if (inceptedVid && draft.vendorId && draft.vendorId !== inceptedVid) {
+      // Do not overwrite the active vendor page's form with a draft created on a different vendor page
+      var newForm = document.getElementById('siNewPane');
+      if (newForm) newForm.reset();
+      syncSupportFormUI();
+      return false;
+    }
+    if (!inceptedVid) {
+      if (draft.reporterMode === 'vendor' && hasVendorMembership()) {
+        rxState.supportReporterMode = 'vendor';
+      } else if (draft.reporterMode === 'customer') {
+        rxState.supportReporterMode = 'customer';
+      }
+      if (draft.inceptedVendorId) {
+        rxState.supportInceptedVendorId = draft.inceptedVendorId;
+      }
     }
     if (draft.customerKind) rxState.supportCustomerKind = draft.customerKind;
     if (draft.contextPrefill && !rxState.supportContextPrefill) {
@@ -1613,7 +1775,7 @@
     if (draft.category && document.getElementById('siCategory')) {
       document.getElementById('siCategory').value = draft.category;
     }
-    if (draft.vendorId && document.getElementById('siVendorId')) {
+    if (!rxState.supportInceptedVendorId && draft.vendorId && document.getElementById('siVendorId')) {
       document.getElementById('siVendorId').value = draft.vendorId;
     }
     if (typeof draft.subject === 'string' && document.getElementById('siSubject')) {
@@ -1745,10 +1907,12 @@
     if (goBtn) {
       goBtn.onclick = function () {
         var noteVal = (document.getElementById('siGuestDraftInput') && document.getElementById('siGuestDraftInput').value) || '';
-        if (noteVal.trim() || pre.correlationId) {
+        if (noteVal.trim() || pre.correlationId || rxState.supportInceptedVendorId) {
           saveSupportDraft({
             reporterMode: 'customer',
             customerKind: 'problem',
+            inceptedVendorId: rxState.supportInceptedVendorId || null,
+            vendorId: rxState.supportInceptedVendorId || '',
             description: noteVal,
             contextPrefill: rxState.supportContextPrefill || null,
             savedAt: new Date().toISOString()
@@ -1797,17 +1961,26 @@
     var ackEl = document.getElementById('siAckBanner');
     if (ackEl && !options.keepAck) ackEl.hidden = true;
 
-    // Determine context: explicit option, or active #ownerScreen -> vendor mode
+    // Determine context: when incepted from a vendor page (#ownerScreen / VENDOR HELP & FEEDBACK),
+    // automatically assume the ticket is about that exact vendor page!
     var ownerScreen = document.getElementById('ownerScreen');
     var onOwnerScreen = Boolean(ownerScreen && ownerScreen.classList.contains('active'));
-    if (options.reporterContext === 'vendor' && hasVendorMembership()) {
-      rxState.supportReporterMode = 'vendor';
-    } else if (options.reporterContext === 'customer') {
-      rxState.supportReporterMode = 'customer';
-    } else if (onOwnerScreen && hasVendorMembership()) {
-      rxState.supportReporterMode = 'vendor';
-    } else if (!hasVendorMembership()) {
-      rxState.supportReporterMode = 'customer';
+    var activePageVendorId = String(options.vendorId || getActiveOwnerPageVendorId() || '').trim();
+    var isInceptedFromVendorPage =
+      Boolean(options.inceptedFromVendorPage) || (onOwnerScreen && options.reporterContext !== 'customer');
+
+    if (isInceptedFromVendorPage && activePageVendorId) {
+      rxState.supportInceptedVendorId = activePageVendorId;
+      rxState.supportReporterMode = isAuthorizedMemberOfVendor(activePageVendorId) ? 'vendor' : 'customer';
+    } else {
+      rxState.supportInceptedVendorId = null;
+      if (options.reporterContext === 'vendor' && hasVendorMembership()) {
+        rxState.supportReporterMode = 'vendor';
+      } else if (options.reporterContext === 'customer') {
+        rxState.supportReporterMode = 'customer';
+      } else if (!hasVendorMembership()) {
+        rxState.supportReporterMode = 'customer';
+      }
     }
 
     if (options.mode === 'contextual_error') {
@@ -1853,6 +2026,10 @@
   }
 
   window.bitesharkOpenSupport = openSupportIssuesModal;
+  window.bitesharkSyncOwnerVendorContext = function () {
+    syncOwnerSupportCardContext();
+    syncOwnerTeamAndRestrictionUI();
+  };
 
   function statusBadgeToneClass(status) {
     if (status === 'waiting') return ' warn';
@@ -2204,7 +2381,10 @@
 
     var isVendor = rxState.supportReporterMode === 'vendor' && hasVendorMembership();
     var cat = document.getElementById('siCategory').value;
-    var vend = document.getElementById('siVendorId').value || null;
+    var vend = rxState.supportInceptedVendorId || document.getElementById('siVendorId').value || null;
+    if (rxState.ctx && rxState.ctx.requires_age_assessment) {
+      vend = null;
+    }
     var subj = document.getElementById('siSubject').value.trim();
     var desc = document.getElementById('siDescription').value.trim();
     var urg = document.getElementById('siReporterUrgency') ? document.getElementById('siReporterUrgency').value : 'normal';
@@ -2311,6 +2491,7 @@
       clearSupportDraft();
       rxState.supportContextPrefill = null;
       document.getElementById('siNewPane').reset();
+      syncSupportFormUI();
       msgEl.hidden = true;
       renderSubmissionAcknowledgement(resData.issue, resData.acknowledgement_delivery);
       switchSiTab('list');

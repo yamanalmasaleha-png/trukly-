@@ -2194,6 +2194,12 @@ export async function handleGovernanceApiRequest({
           ? await tx.query('SELECT vendor_id, role FROM vendor_memberships WHERE user_id = $1 FOR SHARE', [ctx.user.id])
           : { rows: [] };
         const memberVendorSet = new Set(memRes.rows.map(r => r.vendor_id));
+        if (isEligible && requestedContext === 'vendor' && rawVendorId && !memberVendorSet.has(rawVendorId) && ctx.isTopAdmin) {
+          const aobCheck = await reverifyVendorMembershipInTx(tx, ctx, rawVendorId, 'staff');
+          if (aobCheck.ok && aobCheck.vendorId) {
+            memberVendorSet.add(aobCheck.vendorId);
+          }
+        }
 
         let effectiveReporterContext = 'customer';
         let effectiveVendorId = rawVendorId;
