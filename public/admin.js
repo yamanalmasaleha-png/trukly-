@@ -4764,12 +4764,35 @@
         await window.bitesharkAuth.signOut();
       }
       saveViewpointSession(null);
+      try {
+        sessionStorage.removeItem('bs_support_draft_v1');
+        sessionStorage.removeItem('biteshark_pending_invite_v1');
+      } catch (_e) {}
+      try {
+        if (typeof BroadcastChannel === 'function') {
+          var chOut = new BroadcastChannel(FEATURE_BROADCAST_CHANNEL);
+          chOut.postMessage({ type: 'auth_signed_out', at: Date.now() });
+          chOut.close();
+        }
+      } catch (_e) {}
       window.location.href = '/login.html?next=%2Fadmin';
     } catch (soErr) {
       if (btn) btn.disabled = false;
       showBanner('✕ Sign-out failed — your server session may still be active: ' + (soErr.message || 'Retry signing out.'), true);
     }
   };
+
+  try {
+    if (typeof BroadcastChannel === 'function') {
+      var adminAuthSync = new BroadcastChannel(FEATURE_BROADCAST_CHANNEL);
+      adminAuthSync.onmessage = function (ev) {
+        if (ev && ev.data && ev.data.type === 'auth_signed_out') {
+          saveViewpointSession(null);
+          window.location.href = '/login.html?next=%2Fadmin';
+        }
+      };
+    }
+  } catch (_e) {}
 
   document.getElementById('refreshOverviewBtn').onclick = loadOverview;
   document.getElementById('refreshAppsBtn').onclick = function () { loadApplications(state.apps.page); };

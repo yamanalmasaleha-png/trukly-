@@ -57,13 +57,16 @@ BEGIN
     PERFORM set_config('app.auth_internal', 'true', true);
 
     SELECT count(*)::int INTO v_remaining
-    FROM public.platform_roles pr
-    JOIN public.auth_users au ON au.id = pr.user_id
-    WHERE pr.user_id <> OLD.user_id
-      AND pr.role IN ('top', 'platform_admin')
-      AND au.disabled_at IS NULL
-      AND au.age_eligibility_status = 'eligible_14_plus'
-    FOR SHARE OF pr, au;
+    FROM (
+      SELECT pr.user_id
+      FROM public.platform_roles pr
+      JOIN public.auth_users au ON au.id = pr.user_id
+      WHERE pr.user_id <> OLD.user_id
+        AND pr.role IN ('top', 'platform_admin')
+        AND au.disabled_at IS NULL
+        AND au.age_eligibility_status = 'eligible_14_plus'
+      FOR SHARE OF pr, au
+    ) locked_tops;
 
     PERFORM set_config('app.auth_internal', v_prev_auth, true);
 
@@ -131,13 +134,16 @@ BEGIN
   PERFORM set_config('app.auth_internal', 'true', true);
 
   SELECT count(*)::int INTO v_remaining
-  FROM public.platform_roles pr
-  JOIN public.auth_users au ON au.id = pr.user_id
-  WHERE pr.user_id <> OLD.id
-    AND pr.role IN ('top', 'platform_admin')
-    AND au.disabled_at IS NULL
-    AND au.age_eligibility_status = 'eligible_14_plus'
-  FOR SHARE OF pr, au;
+  FROM (
+    SELECT pr.user_id
+    FROM public.platform_roles pr
+    JOIN public.auth_users au ON au.id = pr.user_id
+    WHERE pr.user_id <> OLD.id
+      AND pr.role IN ('top', 'platform_admin')
+      AND au.disabled_at IS NULL
+      AND au.age_eligibility_status = 'eligible_14_plus'
+    FOR SHARE OF pr, au
+  ) locked_tops;
 
   PERFORM set_config('app.auth_internal', v_prev_auth, true);
 

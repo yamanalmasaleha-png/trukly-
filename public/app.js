@@ -270,7 +270,9 @@ let map, markers = {}, userMarker = null, userCoords = null;
 let activeCuisine = 'All', openOnly = false, maxDistance = 30, selectedTruck = trucks[0].id;
 let manualAreaTown = '', manualAreaOverridden = false;
 let isSignedIn = false, currentUser = null;
+let appAuthEpoch = 0;
 
+const FAVS_SCOPE_STORAGE_KEY = 'truckly_favs_scope';
 const favs = new Set((() => {
   const stored = safeJSON('truckly_favs', []);
   return Array.isArray(stored) ? stored : [];
@@ -1298,10 +1300,12 @@ function updateAuthUI() {
 }
 
 async function syncAuthAndUserData() {
+  const epochAtStart = appAuthEpoch;
   let detectedSessionUser = null;
   try {
     if (window.biteshark && window.biteshark.auth && typeof window.biteshark.auth.getUser === 'function') {
       const u = await window.biteshark.auth.getUser().catch(() => null);
+      if (epochAtStart !== appAuthEpoch) return;
       if (u) {
         currentUser = u;
         detectedSessionUser = u;
@@ -1311,19 +1315,27 @@ async function syncAuthAndUserData() {
       detectedSessionUser = currentUser;
     }
   } catch {}
+  if (epochAtStart !== appAuthEpoch) return;
 
   const favRes = await appFetchJson(API + '/favorites/list', {
     featureKey: 'favorites',
     operationName: 'favorites.sync_list',
     routeTemplate: '/api/favorites/list'
   });
+  if (epochAtStart !== appAuthEpoch) return;
 
   if (favRes.ok) {
     isSignedIn = true;
     accountSyncState = 'synced';
     const data = favRes.data;
     const serverIds = Array.isArray(data.favorites) ? data.favorites.map(f => f.truck_id).filter(Boolean) : [];
-    if (!serverIds.length && favs.size > 0) {
+    let priorScope = '';
+    try {
+      priorScope = String(localStorage.getItem(FAVS_SCOPE_STORAGE_KEY) || '');
+    } catch {}
+    // Only auto-migrate device favorites saved before account hydration (`priorScope !== 'account'`),
+    // NEVER account-hydrated favorites left over from another signed-in user!
+    if (!serverIds.length && favs.size > 0 && priorScope !== 'account') {
       const guestIds = [...favs];
       const migrateOutcomes = await Promise.all(
         guestIds.map(truck_id =>
@@ -1338,15 +1350,21 @@ async function syncAuthAndUserData() {
           })
         )
       );
+      if (epochAtStart !== appAuthEpoch) return;
       if (migrateOutcomes.some(o => !o.ok)) {
         accountSyncState = 'degraded';
+      } else {
+        safeStorageSet('truckly_favs', JSON.stringify([...favs]), 'favorites');
+        safeStorageSet(FAVS_SCOPE_STORAGE_KEY, 'account', 'favorites');
       }
     } else {
       favs.clear();
       serverIds.forEach(id => favs.add(id));
       safeStorageSet('truckly_favs', JSON.stringify([...favs]), 'favorites');
+      safeStorageSet(FAVS_SCOPE_STORAGE_KEY, 'account', 'favorites');
     }
-    await Promise.all([loadUserBookings(), loadNotificationSettings()]);
+    await Promise.all([loadUserBookings(epochAtStart), loadNotificationSettings(epochAtStart)]);
+    if (epochAtStart !== appAuthEpoch) return;
     updateAuthUI();
     applyFilters();
     renderFavorites();
@@ -1382,13 +1400,117 @@ async function syncAuthAndUserData() {
   accountSyncState = 'local_only';
   notifySyncState = 'local_only';
   bookings = [];
-  try { localStorage.removeItem('truckly_bookings'); } catch {}
+  try {
+    if (localStorage.getItem(FAVS_SCOPE_STORAGE_KEY) === 'account') {
+      favs.clear();
+      localStorage.removeItem('truckly_favs');
+      localStorage.removeItem(FAVS_SCOPE_STORAGE_KEY);
+    }
+    localStorage.removeItem('truckly_bookings');
+  } catch {}
   updateAuthUI();
+  applyFilters();
+  renderFavorites();
   renderNotificationUI();
   renderBookings();
 }
 
-async function signOutUser() {
+function renderSignOutFailureNotice(message) {
+  let errBox = document.getElementById('authSignOutErrorBox');
+  if (!errBox) {
+    const dropdown = document.querySelector('#profileMenu .profile-dropdown');
+    if (dropdown) {
+      errBox = document.createElement('div');
+      errBox.id = 'authSignOutErrorBox';
+      errBox.setAttribute('role', 'alert');
+      errBox.style.cssText =
+        'margin:8px 0;padding:8px 10px;border-radius:8px;background:#fff1f0;border:1px solid #e09b95;color:#6e1d17;font-size:12.5px;';
+      dropdown.appendChild(errBox);
+    }
+  }
+  if (!errBox) return;
+  if (!message) {
+    errBox.hidden = true;
+    errBox.innerHTML = '';
+    return;
+  }
+  errBox.hidden = false;
+  errBox.innerHTML =
+    `<div><strong>Sign-out incomplete:</strong> ${esc(message)}</div>` +
+    `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">` +
+    `<button type="button" id="retrySignOutBtn" style="padding:4px 10px;border-radius:6px;border:1px solid #9c2b23;background:#fff;color:#6e1d17;font-weight:600;cursor:pointer">Retry Sign Out</button>` +
+    `<span>On a shared device, retry or clear site cookies before leaving.</span>` +
+    `</div>`;
+  const retryBtn = document.getElementById('retrySignOutBtn');
+  if (retryBtn) retryBtn.onclick = () => signOutUser();
+}
+
+function applyConfirmedClientSignOutCleanup(opts = {}) {
+  appAuthEpoch += 1;
+  renderSignOutFailureNotice(null);
+
+  isSignedIn = false;
+  currentUser = null;
+  accountSyncState = 'local_only';
+  notifySyncState = 'local_only';
+  bookings = [];
+  bookingsLoadState = 'idle';
+  bookingsLoadCorr = null;
+
+  favs.clear();
+  notifyPrefs = { nearby_enabled: true, radius_miles: 3 };
+
+  isOwnerAdmin = false;
+  ownerAccess = { isPlatformAdmin: false, isModerator: false, vendors: [] };
+  ownerTruckId = 'mitote';
+  ownerProfile = {
+    truck_id: 'mitote',
+    display_name: 'Mitote Food Park',
+    cuisine: 'Mexican',
+    description: 'Keep Sonoma County regulars in the loop.',
+    accepting_bookings: true
+  };
+  ownerSchedule = [];
+  ownerLastKnownLocationHours = { opens_at: null, closes_at: null };
+
+  try {
+    localStorage.removeItem('truckly_bookings');
+    localStorage.removeItem('truckly_favs');
+    localStorage.removeItem(FAVS_SCOPE_STORAGE_KEY);
+    localStorage.removeItem('truckly_notify');
+    localStorage.removeItem('truckly_owner_truck_id');
+    localStorage.removeItem('truckly_owner_profile');
+    localStorage.removeItem('truckly_owner_schedule');
+  } catch {}
+
+  const ownerScreenEl = document.getElementById('ownerScreen');
+  if (ownerScreenEl && ownerScreenEl.classList.contains('active')) {
+    ensureDiscoverScreenActive();
+  }
+
+  populateOwnerTruckSelect();
+  renderOwnerHeader();
+  renderOwnerScheduleList();
+  renderOwnerStats({ total_requests: 0, pending: 0, accepted: 0 });
+  updateAuthUI();
+  applyFilters();
+  renderFavorites();
+  renderNotificationUI();
+  renderBookings();
+
+  if (typeof window !== 'undefined' && typeof window.bitesharkOnSignedOut === 'function') {
+    window.bitesharkOnSignedOut({
+      preservePendingInvite: Boolean(opts.preservePendingInvite),
+      broadcast: opts.broadcast !== false
+    });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.bitesharkApplyAppSignOutCleanup = applyConfirmedClientSignOutCleanup;
+}
+
+async function signOutUser(opts = {}) {
   let serverLoggedOut = false;
   try {
     if (window.biteshark && window.biteshark.auth && typeof window.biteshark.auth.signOut === 'function') {
@@ -1408,29 +1530,36 @@ async function signOutUser() {
       serverLoggedOut = r.ok || r.status === 401;
     }
     if (!serverLoggedOut) {
+      const msg = 'Your server session may still be active. Please retry signing out.';
+      renderSignOutFailureNotice(msg);
       toast('Sign-out failed — your server session may still be active. Please try signing out again.');
-      return;
+      return false;
     }
-  } catch {
-    toast('Could not reach BiteShark to sign out — your session may still be active.');
-    return;
+  } catch (err) {
+    if (err && err.status === 401) {
+      serverLoggedOut = true;
+    } else {
+      const msg = 'Could not reach BiteShark to revoke your server session. Retry signing out.';
+      renderSignOutFailureNotice(msg);
+      toast('Could not reach BiteShark to sign out — your session may still be active.');
+      return false;
+    }
   }
-  isSignedIn = false;
-  currentUser = null;
-  accountSyncState = 'local_only';
-  notifySyncState = 'local_only';
-  bookings = [];
-  try { localStorage.removeItem('truckly_bookings'); } catch {}
-  updateAuthUI();
-  renderNotificationUI();
-  renderBookings();
-  toast('Signed out — device-saved favorites remain on this browser');
+
+  applyConfirmedClientSignOutCleanup(opts);
+  toast('Signed out of your BiteShark account');
+  return true;
 }
 
 async function toggleFav(id) {
   const adding = !favs.has(id);
   adding ? favs.add(id) : favs.delete(id);
   const storedLocally = safeStorageSet('truckly_favs', JSON.stringify([...favs]), 'favorites');
+  if (!isSignedIn) {
+    safeStorageSet(FAVS_SCOPE_STORAGE_KEY, 'guest', 'favorites');
+  } else {
+    safeStorageSet(FAVS_SCOPE_STORAGE_KEY, 'account', 'favorites');
+  }
   applyFilters();
   renderFavorites();
 
@@ -1582,12 +1711,13 @@ function renderNotificationUI() {
     : `Preference paused · ${syncText}`;
 }
 
-async function loadNotificationSettings() {
+async function loadNotificationSettings(expectedEpoch = appAuthEpoch) {
   const res = await appFetchJson(API + '/notifications/settings', {
     featureKey: 'notification_preferences',
     operationName: 'notifications.load_settings',
     routeTemplate: '/api/notifications/settings'
   });
+  if (expectedEpoch !== appAuthEpoch) return;
   if (res.ok) {
     const data = res.data;
     notifyPrefs = {
@@ -2343,7 +2473,7 @@ async function submitBooking(e) {
   }
 }
 
-async function loadUserBookings() {
+async function loadUserBookings(expectedEpoch = appAuthEpoch) {
   bookingsLoadState = 'loading';
   renderBookings();
 
@@ -2352,6 +2482,7 @@ async function loadUserBookings() {
     operationName: 'bookings.load_user_list',
     routeTemplate: '/api/bookings/list'
   });
+  if (expectedEpoch !== appAuthEpoch) return;
 
   if (res.status === 401) {
     isSignedIn = false;
@@ -2626,6 +2757,7 @@ let ownerDashboardUnavailable = false;
 let ownerLastKnownLocationHours = { opens_at: null, closes_at: null };
 
 async function loadOwnerDashboard() {
+  const epochAtStart = appAuthEpoch;
   populateOwnerTruckSelect();
   const schedDate = document.getElementById('ownerScheduleDate');
   if (schedDate && !schedDate.value) schedDate.value = todayPacificISO();
@@ -2638,6 +2770,7 @@ async function loadOwnerDashboard() {
     operationName: 'owner.load_stats',
     routeTemplate: '/api/owner/stats'
   });
+  if (epochAtStart !== appAuthEpoch) return;
 
   if (statsOut.ok) {
     isOwnerAdmin = true;
@@ -2681,6 +2814,7 @@ async function loadOwnerDashboard() {
         routeTemplate: '/api/owner/schedule'
       })
     ]);
+    if (epochAtStart !== appAuthEpoch) return;
 
     if (scopedStatsRes && scopedStatsRes.ok) {
       renderOwnerStats(scopedStatsRes.data);

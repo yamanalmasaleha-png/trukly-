@@ -125,6 +125,8 @@
     try { sessionStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY); } catch (_e) {}
   }
 
+  var rxAuthEpoch = 0;
+
   var rxState = {
     ctx: null,
     viewpoint: null, // { mode: 'customer_preview' | 'vendor_preview' | 'act_on_behalf', vendorId?, reason?, readOnly }
@@ -1021,10 +1023,77 @@
     }
   }
 
+  function resetRoleExperienceSignedOutState(opts) {
+    var options = opts || {};
+    rxAuthEpoch += 1;
+
+    rxState.ctx = { authenticated: false, user: null, memberships: [], role_labels: [], capabilities: {} };
+    rxState.viewpoint = null;
+    rxState.myApps = [];
+    rxState.myIssues = [];
+    rxState.selectedIssueId = null;
+    rxState.unreadSupportCount = 0;
+    rxState.supportInceptedVendorId = null;
+    rxState.supportContextPrefill = null;
+
+    clearSupportDraft();
+    try {
+      sessionStorage.removeItem(VIEWPOINT_STORAGE_KEY);
+    } catch (_e) {}
+    if (!options.preservePendingInvite) {
+      clearPendingInviteToken();
+    }
+
+    syncSupportUnreadBadges(0);
+    var roleBox = document.getElementById('rxProfileRoleBox');
+    var adminLink = document.getElementById('navAdminPortalLink');
+    var vendorHubBtn = document.getElementById('rxVendorHubBtn');
+    var vpBanner = document.getElementById('rxViewpointBanner');
+    if (roleBox) {
+      roleBox.hidden = true;
+      roleBox.innerHTML = '';
+    }
+    if (adminLink) adminLink.hidden = true;
+    if (vendorHubBtn) vendorHubBtn.hidden = true;
+    if (vpBanner) vpBanner.hidden = true;
+
+    ['rxAgeAssessmentModal', 'vendorApplyModal', 'supportModal', 'myAppsModal'].forEach(function (mid) {
+      var m = document.getElementById(mid);
+      if (m) m.hidden = true;
+    });
+    if (!options.preservePendingInvite) {
+      var invMod = document.getElementById('inviteAcceptModal');
+      if (invMod) invMod.hidden = true;
+    }
+
+    ['siDesc', 'siSubject', 'siCorrId'].forEach(function (fid) {
+      var inp = document.getElementById(fid);
+      if (inp) inp.value = '';
+    });
+
+    syncOwnerTeamAndRestrictionUI();
+    syncStartPreferenceMenuUI();
+    refreshFeatureControls({ reason: 'signed_out' }).catch(function () {});
+
+    if (options.broadcast !== false) {
+      try {
+        if (typeof BroadcastChannel === 'function') {
+          var bcOut = new BroadcastChannel(FEATURE_BROADCAST_CHANNEL);
+          bcOut.postMessage({ type: 'auth_signed_out', at: Date.now() });
+          bcOut.close();
+        }
+      } catch (_e) {}
+    }
+  }
+
+  window.bitesharkOnSignedOut = resetRoleExperienceSignedOutState;
+
   async function refreshAccountRoleContext() {
+    var epochAtStart = rxAuthEpoch;
     injectRoleNavigationAndModals();
     try {
       var ctx = await rxJson('/api/account/context');
+      if (epochAtStart !== rxAuthEpoch) return;
       rxState.ctx = ctx;
       rxState.sessionCheckSucceeded = true;
 
@@ -2858,11 +2927,22 @@
           swBtn.focus();
           swBtn.onclick = async function () {
             swBtn.disabled = true;
+            var signedOutOk = false;
             try {
-              if (window.bitesharkAuth && window.bitesharkAuth.signOut) {
+              if (typeof signOutUser === 'function') {
+                signedOutOk = await signOutUser({ preservePendingInvite: true });
+              } else if (window.bitesharkAuth && window.bitesharkAuth.signOut) {
                 await window.bitesharkAuth.signOut();
+                resetRoleExperienceSignedOutState({ preservePendingInvite: true, broadcast: true });
+                signedOutOk = true;
               }
-            } catch (_e) {}
+            } catch (_e) {
+              signedOutOk = false;
+            }
+            if (!signedOutOk) {
+              swBtn.disabled = false;
+              return;
+            }
             savePendingInviteToken(token);
             window.location.href = '/login.html?invite=1#accept-invite=' + encodeURIComponent(token);
           };
@@ -3331,6 +3411,12 @@
         bc.onmessage = function (ev) {
           if (ev && ev.data && ev.data.type === 'feature_controls_updated') {
             refreshFeatureControls({ reason: 'broadcast' });
+          } else if (ev && ev.data && ev.data.type === 'auth_signed_out') {
+            if (typeof window.bitesharkApplyAppSignOutCleanup === 'function') {
+              window.bitesharkApplyAppSignOutCleanup({ broadcast: false });
+            } else {
+              resetRoleExperienceSignedOutState({ broadcast: false });
+            }
           }
         };
       }

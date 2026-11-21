@@ -291,18 +291,22 @@ async function communityOpenModeration(){
       '<small>'+communityEscape(p.kind)+' · '+communityEscape(p.place_name)+' · '+communityEscape(p.town)+'</small>'+
       '<h3>'+communityEscape(p.title)+'</h3><p>'+communityEscape(p.body)+'</p><small>By '+communityEscape(p.nickname)+
       (p.rating?' · '+Number(p.rating)+'/5 stars':'')+'</small>'+
-      '<div><button type="button" data-decision="approved">Approve</button> <button type="button" data-decision="rejected">Reject</button></div></article>').join(''):
+      '<div><input type="text" data-mod-reason placeholder="Moderation reason (required to reject)" maxlength="600" style="width:100%;margin:6px 0;padding:6px 8px;border-radius:6px;border:1px solid #cdd5cf" />'+
+      '<button type="button" data-decision="approved">Approve</button> <button type="button" data-decision="rejected">Reject</button></div></article>').join(''):
       '<p>Nothing is awaiting review.</p>';
     panel.querySelectorAll('[data-moderate-id]').forEach(row=>{
-      row.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>communityModerate(row.dataset.moderateId,b.dataset.decision)));
+      row.querySelectorAll('[data-decision]').forEach(b=>b.addEventListener('click',()=>{
+        const rEl=row.querySelector('[data-mod-reason]');
+        communityModerate(row.dataset.moderateId,b.dataset.decision,rEl?rEl.value.trim():'');
+      }));
     });
   }catch(error){panel.innerHTML='<p>'+communityEscape(error.message)+'</p>';}
 }
-async function communityModerate(id,status){
+async function communityModerate(id,status,reason){
   const panel=document.getElementById('communityModeration');
   const buttons=panel.querySelectorAll('button');buttons.forEach(b=>b.disabled=true);
   try{
-    const response=await fetch('/api/community/moderate',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status})});
+    const response=await fetch('/api/community/moderate',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,status,...(reason?{reason}:{})})});
     const data=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(data.error||'Could not update the post.');
     await communityOpenModeration();

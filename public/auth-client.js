@@ -17,6 +17,20 @@
 
   var AUTH_CLIENT_HEADER = 'web-auth-v1';
 
+  function clearAccountScopedBrowserStateOnLogout() {
+    try {
+      sessionStorage.removeItem('bs_support_draft_v1');
+      sessionStorage.removeItem('biteshark_admin_viewpoint_v1');
+      localStorage.removeItem('truckly_bookings');
+      localStorage.removeItem('truckly_favs');
+      localStorage.removeItem('truckly_favs_scope');
+      localStorage.removeItem('truckly_notify');
+      localStorage.removeItem('truckly_owner_truck_id');
+      localStorage.removeItem('truckly_owner_profile');
+      localStorage.removeItem('truckly_owner_schedule');
+    } catch (_e) {}
+  }
+
   async function postAuthJson(path, payload) {
     var overrideMs = Number(window.__BITESHARK_FETCH_TIMEOUT_MS);
     var timeoutMs = Number.isFinite(overrideMs) && overrideMs >= 50 ? overrideMs : 12000;
@@ -143,11 +157,15 @@
     },
 
     async signOut() {
-      return postAuthJson('logout', {});
+      var res = await postAuthJson('logout', {});
+      clearAccountScopedBrowserStateOnLogout();
+      return res;
     },
 
     async logout() {
-      return postAuthJson('logout', {});
+      var res = await postAuthJson('logout', {});
+      clearAccountScopedBrowserStateOnLogout();
+      return res;
     },
 
     supportsPasskeys() {
