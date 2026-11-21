@@ -196,3 +196,20 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
   - Timing labels explicitly distinguish *"First observed after deployment"* from confirmed root cause, and recording a suspected fixing SHA tracks whether occurrences continued (`continued_after_suspected_fix`) without claiming absence of events proves a fix.
   - Retention cleanup (`cleanupExpiredDiagnostics`, invoked by the worker and `POST /api/admin/diagnostics/cleanup`) purges aged samples (`14d` default) and groups (`30d` resolved / `60d` open, max `500` groups) while **never** deleting `diagnostic_incident_notes` (`REVOKE UPDATE, DELETE`) or `audit_logs`.
 
+## 11. Vendor & Customer Support & Feedback + Connected Diagnostics (`/admin#issues`, Migration `025`)
+
+- **Connected Three-Concept Model**:
+  1. **Support ticket (`support_issues` + `support_issue_notes` + `support_issue_events`)**: Human-friendly `BS-001001` identifier, reporter authorship (`reporter_user_id`), immutable `reporter_urgency` (`critical`, `high`, `normal`, `low`, `feedback`), editable staff `severity` priority (`urgent`, `high`, `normal`, `low`), `sharing_scope` (`personal` vs `vendor_service`), and append-only conversation/timeline.
+  2. **Diagnostic incident (`diagnostic_incident_groups`)**: Grouped sanitized operational errors. Linked many-to-many via `support_issue_diagnostic_links` (`suggested` vs `confirmed` links, optional plain-language `public_summary`, `fixing_release_sha`, and `verification_status`).
+  3. **Internal staff notes (`visibility = 'internal'`)**: Private staff coordination in `support_issue_notes` and `support_issue_events`, enforced at both SQL `FORCE ROW LEVEL SECURITY` and API serialization layers so reporters never see internal notes, staff personal emails, raw telemetry, or co-linked reporters.
+- **Ownership, Assignment & Escalation Boundaries**:
+  - `Customer` tickets are always `personal` (`404` to other customers and to referenced vendors).
+  - `Vendor` tickets default to `personal`; authorized vendor owners/staff may choose `vendor_service` on operational categories so active co-members of that exact vendor can view/reply, while `account_access` tickets are strictly forced `personal` by DB `CHECK` constraint and API validation.
+  - `Admin: Mod` and `Admin: Top` can claim unassigned tickets, assign active staff (`staff_roster`), post internal notes or public replies (`BiteShark Support` / `BiteShark Administration`), and resolve/close tickets with a required summary. Reassigning another active owner requires a recorded reason; `Mod` cannot unassign or hijack a `Top`-owned or `escalated_to_top` ticket (`403 TOP_OWNED_TICKET`); deactivated or demoted assignees are blocked on new assignment (`409 ASSIGNEE_NOT_ELIGIBLE`) and surfaced in `Needs Reassignment`.
+  - Reporters may reopen `resolved` tickets (`POST /api/issues/reopen` with reason); reopening `closed` tickets requires `Admin: Top`.
+- **Safe Diagnostic Linking & Notifications**:
+  - Automatic correlation/feature matching records `suggested` links only; staff explicitly confirm (`POST /api/admin/issues/diagnostics` `action = 'confirm'`) or manually link/unlink with audit reasons. `Admin: Mod` receives `403` when attempting to link or inspect `mod_visible = false` Top-only incidents.
+  - Resolving a diagnostic incident **never** auto-closes linked support tickets. Staff can preview and post a reviewed, deduplicated public update to confirmed open tickets via `POST /api/admin/diagnostics/notify-tickets` (`mode = 'preview'` -> `mode = 'send'` with `confirmed: true`).
+  - Every update is persisted in the in-app support timeline (`unread_support_count` badge + `POST /api/issues/read`). External email notifications (`dispatchSupportNotificationEmail`, `support_issue_notifications`) reuse the approved Resend integration, honor staging recipient eligibility (`staging_restricted_in_app_only` when unallowlisted), enforce a 5-minute per-ticket anti-loop cooldown, and **never** embed ticket descriptions or reply bodies in email text (linking instead to `/#support=BS-...`). Optional image attachments on support tickets remain deferred follow-up work.
+
+

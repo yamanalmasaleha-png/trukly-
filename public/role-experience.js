@@ -9,6 +9,7 @@
   var VIEWPOINT_STORAGE_KEY = 'biteshark_admin_viewpoint_v1';
   var FEATURE_BROADCAST_CHANNEL = 'biteshark_feature_controls_v1';
   var PENDING_INVITE_STORAGE_KEY = 'biteshark_pending_invite_v1';
+  var SUPPORT_DRAFT_STORAGE_KEY = 'bs_support_draft_v1';
 
   function savePendingInviteToken(token) {
     if (!token) return;
@@ -23,12 +24,41 @@
     try { sessionStorage.removeItem(PENDING_INVITE_STORAGE_KEY); } catch (_e) {}
   }
 
+  function saveSupportDraft(draftObj) {
+    try {
+      if (!draftObj) {
+        sessionStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY);
+        return;
+      }
+      sessionStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draftObj));
+    } catch (_e) {}
+  }
+
+  function readSupportDraft() {
+    try {
+      var raw = sessionStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_e) {
+      return null;
+    }
+  }
+
+  function clearSupportDraft() {
+    try { sessionStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY); } catch (_e) {}
+  }
+
   var rxState = {
     ctx: null,
     viewpoint: null, // { mode: 'customer_preview' | 'vendor_preview' | 'act_on_behalf', vendorId?, reason?, readOnly }
     myApps: [],
     myIssues: [],
     selectedIssueId: null,
+    unreadSupportCount: 0,
+    supportReporterMode: 'customer', // 'vendor' | 'customer'
+    supportCustomerKind: 'problem', // 'problem' | 'question' | 'suggestion'
+    supportContextPrefill: null,
     features: {},
     mapConfig: null,
     featuresLoaded: false,
@@ -401,7 +431,7 @@
       var supportBtn = document.createElement('button');
       supportBtn.type = 'button';
       supportBtn.id = 'rxSupportIssuesBtn';
-      supportBtn.textContent = '🛟 Support & issues';
+      supportBtn.innerHTML = '<span>🛟 Help &amp; feedback</span><span id="rxSupportUnreadBadge" class="rx-unread-badge" hidden>0</span>';
       supportBtn.onclick = function () {
         document.getElementById('profileMenu').open = false;
         openSupportIssuesModal();
@@ -420,8 +450,43 @@
       dropdown.insertBefore(policiesLink, signOutBtn);
     }
 
-    // Inject Owner Team Card & Restriction Notice container on #ownerScreen
+    // Inject Customer Help & Feedback bar at bottom of Discover sheet, Bookings & Favorites
+    [
+      { hostId: 'truckSheet', barId: 'rxDiscoverHelpBar' },
+      { hostId: 'favoritesScreen', barId: 'rxFavoritesHelpBar' },
+      { hostId: 'bookingsScreen', barId: 'rxBookingsHelpBar' }
+    ].forEach(function (cfg) {
+      var host = document.getElementById(cfg.hostId);
+      if (host && !document.getElementById(cfg.barId)) {
+        var bar = document.createElement('aside');
+        bar.id = cfg.barId;
+        bar.className = 'rx-discover-help-bar';
+        bar.setAttribute('aria-label', 'Help and feedback');
+        bar.innerHTML =
+          '<span><strong>🛟 Need help or have an idea?</strong> Report a problem, ask a question, or share feedback privately with BiteShark.</span>' +
+          '<button type="button" data-rx-open-help="customer">Help &amp; feedback</button>';
+        host.appendChild(bar);
+        bar.querySelector('[data-rx-open-help]').onclick = function () {
+          openSupportIssuesModal({ reporterContext: 'customer' });
+        };
+      }
+    });
+
+    // Inject Owner Hero Support button, Support Card, Team Card & Restriction Notice on #ownerScreen
     var ownerScreen = document.getElementById('ownerScreen');
+    var ownerHeroControls = ownerScreen ? ownerScreen.querySelector('.owner-hero-controls') : null;
+    if (ownerHeroControls && !document.getElementById('ownerSupportBtn')) {
+      var ownerSupBtn = document.createElement('button');
+      ownerSupBtn.type = 'button';
+      ownerSupBtn.id = 'ownerSupportBtn';
+      ownerSupBtn.className = 'owner-support-btn';
+      ownerSupBtn.innerHTML = '<span>🛟 Help &amp; feedback</span><span id="ownerSupportUnreadBadge" class="rx-unread-badge" hidden>0</span>';
+      ownerSupBtn.onclick = function () {
+        openSupportIssuesModal({ reporterContext: 'vendor' });
+      };
+      ownerHeroControls.appendChild(ownerSupBtn);
+    }
+
     var ownerGrid = ownerScreen ? ownerScreen.querySelector('.owner-grid') : null;
     if (ownerScreen && !document.getElementById('ownerRestrictionNotice')) {
       var rNotice = document.createElement('div');
@@ -430,6 +495,30 @@
       rNotice.hidden = true;
       var statsBar = ownerScreen.querySelector('.owner-stats');
       if (statsBar) ownerScreen.insertBefore(rNotice, statsBar);
+    }
+    if (ownerGrid && !document.getElementById('ownerSupportCard')) {
+      var supCard = document.createElement('article');
+      supCard.id = 'ownerSupportCard';
+      supCard.className = 'owner-card requests-card';
+      supCard.innerHTML =
+        '<div class="card-label">VENDOR HELP &amp; FEEDBACK</div>' +
+        '<h2>Need help during service?</h2>' +
+        '<p>Report a technical, listing, inquiry, or pickup-pager problem, ask a question, or suggest an improvement. Private tickets stay off public pages.</p>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="primary" id="ownerReportProblemBtn">Report service problem →</button>' +
+        '<button type="button" class="secondary" id="ownerShareFeedbackBtn">Question or suggestion</button>' +
+        '<button type="button" class="secondary" id="ownerMyTicketsBtn">My support requests</button>' +
+        '</div>';
+      ownerGrid.insertBefore(supCard, ownerGrid.firstChild);
+      document.getElementById('ownerReportProblemBtn').onclick = function () {
+        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'new', category: 'technical_problem' });
+      };
+      document.getElementById('ownerShareFeedbackBtn').onclick = function () {
+        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'new', category: 'suggestion_feedback' });
+      };
+      document.getElementById('ownerMyTicketsBtn').onclick = function () {
+        openSupportIssuesModal({ reporterContext: 'vendor', tab: 'list' });
+      };
     }
     if (ownerGrid && !document.getElementById('ownerTeamCard')) {
       var teamCard = document.createElement('article');
@@ -499,25 +588,101 @@
         '</form>' +
         '</div></div>' +
 
-        // 2. Support & Issues Modal
+        // 2. Support & Feedback Modal
         '<div class="rx-modal-backdrop" id="supportIssuesModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="siModalTitle">' +
-        '<div class="rx-modal-head"><div><small>PRIVATE SUPPORT &amp; TRUST</small><h2 id="siModalTitle">Support &amp; Issue Tracker</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal" aria-label="Close support issues dialog">×</button></div>' +
-        '<div class="rx-tabs" role="tablist" aria-label="Support issue views">' +
-        '<button type="button" role="tab" aria-selected="true" class="rx-tab active" data-si-tab="list">My Issues</button>' +
-        '<button type="button" role="tab" aria-selected="false" class="rx-tab" data-si-tab="new">Report an Issue</button>' +
+        '<div class="rx-modal-head"><div><small>PRIVATE SUPPORT &amp; FEEDBACK</small><h2 id="siModalTitle">Help &amp; Feedback</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal" aria-label="Close help and feedback dialog">×</button></div>' +
+        '<div class="rx-tabs" id="siTabsBar" role="tablist" aria-label="Support and feedback views">' +
+        '<button type="button" role="tab" aria-selected="true" class="rx-tab active" data-si-tab="list">My support requests <span id="siTabUnreadBadge" class="rx-unread-badge" hidden>0</span></button>' +
+        '<button type="button" role="tab" aria-selected="false" class="rx-tab" data-si-tab="new">New request / feedback</button>' +
         '</div>' +
+        '<div id="siAckBanner" role="status" hidden></div>' +
         '<div id="siSubmitNotice" class="rx-msg" role="status" hidden style="margin-bottom:8px"></div>' +
+        '<div id="siGuestPane" hidden></div>' +
         '<div id="siListPane"></div>' +
-        '<form id="siNewPane" class="rx-form" hidden>' +
-        '<div class="rx-row-2">' +
-        '<label>Category<select id="siCategory"><option value="booking_issue">Booking Issue</option><option value="pager_issue">Pickup Pager Issue</option><option value="listing_accuracy">Listing Accuracy</option><option value="vendor_dispute">Vendor Dispute</option><option value="safety_concern">Safety Concern</option><option value="abuse_report">Abuse Report</option><option value="account_access">Account / Access</option><option value="other">Other</option></select></label>' +
-        '<label>Related Food Spot (optional)<select id="siVendorId"><option value="">None / General</option></select></label>' +
+        '<form id="siNewPane" class="rx-form" hidden novalidate>' +
+        '<div id="siModeSwitchWrap" hidden>' +
+        '<span style="display:block;font-size:12px;font-weight:700;color:#3d4a44;margin-bottom:4px">Submitting as</span>' +
+        '<div class="si-mode-switch" role="group" aria-label="Choose vendor or customer support context">' +
+        '<button type="button" class="si-pill-btn" data-si-mode="vendor" aria-pressed="false">🚚 Vendor support</button>' +
+        '<button type="button" class="si-pill-btn active" data-si-mode="customer" aria-pressed="true">🙋 Customer / general</button>' +
         '</div>' +
-        '<label>Subject (5–140 chars) *<input type="text" id="siSubject" required minlength="5" maxlength="140" placeholder="Brief summary of the issue"></label>' +
-        '<label>Details (15–1500 chars) *<textarea id="siDescription" required minlength="15" maxlength="1500" rows="4" placeholder="Include relevant dates, order/inquiry context, and how we can help. Private issues are never posted publicly."></textarea></label>' +
+        '</div>' +
+        '<div id="siCustomerKindWrap">' +
+        '<span style="display:block;font-size:12px;font-weight:700;color:#3d4a44;margin-bottom:4px">What would you like to send? *</span>' +
+        '<div class="si-kind-pills" role="group" aria-label="Choose problem, question, or suggestion">' +
+        '<button type="button" class="si-pill-btn active" data-si-kind="problem" aria-pressed="true">⚠️ Report a problem</button>' +
+        '<button type="button" class="si-pill-btn" data-si-kind="question" aria-pressed="false">❓ Ask a question</button>' +
+        '<button type="button" class="si-pill-btn" data-si-kind="suggestion" aria-pressed="false">💡 Share a suggestion</button>' +
+        '</div>' +
+        '</div>' +
+        '<div class="rx-row-2">' +
+        '<label id="siCategoryWrap"><span id="siCategoryLabel">Topic *</span><select id="siCategory">' +
+        '<option value="technical_problem">Technical / App Problem</option>' +
+        '<option value="listing_hours_location">Listing, Hours, or Location</option>' +
+        '<option value="event_inquiries">Event Inquiries / Bookings</option>' +
+        '<option value="pager_notifications">Pickup Pager / Notifications</option>' +
+        '<option value="account_access">Account, Login, or Invitation</option>' +
+        '<option value="question_help">Question / How Something Works</option>' +
+        '<option value="suggestion_feedback">Suggestion / Product Feedback</option>' +
+        '<option value="booking_issue">Booking Issue</option>' +
+        '<option value="pager_issue">Pickup Pager Issue</option>' +
+        '<option value="listing_accuracy">Listing Accuracy</option>' +
+        '<option value="vendor_dispute">Vendor Dispute</option>' +
+        '<option value="safety_concern">Safety Concern</option>' +
+        '<option value="abuse_report">Abuse Report</option>' +
+        '<option value="other">Other</option>' +
+        '</select></label>' +
+        '<label id="siVendorWrap"><span id="siVendorLabel">Related Food Spot (optional)</span><select id="siVendorId"><option value="">None / General</option></select></label>' +
+        '</div>' +
+        '<label id="siSubjectWrap"><span id="siSubjectLabel">Short title (optional — or auto-filled)</span><input type="text" id="siSubject" maxlength="140" placeholder="Brief summary of what happened or your idea"></label>' +
+        '<label><span id="siDescriptionLabel">What happened or how can we help? (15–1500 chars) *</span><textarea id="siDescription" required minlength="15" maxlength="1500" rows="4" placeholder="Describe what happened, what you expected, or what would improve BiteShark."></textarea></label>' +
+        '<div class="rx-row-2" id="siUrgencyScopeRow">' +
+        '<label id="siUrgencyWrap">Impact / Urgency<select id="siReporterUrgency">' +
+        '<option value="normal" selected>Normal — Standard support request</option>' +
+        '<option value="critical">Critical — Blocking active food service right now</option>' +
+        '<option value="high">High — Important operational or account issue</option>' +
+        '<option value="low">Low — Minor issue or question</option>' +
+        '<option value="feedback">Feedback — Non-urgent suggestion</option>' +
+        '</select></label>' +
+        '<label id="siSharingScopeWrap" hidden>Ticket Visibility<select id="siSharingScope">' +
+        '<option value="personal">Personal — Only me &amp; BiteShark support</option>' +
+        '<option value="vendor_service">Shared vendor service — Co-owners &amp; staff of this vendor</option>' +
+        '</select></label>' +
+        '</div>' +
+        '<div id="siCriticalNotice" class="si-safety-note is-critical" role="note" hidden>' +
+        '<strong>Critical impact note:</strong> Your request will be highlighted at the top of the BiteShark support queue, and an operator alert is triggered when email delivery is configured. BiteShark support is reviewed asynchronously and is <strong>not</strong> a 24/7 live dispatch or emergency service.' +
+        '</div>' +
+        '<details id="siExtraDetailsBox" style="border:1px solid #e2dac8;border-radius:10px;padding:8px 11px;background:#fcfaf4">' +
+        '<summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:#2f3b35">Optional details (affected feature &amp; approximate time)</summary>' +
+        '<div class="rx-row-2" style="margin-top:8px">' +
+        '<label>Affected Area (optional)<select id="siAffectedFeature">' +
+        '<option value="">Not specified</option>' +
+        '<option value="discovery">Discovery &amp; Search</option>' +
+        '<option value="interactive_map">Interactive Map</option>' +
+        '<option value="bookings">Event Bookings / Inquiries</option>' +
+        '<option value="pickup_pager">Pickup Pager</option>' +
+        '<option value="vendor_publishing">Vendor Profile, Hours &amp; Live Location</option>' +
+        '<option value="community">Local Community</option>' +
+        '<option value="auth">Sign-In &amp; Verification</option>' +
+        '<option value="invitations">Invitations &amp; Team Access</option>' +
+        '<option value="onboarding_uploads">Vendor Claim / Onboarding</option>' +
+        '<option value="other">Other</option>' +
+        '</select></label>' +
+        '<label>When did this happen? (optional)<input type="datetime-local" id="siOccurredAt"></label>' +
+        '</div>' +
+        '</details>' +
+        '<div id="siContextReviewBox" class="si-context-box">' +
+        '<label class="si-inline-check"><input type="checkbox" id="siAttachTechContext" checked><span>Include safe technical context to help troubleshoot (<span id="siContextSummaryText">app build &amp; coarse device type</span>)</span></label>' +
+        '</div>' +
+        '<div class="si-safety-note" id="siPrivacySafetyNote">' +
+        '🔒 <strong>Private &amp; safe:</strong> Tickets are never posted publicly. Do <strong>not</strong> enter passwords, 6-digit login codes, payment card numbers, birth dates, or private customer data. Support replies appear in your BiteShark account (not 24/7 live chat; image attachments are not included yet).' +
+        '</div>' +
         '<div id="siFormMsg" class="rx-msg" role="alert" hidden></div>' +
-        '<button type="submit" class="primary" id="siSubmitIssueBtn">Submit Private Support Issue →</button>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+        '<button type="submit" class="primary" id="siSubmitIssueBtn">Submit Support Request →</button>' +
+        '<button type="button" class="secondary" id="siClearDraftBtn" hidden>Clear saved draft</button>' +
+        '</div>' +
         '</form>' +
         '</div></div>' +
 
@@ -610,15 +775,13 @@
       root.querySelectorAll('[data-si-tab]').forEach(function (btn) {
         btn.onclick = function () { switchSiTab(btn.dataset.siTab); };
       });
+      bindSupportFormProgressiveDisclosure();
       document.getElementById('siNewPane').onsubmit = submitNewSupportIssue;
       document.getElementById('crReportForm').onsubmit = submitCommunityReport;
       document.getElementById('rxAgeModalForm').onsubmit = submitNextSignInAgeAssessment;
       document.getElementById('rxAgeSupportBtn').onclick = function () {
         document.getElementById('rxAgeAssessmentModal').hidden = true;
-        openSupportIssuesModal();
-        var catSel = document.getElementById('siCategory');
-        if (catSel) catSel.value = 'account_access';
-        switchSiTab('new');
+        openSupportIssuesModal({ tab: 'new', category: 'account_access', reporterContext: 'customer' });
       };
       document.getElementById('rxAgeSignOutBtn').onclick = async function () {
         try {
@@ -680,6 +843,21 @@
     }
   }
 
+  function syncSupportUnreadBadges(count) {
+    var n = Math.max(0, Number(count) || 0);
+    rxState.unreadSupportCount = n;
+    ['rxSupportUnreadBadge', 'ownerSupportUnreadBadge', 'siTabUnreadBadge'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.hidden = n <= 0;
+      el.textContent = n > 99 ? '99+' : String(n);
+    });
+    var avatar = document.getElementById('profileAvatar');
+    if (avatar) {
+      avatar.classList.toggle('has-support-unread', n > 0);
+    }
+  }
+
   async function refreshAccountRoleContext() {
     injectRoleNavigationAndModals();
     try {
@@ -692,6 +870,7 @@
       var profileSub = document.getElementById('profileSub');
 
       if (ctx.authenticated) {
+        syncSupportUnreadBadges(ctx.unread_support_count || 0);
         var labels = Array.isArray(ctx.role_labels) ? ctx.role_labels : ['Customer'];
         if (roleBox) {
           roleBox.hidden = false;
@@ -721,6 +900,7 @@
           }
         }
       } else {
+        syncSupportUnreadBadges(0);
         if (roleBox) roleBox.hidden = true;
         if (adminLink) adminLink.hidden = true;
         if (vendorHubBtn) vendorHubBtn.hidden = true;
@@ -1194,9 +1374,404 @@
   }
 
   // =========================================================================
-  // 5. Private Customer & Vendor Support Issues
+  // 5. Private Customer & Vendor Support & Feedback
   // =========================================================================
+  var VENDOR_CATEGORY_OPTIONS = [
+    { value: 'technical_problem', label: 'Technical / App Problem' },
+    { value: 'listing_hours_location', label: 'Listing, Hours, or Live Location' },
+    { value: 'event_inquiries', label: 'Event Inquiries / Bookings' },
+    { value: 'pager_notifications', label: 'Pickup Pager / Notifications' },
+    { value: 'account_access', label: 'Account, Login, or Invitation' },
+    { value: 'question_help', label: 'Question / How Something Works' },
+    { value: 'suggestion_feedback', label: 'Suggestion / Product Feedback' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  var CUSTOMER_CATEGORY_OPTIONS = [
+    { value: 'technical_problem', label: 'Technical / App Problem' },
+    { value: 'booking_issue', label: 'Event Inquiry / Booking' },
+    { value: 'pager_issue', label: 'Pickup Pager' },
+    { value: 'listing_accuracy', label: 'Listing or Hours Question' },
+    { value: 'question_help', label: 'Question / How Something Works' },
+    { value: 'suggestion_feedback', label: 'Suggestion / Product Feedback' },
+    { value: 'safety_concern', label: 'Safety Concern' },
+    { value: 'abuse_report', label: 'Abuse / Harassment Report' },
+    { value: 'account_access', label: 'Account, Login, or Invitation' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  function hasVendorMembership() {
+    var ctx = rxState.ctx;
+    if (!ctx || !ctx.authenticated) return false;
+    if (Array.isArray(ctx.memberships) && ctx.memberships.length > 0) return true;
+    if (rxState.viewpoint && rxState.viewpoint.mode === 'act_on_behalf' && rxState.viewpoint.vendorId) return true;
+    return false;
+  }
+
+  function populateSupportVendorSelector() {
+    var siSel = document.getElementById('siVendorId');
+    var siLabel = document.getElementById('siVendorLabel');
+    if (!siSel) return;
+
+    var prevVal = siSel.value || '';
+    if (rxState.supportReporterMode === 'vendor' && hasVendorMembership()) {
+      var memberships = Array.isArray(rxState.ctx.memberships) ? rxState.ctx.memberships.slice() : [];
+      if (
+        rxState.viewpoint &&
+        rxState.viewpoint.mode === 'act_on_behalf' &&
+        rxState.viewpoint.vendorId &&
+        !memberships.some(function (m) { return m.vendor_id === rxState.viewpoint.vendorId; })
+      ) {
+        memberships.push({ vendor_id: rxState.viewpoint.vendorId, vendor_name: rxState.viewpoint.vendorId, role: 'owner' });
+      }
+      if (siLabel) siLabel.textContent = 'Managed Vendor *';
+      siSel.innerHTML = memberships
+        .map(function (m) {
+          return '<option value="' + rxEsc(m.vendor_id) + '">' + rxEsc(m.vendor_name || m.vendor_id) + ' (' + rxEsc(m.vendor_id) + ')</option>';
+        })
+        .join('');
+      var activeOwnerVid = typeof ownerTruckId === 'string' ? ownerTruckId : '';
+      if (prevVal && memberships.some(function (m) { return m.vendor_id === prevVal; })) {
+        siSel.value = prevVal;
+      } else if (activeOwnerVid && memberships.some(function (m) { return m.vendor_id === activeOwnerVid; })) {
+        siSel.value = activeOwnerVid;
+      } else if (memberships.length >= 1) {
+        siSel.value = memberships[0].vendor_id;
+      }
+      return;
+    }
+
+    if (siLabel) siLabel.textContent = 'Related Food Spot (optional)';
+    var list = Array.isArray(window.trucks) ? window.trucks : typeof trucks !== 'undefined' && Array.isArray(trucks) ? trucks : [];
+    var opts = list
+      .slice()
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
+      .map(function (t) {
+        return '<option value="' + rxEsc(t.id) + '">' + rxEsc(t.name) + ' (' + rxEsc(t.city || 'Sonoma') + ')</option>';
+      })
+      .join('');
+    siSel.innerHTML = '<option value="">None / General</option>' + opts;
+    if (prevVal) siSel.value = prevVal;
+  }
+
+  function syncSupportContextSummary() {
+    var txtEl = document.getElementById('siContextSummaryText');
+    if (!txtEl) return;
+    var d = rxDiag();
+    var parts = [];
+    var pre = rxState.supportContextPrefill || {};
+    if (pre.correlationId) parts.push('ref ' + pre.correlationId);
+    if (pre.featureKey) parts.push('feature ' + pre.featureKey);
+    if (d && d.CLIENT_BUNDLE_VERSION) parts.push('build ' + d.CLIENT_BUNDLE_VERSION);
+    if (d && typeof d.getCoarseDeviceContext === 'function') {
+      var dev = d.getCoarseDeviceContext();
+      parts.push(dev.viewport + ' · ' + dev.browser + ' · ' + dev.platform);
+    }
+    txtEl.textContent = parts.length ? parts.join(', ') : 'app build & coarse device bucket';
+  }
+
+  function syncSupportFormUI() {
+    var isVendor = rxState.supportReporterMode === 'vendor' && hasVendorMembership();
+    var modeWrap = document.getElementById('siModeSwitchWrap');
+    var kindWrap = document.getElementById('siCustomerKindWrap');
+    var catSel = document.getElementById('siCategory');
+    var subjLabel = document.getElementById('siSubjectLabel');
+    var descLabel = document.getElementById('siDescriptionLabel');
+    var urgWrap = document.getElementById('siUrgencyWrap');
+    var urgSel = document.getElementById('siReporterUrgency');
+    var scopeWrap = document.getElementById('siSharingScopeWrap');
+    var scopeSel = document.getElementById('siSharingScope');
+    var critNote = document.getElementById('siCriticalNotice');
+    var clearBtn = document.getElementById('siClearDraftBtn');
+
+    if (modeWrap) {
+      modeWrap.hidden = !hasVendorMembership();
+      modeWrap.querySelectorAll('[data-si-mode]').forEach(function (btn) {
+        var active = (btn.dataset.siMode === 'vendor') === isVendor;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+    }
+
+    if (kindWrap) {
+      kindWrap.hidden = isVendor;
+      kindWrap.querySelectorAll('[data-si-kind]').forEach(function (btn) {
+        var active = btn.dataset.siKind === rxState.supportCustomerKind;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', String(active));
+      });
+    }
+
+    if (catSel) {
+      var curCat = catSel.value;
+      var srcOpts = isVendor ? VENDOR_CATEGORY_OPTIONS : CUSTOMER_CATEGORY_OPTIONS;
+      // Preserve any valid legacy value if programmatically selected
+      var existsInList = srcOpts.some(function (o) { return o.value === curCat; });
+      var htmlOpts = srcOpts
+        .map(function (o) {
+          return '<option value="' + rxEsc(o.value) + '">' + rxEsc(o.label) + '</option>';
+        })
+        .join('');
+      if (curCat && !existsInList) {
+        htmlOpts += '<option value="' + rxEsc(curCat) + '">' + rxEsc(curCat) + '</option>';
+      }
+      catSel.innerHTML = htmlOpts;
+      if (curCat) catSel.value = curCat;
+    }
+
+    populateSupportVendorSelector();
+
+    var catVal = catSel ? catSel.value : 'other';
+    var isSuggestion =
+      catVal === 'suggestion_feedback' || (!isVendor && rxState.supportCustomerKind === 'suggestion');
+
+    if (subjLabel) {
+      subjLabel.textContent = isVendor ? 'Short title (5–140 chars) *' : 'Short title (optional — auto-filled if blank)';
+    }
+    if (descLabel) {
+      descLabel.textContent = isSuggestion
+        ? 'Your suggestion or feedback (15–1500 chars) *'
+        : !isVendor && rxState.supportCustomerKind === 'question'
+          ? 'Your question (15–1500 chars) *'
+          : 'What happened or how can we help? (15–1500 chars) *';
+    }
+
+    if (urgWrap && urgSel) {
+      urgWrap.hidden = isSuggestion;
+      if (isSuggestion) {
+        urgSel.value = 'feedback';
+      } else if (urgSel.value === 'feedback') {
+        urgSel.value = 'normal';
+      }
+      if (critNote) {
+        critNote.hidden = isSuggestion || urgSel.value !== 'critical';
+      }
+    }
+
+    if (scopeWrap && scopeSel) {
+      scopeWrap.hidden = !isVendor;
+      if (isVendor) {
+        if (catVal === 'account_access') {
+          scopeSel.value = 'personal';
+          scopeSel.disabled = true;
+          scopeSel.title = 'Account, login, and invitation issues are always kept personal to your account.';
+        } else {
+          scopeSel.disabled = false;
+          scopeSel.title = '';
+        }
+      }
+    }
+
+    if (clearBtn) {
+      clearBtn.hidden = !readSupportDraft();
+    }
+    syncSupportContextSummary();
+  }
+
+  function persistCurrentFormDraft() {
+    var descEl = document.getElementById('siDescription');
+    var subjEl = document.getElementById('siSubject');
+    if (!descEl || !subjEl) return;
+    var desc = descEl.value || '';
+    var subj = subjEl.value || '';
+    if (!desc.trim() && !subj.trim()) {
+      clearSupportDraft();
+      var cb = document.getElementById('siClearDraftBtn');
+      if (cb) cb.hidden = true;
+      return;
+    }
+    saveSupportDraft({
+      reporterMode: rxState.supportReporterMode,
+      customerKind: rxState.supportCustomerKind,
+      category: (document.getElementById('siCategory') && document.getElementById('siCategory').value) || '',
+      vendorId: (document.getElementById('siVendorId') && document.getElementById('siVendorId').value) || '',
+      subject: subj,
+      description: desc,
+      urgency: (document.getElementById('siReporterUrgency') && document.getElementById('siReporterUrgency').value) || 'normal',
+      sharingScope: (document.getElementById('siSharingScope') && document.getElementById('siSharingScope').value) || 'personal',
+      affectedFeature: (document.getElementById('siAffectedFeature') && document.getElementById('siAffectedFeature').value) || '',
+      contextPrefill: rxState.supportContextPrefill || null,
+      savedAt: new Date().toISOString()
+    });
+    var clearBtn = document.getElementById('siClearDraftBtn');
+    if (clearBtn) clearBtn.hidden = false;
+  }
+
+  function restoreSavedDraftIntoForm() {
+    var draft = readSupportDraft();
+    if (!draft) return false;
+    if (draft.reporterMode === 'vendor' && hasVendorMembership()) {
+      rxState.supportReporterMode = 'vendor';
+    } else if (draft.reporterMode === 'customer') {
+      rxState.supportReporterMode = 'customer';
+    }
+    if (draft.customerKind) rxState.supportCustomerKind = draft.customerKind;
+    if (draft.contextPrefill && !rxState.supportContextPrefill) {
+      rxState.supportContextPrefill = draft.contextPrefill;
+    }
+    syncSupportFormUI();
+    if (draft.category && document.getElementById('siCategory')) {
+      document.getElementById('siCategory').value = draft.category;
+    }
+    if (draft.vendorId && document.getElementById('siVendorId')) {
+      document.getElementById('siVendorId').value = draft.vendorId;
+    }
+    if (typeof draft.subject === 'string' && document.getElementById('siSubject')) {
+      document.getElementById('siSubject').value = draft.subject;
+    }
+    if (typeof draft.description === 'string' && document.getElementById('siDescription')) {
+      document.getElementById('siDescription').value = draft.description;
+    }
+    if (draft.urgency && document.getElementById('siReporterUrgency')) {
+      document.getElementById('siReporterUrgency').value = draft.urgency;
+    }
+    if (draft.sharingScope && document.getElementById('siSharingScope')) {
+      document.getElementById('siSharingScope').value = draft.sharingScope;
+    }
+    if (draft.affectedFeature && document.getElementById('siAffectedFeature')) {
+      document.getElementById('siAffectedFeature').value = draft.affectedFeature;
+    }
+    syncSupportFormUI();
+    return true;
+  }
+
+  function bindSupportFormProgressiveDisclosure() {
+    var form = document.getElementById('siNewPane');
+    if (!form || form.dataset.siBound === '1') return;
+    form.dataset.siBound = '1';
+
+    form.querySelectorAll('[data-si-mode]').forEach(function (btn) {
+      btn.onclick = function () {
+        rxState.supportReporterMode = btn.dataset.siMode === 'vendor' ? 'vendor' : 'customer';
+        syncSupportFormUI();
+        persistCurrentFormDraft();
+      };
+    });
+
+    form.querySelectorAll('[data-si-kind]').forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.dataset.siKind;
+        rxState.supportCustomerKind = k;
+        var catSel = document.getElementById('siCategory');
+        if (catSel) {
+          if (k === 'suggestion') catSel.value = 'suggestion_feedback';
+          else if (k === 'question') catSel.value = 'question_help';
+          else if (catSel.value === 'suggestion_feedback' || catSel.value === 'question_help') {
+            catSel.value = 'technical_problem';
+          }
+        }
+        syncSupportFormUI();
+        persistCurrentFormDraft();
+      };
+    });
+
+    var catEl = document.getElementById('siCategory');
+    if (catEl) {
+      catEl.onchange = function () {
+        if (catEl.value === 'suggestion_feedback') rxState.supportCustomerKind = 'suggestion';
+        else if (catEl.value === 'question_help') rxState.supportCustomerKind = 'question';
+        syncSupportFormUI();
+        persistCurrentFormDraft();
+      };
+    }
+
+    var urgEl = document.getElementById('siReporterUrgency');
+    if (urgEl) {
+      urgEl.onchange = function () {
+        syncSupportFormUI();
+        persistCurrentFormDraft();
+      };
+    }
+
+    ['siSubject', 'siDescription', 'siVendorId', 'siSharingScope', 'siAffectedFeature'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', persistCurrentFormDraft);
+        el.addEventListener('change', persistCurrentFormDraft);
+      }
+    });
+
+    var clearBtn = document.getElementById('siClearDraftBtn');
+    if (clearBtn) {
+      clearBtn.onclick = function () {
+        clearSupportDraft();
+        form.reset();
+        rxState.supportContextPrefill = null;
+        syncSupportFormUI();
+      };
+    }
+  }
+
+  function renderGuestSupportPane(targetTicketRef) {
+    var guestPane = document.getElementById('siGuestPane');
+    var tabsBar = document.getElementById('siTabsBar');
+    var listPane = document.getElementById('siListPane');
+    var newPane = document.getElementById('siNewPane');
+    if (!guestPane) return;
+
+    if (tabsBar) tabsBar.hidden = true;
+    if (listPane) listPane.hidden = true;
+    if (newPane) newPane.hidden = true;
+    guestPane.hidden = false;
+
+    var existingDraft = readSupportDraft();
+    var pre = rxState.supportContextPrefill || {};
+    var nextDest = targetTicketRef
+      ? '/login.html?next=' + encodeURIComponent('/#support=' + targetTicketRef)
+      : '/login.html?next=' + encodeURIComponent('/#support-resume');
+
+    guestPane.innerHTML =
+      '<div class="rx-card">' +
+      '<h3>Sign in required before submitting a support request</h3>' +
+      '<p style="margin:6px 0;font-size:13.5px;line-height:1.5">To keep support conversations private without insecure email bearer links, BiteShark links every ticket and team reply to your verified <strong>14+</strong> account.</p>' +
+      (targetTicketRef
+        ? '<p style="margin:6px 0;font-size:13px;color:#214b3b"><strong>Ticket reference:</strong> <code>' + rxEsc(targetTicketRef) + '</code> — sign in with the account that submitted this request to read updates.</p>'
+        : '') +
+      (pre.correlationId
+        ? '<div class="si-context-box" style="margin:8px 0">Captured error reference <code>' + rxEsc(pre.correlationId) + '</code> — we will carry this into your support draft in this browser tab when you sign in.</div>'
+        : '') +
+      '<label style="display:block;font-size:12.5px;font-weight:700;color:#3d4a44;margin:10px 0 4px" for="siGuestDraftInput">Optional: jot down a quick note in this tab before signing in</label>' +
+      '<textarea id="siGuestDraftInput" rows="3" maxlength="1500" style="width:100%;border:1px solid #cfc6b4;border-radius:9px;padding:8px 10px;font-family:inherit;font-size:13.5px" placeholder="Optional note saved only in this browser tab (cleared when the tab closes)…">' +
+      rxEsc((existingDraft && existingDraft.description) || '') +
+      '</textarea>' +
+      '<p style="margin:6px 0 10px;font-size:12px;color:#4a544f">Do not enter passwords, 6-digit login codes, payment card numbers, or birth dates. Support is reviewed asynchronously (not 24/7 emergency dispatch).</p>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button type="button" class="primary" id="siGuestSaveAndSignInBtn">Save draft &amp; Sign in →</button>' +
+      (existingDraft ? '<button type="button" class="secondary" id="siGuestClearDraftBtn">Clear draft</button>' : '') +
+      '</div>' +
+      '</div>';
+
+    var goBtn = document.getElementById('siGuestSaveAndSignInBtn');
+    if (goBtn) {
+      goBtn.onclick = function () {
+        var noteVal = (document.getElementById('siGuestDraftInput') && document.getElementById('siGuestDraftInput').value) || '';
+        if (noteVal.trim() || pre.correlationId) {
+          saveSupportDraft({
+            reporterMode: 'customer',
+            customerKind: 'problem',
+            description: noteVal,
+            contextPrefill: rxState.supportContextPrefill || null,
+            savedAt: new Date().toISOString()
+          });
+        }
+        window.location.href = nextDest;
+      };
+    }
+    var clrBtn = document.getElementById('siGuestClearDraftBtn');
+    if (clrBtn) {
+      clrBtn.onclick = function () {
+        clearSupportDraft();
+        renderGuestSupportPane(targetTicketRef);
+      };
+    }
+  }
+
   function switchSiTab(tab) {
+    var tabsBar = document.getElementById('siTabsBar');
+    var guestPane = document.getElementById('siGuestPane');
+    if (tabsBar) tabsBar.hidden = false;
+    if (guestPane) guestPane.hidden = true;
+
     document.querySelectorAll('[data-si-tab]').forEach(function (b) {
       var active = b.dataset.siTab === tab;
       b.classList.toggle('active', active);
@@ -1204,45 +1779,136 @@
     });
     document.getElementById('siListPane').hidden = tab !== 'list';
     document.getElementById('siNewPane').hidden = tab !== 'new';
-    if (tab === 'list') loadMySupportIssues();
+    if (tab === 'list') {
+      loadMySupportIssues();
+    } else {
+      syncSupportFormUI();
+    }
   }
 
-  async function openSupportIssuesModal() {
+  async function openSupportIssuesModal(opts) {
+    var options = opts && typeof opts === 'object' ? opts : {};
     injectRoleNavigationAndModals();
+    if (!rxState.ctx) {
+      await refreshAccountRoleContext();
+    }
     populateModalVendorSelects();
+
+    var ackEl = document.getElementById('siAckBanner');
+    if (ackEl && !options.keepAck) ackEl.hidden = true;
+
+    // Determine context: explicit option, or active #ownerScreen -> vendor mode
+    var ownerScreen = document.getElementById('ownerScreen');
+    var onOwnerScreen = Boolean(ownerScreen && ownerScreen.classList.contains('active'));
+    if (options.reporterContext === 'vendor' && hasVendorMembership()) {
+      rxState.supportReporterMode = 'vendor';
+    } else if (options.reporterContext === 'customer') {
+      rxState.supportReporterMode = 'customer';
+    } else if (onOwnerScreen && hasVendorMembership()) {
+      rxState.supportReporterMode = 'vendor';
+    } else if (!hasVendorMembership()) {
+      rxState.supportReporterMode = 'customer';
+    }
+
+    if (options.mode === 'contextual_error') {
+      rxState.supportContextPrefill = {
+        featureKey: options.featureKey || '',
+        operationName: options.operationName || '',
+        correlationId: options.correlationId || '',
+        occurredAt: options.occurredAt || new Date().toISOString()
+      };
+      rxState.supportCustomerKind = 'problem';
+    }
+
     rxOpenModal('supportIssuesModal');
+
     if (!rxState.ctx || !rxState.ctx.authenticated) {
-      document.getElementById('siListPane').innerHTML =
-        '<div class="rx-card"><h3>Sign in required</h3><p>Sign in so our support team can respond privately to your account.</p><a class="primary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html?next=/">Sign in →</a></div>';
+      renderGuestSupportPane(options.ticketNumber || '');
       return;
     }
-    switchSiTab('list');
+
+    restoreSavedDraftIntoForm();
+
+    if (options.category && document.getElementById('siCategory')) {
+      syncSupportFormUI();
+      document.getElementById('siCategory').value = options.category;
+      if (options.category === 'suggestion_feedback') rxState.supportCustomerKind = 'suggestion';
+      else if (options.category === 'question_help') rxState.supportCustomerKind = 'question';
+      syncSupportFormUI();
+    }
+    if (options.featureKey && document.getElementById('siAffectedFeature')) {
+      document.getElementById('siAffectedFeature').value = options.featureKey;
+      var detailsBox = document.getElementById('siExtraDetailsBox');
+      if (detailsBox) detailsBox.open = true;
+    }
+
+    if (options.ticketNumber) {
+      rxState.selectedIssueId = options.ticketNumber;
+      switchSiTab('list');
+      return;
+    }
+
+    var targetTab = options.tab || (options.mode === 'contextual_error' || options.resumeDraft ? 'new' : 'list');
+    switchSiTab(targetTab);
+  }
+
+  window.bitesharkOpenSupport = openSupportIssuesModal;
+
+  function statusBadgeToneClass(status) {
+    if (status === 'waiting') return ' warn';
+    if (status === 'closed') return '';
+    return '';
   }
 
   async function loadMySupportIssues() {
     var pane = document.getElementById('siListPane');
-    pane.innerHTML = '<p>Loading your support issues…</p>';
+    if (!pane) return;
+    pane.innerHTML = '<p>Loading your support requests…</p>';
     try {
-      var data = await rxJson('/api/issues');
+      var data = await rxJson('/api/issues', {
+        featureKey: 'support_issues',
+        operationName: 'issues.list_mine'
+      });
       rxState.myIssues = Array.isArray(data.issues) ? data.issues : [];
+      if (typeof data.unread_count === 'number') {
+        syncSupportUnreadBadges(data.unread_count);
+      }
+
       if (!rxState.myIssues.length) {
         pane.innerHTML =
-          '<div class="rx-card"><h3>No open issues</h3><p>Need help with a booking inquiry, pickup pager, or listing question? Submit a private support ticket.</p><button type="button" class="primary" id="siOpenNewBtn">Report an Issue →</button></div>';
+          '<div class="rx-card"><h3>No support requests yet</h3><p>Need help with an event inquiry, pickup pager, listing detail, or want to suggest an improvement? Submit a private ticket anytime.</p><button type="button" class="primary" id="siOpenNewBtn">New request / feedback →</button></div>';
         document.getElementById('siOpenNewBtn').onclick = function () { switchSiTab('new'); };
         return;
       }
+
       pane.innerHTML = rxState.myIssues
         .map(function (iss) {
+          var tNum = iss.ticket_number || ('#' + String(iss.id).slice(0, 8));
+          var statusLbl = iss.status_label || iss.status;
+          var catLbl = iss.category_label || iss.category;
+          var hasUnread = Boolean(iss.has_unread_updates);
+          var isSharedVendor = iss.sharing_scope === 'vendor_service';
           return (
-            '<div class="rx-card">' +
-            '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
-            '<h3>' + rxEsc(iss.subject) + '</h3>' +
-            '<span class="rx-badge">' + rxEsc(iss.status) + '</span>' +
+            '<div class="si-ticket-card' + (hasUnread ? ' has-unread' : '') + '" data-ticket-number="' + rxEsc(tNum) + '">' +
+            '<div class="si-ticket-head">' +
+            '<div><span class="si-ticket-num">' + rxEsc(tNum) + '</span> ' +
+            (hasUnread ? '<span class="rx-unread-badge" style="margin-left:4px">New update</span> ' : '') +
+            '<strong style="font-size:15px">' + rxEsc(iss.subject) + '</strong></div>' +
+            '<span class="rx-badge' + statusBadgeToneClass(iss.status) + '">' + rxEsc(statusLbl) + '</span>' +
             '</div>' +
-            '<small>' + rxEsc(iss.category) + ' · Submitted ' + rxDate(iss.created_at) + '</small>' +
-            '<p style="margin:6px 0">' + rxEsc(iss.description) + '</p>' +
-            (iss.resolution_reason ? '<div class="rx-msg"><strong>Resolution:</strong> ' + rxEsc(iss.resolution_reason) + '</div>' : '') +
-            '<button type="button" class="secondary" data-si-thread="' + rxEsc(iss.id) + '" style="margin-top:6px">View Responses / Reply</button>' +
+            '<div style="margin-top:4px;font-size:12px;color:#4a544f">' +
+            rxEsc(catLbl) +
+            (iss.vendor_id ? ' · Spot: <code>' + rxEsc(iss.vendor_id) + '</code>' : '') +
+            ' · ' + (isSharedVendor ? '👥 Shared vendor service' : '🔒 Personal') +
+            ' · Submitted ' + rxDate(iss.created_at) +
+            '</div>' +
+            '<p style="margin:7px 0;font-size:13.5px;line-height:1.45">' + rxEsc(iss.description) + '</p>' +
+            (iss.resolution_reason
+              ? '<div class="rx-msg" style="margin:6px 0"><strong>Resolution summary:</strong> ' + rxEsc(iss.resolution_reason) + '</div>'
+              : '') +
+            '<button type="button" class="secondary" data-si-thread="' + rxEsc(iss.id) + '" style="margin-top:4px">' +
+            (hasUnread ? 'Read New Reply &amp; Timeline' : 'View Timeline / Reply') +
+            '</button>' +
             '<div id="siThread-' + rxEsc(iss.id) + '" hidden style="margin-top:8px"></div>' +
             '</div>'
           );
@@ -1252,6 +1918,17 @@
       pane.querySelectorAll('[data-si-thread]').forEach(function (btn) {
         btn.onclick = function () { loadSupportIssueThread(btn.dataset.siThread); };
       });
+
+      if (rxState.selectedIssueId) {
+        var targetRef = String(rxState.selectedIssueId).toUpperCase();
+        var match = rxState.myIssues.find(function (x) {
+          return x.id === rxState.selectedIssueId || String(x.ticket_number || '').toUpperCase() === targetRef;
+        });
+        rxState.selectedIssueId = null;
+        if (match) {
+          loadSupportIssueThread(match.id);
+        }
+      }
     } catch (err) {
       pane.innerHTML = '<div class="rx-msg error">' + rxEsc(err.message) + '</div>';
     }
@@ -1261,73 +1938,315 @@
     var box = document.getElementById('siThread-' + issueId);
     if (!box) return;
     box.hidden = false;
-    box.innerHTML = '<small>Loading responses…</small>';
+    box.innerHTML = '<small>Loading conversation &amp; timeline…</small>';
     try {
-      var data = await rxJson('/api/issues?issue_id=' + encodeURIComponent(issueId));
+      var data = await rxJson('/api/issues?issue_id=' + encodeURIComponent(issueId), {
+        featureKey: 'support_issues',
+        operationName: 'issues.load_detail'
+      });
+      var iss = data.issue || {};
       var notes = Array.isArray(data.notes) ? data.notes : [];
-      box.innerHTML =
-        (notes.length
-          ? notes
-              .map(function (n) {
-                return '<div class="rx-card" style="background:#f8f5ec"><small><strong>' + rxEsc(n.author_role) + '</strong> · ' + rxDate(n.created_at) + '</small><div>' + rxEsc(n.body) + '</div></div>';
-              })
-              .join('')
-          : '<p><small>No responses yet.</small></p>') +
-        '<form class="rx-form" data-si-reply="' + rxEsc(issueId) + '">' +
-        '<label class="sr-only" for="siReplyInput-' + rxEsc(issueId) + '">Write a reply</label>' +
-        '<input id="siReplyInput-' + rxEsc(issueId) + '" type="text" required minlength="2" maxlength="1500" placeholder="Write a reply…">' +
-        '<div class="rx-msg error" data-si-reply-err hidden role="alert"></div>' +
-        '<button type="submit" class="secondary">Send Reply</button>' +
-        '</form>';
+      var events = Array.isArray(data.timeline_events) ? data.timeline_events : [];
+      var pubDiags = Array.isArray(data.public_diagnostics) ? data.public_diagnostics : [];
+
+      if (iss.has_unread_updates) {
+        rxJson('/api/issues/read', {
+          method: 'POST',
+          idempotentWrite: true,
+          featureKey: 'support_issues',
+          operationName: 'issues.mark_read',
+          body: { issue_id: issueId }
+        })
+          .then(function () {
+            syncSupportUnreadBadges(Math.max(0, rxState.unreadSupportCount - 1));
+          })
+          .catch(function () {});
+      }
+
+      // Build chronological timeline merging public events & public replies
+      var merged = [];
+      events.forEach(function (ev) {
+        merged.push({
+          kind: 'event',
+          at: ev.created_at,
+          label: ev.public_actor_label || 'BiteShark Support',
+          text: ev.summary || ev.event_type
+        });
+      });
+      notes.forEach(function (n) {
+        var isTeam = n.author_role === 'mod' || n.author_role === 'top';
+        var authorLabel = n.author_display_label || (isTeam ? 'BiteShark Support' : 'You');
+        merged.push({
+          kind: isTeam ? 'team_note' : 'user_note',
+          at: n.created_at,
+          label: authorLabel,
+          text: n.body
+        });
+      });
+      merged.sort(function (a, b) {
+        return new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime();
+      });
+
+      var knownIssueHtml = pubDiags
+        .map(function (d) {
+          var vTag =
+            d.verification_status === 'verified_fixed'
+              ? ' · Fix verified'
+              : d.verification_status === 'pending_release'
+                ? ' · Fix queued for upcoming update'
+                : ' · Under investigation';
+          return (
+            '<div class="si-known-issue-banner">' +
+            '<strong>🔗 Connected to a known service issue' + rxEsc(vTag) + ':</strong> ' +
+            rxEsc(d.public_summary || 'Our team linked your report to a known technical issue we are tracking.') +
+            '</div>'
+          );
+        })
+        .join('');
+
+      var timelineHtml = merged.length
+        ? '<div class="si-timeline">' +
+          merged
+            .map(function (item) {
+              if (item.kind === 'event') {
+                return (
+                  '<div class="si-tl-item is-event">' +
+                  '<strong>' + rxEsc(item.label) + '</strong> · ' + rxDate(item.at) + ' — ' + rxEsc(item.text) +
+                  '</div>'
+                );
+              }
+              return (
+                '<div class="si-tl-item' + (item.kind === 'team_note' ? ' is-team' : '') + '">' +
+                '<div style="font-size:11.5px;color:#46524c;margin-bottom:3px"><strong>' + rxEsc(item.label) + '</strong> · ' + rxDate(item.at) + '</div>' +
+                '<div>' + rxEsc(item.text) + '</div>' +
+                '</div>'
+              );
+            })
+            .join('') +
+          '</div>'
+        : '<p><small>No updates yet — your request is in the BiteShark support queue.</small></p>';
+
+      var canReply = iss.status !== 'closed' && iss.status !== 'resolved';
+      var canReopen = Boolean(iss.can_reopen || iss.status === 'resolved');
+
+      var replyHtml = canReply
+        ? '<form class="rx-form" data-si-reply="' + rxEsc(issueId) + '">' +
+          '<label for="siReplyInput-' + rxEsc(issueId) + '">Add a reply or extra detail</label>' +
+          '<input id="siReplyInput-' + rxEsc(issueId) + '" type="text" required minlength="2" maxlength="1500" placeholder="Write a reply (do not include codes or passwords)…">' +
+          '<div class="rx-msg error" data-si-reply-err hidden role="alert"></div>' +
+          '<button type="submit" class="secondary">Send Reply</button>' +
+          '</form>'
+        : iss.status === 'closed'
+          ? '<p style="font-size:12.5px;color:#4a544f;margin-top:6px">This ticket is closed. If a new issue comes up, open a new support request above.</p>'
+          : '';
+
+      var reopenHtml = canReopen
+        ? '<div class="si-reopen-box">' +
+          '<strong style="font-size:13px;display:block;margin-bottom:4px">Still experiencing this problem?</strong>' +
+          '<form class="rx-form" data-si-reopen="' + rxEsc(issueId) + '">' +
+          '<label for="siReopenInput-' + rxEsc(issueId) + '">Tell us what is still happening (required to reopen)</label>' +
+          '<input id="siReopenInput-' + rxEsc(issueId) + '" type="text" required minlength="5" maxlength="1000" placeholder="Describe what is still happening…">' +
+          '<div class="rx-msg error" data-si-reopen-err hidden role="alert"></div>' +
+          '<button type="submit" class="secondary">Reopen Support Request</button>' +
+          '</form>' +
+          '</div>'
+        : '';
+
+      box.innerHTML = knownIssueHtml + timelineHtml + replyHtml + reopenHtml;
+
       var form = box.querySelector('[data-si-reply]');
-      form.onsubmit = async function (e) {
-        e.preventDefault();
-        var inp = form.querySelector('input');
-        var btn = form.querySelector('button[type="submit"]');
-        var errBox = form.querySelector('[data-si-reply-err]');
-        if (errBox) errBox.hidden = true;
-        if (btn) {
-          btn.disabled = true;
-          btn.setAttribute('aria-busy', 'true');
-        }
-        try {
-          await rxJson('/api/issues/reply', {
-            method: 'POST',
-            featureKey: 'support_issues',
-            operationName: 'issues.reply',
-            body: { issue_id: issueId, message: inp.value.trim() }
-          });
-          await loadSupportIssueThread(issueId);
-        } catch (repErr) {
-          if (errBox) {
-            errBox.hidden = false;
-            errBox.textContent = '✕ ' + (repErr.message || 'Could not send reply. Your message is preserved above.');
+      if (form) {
+        var replyDraftKey = null;
+        var replyDraftSig = '';
+        form.onsubmit = async function (e) {
+          e.preventDefault();
+          var inp = form.querySelector('input');
+          var btn = form.querySelector('button[type="submit"]');
+          var errBox = form.querySelector('[data-si-reply-err]');
+          var msgVal = inp.value.trim();
+          if (errBox) errBox.hidden = true;
+
+          var d = rxDiag();
+          if (!replyDraftKey || replyDraftSig !== msgVal) {
+            replyDraftKey =
+              d && typeof d.createIdempotencyKey === 'function'
+                ? d.createIdempotencyKey('sireply')
+                : 'sireply_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+            replyDraftSig = msgVal;
           }
+
           if (btn) {
-            btn.disabled = false;
-            btn.removeAttribute('aria-busy');
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
           }
-        }
-      };
+          try {
+            await rxJson('/api/issues/reply', {
+              method: 'POST',
+              idempotentWrite: true,
+              featureKey: 'support_issues',
+              operationName: 'issues.reply',
+              body: { issue_id: issueId, message: msgVal, idempotency_key: replyDraftKey }
+            });
+            replyDraftKey = null;
+            replyDraftSig = '';
+            await loadSupportIssueThread(issueId);
+          } catch (repErr) {
+            if (errBox) {
+              errBox.hidden = false;
+              errBox.textContent = '✕ ' + (repErr.message || 'Could not send reply. Your message is preserved above.');
+            }
+            if (btn) {
+              btn.disabled = false;
+              btn.removeAttribute('aria-busy');
+            }
+          }
+        };
+      }
+
+      var reopenForm = box.querySelector('[data-si-reopen]');
+      if (reopenForm) {
+        var reopenKey = null;
+        var reopenSig = '';
+        reopenForm.onsubmit = async function (e) {
+          e.preventDefault();
+          var rInp = reopenForm.querySelector('input');
+          var rBtn = reopenForm.querySelector('button[type="submit"]');
+          var rErr = reopenForm.querySelector('[data-si-reopen-err]');
+          var reasonVal = rInp.value.trim();
+          if (rErr) rErr.hidden = true;
+
+          var d = rxDiag();
+          if (!reopenKey || reopenSig !== reasonVal) {
+            reopenKey =
+              d && typeof d.createIdempotencyKey === 'function'
+                ? d.createIdempotencyKey('sireopen')
+                : 'sireopen_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+            reopenSig = reasonVal;
+          }
+
+          if (rBtn) {
+            rBtn.disabled = true;
+            rBtn.setAttribute('aria-busy', 'true');
+          }
+          try {
+            await rxJson('/api/issues/reopen', {
+              method: 'POST',
+              idempotentWrite: true,
+              featureKey: 'support_issues',
+              operationName: 'issues.reopen',
+              body: { issue_id: issueId, reason: reasonVal, idempotency_key: reopenKey }
+            });
+            reopenKey = null;
+            reopenSig = '';
+            rxState.selectedIssueId = issueId;
+            await loadMySupportIssues();
+          } catch (reErr) {
+            if (rErr) {
+              rErr.hidden = false;
+              rErr.textContent = '✕ ' + (reErr.message || 'Could not reopen ticket. Your note is preserved above.');
+            }
+            if (rBtn) {
+              rBtn.disabled = false;
+              rBtn.removeAttribute('aria-busy');
+            }
+          }
+        };
+      }
     } catch (err) {
       box.innerHTML = '<div class="rx-msg error">⏸ ' + rxEsc(err.message) + '</div>';
     }
+  }
+
+  function renderSubmissionAcknowledgement(issue, notificationStatus) {
+    var ackEl = document.getElementById('siAckBanner');
+    if (!ackEl || !issue) return;
+    var isCritical = issue.reporter_urgency === 'critical';
+    var isFeedback = issue.reporter_urgency === 'feedback' || issue.category === 'suggestion_feedback';
+    var scopeLabel =
+      issue.sharing_scope === 'vendor_service'
+        ? 'Shared with authorized owners & staff of ' + (issue.vendor_id || 'this vendor') + ' + BiteShark support'
+        : 'Private to your account + BiteShark support';
+
+    var notifNote =
+      notificationStatus === 'provider_accepted'
+        ? 'Email confirmation accepted by mail provider (check inbox/spam) + tracked in-app below.'
+        : 'Saved to your in-app support timeline below (external email confirmation not sent for this address/mode).';
+
+    var nextStepNote = isCritical
+      ? 'Highlighted as Critical in the BiteShark support queue. Note: this ticket has just been received and has not yet been read by a team member (BiteShark does not staff 24/7 live emergency dispatch).'
+      : isFeedback
+        ? 'Logged for product & operations review. You can check status or add thoughts anytime under My support requests.'
+        : 'Queued for BiteShark support review. Replies appear in My support requests (with an unread badge when our team responds).';
+
+    ackEl.hidden = false;
+    ackEl.innerHTML =
+      '<div class="si-ack-card">' +
+      '<h3>✓ Received — Ticket <code>' + rxEsc(issue.ticket_number || 'Recorded') + '</code></h3>' +
+      '<div class="si-ack-meta">' +
+      '<span class="rx-badge">Status: ' + rxEsc(issue.status_label || 'Received') + '</span>' +
+      '<span class="rx-badge">' + rxEsc(issue.category_label || issue.category) + '</span>' +
+      (isCritical ? '<span class="rx-badge danger">Critical reported</span>' : '') +
+      '</div>' +
+      '<p style="margin:6px 0;font-size:13px;line-height:1.45"><strong>Visibility:</strong> ' + rxEsc(scopeLabel) + '</p>' +
+      '<p style="margin:4px 0;font-size:13px;line-height:1.45"><strong>Notifications:</strong> ' + rxEsc(notifNote) + '</p>' +
+      '<p style="margin:4px 0 0;font-size:13px;line-height:1.45"><strong>What happens next:</strong> ' + rxEsc(nextStepNote) + '</p>' +
+      '</div>';
   }
 
   async function submitNewSupportIssue(e) {
     e.preventDefault();
     var msgEl = document.getElementById('siFormMsg');
     var noticeEl = document.getElementById('siSubmitNotice');
+    var ackEl = document.getElementById('siAckBanner');
     var submitBtn = document.getElementById('siSubmitIssueBtn');
     if (noticeEl) noticeEl.hidden = true;
+    if (ackEl) ackEl.hidden = true;
 
+    var isVendor = rxState.supportReporterMode === 'vendor' && hasVendorMembership();
     var cat = document.getElementById('siCategory').value;
     var vend = document.getElementById('siVendorId').value || null;
     var subj = document.getElementById('siSubject').value.trim();
     var desc = document.getElementById('siDescription').value.trim();
+    var urg = document.getElementById('siReporterUrgency') ? document.getElementById('siReporterUrgency').value : 'normal';
+    var scope =
+      isVendor && cat !== 'account_access' && document.getElementById('siSharingScope')
+        ? document.getElementById('siSharingScope').value
+        : 'personal';
+    var affFeature =
+      (document.getElementById('siAffectedFeature') && document.getElementById('siAffectedFeature').value) ||
+      (rxState.supportContextPrefill && rxState.supportContextPrefill.featureKey) ||
+      '';
+    var occRaw = document.getElementById('siOccurredAt') ? document.getElementById('siOccurredAt').value : '';
+    var attachCtx = document.getElementById('siAttachTechContext')
+      ? document.getElementById('siAttachTechContext').checked
+      : true;
+
+    if (isVendor && subj.length < 5) {
+      msgEl.hidden = false;
+      msgEl.className = 'rx-msg error';
+      msgEl.textContent = '✕ Enter a short title (at least 5 characters) for your vendor support request.';
+      document.getElementById('siSubject').focus();
+      return;
+    }
+    if (!isVendor && subj.length > 0 && subj.length < 5) {
+      msgEl.hidden = false;
+      msgEl.className = 'rx-msg error';
+      msgEl.textContent = '✕ Short title must be at least 5 characters (or leave it blank to auto-fill).';
+      document.getElementById('siSubject').focus();
+      return;
+    }
+    if (desc.length < 15) {
+      msgEl.hidden = false;
+      msgEl.className = 'rx-msg error';
+      msgEl.textContent = '✕ Please include at least 15 characters describing what happened or your feedback.';
+      document.getElementById('siDescription').focus();
+      return;
+    }
+
+    persistCurrentFormDraft();
 
     var d = rxDiag();
-    var sig = [cat, vend || '', subj, desc].join('|');
+    var sig = [isVendor ? 'vendor' : 'customer', cat, vend || '', subj, desc, urg, scope].join('|');
     if (!supportIssueDraftKey || supportIssueDraftSig !== sig) {
       supportIssueDraftKey =
         d && typeof d.createIdempotencyKey === 'function'
@@ -1336,42 +2255,77 @@
       supportIssueDraftSig = sig;
     }
 
+    var bodyPayload = {
+      reporter_context: isVendor ? 'vendor' : 'customer',
+      entry_kind: isVendor
+        ? (cat === 'suggestion_feedback' ? 'suggestion' : cat === 'question_help' ? 'question' : 'problem')
+        : rxState.supportCustomerKind,
+      category: cat,
+      vendor_id: vend,
+      subject: subj || undefined,
+      description: desc,
+      reporter_urgency: cat === 'suggestion_feedback' ? 'feedback' : urg,
+      sharing_scope: scope,
+      idempotency_key: supportIssueDraftKey
+    };
+
+    if (affFeature) bodyPayload.affected_feature = affFeature;
+    if (occRaw) {
+      var occDate = new Date(occRaw);
+      if (!Number.isNaN(occDate.getTime())) bodyPayload.reported_occurred_at = occDate.toISOString();
+    } else if (attachCtx && rxState.supportContextPrefill && rxState.supportContextPrefill.occurredAt) {
+      bodyPayload.reported_occurred_at = rxState.supportContextPrefill.occurredAt;
+    }
+
+    if (attachCtx) {
+      var pre = rxState.supportContextPrefill || {};
+      if (pre.correlationId) bodyPayload.error_correlation_id = pre.correlationId;
+      if (pre.operationName) bodyPayload.operation_name = pre.operationName;
+      if (d && typeof d.getCoarseDeviceContext === 'function') {
+        bodyPayload.coarse_device = d.getCoarseDeviceContext();
+      }
+      if (d && typeof d.getReleaseSnapshot === 'function') {
+        var snap = d.getReleaseSnapshot();
+        bodyPayload.client_build_version = snap.clientBundleVersion || null;
+        bodyPayload.client_loaded_release_sha = snap.loadedServerReleaseSha || null;
+      }
+    }
+
     msgEl.hidden = false;
     msgEl.className = 'rx-msg';
-    msgEl.textContent = '⏳ Working — submitting private support ticket…';
+    msgEl.textContent = '⏳ Working — submitting private support request…';
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.setAttribute('aria-busy', 'true');
     }
     try {
-      await rxJson('/api/issues', {
+      var resData = await rxJson('/api/issues', {
         method: 'POST',
         idempotentWrite: true,
         featureKey: 'support_issues',
         operationName: 'issues.create',
-        body: {
-          category: cat,
-          vendor_id: vend,
-          subject: subj,
-          description: desc,
-          idempotency_key: supportIssueDraftKey
-        }
+        body: bodyPayload
       });
       supportIssueDraftKey = null;
       supportIssueDraftSig = '';
+      clearSupportDraft();
+      rxState.supportContextPrefill = null;
       document.getElementById('siNewPane').reset();
       msgEl.hidden = true;
-      if (noticeEl) {
-        noticeEl.hidden = false;
-        noticeEl.textContent = '📨 Submitted — your private support ticket was saved to your account. Track moderator responses below.';
-      }
+      renderSubmissionAcknowledgement(resData.issue, resData.acknowledgement_delivery);
       switchSiTab('list');
     } catch (err) {
       msgEl.className = 'rx-msg error';
-      msgEl.textContent =
-        (err.uncertainWrite
-          ? '⚠ Outcome uncertain — timed out waiting for confirmation. Submitting again safely reuses the same ticket key: '
-          : '✕ ') + err.message;
+      if (err && err.status === 401) {
+        msgEl.innerHTML =
+          '✕ Your session expired, but your draft was safely preserved in this browser tab. ' +
+          '<a href="/login.html?next=' + encodeURIComponent('/#support-resume') + '" style="color:#8c1d18;font-weight:700">Sign in to submit your saved draft →</a>';
+      } else {
+        msgEl.textContent =
+          (err.uncertainWrite
+            ? '⚠ Outcome uncertain — timed out waiting for confirmation. Your draft is saved; submitting again safely reuses the same ticket key so no duplicate will be created: '
+            : '✕ ') + err.message;
+      }
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
@@ -1417,10 +2371,27 @@
   }
 
   // =========================================================================
-  // 7. Single-Use Invitation Redemption (`/#accept-invite=<token>`)
+  // 7. Single-Use Invitation Redemption & Support Deep Links (`/#accept-invite=...`, `/#support...`)
   // =========================================================================
   async function checkInviteRedemptionHash() {
     var h = String(window.location.hash || '');
+    if (h === '#support' || h === '#support-resume' || h.indexOf('#support=') === 0) {
+      var ticketTarget = h.indexOf('#support=') === 0 ? decodeURIComponent(h.slice('#support='.length)).trim() : '';
+      var isResume = h === '#support-resume';
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      if (!rxState.ctx || !rxState.ctx.authenticated) {
+        await refreshAccountRoleContext();
+      }
+      await openSupportIssuesModal({
+        ticketNumber: ticketTarget || '',
+        resumeDraft: isResume,
+        tab: isResume ? 'new' : 'list'
+      });
+      return;
+    }
+
     var token = '';
     if (h.indexOf('#accept-invite=') === 0) {
       token = decodeURIComponent(h.slice('#accept-invite='.length)).trim();

@@ -25,7 +25,18 @@
     accounts: { page: 1, total: 0, pageSize: 15, items: [], selectedId: null },
     acctTab: 'invitations',
     mod: { queue: 'pending', page: 1, total: 0, pageSize: 15, items: [], selectedId: null },
-    issues: { page: 1, total: 0, pageSize: 15, items: [], selectedId: null, selectedDetail: null },
+    issues: {
+      queue: 'all_active',
+      page: 1,
+      total: 0,
+      pageSize: 15,
+      items: [],
+      selectedId: null,
+      selectedDetail: null,
+      staffRoster: [],
+      summary: {},
+      draftByIssueId: {}
+    },
     readiness: { items: [], selectedKey: null, summary: null, statusesCatalog: [] },
     features: {
       canEdit: false,
@@ -409,7 +420,12 @@
       document.getElementById('ovCommentsBreakdown').textContent =
         (c.pending_comments || 0) + ' pending · ' + (c.reported_comments || 0) + ' user-reported';
       document.getElementById('ovOpenIssues').textContent = String(c.open_issues || 0);
-      document.getElementById('ovOverdueIssues').textContent = (c.overdue_issues || 0) + ' overdue SLA';
+      var ovIssParts = [];
+      if (c.critical_open_issues) ovIssParts.push(c.critical_open_issues + ' critical');
+      if (c.waiting_for_team_issues) ovIssParts.push(c.waiting_for_team_issues + ' waiting');
+      if (c.needs_reassignment_issues) ovIssParts.push(c.needs_reassignment_issues + ' reassign');
+      ovIssParts.push((c.overdue_issues || 0) + ' overdue');
+      document.getElementById('ovOverdueIssues').textContent = ovIssParts.join(' · ');
       document.getElementById('ovRestrictedVendors').textContent = String(c.restricted_vendors || 0);
       document.getElementById('ovVendorsBreakdown').textContent =
         (c.suspended_vendors || 0) + ' suspended · ' + (c.restricted_vendors || 0) + ' restricted';
@@ -2005,25 +2021,123 @@
   }
 
   // =========================================================================
-  // 6. Customer & Vendor Issues
+  // 6. Support & Feedback Queue + Connected Diagnostics
   // =========================================================================
+  function fmtRelativeAge(iso) {
+    if (!iso) return '—';
+    var ms = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(ms) || ms < 0) return 'just now';
+    var mins = Math.floor(ms / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 48) return hrs + 'h ago';
+    return Math.floor(hrs / 24) + 'd ago';
+  }
+
+  function reporterUrgencyBadge(urg) {
+    var u = String(urg || 'normal').toLowerCase();
+    if (u === 'critical') return '<span class="pill pill-danger">🔴 Critical reported</span>';
+    if (u === 'high') return '<span class="pill pill-warn">High impact</span>';
+    if (u === 'feedback') return '<span class="pill pill-info">💡 Feedback</span>';
+    if (u === 'low') return '<span class="pill">Low urgency</span>';
+    return '<span class="pill">Normal urgency</span>';
+  }
+
+  function updateIssueQueueTabBadges(sum) {
+    var s = sum || {};
+    var labelMap = {
+      all_active: 'All Active' + (s.active_total != null ? ' (' + Number(s.active_total) + ')' : ''),
+      unassigned: 'Unassigned' + (s.unassigned_count ? ' (' + Number(s.unassigned_count) + ')' : ''),
+      mine: 'Assigned to Me' + (s.assigned_to_me_count ? ' (' + Number(s.assigned_to_me_count) + ')' : ''),
+      waiting_team: 'Waiting on Team' + (s.waiting_for_team_count ? ' (' + Number(s.waiting_for_team_count) + ')' : ''),
+      needs_reassignment: 'Needs Reassignment' + (s.needs_reassignment_count ? ' (' + Number(s.needs_reassignment_count) + ')' : ''),
+      escalated: 'Escalated to Top' + (s.escalated_count ? ' (' + Number(s.escalated_count) + ')' : ''),
+      all: 'All / History'
+    };
+    document.querySelectorAll('#issuesQueueTabs [data-iss-queue]').forEach(function (btn) {
+      var k = btn.dataset.issQueue;
+      if (labelMap[k]) btn.textContent = labelMap[k];
+      btn.classList.toggle('active', k === state.issues.queue);
+    });
+  }
+
+  async function jumpToSupportTicket(issueIdOrTicketNo) {
+    if (!issueIdOrTicketNo) return;
+    var pane = document.getElementById('issuesDetailPane');
+    if (pane) pane.innerHTML = '<div class="state-box">Loading ticket…</div>';
+    var resolvedId = issueIdOrTicketNo;
+    if (/^BS-[0-9]{6,10}$/i.test(issueIdOrTicketNo)) {
+      try {
+        var d = await apiJson('/api/admin/issues?ticket_number=' + encodeURIComponent(issueIdOrTicketNo));
+        if (d && d.issue && d.issue.id) {
+          resolvedId = d.issue.id;
+        }
+      } catch (_e) {}
+    }
+    state.issues.queue = 'all';
+    state.issues.selectedId = resolvedId;
+    var stSel = document.getElementById('issuesStatusFilter');
+    if (stSel) stSel.value = 'all';
+    switchSection('issues');
+  }
+
+  async function jumpToDiagnosticIncident(groupId, corrId) {
+    if (groupId) {
+      state.diagnostics.selectedId = groupId;
+    } else if (corrId) {
+      var sInp = document.getElementById('diagSearchInput');
+      var wSel = document.getElementById('diagWindowFilter');
+      if (sInp) sInp.value = corrId;
+      if (wSel) wSel.value = '30d';
+    }
+    switchSection('diagnostics');
+    if (groupId) {
+      await selectDiagnosticIncident(groupId);
+    }
+  }
+
   async function loadIssues(page) {
     state.issues.page = page || 1;
     var stateEl = document.getElementById('issuesListState');
     var listEl = document.getElementById('issuesList');
     stateEl.hidden = false;
     stateEl.className = 'state-box';
-    stateEl.textContent = 'Loading support issues…';
+    stateEl.textContent = 'Loading support queue…';
     listEl.hidden = true;
+
+    var rawStatus = document.getElementById('issuesStatusFilter').value;
+    var qViewMap = {
+      all_active: 'all',
+      unassigned: 'unassigned',
+      mine: 'assigned_to_me',
+      waiting_team: 'waiting_for_team',
+      needs_reassignment: 'needs_reassignment',
+      escalated: 'escalated',
+      all: 'all'
+    };
+    var effectiveStatus = rawStatus || (state.issues.queue === 'all' ? 'all' : 'open_all');
 
     var qs = new URLSearchParams({
       page: String(state.issues.page),
       page_size: String(state.issues.pageSize),
-      status: document.getElementById('issuesStatusFilter').value,
+      queue_view: qViewMap[state.issues.queue] || 'all',
+      status: effectiveStatus,
       severity: document.getElementById('issuesSeverityFilter').value,
       category: document.getElementById('issuesCategoryFilter').value
     });
-    if (document.getElementById('issuesOverdueOnly').checked) qs.set('overdue', '1');
+
+    var urgEl = document.getElementById('issuesUrgencyFilter');
+    if (urgEl && urgEl.value && urgEl.value !== 'all') qs.set('reporter_urgency', urgEl.value);
+    var rTypeEl = document.getElementById('issuesReporterTypeFilter');
+    if (rTypeEl && rTypeEl.value && rTypeEl.value !== 'all') qs.set('reporter_type', rTypeEl.value);
+    var vInp = document.getElementById('issuesVendorFilter');
+    if (vInp && vInp.value.trim()) qs.set('vendor_id', vInp.value.trim());
+    var dfInp = document.getElementById('issuesDateFrom');
+    if (dfInp && dfInp.value) qs.set('date_from', dfInp.value);
+    var dtInp = document.getElementById('issuesDateTo');
+    if (dtInp && dtInp.value) qs.set('date_to', dtInp.value);
+    if (document.getElementById('issuesOverdueOnly').checked) qs.set('overdue_only', '1');
     var q = document.getElementById('issuesSearchInput').value.trim();
     if (q) qs.set('q', q);
 
@@ -2031,9 +2145,12 @@
       var data = await apiJson('/api/admin/issues?' + qs.toString());
       state.issues.items = Array.isArray(data.issues) ? data.issues : [];
       state.issues.total = Number(data.total) || 0;
+      state.issues.summary = data.summary || {};
+      if (Array.isArray(data.staff_roster)) state.issues.staffRoster = data.staff_roster;
+      updateIssueQueueTabBadges(state.issues.summary);
 
       if (!state.issues.items.length) {
-        stateEl.textContent = 'No support issues match the selected filters.';
+        stateEl.textContent = 'No support tickets match the selected queue view and filters.';
         renderPager('issuesPager', 1, state.issues.pageSize, 0, loadIssues);
         return;
       }
@@ -2043,37 +2160,58 @@
       listEl.innerHTML = state.issues.items
         .map(function (iss) {
           var isSel = state.issues.selectedId === iss.id;
-          var overdueBadge = iss.is_overdue ? ' <span class="pill pill-danger">⏰ OVERDUE SLA</span>' : '';
-          var dupBadge = Number(iss.duplicate_count) > 0 ? ' <span class="pill pill-warn">×' + (Number(iss.duplicate_count) + 1) + ' repeated</span>' : '';
+          var tNum = iss.ticket_number || String(iss.id).slice(0, 8);
+          var overdueBadge = iss.is_overdue ? ' <span class="pill pill-danger">⏰ Overdue target</span>' : '';
+          var waitBadge = iss.waiting_for_team && iss.status !== 'resolved' && iss.status !== 'closed'
+            ? ' <span class="pill pill-warn">📬 Waiting on team</span>'
+            : '';
+          var escBadge = iss.escalated_to_top ? ' <span class="pill pill-top">🔺 Escalated to Top</span>' : '';
+          var reassBadge = iss.needs_reassignment ? ' <span class="pill pill-danger">⚠ Inactive assignee</span>' : '';
+          var diagBadge = Number(iss.linked_diagnostics_count) > 0
+            ? ' <span class="pill pill-info">🔗 ' + Number(iss.linked_diagnostics_count) + ' diag</span>'
+            : '';
+
           return (
             '<button type="button" class="record-card' +
             (isSel ? ' selected' : '') +
             '" data-iss-id="' +
             esc(iss.id) +
             '">' +
-            '<div class="record-card-top"><span class="record-title">' +
+            '<div class="record-card-top"><span class="record-title"><code>' +
+            esc(tNum) +
+            '</code> ' +
             esc(iss.subject) +
             '</span><span>' +
             statusPill(iss.status) +
             ' ' +
             statusPill(iss.severity) +
+            ' ' +
+            reporterUrgencyBadge(iss.reporter_urgency) +
             overdueBadge +
-            dupBadge +
+            waitBadge +
+            escBadge +
+            reassBadge +
+            diagBadge +
             '</span></div>' +
             '<div class="record-meta">' +
-            esc(iss.category) +
-            ' · Reporter: ' +
+            esc(iss.category_label || iss.category) +
+            ' · Reporter: <strong>' +
             esc(iss.reporter_email) +
-            ' (' +
+            '</strong> (' +
             esc(iss.reporter_role) +
+            (iss.sharing_scope === 'vendor_service' ? ' · shared vendor' : '') +
             ')' +
             (iss.vendor_id ? ' · Vendor: <code>' + esc(iss.vendor_id) + '</code>' : '') +
             '</div>' +
-            '<div class="record-meta">SLA Due: ' +
+            '<div class="record-meta">Opened ' +
+            esc(fmtRelativeAge(iss.created_at)) +
+            ' · Activity ' +
+            esc(fmtRelativeAge(iss.last_activity_at || iss.updated_at)) +
+            ' · Target: ' +
             fmtDate(iss.sla_due_at) +
-            ' · Assigned: ' +
-            esc(iss.assigned_to || 'Unassigned') +
-            '</div>' +
+            ' · Owner: <strong>' +
+            esc(iss.assignee_display || 'Unassigned') +
+            '</strong></div>' +
             '</button>'
           );
         })
@@ -2099,38 +2237,80 @@
       b.classList.toggle('selected', b.dataset.issId === issueId);
     });
     var pane = document.getElementById('issuesDetailPane');
-    pane.innerHTML = '<div class="state-box">Loading issue thread…</div>';
+    pane.innerHTML = '<div class="state-box">Loading ticket details, timeline &amp; diagnostic links…</div>';
 
     try {
       var data = await apiJson('/api/admin/issues?issue_id=' + encodeURIComponent(issueId));
-      renderIssueDetail(data.issue, data.notes || []);
+      state.issues.selectedDetail = data;
+      if (Array.isArray(data.staff_roster)) state.issues.staffRoster = data.staff_roster;
+      renderIssueDetail(data);
     } catch (err) {
       pane.innerHTML = '<div class="state-box state-error">' + esc(err.message) + '</div>';
     }
   }
 
-  function renderIssueDetail(iss, notes) {
+  function renderIssueDetail(detailPayload) {
     var pane = document.getElementById('issuesDetailPane');
-    if (!iss) return;
+    var iss = detailPayload && detailPayload.issue ? detailPayload.issue : detailPayload;
+    if (!pane || !iss) return;
+    var notes = Array.isArray(detailPayload.notes) ? detailPayload.notes : [];
+    var events = Array.isArray(detailPayload.events) ? detailPayload.events : [];
+    var diagLinks = Array.isArray(detailPayload.diagnostic_links) ? detailPayload.diagnostic_links : [];
+    var roster = Array.isArray(detailPayload.staff_roster) ? detailPayload.staff_roster : (state.issues.staffRoster || []);
+    var perms = detailPayload.permissions || {};
+    var savedDraft = state.issues.draftByIssueId[iss.id] || null;
 
-    var threadHtml = notes.length
+    // Merge timeline events and notes chronologically for staff inspection
+    var combined = [];
+    events.forEach(function (ev) {
+      combined.push({
+        kind: 'event',
+        at: ev.created_at,
+        visibility: ev.visibility,
+        actor: ev.actor_user_id + ' (' + ev.actor_role + ')',
+        text: ev.summary
+      });
+    });
+    notes.forEach(function (n) {
+      combined.push({
+        kind: 'note',
+        at: n.created_at,
+        visibility: n.visibility,
+        role: n.author_role,
+        actor: n.author_display_label || n.author_role,
+        text: n.body
+      });
+    });
+    combined.sort(function (a, b) {
+      return new Date(a.at || 0).getTime() - new Date(b.at || 0).getTime();
+    });
+
+    var threadHtml = combined.length
       ? '<div class="thread-list">' +
-        notes
-          .map(function (n) {
-            var isInternal = n.visibility === 'internal';
+        combined
+          .map(function (item) {
+            var isInternal = item.visibility === 'internal';
+            if (item.kind === 'event') {
+              return (
+                '<div class="thread-item ' + (isInternal ? 'note-internal' : '') + '" style="font-size:12px;opacity:0.95">' +
+                '<strong>' + (isInternal ? '🔒 Internal Event' : '📌 Public Lifecycle Event') + '</strong> · ' +
+                '<small>' + fmtDate(item.at) + ' · ' + esc(item.actor) + '</small>' +
+                '<div>' + esc(item.text) + '</div></div>'
+              );
+            }
             return (
               '<div class="thread-item ' +
               (isInternal ? 'note-internal' : 'note-visible') +
               '">' +
               '<strong>' +
-              (isInternal ? '🔒 Internal Note (Admins Only)' : '💬 Reporter-Visible Message') +
+              (isInternal ? '🔒 Internal Staff Note (Never shown to reporter)' : '💬 Public Message (Visible to reporter)') +
               '</strong> · <span class="pill">' +
-              esc(n.author_role) +
+              esc(item.role) +
               '</span> · <small>' +
-              fmtDate(n.created_at) +
+              fmtDate(item.at) +
               '</small>' +
-              '<div>' +
-              esc(n.body) +
+              '<div style="margin-top:4px;white-space:pre-wrap">' +
+              esc(item.text) +
               '</div></div>'
             );
           })
@@ -2138,92 +2318,498 @@
         '</div>'
       : '<p class="record-meta">No replies or internal notes yet.</p>';
 
+    // Build assignee dropdown from active roster
+    var currentAssigneeInRoster = roster.some(function (r) { return r.user_id === iss.assigned_to; });
+    var assigneeOptsHtml =
+      '<option value="" ' + (!iss.assigned_to ? 'selected' : '') + '>Unassigned</option>' +
+      (iss.assigned_to && !currentAssigneeInRoster
+        ? '<option value="' + esc(iss.assigned_to) + '" selected disabled>⚠ Inactive/removed assignee (' + esc(iss.assignee_display || iss.assigned_to) + ') — reassign required</option>'
+        : '') +
+      roster
+        .map(function (r) {
+          var isMe = state.ctx && state.ctx.user && r.user_id === state.ctx.user.id;
+          var lbl = isMe ? 'Assign to me — ' + r.display_label : r.display_label;
+          return '<option value="' + esc(r.user_id) + '" ' + (iss.assigned_to === r.user_id ? 'selected' : '') + '>' + esc(lbl) + '</option>';
+        })
+        .join('');
+
+    var statusCatalog = [
+      { code: 'open', label: 'Received (open)' },
+      { code: 'in_review', label: 'In Review' },
+      { code: 'in_progress', label: 'In Progress' },
+      { code: 'waiting', label: 'Waiting on Reporter' },
+      { code: 'resolved', label: 'Resolved' },
+      { code: 'closed', label: 'Closed' }
+    ];
+
+    var techContextHtml =
+      iss.error_correlation_id || iss.affected_feature || iss.server_release_sha || iss.client_build_version || iss.coarse_device_info
+        ? '<div class="diag-callout" style="margin:10px 0">' +
+          '<strong>Captured Technical Context (Sanitized):</strong>' +
+          '<div class="record-meta" style="margin-top:4px">' +
+          (iss.error_correlation_id
+            ? 'Correlation ID: <code>' + esc(iss.error_correlation_id) + '</code> <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="issJumpCorrBtn" data-corr="' + esc(iss.error_correlation_id) + '">Search in Diagnostics ↗</button> · '
+            : '') +
+          (iss.affected_feature ? 'Feature: <code>' + esc(iss.affected_feature) + '</code> · ' : '') +
+          (iss.operation_name ? 'Op: <code>' + esc(iss.operation_name) + '</code> · ' : '') +
+          (iss.server_release_sha ? 'Server SHA: <code>' + esc(String(iss.server_release_sha).slice(0, 12)) + '</code> · ' : '') +
+          (iss.client_build_version ? 'Client build: <code>' + esc(iss.client_build_version) + '</code> · ' : '') +
+          (iss.coarse_device_info ? 'Device: <code>' + esc(iss.coarse_device_info) + '</code>' : '') +
+          '</div></div>'
+        : '';
+
+    var diagLinksHtml = diagLinks.length
+      ? diagLinks
+          .map(function (dl) {
+            var inc = dl.incident || {};
+            var isSuggested = dl.link_state === 'suggested';
+            var coTickets = Array.isArray(dl.other_linked_tickets) ? dl.other_linked_tickets : [];
+            return (
+              '<div class="iss-diag-link-card' + (isSuggested ? ' is-suggested' : '') + '">' +
+              '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">' +
+              '<div>' +
+              '<span class="pill ' + (isSuggested ? 'pill-info' : 'pill-ok') + '">' + (isSuggested ? '💡 Suggested Link (Unconfirmed)' : '🔗 Confirmed Link') + '</span> ' +
+              '<strong>' + esc(inc.title || 'Diagnostic Incident') + '</strong>' +
+              '</div>' +
+              (dl.diagnostic_group_id && !dl.restricted_scope
+                ? '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-open-diag="' + esc(dl.diagnostic_group_id) + '">Open Incident ↗</button>'
+                : '') +
+              '</div>' +
+              (!dl.restricted_scope
+                ? '<div class="record-meta" style="margin-top:4px">' +
+                  (inc.emitting_component ? '<code>' + esc(inc.emitting_component) + '</code> · ' : '') +
+                  (inc.feature_key ? '<code>' + esc(inc.feature_key) + '</code> · ' : '') +
+                  (inc.error_code ? '<code>' + esc(inc.error_code) + '</code> · ' : '') +
+                  'Triage: <strong>' + esc(inc.triage_status || '—') + '</strong> · ' +
+                  'Verification: <strong>' + esc(dl.verification_status || 'unverified') + '</strong>' +
+                  (dl.fixing_release_sha ? ' · Fix SHA: <code>' + esc(String(dl.fixing_release_sha).slice(0, 12)) + '</code>' : '') +
+                  '</div>'
+                : '') +
+              '<div class="record-meta" style="margin-top:4px"><strong>Reason:</strong> ' + esc(dl.link_reason) + '</div>' +
+              (dl.public_summary
+                ? '<div class="record-meta" style="margin-top:4px;color:#14532d"><strong>Public reporter summary:</strong> ' + esc(dl.public_summary) + '</div>'
+                : '<div class="record-meta" style="margin-top:4px"><em>Internal link only (no public known-issue summary shown to reporter).</em></div>') +
+              (coTickets.length
+                ? '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center"><small style="font-weight:700">Also linked to:</small>' +
+                  coTickets
+                    .map(function (ct) {
+                      return (
+                        '<button type="button" class="iss-ticket-chip" data-jump-ticket="' + esc(ct.issue_id) + '">' +
+                        '<code>' + esc(ct.ticket_number) + '</code> · ' + esc(ct.status_label || ct.status) +
+                        '</button>'
+                      );
+                    })
+                    .join('') +
+                  '</div>'
+                : '') +
+              (!dl.restricted_scope && dl.diagnostic_group_id
+                ? '<div class="action-row" style="margin-top:8px">' +
+                  (isSuggested
+                    ? '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-confirm-diag="' + esc(dl.diagnostic_group_id) + '">✓ Confirm Link</button>'
+                    : '') +
+                  '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-edit-diag="' + esc(dl.diagnostic_group_id) + '" data-cur-pub="' + esc(dl.public_summary || '') + '" data-cur-verif="' + esc(dl.verification_status || 'unverified') + '" data-cur-sha="' + esc(dl.fixing_release_sha || '') + '">✎ Public Summary / Verification</button>' +
+                  '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-unlink-diag="' + esc(dl.diagnostic_group_id) + '">Unlink</button>' +
+                  '</div>'
+                : '') +
+              '</div>'
+            );
+          })
+          .join('')
+      : '<p class="record-meta">No diagnostic incidents linked to this ticket yet.</p>';
+
     pane.innerHTML =
       '<div class="detail-head">' +
-      statusPill(iss.status) +
-      ' ' +
-      statusPill(iss.severity) +
-      (iss.is_overdue ? ' <span class="pill pill-danger">⏰ OVERDUE SLA</span>' : '') +
-      '<h2>' +
-      esc(iss.subject) +
-      '</h2>' +
-      '<div class="record-meta">Issue ID: <code>' +
-      esc(iss.id) +
-      '</code> · Reporter: <strong>' +
-      esc(iss.reporter_email) +
-      '</strong> (' +
-      esc(iss.reporter_role) +
-      ')</div></div>' +
+      '<div>' +
+      statusPill(iss.status) + ' ' +
+      statusPill(iss.severity) + ' ' +
+      reporterUrgencyBadge(iss.reporter_urgency) +
+      (iss.is_overdue ? ' <span class="pill pill-danger">⏰ OVERDUE TARGET</span>' : '') +
+      (iss.waiting_for_team && iss.status !== 'resolved' && iss.status !== 'closed' ? ' <span class="pill pill-warn">📬 Waiting on team</span>' : '') +
+      (iss.escalated_to_top ? ' <span class="pill pill-top">🔺 Escalated to Top</span>' : '') +
+      (iss.needs_reassignment ? ' <span class="pill pill-danger">⚠ Inactive assignee</span>' : '') +
+      '</div>' +
+      '<h2><code>' + esc(iss.ticket_number || '') + '</code> ' + esc(iss.subject) + '</h2>' +
+      '<div class="record-meta">UUID: <code>' + esc(iss.id) + '</code> · Reporter: <strong>' + esc(iss.reporter_email) + '</strong> (' + esc(iss.reporter_role) + ' · ' + (iss.sharing_scope === 'vendor_service' ? 'Shared vendor service' : 'Personal') + ')</div>' +
+      '</div>' +
       '<div class="kv-grid">' +
-      '<div><strong>Category</strong>' + esc(iss.category) + '</div>' +
+      '<div><strong>Category</strong>' + esc(iss.category_label || iss.category) + '</div>' +
+      '<div><strong>Reporter Urgency (Immutable)</strong>' + esc(iss.reporter_urgency_label || iss.reporter_urgency) + '</div>' +
+      '<div><strong>Staff Priority</strong>' + esc(iss.staff_priority_label || iss.severity) + '</div>' +
       '<div><strong>Linked Vendor</strong><code>' + esc(iss.vendor_id || '—') + '</code></div>' +
-      '<div><strong>Linked Booking / Post</strong><code>' + esc(iss.booking_id || iss.community_post_id || '—') + '</code></div>' +
-      '<div><strong>Repeated Submissions</strong>' + Number(iss.duplicate_count || 0) + '</div>' +
+      '<div><strong>Current Owner</strong>' + esc(iss.assignee_display || 'Unassigned') + '</div>' +
+      '<div><strong>Reopen Count</strong>' + Number(iss.reopen_count || 0) + '</div>' +
       '</div>' +
-      '<div class="thread-item"><strong>Original Report (' + fmtDate(iss.created_at) + '):</strong><p>' + esc(iss.description) + '</p></div>' +
-      '<h3>Conversation &amp; Internal Notes</h3>' +
+      techContextHtml +
+      '<div class="thread-item"><strong>Original Report (' + fmtDate(iss.created_at) + '):</strong><p style="margin:6px 0 0;white-space:pre-wrap">' + esc(iss.description) + '</p></div>' +
+      '<h3>Conversation, Internal Notes &amp; Audit Timeline</h3>' +
       threadHtml +
-      '<form class="admin-form" id="issueUpdateForm">' +
-      '<div class="form-row-2">' +
-      '<label>Status<select id="issEditStatus">' +
-      ['open', 'in_progress', 'waiting', 'resolved', 'closed']
-        .map(function (s) { return '<option value="' + s + '" ' + (iss.status === s ? 'selected' : '') + '>' + s + '</option>'; })
-        .join('') +
-      '</select></label>' +
-      '<label>Severity<select id="issEditSeverity">' +
-      ['low', 'normal', 'high', 'urgent']
-        .map(function (s) { return '<option value="' + s + '" ' + (iss.severity === s ? 'selected' : '') + '>' + s + '</option>'; })
-        .join('') +
-      '</select></label>' +
-      '</div>' +
-      '<div class="form-row-2">' +
-      '<label>Assignee<select id="issEditAssignee">' +
-      '<option value="" ' + (!iss.assigned_to ? 'selected' : '') + '>Unassigned</option>' +
-      '<option value="' + esc(state.ctx.user.id) + '" ' + (iss.assigned_to === state.ctx.user.id ? 'selected' : '') + '>Assign to me (' + esc(state.ctx.user.email) + ')</option>' +
-      '</select></label>' +
-      '<label>Resolution Reason (required to resolve/close)<input type="text" id="issEditResolution" value="' + esc(iss.resolution_reason || '') + '" maxlength="600" placeholder="Outcome summary…"></label>' +
-      '</div>' +
-      '<label>Note Visibility' +
-      '<select id="issNoteVis">' +
-      '<option value="internal">🔒 Internal Note (Confidential — Admins only)</option>' +
-      '<option value="reporter_visible">💬 User-Visible Response (Shown to reporter)</option>' +
-      '</select></label>' +
-      '<label>Add Note or Response (optional, up to 1500 chars)<textarea id="issNoteBody" rows="3" maxlength="1500" placeholder="Write an internal triage note or an in-app response visible to the reporter…"></textarea></label>' +
-      '<button type="submit" class="admin-btn admin-btn-primary" id="issSaveUpdateBtn">Save Issue Update</button>' +
-      '</form>';
 
+      '<form class="admin-form" id="issueUpdateForm" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">' +
+      '<h3>Update Ticket, Ownership &amp; Reply</h3>' +
+      '<div class="form-row-2">' +
+      '<label>Workflow Status<select id="issEditStatus">' +
+      statusCatalog
+        .map(function (s) {
+          var dis = iss.status === 'closed' && s.code !== 'closed' && !perms.can_reopen_closed ? ' disabled' : '';
+          return '<option value="' + s.code + '"' + (iss.status === s.code ? ' selected' : '') + dis + '>' + esc(s.label) + '</option>';
+        })
+        .join('') +
+      '</select></label>' +
+      '<label>Staff Priority (Editable)<select id="issEditSeverity">' +
+      ['low', 'normal', 'high', 'urgent']
+        .map(function (s) { return '<option value="' + s + '" ' + (iss.severity === s ? 'selected' : '') + '>' + s.toUpperCase() + '</option>'; })
+        .join('') +
+      '</select></label>' +
+      '</div>' +
+      '<label id="issPriorityReasonWrap" hidden>Reason for Changing Staff Priority (required, 4–500 chars)' +
+      '<input type="text" id="issEditPriorityReason" maxlength="500" placeholder="Explain why staff priority differs from previous level…">' +
+      '</label>' +
+      '<div class="form-row-2">' +
+      '<label>Assigned Team Owner<select id="issEditAssignee">' + assigneeOptsHtml + '</select></label>' +
+      '<label>Resolution Summary (required to Resolve/Close)<input type="text" id="issEditResolution" value="' + esc((savedDraft && savedDraft.resolution) || iss.resolution_reason || '') + '" maxlength="600" placeholder="Plain-language outcome summary…"></label>' +
+      '</div>' +
+      '<label id="issAssignReasonWrap" hidden>Assignment / Reassignment Note (optional, required if reassigning another active owner)' +
+      '<input type="text" id="issEditAssignReason" maxlength="500" placeholder="Reason for taking over or reassigning ticket…">' +
+      '</label>' +
+      '<div class="form-row-2" style="align-items:center">' +
+      '<label class="checkbox-inline" style="margin:4px 0"><input type="checkbox" id="issEscalateCheck" ' + (iss.escalated_to_top ? 'checked' : '') + (iss.escalated_to_top && !perms.can_clear_escalation ? ' disabled' : '') + '><span>🔺 Escalate to <strong>Admin: Top</strong></span></label>' +
+      '<label id="issEscalateReasonWrap" ' + (iss.escalated_to_top ? '' : 'hidden') + '>Escalation Reason<input type="text" id="issEditEscalateReason" value="' + esc(iss.escalation_reason || '') + '" maxlength="500" placeholder="Why Top review is needed…"></label>' +
+      '</div>' +
+      '<label>Message Visibility' +
+      '<select id="issNoteVis">' +
+      '<option value="internal"' + (!savedDraft || savedDraft.vis !== 'reporter_visible' ? ' selected' : '') + '>🔒 Internal Staff Note (Confidential — Staff Only)</option>' +
+      '<option value="reporter_visible"' + (savedDraft && savedDraft.vis === 'reporter_visible' ? ' selected' : '') + '>💬 Public Reply to Reporter (Shown in user timeline)</option>' +
+      '</select></label>' +
+      '<div id="issNoteVisCallout" class="iss-vis-callout">🔒 <strong>Internal Staff Note:</strong> Visible only to Admin: Mod and Admin: Top. Never shown or emailed to the reporter.</div>' +
+      '<label>Message / Note Body (optional, up to 1500 chars)<textarea id="issNoteBody" rows="3" maxlength="1500" placeholder="Write an internal investigation note or a helpful public reply to the reporter…">' + esc((savedDraft && savedDraft.body) || '') + '</textarea></label>' +
+      '<div id="issFormErrBox" class="state-box state-error" hidden style="padding:10px 12px;text-align:left"></div>' +
+      '<div class="action-row">' +
+      '<button type="submit" class="admin-btn admin-btn-primary" id="issSaveUpdateBtn">Save Ticket Update</button>' +
+      '<button type="button" class="admin-btn admin-btn-secondary" id="issAssignMeQuickBtn" ' + (state.ctx && state.ctx.user && iss.assigned_to === state.ctx.user.id ? 'hidden' : '') + '>Assign to Me</button>' +
+      '</div>' +
+      '</form>' +
+
+      '<section id="issDiagnosticsPanel" style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">' +
+      '<h3>Connected Diagnostic Incidents (' + diagLinks.length + ')</h3>' +
+      '<p class="record-meta" style="margin-bottom:8px">Link technical incidents without merging tickets or exposing raw telemetry, stack traces, or other reporters.</p>' +
+      diagLinksHtml +
+      '<div id="issDiagActionBox" class="card-panel" hidden style="margin:10px 0;padding:12px"></div>' +
+      '<div class="card-panel" style="margin-top:10px;padding:12px">' +
+      '<strong style="font-size:13px;display:block;margin-bottom:6px">Link Existing Diagnostic Incident</strong>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<input type="search" id="issDiagSearchInput" value="' + esc(iss.error_correlation_id || iss.affected_feature || '') + '" placeholder="Search incident title, error code, feature, or corr_…" style="flex:1;min-width:180px;padding:7px 10px;border:1px solid var(--border);border-radius:8px">' +
+      '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="issDiagSearchBtn">Search Incidents</button>' +
+      '</div>' +
+      '<div id="issDiagSearchResults" style="margin-top:8px"></div>' +
+      '</div>' +
+      '</section>';
+
+    function syncNoteVisCallout() {
+      var v = document.getElementById('issNoteVis').value;
+      var box = document.getElementById('issNoteVisCallout');
+      if (!box) return;
+      if (v === 'reporter_visible') {
+        box.className = 'iss-vis-callout is-public';
+        box.innerHTML = '💬 <strong>Public Reply to Reporter:</strong> Will appear in the reporter’s BiteShark support timeline as <em>BiteShark Support</em> (your personal staff email is never shown) and trigger an update notification when eligible.';
+      } else {
+        box.className = 'iss-vis-callout';
+        box.innerHTML = '🔒 <strong>Internal Staff Note:</strong> Visible only to Admin: Mod and Admin: Top. Never shown or emailed to the reporter.';
+      }
+    }
+    syncNoteVisCallout();
+
+    document.getElementById('issNoteVis').onchange = syncNoteVisCallout;
+    document.getElementById('issEditSeverity').onchange = function () {
+      document.getElementById('issPriorityReasonWrap').hidden = document.getElementById('issEditSeverity').value === iss.severity;
+    };
+    document.getElementById('issEditAssignee').onchange = function () {
+      var nextAss = document.getElementById('issEditAssignee').value || null;
+      document.getElementById('issAssignReasonWrap').hidden = nextAss === (iss.assigned_to || null);
+    };
+    document.getElementById('issEscalateCheck').onchange = function () {
+      document.getElementById('issEscalateReasonWrap').hidden = !document.getElementById('issEscalateCheck').checked;
+    };
+
+    var jumpCorrBtn = document.getElementById('issJumpCorrBtn');
+    if (jumpCorrBtn) {
+      jumpCorrBtn.onclick = function () {
+        jumpToDiagnosticIncident(null, jumpCorrBtn.dataset.corr);
+      };
+    }
+
+    pane.querySelectorAll('[data-open-diag]').forEach(function (btn) {
+      btn.onclick = function () {
+        jumpToDiagnosticIncident(btn.dataset.openDiag, null);
+      };
+    });
+    pane.querySelectorAll('[data-jump-ticket]').forEach(function (btn) {
+      btn.onclick = function () {
+        selectIssueDetail(btn.dataset.jumpTicket);
+      };
+    });
+
+    var assignMeBtn = document.getElementById('issAssignMeQuickBtn');
+    if (assignMeBtn && state.ctx && state.ctx.user) {
+      assignMeBtn.onclick = function () {
+        var sel = document.getElementById('issEditAssignee');
+        if (sel) {
+          sel.value = state.ctx.user.id;
+          sel.onchange();
+        }
+      };
+    }
+
+    var updDraftKey = null;
+    var updDraftSig = '';
     document.getElementById('issueUpdateForm').onsubmit = async function (e) {
       e.preventDefault();
       var saveBtn = document.getElementById('issSaveUpdateBtn');
+      var errBox = document.getElementById('issFormErrBox');
+      if (errBox) errBox.hidden = true;
+
+      var nextStatus = document.getElementById('issEditStatus').value;
+      var nextSev = document.getElementById('issEditSeverity').value;
+      var prioReason = document.getElementById('issEditPriorityReason').value.trim();
+      var nextAss = document.getElementById('issEditAssignee').value || null;
+      var assReason = document.getElementById('issEditAssignReason').value.trim();
+      var resReason = document.getElementById('issEditResolution').value.trim();
+      var escChecked = document.getElementById('issEscalateCheck').checked;
+      var escReason = document.getElementById('issEditEscalateReason').value.trim();
+      var noteVis = document.getElementById('issNoteVis').value;
+      var noteBody = document.getElementById('issNoteBody').value.trim();
+
+      // Save draft in memory so concurrent 409 or network errors never lose typed staff text
+      state.issues.draftByIssueId[iss.id] = {
+        vis: noteVis,
+        body: noteBody,
+        resolution: resReason
+      };
+
+      var d = adminDiag();
+      var sig = [iss.id, nextStatus, nextSev, nextAss || '', noteVis, noteBody, resReason].join('|');
+      if (!updDraftKey || updDraftSig !== sig) {
+        updDraftKey =
+          d && typeof d.createIdempotencyKey === 'function'
+            ? d.createIdempotencyKey('admupd')
+            : 'admupd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        updDraftSig = sig;
+      }
+
       if (saveBtn) saveBtn.disabled = true;
       try {
+        var reqBody = {
+          issue_id: iss.id,
+          status: nextStatus,
+          severity: nextSev,
+          assigned_to: nextAss,
+          resolution_reason: resReason || undefined,
+          note_visibility: noteVis,
+          note_body: noteBody || undefined,
+          expected_updated_at: iss.updated_at,
+          idempotency_key: noteBody ? updDraftKey : undefined
+        };
+        if (prioReason) reqBody.priority_change_reason = prioReason;
+        if (assReason) reqBody.assignment_reason = assReason;
+        if (escChecked !== Boolean(iss.escalated_to_top)) {
+          reqBody.escalated_to_top = escChecked;
+          if (escReason) reqBody.escalation_reason = escReason;
+        }
+
         var out = await apiJson('/api/admin/issues/update', {
           method: 'POST',
+          idempotentWrite: Boolean(noteBody),
           featureKey: 'support_issues',
           operationName: 'admin.update_issue',
-          body: {
-            issue_id: iss.id,
-            status: document.getElementById('issEditStatus').value,
-            severity: document.getElementById('issEditSeverity').value,
-            assigned_to: document.getElementById('issEditAssignee').value || null,
-            resolution_reason: document.getElementById('issEditResolution').value.trim(),
-            note_visibility: document.getElementById('issNoteVis').value,
-            note_body: document.getElementById('issNoteBody').value.trim(),
-            expected_updated_at: iss.updated_at
-          }
+          body: reqBody
         });
+        delete state.issues.draftByIssueId[iss.id];
+        updDraftKey = null;
+        updDraftSig = '';
         var repNotice =
           out && out.notification_delivery === 'recorded_in_app_only'
-            ? ' Reply recorded in reporter’s in-app support thread (not emailed externally).'
-            : '';
-        showBanner('✓ Saved to server — issue updated.' + repNotice, false);
+            ? ' Recorded in reporter’s in-app timeline (not emailed externally).'
+            : out && out.notification_delivery === 'provider_accepted'
+              ? ' Update notification accepted by mail provider.'
+              : '';
+        showBanner('✓ Saved to server — ticket ' + (iss.ticket_number || '') + ' updated.' + repNotice, false);
         await loadIssues(state.issues.page);
         loadOverview();
       } catch (err) {
         showBanner(err.message, true);
+        if (errBox) {
+          errBox.hidden = false;
+          errBox.innerHTML =
+            '<div><strong>✕ Could not save update:</strong> ' + esc(err.message) + '</div>' +
+            (err.status === 409
+              ? '<div style="margin-top:6px"><button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="issReloadKeepDraftBtn">↻ Reload latest ticket state (keep my draft)</button></div>'
+              : '');
+          var relBtn = document.getElementById('issReloadKeepDraftBtn');
+          if (relBtn) {
+            relBtn.onclick = function () { selectIssueDetail(iss.id); };
+          }
+        }
         if (saveBtn) saveBtn.disabled = false;
       }
     };
+
+    // Diagnostic link action handlers (confirm, update, unlink, search & link)
+    var actionBox = document.getElementById('issDiagActionBox');
+    function openDiagLinkEditor(opts) {
+      if (!actionBox) return;
+      actionBox.hidden = false;
+      actionBox.innerHTML =
+        '<strong>' + esc(opts.heading) + '</strong>' +
+        (opts.needReason
+          ? '<label style="display:block;margin-top:8px;font-size:12px;font-weight:600">Reason (required, 3–500 chars)<input type="text" id="issDiagActReason" value="' + esc(opts.defaultReason || '') + '" maxlength="500" style="width:100%;margin-top:3px;padding:6px 9px;border:1px solid var(--border);border-radius:7px"></label>'
+          : '') +
+        (opts.allowPublicSummary
+          ? '<label style="display:block;margin-top:8px;font-size:12px;font-weight:600">Optional Plain-Language Known-Issue Summary for Reporter (leave blank to keep internal-only)<input type="text" id="issDiagActPubSum" value="' + esc(opts.curPub || '') + '" maxlength="235" placeholder="e.g. Our team is investigating intermittent map tile delays." style="width:100%;margin-top:3px;padding:6px 9px;border:1px solid var(--border);border-radius:7px"></label>'
+          : '') +
+        (opts.allowVerif
+          ? '<div class="form-row-2" style="margin-top:8px">' +
+            '<label style="font-size:12px;font-weight:600">Verification Status<select id="issDiagActVerif" style="width:100%;margin-top:3px;padding:6px 9px;border:1px solid var(--border);border-radius:7px">' +
+            ['unverified', 'pending_release', 'still_reproducing'].concat(perms.can_record_fix_sha ? ['verified_fixed'] : [])
+              .map(function (v) { return '<option value="' + v + '"' + (opts.curVerif === v ? ' selected' : '') + '>' + v + '</option>'; })
+              .join('') +
+            '</select></label>' +
+            (perms.can_record_fix_sha
+              ? '<label style="font-size:12px;font-weight:600">Fixing Release SHA (Top, optional)<input type="text" id="issDiagActSha" value="' + esc(opts.curSha || '') + '" maxlength="40" placeholder="7–40 hex SHA" style="width:100%;margin-top:3px;padding:6px 9px;border:1px solid var(--border);border-radius:7px"></label>'
+              : '') +
+            '</div>'
+          : '') +
+        '<div class="action-row" style="margin-top:10px">' +
+        '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="issDiagActSubmitBtn">' + esc(opts.submitLabel) + '</button>' +
+        '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="issDiagActCancelBtn">Cancel</button>' +
+        '</div>';
+
+      document.getElementById('issDiagActCancelBtn').onclick = function () {
+        actionBox.hidden = true;
+        actionBox.innerHTML = '';
+      };
+      document.getElementById('issDiagActSubmitBtn').onclick = async function () {
+        var sBtn = document.getElementById('issDiagActSubmitBtn');
+        sBtn.disabled = true;
+        try {
+          var payload = {
+            action: opts.action,
+            issue_id: iss.id,
+            diagnostic_group_id: opts.groupId
+          };
+          if (opts.needReason) {
+            payload.reason = document.getElementById('issDiagActReason').value.trim();
+          }
+          if (opts.allowPublicSummary) {
+            payload.public_summary = document.getElementById('issDiagActPubSum').value.trim();
+          }
+          if (opts.allowVerif) {
+            payload.verification_status = document.getElementById('issDiagActVerif').value;
+            var shaEl = document.getElementById('issDiagActSha');
+            if (shaEl) payload.fixing_release_sha = shaEl.value.trim();
+          }
+          await apiJson('/api/admin/issues/diagnostics', {
+            method: 'POST',
+            featureKey: 'support_issues',
+            operationName: 'admin.link_issue_diagnostic',
+            body: payload
+          });
+          showBanner('✓ Diagnostic incident link updated.', false);
+          await selectIssueDetail(iss.id);
+          loadIssues(state.issues.page);
+        } catch (err) {
+          showBanner(err.message, true);
+          sBtn.disabled = false;
+        }
+      };
+    }
+
+    pane.querySelectorAll('[data-confirm-diag]').forEach(function (btn) {
+      btn.onclick = function () {
+        openDiagLinkEditor({
+          action: 'confirm',
+          groupId: btn.dataset.confirmDiag,
+          heading: 'Confirm Suggested Diagnostic Incident Link',
+          needReason: true,
+          defaultReason: 'Confirmed matching correlation / feature symptom during triage',
+          allowPublicSummary: true,
+          submitLabel: 'Confirm Link'
+        });
+      };
+    });
+
+    pane.querySelectorAll('[data-edit-diag]').forEach(function (btn) {
+      btn.onclick = function () {
+        openDiagLinkEditor({
+          action: 'update',
+          groupId: btn.dataset.editDiag,
+          heading: 'Update Known-Issue Summary & Verification',
+          needReason: false,
+          allowPublicSummary: true,
+          allowVerif: true,
+          curPub: btn.dataset.curPub || '',
+          curVerif: btn.dataset.curVerif || 'unverified',
+          curSha: btn.dataset.curSha || '',
+          submitLabel: 'Save Link Metadata'
+        });
+      };
+    });
+
+    pane.querySelectorAll('[data-unlink-diag]').forEach(function (btn) {
+      btn.onclick = function () {
+        openDiagLinkEditor({
+          action: 'unlink',
+          groupId: btn.dataset.unlinkDiag,
+          heading: 'Unlink Diagnostic Incident (Preserves Audit History)',
+          needReason: true,
+          defaultReason: '',
+          allowPublicSummary: false,
+          submitLabel: 'Unlink Incident'
+        });
+      };
+    });
+
+    var diagSearchBtn = document.getElementById('issDiagSearchBtn');
+    if (diagSearchBtn) {
+      diagSearchBtn.onclick = async function () {
+        var qVal = document.getElementById('issDiagSearchInput').value.trim();
+        var resDiv = document.getElementById('issDiagSearchResults');
+        resDiv.innerHTML = '<small>Searching eligible diagnostic incidents…</small>';
+        try {
+          var qsD = new URLSearchParams({ window: '30d', page_size: '8', include_synthetic: '1' });
+          if (qVal) qsD.set('q', qVal);
+          var dOut = await apiJson('/api/admin/diagnostics?' + qsD.toString());
+          var items = Array.isArray(dOut.items) ? dOut.items : [];
+          if (!items.length) {
+            resDiv.innerHTML = '<small class="record-meta">No matching diagnostic incidents found in the last 30 days.</small>';
+            return;
+          }
+          resDiv.innerHTML = items
+            .map(function (g) {
+              return (
+                '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-top:5px;background:#fff;font-size:12px">' +
+                '<div><strong>' + esc(g.title) + '</strong><br><code>' + esc(g.feature_key) + '</code> · <code>' + esc(g.error_code) + '</code> · ' + esc(g.triage_status) + ' (×' + Number(g.occurrence_count || 1) + ')</div>' +
+                '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" data-pick-diag="' + esc(g.id) + '" data-pick-title="' + esc(g.title) + '">Link →</button>' +
+                '</div>'
+              );
+            })
+            .join('');
+          resDiv.querySelectorAll('[data-pick-diag]').forEach(function (pBtn) {
+            pBtn.onclick = function () {
+              openDiagLinkEditor({
+                action: 'link',
+                groupId: pBtn.dataset.pickDiag,
+                heading: 'Link Incident: ' + pBtn.dataset.pickTitle,
+                needReason: true,
+                defaultReason: 'Related symptom reported on ticket ' + (iss.ticket_number || ''),
+                allowPublicSummary: true,
+                submitLabel: 'Confirm & Link Incident'
+              });
+            };
+          });
+        } catch (sErr) {
+          resDiv.innerHTML = '<small style="color:#8c1d18">' + esc(sErr.message) + '</small>';
+        }
+      };
+    }
   }
 
   // =========================================================================
@@ -3085,7 +3671,7 @@
       '<div><strong>Observed Browser Builds</strong>' + observedClientBuilds + '</div>' +
       '<div><strong>Latest Correlation ID</strong>' +
       (g.last_correlation_id
-        ? '<code class="diag-code-inline">' + esc(g.last_correlation_id) + '</code> <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="diagCopyCorrBtn" data-corr="' + esc(g.last_correlation_id) + '">Copy</button>'
+        ? '<code class="diag-code-inline">' + esc(g.last_correlation_id) + '</code> <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="diagCopyCorrBtn" data-corr="' + esc(g.last_correlation_id) + '">Copy</button>'
         : '—') +
       '</div>' +
       '</div>' +
@@ -3094,6 +3680,47 @@
       '<div style="margin-top:8px"><strong>User-Visible Impact:</strong><p style="margin:4px 0">' + esc(g.user_impact) + '</p></div>' +
       '<div style="margin-top:8px"><strong>Safe Operator Next Steps:</strong><p style="margin:4px 0">' + esc(g.safe_next_steps) + '</p></div>' +
 
+      (function () {
+        var linkedTickets = Array.isArray(data.linked_tickets) ? data.linked_tickets : [];
+        var confirmedOpenCount = linkedTickets.filter(function (lt) {
+          return lt.link_state === 'confirmed' && lt.status !== 'resolved' && lt.status !== 'closed';
+        }).length;
+        var ltListHtml = linkedTickets.length
+          ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0">' +
+            linkedTickets
+              .map(function (lt) {
+                return (
+                  '<button type="button" class="iss-ticket-chip" data-diag-jump-ticket="' + esc(lt.issue_id) + '">' +
+                  (lt.link_state === 'suggested' ? '💡 ' : '🔗 ') +
+                  '<code>' + esc(lt.ticket_number) + '</code> · ' +
+                  esc(lt.status_label || lt.status) + ' (' + esc(lt.reporter_context) + ')' +
+                  '</button>'
+                );
+              })
+              .join('') +
+            '</div>'
+          : '<p class="record-meta">No support tickets are currently linked to this incident.</p>';
+
+        var notifyBoxHtml = confirmedOpenCount > 0
+          ? '<div class="card-panel" style="margin-top:10px;padding:12px">' +
+            '<strong style="font-size:13px;display:block;margin-bottom:4px">Reviewed Public Update to Linked Open Tickets (' + confirmedOpenCount + ' eligible)</strong>' +
+            '<p class="record-meta" style="margin-bottom:8px">Posts a reviewed plain-language status note onto confirmed open tickets without merging or auto-closing any ticket. Always preview recipients first.</p>' +
+            '<textarea id="diagNotifyTicketsMsg" rows="2" maxlength="800" placeholder="Plain-language update for reporters (10–800 chars, no raw logs or secrets)…" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px"></textarea>' +
+            '<div class="action-row" style="margin-top:8px">' +
+            '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="diagPreviewNotifyBtn">1. Preview Recipients</button>' +
+            '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="diagConfirmNotifyBtn" hidden>2. Confirm &amp; Post Public Update</button>' +
+            '</div>' +
+            '<div id="diagNotifyPreviewResult" style="margin-top:8px" hidden></div>' +
+            '</div>'
+          : '';
+
+        return (
+          '<h3 style="margin-top:16px">Connected Support Tickets (' + linkedTickets.length + ')</h3>' +
+          ltListHtml +
+          notifyBoxHtml
+        );
+      })() +
+
       '<h3 style="margin-top:16px">Representative Sanitized Event Samples (' + samples.length + ')</h3>' +
       samplesHtml +
 
@@ -3101,6 +3728,75 @@
       notesHtml +
       triageFormHtml +
       addNoteFormHtml;
+
+    pane.querySelectorAll('[data-diag-jump-ticket]').forEach(function (btn) {
+      btn.onclick = function () {
+        jumpToSupportTicket(btn.dataset.diagJumpTicket);
+      };
+    });
+
+    var prevNotifBtn = document.getElementById('diagPreviewNotifyBtn');
+    var confNotifBtn = document.getElementById('diagConfirmNotifyBtn');
+    var prevResBox = document.getElementById('diagNotifyPreviewResult');
+    if (prevNotifBtn && confNotifBtn && prevResBox) {
+      var msgInput = document.getElementById('diagNotifyTicketsMsg');
+      msgInput.oninput = function () {
+        confNotifBtn.hidden = true;
+        prevResBox.hidden = true;
+      };
+      prevNotifBtn.onclick = async function () {
+        var msgVal = msgInput.value.trim();
+        prevNotifBtn.disabled = true;
+        try {
+          var pOut = await apiJson('/api/admin/diagnostics/notify-tickets', {
+            method: 'POST',
+            body: { group_id: g.id, mode: 'preview', message: msgVal }
+          });
+          var recs = Array.isArray(pOut.recipients) ? pOut.recipients : [];
+          prevResBox.hidden = false;
+          prevResBox.innerHTML =
+            '<div class="diag-callout">' +
+            '<strong>Recipient Preview (' + Number(pOut.recipient_count || 0) + ' open ticket(s) will receive this update' +
+            (pOut.already_sent_count ? ', ' + Number(pOut.already_sent_count) + ' already sent' : '') +
+            (pOut.excluded_inactive_count ? ', ' + Number(pOut.excluded_inactive_count) + ' resolved/closed skipped' : '') +
+            '):</strong>' +
+            '<ul style="margin:6px 0 0 18px;font-size:12px">' +
+            recs
+              .map(function (r) {
+                return (
+                  '<li><code>' + esc(r.ticket_number) + '</code> — ' + esc(r.subject) +
+                  ' (' + esc(r.status_label) + ' · ' + esc(r.recipient_masked || r.reporter_context) + ')' +
+                  (r.already_sent ? ' <em>[Already sent]</em>' : '') +
+                  '</li>'
+                );
+              })
+              .join('') +
+            '</ul></div>';
+          confNotifBtn.hidden = Number(pOut.recipient_count || 0) <= 0;
+        } catch (pErr) {
+          showBanner(pErr.message, true);
+        } finally {
+          prevNotifBtn.disabled = false;
+        }
+      };
+
+      confNotifBtn.onclick = async function () {
+        var msgVal = msgInput.value.trim();
+        confNotifBtn.disabled = true;
+        try {
+          var sOut = await apiJson('/api/admin/diagnostics/notify-tickets', {
+            method: 'POST',
+            idempotentWrite: true,
+            body: { group_id: g.id, mode: 'send', confirmed: true, message: msgVal }
+          });
+          showBanner('✓ Posted reviewed public update to ' + Number(sOut.posted_count || 0) + ' linked open ticket(s).', false);
+          await selectDiagnosticIncident(g.id);
+        } catch (sErr) {
+          showBanner(sErr.message, true);
+          confNotifBtn.disabled = false;
+        }
+      };
+    }
 
     var copyBtn = document.getElementById('diagCopyCorrBtn');
     if (copyBtn) {
@@ -4106,6 +4802,17 @@
   document.getElementById('refreshModBtn').onclick = function () { loadModeration(state.mod.page); };
   document.getElementById('modFilterForm').onsubmit = function (e) { e.preventDefault(); loadModeration(1); };
 
+  document.querySelectorAll('#issuesQueueTabs [data-iss-queue]').forEach(function (btn) {
+    btn.onclick = function () {
+      state.issues.queue = btn.dataset.issQueue;
+      var stSel = document.getElementById('issuesStatusFilter');
+      if (stSel) stSel.value = '';
+      document.querySelectorAll('#issuesQueueTabs [data-iss-queue]').forEach(function (b) {
+        b.classList.toggle('active', b === btn);
+      });
+      loadIssues(1);
+    };
+  });
   document.getElementById('refreshIssuesBtn').onclick = function () { loadIssues(state.issues.page); };
   document.getElementById('issuesFilterForm').onsubmit = function (e) { e.preventDefault(); loadIssues(1); };
 

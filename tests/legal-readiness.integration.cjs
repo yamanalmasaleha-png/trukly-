@@ -235,7 +235,7 @@ function extractCookiePair(res, cookieName) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":24'), `Expected 24 migrations, got: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":25'), `Expected 25 migrations, got: ${migRes.stdout}`);
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });

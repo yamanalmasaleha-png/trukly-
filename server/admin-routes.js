@@ -25,8 +25,27 @@ import {
   inspectAdminEmailReadiness,
   getPublicAuthDeliveryModeSummary,
   createAuthCorrelationId,
-  dispatchInvitationEmail
+  dispatchInvitationEmail,
+  dispatchSupportNotificationEmail
 } from '../lib/standalone-auth.js';
+import {
+  CATEGORY_LABELS,
+  REPORTER_URGENCY_LABELS,
+  STAFF_PRIORITY_LABELS,
+  SUPPORT_STATUS_LABELS,
+  VALID_REPORTER_URGENCIES,
+  VALID_STAFF_PRIORITIES,
+  normalizeSupportStatusInput,
+  normalizeSupportCategoryInput,
+  resolveInitialUrgencyAndPriority,
+  buildAutoSubjectFromDescription,
+  sanitizeSupportContextFields,
+  formatPublicTeamAuthorLabel,
+  validateStaffStatusTransition,
+  evaluateAssignmentMutation,
+  serializeSupportTicketForReporter,
+  autoSuggestDiagnosticLinksInTx
+} from '../lib/support-tickets.js';
 import {
   loadPersistedFeatureControls,
   evaluateFeatureControlsSnapshot,
@@ -96,6 +115,8 @@ const GOVERNANCE_PATHS = new Set([
   '/api/community/report',
   '/api/issues',
   '/api/issues/reply',
+  '/api/issues/reopen',
+  '/api/issues/read',
   '/api/admin/overview',
   '/api/admin/email-readiness',
   '/api/admin/vendor-preview',
@@ -114,6 +135,7 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/moderation/decision',
   '/api/admin/issues',
   '/api/admin/issues/update',
+  '/api/admin/issues/diagnostics',
   '/api/admin/readiness',
   '/api/admin/readiness/note',
   '/api/admin/readiness/update',
@@ -126,6 +148,7 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/diagnostics/note',
   '/api/admin/diagnostics/synthetic-test',
   '/api/admin/diagnostics/cleanup',
+  '/api/admin/diagnostics/notify-tickets',
   '/api/admin/audit'
 ]);
 
@@ -422,6 +445,130 @@ async function deliverAndFinalizeIssuedInvitation({
   };
 }
 
+async function recordAndDispatchSupportNotification({
+  dbAdapter,
+  issueId,
+  ticketNumber,
+  recipientUserId,
+  recipientEmail,
+  eventKind,
+  dedupeKey,
+  statusLabel = '',
+  isCritical = false
+}) {
+  if (!issueId || !recipientUserId || !dedupeKey) {
+    return {
+      notification_delivery: 'recorded_in_app_only',
+      delivery_status: 'in_app_only',
+      skipped_duplicate: false
+    };
+  }
+
+  let notifId = null;
+  let throttledRecent = false;
+  try {
+    await withTransaction(dbAdapter, async tx => {
+      await tx.query(
+        "SELECT set_config('app.auth_internal', 'true', true), set_config('app.admin_portal', 'true', true), set_config('app.user_id', $1, true)",
+        [recipientUserId]
+      );
+      // Anti-loop cooldown: do not emit repeated external emails of the same event_kind on the same ticket within 5 minutes
+      const recentCheck = await tx.query(
+        `SELECT id FROM support_issue_notifications
+         WHERE issue_id = $1 AND event_kind = $2 AND delivery_status = 'provider_accepted'
+           AND created_at >= now() - interval '5 minutes'
+         LIMIT 1`,
+        [issueId, eventKind]
+      );
+      if (recentCheck.rows.length > 0) {
+        throttledRecent = true;
+      }
+      const { rows } = await tx.query(
+        `INSERT INTO support_issue_notifications (
+           issue_id, recipient_user_id, event_kind, dedupe_key, delivery_status, delivery_mode
+         )
+         VALUES ($1, $2, $3, $4, $5, 'pending')
+         ON CONFLICT (issue_id, dedupe_key) DO NOTHING
+         RETURNING id`,
+        [issueId, recipientUserId, eventKind, dedupeKey, throttledRecent ? 'in_app_only' : 'queued']
+      );
+      notifId = rows[0]?.id || null;
+    });
+  } catch (err) {
+    // Graceful fallback if table not yet migrated in legacy rollback test
+    if (err?.code === '42P01') {
+      return { notification_delivery: 'recorded_in_app_only', delivery_status: 'in_app_only' };
+    }
+    throw err;
+  }
+
+  if (!notifId || throttledRecent) {
+    return {
+      notification_delivery: 'recorded_in_app_only',
+      delivery_status: 'in_app_only',
+      skipped_duplicate: !notifId,
+      throttled_cooldown: throttledRecent
+    };
+  }
+
+  const sendOut = await dispatchSupportNotificationEmail(dbAdapter, {
+    notificationId: notifId,
+    recipientEmail,
+    ticketNumber,
+    eventKind,
+    statusLabel,
+    isCritical
+  });
+
+  try {
+    await withTransaction(dbAdapter, async tx => {
+      await tx.query(
+        "SELECT set_config('app.auth_internal', 'true', true), set_config('app.admin_portal', 'true', true), set_config('app.user_id', $1, true)",
+        [recipientUserId]
+      );
+      await tx.query(
+        `UPDATE support_issue_notifications
+         SET delivery_status = $2,
+             delivery_mode = $3,
+             attempt_count = $4,
+             provider_status = $5,
+             provider_message_id = $6,
+             error_code = $7,
+             correlation_id = $8,
+             updated_at = now()
+         WHERE id = $1`,
+        [
+          notifId,
+          sendOut.deliveryStatus,
+          sendOut.deliveryMode || 'disabled',
+          sendOut.attemptsUsed || 0,
+          sendOut.providerStatus ?? null,
+          sendOut.providerMessageId || null,
+          sendOut.errorCode || null,
+          sendOut.correlationId || null
+        ]
+      );
+    });
+  } catch {}
+
+  const legacySummary =
+    sendOut.deliveryStatus === 'provider_accepted'
+      ? 'provider_accepted'
+      : sendOut.deliveryStatus === 'delivery_failed' || sendOut.deliveryStatus === 'delivery_uncertain'
+        ? sendOut.deliveryStatus
+        : 'recorded_in_app_only';
+
+  return {
+    notification_delivery: legacySummary,
+    delivery_status: sendOut.deliveryStatus,
+    delivery_mode: sendOut.deliveryMode,
+    provider_status: sendOut.providerStatus ?? null,
+    provider_message_id: sendOut.providerMessageId || null,
+    error_code: sendOut.errorCode || null,
+    correlation_id: sendOut.correlationId || null
+  };
+}
+
 export async function handleGovernanceApiRequest({
   pathname,
   method,
@@ -556,12 +703,14 @@ export async function handleGovernanceApiRequest({
         memberships: [],
         vendor_memberships: [],
         my_applications_count: 0,
-        my_open_issues_count: 0
+        my_open_issues_count: 0,
+        unread_support_count: 0
       });
     }
 
     let myAppsCount = 0;
     let myIssuesCount = 0;
+    let unreadSupportCount = 0;
     let ageEligibilityStatus = 'not_assessed';
     let agePolicyVersion = null;
     try {
@@ -583,12 +732,35 @@ export async function handleGovernanceApiRequest({
             'SELECT count(*)::int AS c FROM vendor_applications WHERE applicant_user_id = $1',
             [ctx.user.id]
           );
-          const issRes = await tx.query(
-            "SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1 AND status IN ('open', 'in_progress', 'waiting')",
-            [ctx.user.id]
-          );
+          await tx.query('SAVEPOINT ctx_support_counts');
+          try {
+            const issRes = await tx.query(
+              `SELECT
+                 count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting'))::int AS open_c,
+                 count(*) FILTER (
+                   WHERE last_public_staff_activity_at IS NOT NULL
+                     AND last_public_staff_activity_at > reporter_last_read_at
+                 )::int AS unread_c
+               FROM support_issues
+               WHERE reporter_user_id = $1`,
+              [ctx.user.id]
+            );
+            await tx.query('RELEASE SAVEPOINT ctx_support_counts');
+            myIssuesCount = issRes.rows[0]?.open_c || 0;
+            unreadSupportCount = issRes.rows[0]?.unread_c || 0;
+          } catch (cntErr) {
+            await tx.query('ROLLBACK TO SAVEPOINT ctx_support_counts').catch(() => {});
+            if (cntErr?.code === '42703') {
+              const fallbackIss = await tx.query(
+                "SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1 AND status IN ('open', 'in_progress', 'waiting')",
+                [ctx.user.id]
+              );
+              myIssuesCount = fallbackIss.rows[0]?.c || 0;
+            } else {
+              throw cntErr;
+            }
+          }
           myAppsCount = appsRes.rows[0]?.c || 0;
-          myIssuesCount = issRes.rows[0]?.c || 0;
         }
       });
     } catch (ctxErr) {
@@ -628,7 +800,8 @@ export async function handleGovernanceApiRequest({
         memberships: [],
         vendor_memberships: [],
         my_applications_count: 0,
-        my_open_issues_count: 0
+        my_open_issues_count: 0,
+        unread_support_count: 0
       });
     }
 
@@ -664,7 +837,8 @@ export async function handleGovernanceApiRequest({
       memberships: memList,
       vendor_memberships: memList,
       my_applications_count: myAppsCount,
-      my_open_issues_count: myIssuesCount
+      my_open_issues_count: myIssuesCount,
+      unread_support_count: unreadSupportCount
     });
   }
 
@@ -1788,11 +1962,16 @@ export async function handleGovernanceApiRequest({
 
   if (normPath === '/api/issues') {
     if (!ctx.authenticated || !ctx.user?.id) {
-      return sendJson(401, { error: 'Sign in to view or submit support issues.' });
+      return sendJson(401, { error: 'Sign in to view or submit support requests.' });
     }
 
     if (method === 'GET') {
       const singleId = typeof query.issue_id === 'string' && UUID_RE.test(query.issue_id.trim()) ? query.issue_id.trim() : '';
+      const singleTicketNo =
+        typeof query.ticket_number === 'string' && /^BS-[0-9]{6,10}$/i.test(query.ticket_number.trim())
+          ? query.ticket_number.trim().toUpperCase()
+          : '';
+
       const out = await withTransaction(dbAdapter, async tx => {
         await tx.query(
           "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
@@ -1804,84 +1983,188 @@ export async function handleGovernanceApiRequest({
         );
         const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
 
-        // Unassessed accounts may view ONLY narrow privacy/accessibility/account-access support tickets,
-        // never historical operational/booking/vendor dispute records.
-        const scopeSql = isEligible
-          ? ''
-          : " AND category = 'account_access' AND vendor_id IS NULL AND related_booking_id IS NULL AND related_review_id IS NULL";
+        let verifiedVendorIds = [];
+        if (isEligible) {
+          const vmRes = await tx.query(
+            'SELECT vendor_id FROM vendor_memberships WHERE user_id = $1',
+            [ctx.user.id]
+          );
+          verifiedVendorIds = vmRes.rows.map(r => r.vendor_id).filter(Boolean);
+        }
 
-        const { rows: issues } = await tx.query(
-          `SELECT
-             id, reporter_context, category, severity, status, vendor_id,
-             related_booking_id, related_review_id, subject, description,
-             resolution_reason, created_at, updated_at, resolved_at
-           FROM support_issues
-           WHERE reporter_user_id = $1${scopeSql}
-           ORDER BY updated_at DESC
-           LIMIT 30`,
-          [ctx.user.id]
-        );
+        // Unassessed accounts may view ONLY narrow privacy/accessibility/account-access support tickets,
+        // never historical operational/booking/vendor dispute records or shared vendor tickets.
+        let issuesQuerySql;
+        let issuesParams;
+        if (!isEligible) {
+          issuesQuerySql = `
+            SELECT *
+            FROM support_issues
+            WHERE reporter_user_id = $1
+              AND category = 'account_access'
+              AND vendor_id IS NULL
+              AND related_booking_id IS NULL
+              AND related_review_id IS NULL
+            ORDER BY last_activity_at DESC, updated_at DESC
+            LIMIT 40
+          `;
+          issuesParams = [ctx.user.id];
+        } else {
+          issuesQuerySql = `
+            SELECT *
+            FROM support_issues
+            WHERE reporter_user_id = $1
+               OR (
+                 sharing_scope = 'vendor_service'
+                 AND reporter_context = 'vendor'
+                 AND category <> 'account_access'
+                 AND vendor_id = ANY($2::text[])
+               )
+            ORDER BY last_activity_at DESC, updated_at DESC
+            LIMIT 50
+          `;
+          issuesParams = [ctx.user.id, verifiedVendorIds];
+        }
+
+        const { rows: issues } = await tx.query(issuesQuerySql, issuesParams);
+
+        // If viewing a single ticket owned by the reporter, mark it read
+        if (singleId || singleTicketNo) {
+          const target = issues.find(i => (singleId ? i.id === singleId : i.ticket_number === singleTicketNo));
+          if (target && target.reporter_user_id === ctx.user.id) {
+            await tx.query(
+              'UPDATE support_issues SET reporter_last_read_at = now() WHERE id = $1',
+              [target.id]
+            );
+            target.reporter_last_read_at = new Date().toISOString();
+          }
+        }
+
         const ids = issues.map(i => i.id);
         const notesMap = new Map();
+        const eventsMap = new Map();
+        const pubDiagMap = new Map();
+
         if (ids.length) {
-          // RLS strictly filters `visibility = 'reporter_visible'`; explicit WHERE reinforces defense in depth
           const { rows: notes } = await tx.query(
-            `SELECT id, issue_id, author_role, body, created_at
+            `SELECT id, issue_id, author_user_id, author_role, author_display_label, body, created_at
              FROM support_issue_notes
              WHERE issue_id = ANY($1::uuid[]) AND visibility = 'reporter_visible'
-             ORDER BY created_at ASC`,
+             ORDER BY created_at ASC, id ASC`,
             [ids]
           );
           for (const n of notes) {
             if (!notesMap.has(n.issue_id)) notesMap.set(n.issue_id, []);
             notesMap.get(n.issue_id).push(n);
           }
+
+          const { rows: events } = await tx.query(
+            `SELECT id, issue_id, event_type, public_actor_label, summary, created_at
+             FROM support_issue_events
+             WHERE issue_id = ANY($1::uuid[]) AND visibility = 'reporter_visible'
+             ORDER BY created_at ASC, id ASC`,
+            [ids]
+          );
+          for (const ev of events) {
+            if (!eventsMap.has(ev.issue_id)) eventsMap.set(ev.issue_id, []);
+            eventsMap.get(ev.issue_id).push(ev);
+          }
+
+          const { rows: pubDiags } = await tx.query(
+            `SELECT issue_id, public_summary, verification_status, updated_at
+             FROM support_issue_diagnostic_links
+             WHERE issue_id = ANY($1::uuid[])
+               AND unlinked_at IS NULL
+               AND link_state = 'confirmed'
+               AND public_summary IS NOT NULL
+             ORDER BY updated_at DESC`,
+            [ids]
+          );
+          for (const pd of pubDiags) {
+            if (!pubDiagMap.has(pd.issue_id)) pubDiagMap.set(pd.issue_id, []);
+            pubDiagMap.get(pd.issue_id).push(pd);
+          }
         }
-        const enriched = issues.map(i => ({ ...i, responses: notesMap.get(i.id) || [], notes: notesMap.get(i.id) || [] }));
-        if (singleId) {
-          const match = enriched.find(i => i.id === singleId);
+
+        const enriched = issues.map(i =>
+          serializeSupportTicketForReporter(i, {
+            notes: notesMap.get(i.id) || [],
+            events: eventsMap.get(i.id) || [],
+            publicDiagnostics: pubDiagMap.get(i.id) || [],
+            viewerUserId: ctx.user.id
+          })
+        );
+
+        if (singleId || singleTicketNo) {
+          const match = enriched.find(i => (singleId ? i.id === singleId : i.ticket_number === singleTicketNo));
           return { single: match || null };
         }
         return { list: enriched };
       });
-      if (singleId) {
-        if (!out.single) return sendJson(404, { error: 'Issue not found.' });
-        return sendJson(200, { issue: out.single, notes: out.single.notes });
+
+      if (singleId || singleTicketNo) {
+        if (!out.single) return sendJson(404, { error: 'Support request not found.' });
+        return sendJson(200, {
+          issue: out.single,
+          notes: out.single.notes,
+          timeline_events: out.single.timeline_events,
+          public_diagnostics: out.single.public_diagnostics
+        });
       }
-      return sendJson(200, { issues: out.list });
+      const unreadCount = (out.list || []).filter(i => i.unread_for_reporter).length;
+      return sendJson(200, { issues: out.list, unread_count: unreadCount });
     }
 
     if (method === 'POST') {
-      const rawCat = typeof body.category === 'string' ? body.category.trim() : '';
-      const catAlias = {
-        booking_issue: 'booking_dispute',
-        vendor_dispute: 'vendor_conduct',
-        safety_concern: 'vendor_conduct',
-        privacy_request: 'account_access',
-        accessibility_support: 'account_access'
-      };
-      const category = catAlias[rawCat] || rawCat;
+      const rawEntryKind = typeof body.entry_kind === 'string' ? body.entry_kind.trim().toLowerCase() : '';
+      const entryKind = ['problem', 'question', 'suggestion'].includes(rawEntryKind) ? rawEntryKind : 'problem';
+      const rawCat = typeof body.category === 'string' ? body.category.trim().toLowerCase() : '';
       const isNarrowSupportCategory = ['account_access', 'privacy_request', 'accessibility_support'].includes(rawCat);
-      const severity = typeof body.severity === 'string' && body.severity.trim() ? body.severity.trim() : 'normal';
-      const reporterContext = body.reporter_context === 'vendor' && ctx.memberships.size > 0 ? 'vendor' : 'customer';
-      const vendorId = typeof body.vendor_id === 'string' && body.vendor_id.trim() ? body.vendor_id.trim() : null;
+
+      const serverSha = getRuntimeReleaseSha();
+      const safeCtx = sanitizeSupportContextFields(body, serverSha);
+      const category = normalizeSupportCategoryInput(rawCat, entryKind, safeCtx.affectedFeature);
+      if (!category) {
+        return sendJson(400, { error: 'Select a valid support or feedback category.' });
+      }
+
+      if (body.urgency !== undefined && !VALID_REPORTER_URGENCIES.has(String(body.urgency).trim().toLowerCase()) && String(body.urgency).trim().toLowerCase() !== 'urgent') {
+        return sendJson(400, { error: 'Select a valid impact/urgency level.' });
+      }
+      if (body.severity !== undefined && !VALID_STAFF_PRIORITIES.has(String(body.severity).trim().toLowerCase())) {
+        return sendJson(400, { error: 'Select a valid severity level.' });
+      }
+
+      const effectiveEntryKind = category === 'suggestion_feedback' ? 'suggestion' : category === 'question_help' ? 'question' : entryKind;
+      const { reporterUrgency, staffPriority, slaDueAt } = resolveInitialUrgencyAndPriority({
+        rawUrgency: body.urgency ?? body.reporter_urgency,
+        rawSeverity: body.severity,
+        entryKind: effectiveEntryKind,
+        category
+      });
+
+      const requestedContext = body.reporter_context === 'vendor' ? 'vendor' : 'customer';
+      const rawVendorId = typeof body.vendor_id === 'string' && body.vendor_id.trim() ? body.vendor_id.trim() : null;
       const bookingId = typeof body.related_booking_id === 'string' && body.related_booking_id.trim() ? body.related_booking_id.trim() : null;
       const reviewId = typeof body.related_review_id === 'string' && body.related_review_id.trim() ? body.related_review_id.trim() : null;
-      const subject = typeof body.subject === 'string' ? body.subject.trim() : '';
+      const rawSubject = typeof body.subject === 'string' ? body.subject.trim() : '';
       const description = typeof body.description === 'string' ? body.description.trim() : '';
       const idem = normalizeOptionalIdempotencyKey(body.idempotency_key);
 
       if (!idem.ok) return sendJson(400, { error: idem.error });
-      if (
-        !['listing_accuracy', 'booking_dispute', 'pager_issue', 'vendor_conduct', 'account_access', 'abuse_report', 'other'].includes(category) ||
-        !['low', 'normal', 'high', 'urgent'].includes(severity) ||
-        subject.length < 5 ||
-        subject.length > 140 ||
-        description.length < 15 ||
-        description.length > 1500
-      ) {
+      if (description.length < 15 || description.length > 1500) {
+        return sendJson(400, { error: 'Please include a description between 15 and 1500 characters.' });
+      }
+      // Customer lighter form may omit `subject`; explicit `subject` when provided must be 5–140 chars
+      const subject =
+        rawSubject.length > 0
+          ? rawSubject
+          : requestedContext === 'customer'
+            ? buildAutoSubjectFromDescription(effectiveEntryKind, category, description)
+            : '';
+      if (subject.length < 5 || subject.length > 140) {
         return sendJson(400, {
-          error: 'Provide a valid category, severity, subject (5–140 chars), and description (15–1500 chars).'
+          error: 'Provide a short title between 5 and 140 characters and a description between 15 and 1500 characters.'
         });
       }
       if (bookingId && !UUID_RE.test(bookingId)) return sendJson(400, { error: 'Invalid related_booking_id.' });
@@ -1898,28 +2181,103 @@ export async function handleGovernanceApiRequest({
         );
         const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
         if (!isEligible) {
-          if (!isNarrowSupportCategory || vendorId || bookingId || reviewId || body.reporter_context === 'vendor') {
+          if (!isNarrowSupportCategory || rawVendorId || bookingId || reviewId || requestedContext === 'vendor') {
             return {
               status: 403,
               body: buildAgeAssessmentRequiredPayload('/')
             };
           }
         }
-        const effectiveReporterContext = isEligible ? reporterContext : 'customer';
+
+        // Verify vendor memberships server-side under transaction; a selected vendor_id NEVER grants access!
+        const memRes = isEligible
+          ? await tx.query('SELECT vendor_id, role FROM vendor_memberships WHERE user_id = $1 FOR SHARE', [ctx.user.id])
+          : { rows: [] };
+        const memberVendorSet = new Set(memRes.rows.map(r => r.vendor_id));
+
+        let effectiveReporterContext = 'customer';
+        let effectiveVendorId = rawVendorId;
+
+        if (requestedContext === 'vendor') {
+          if (memberVendorSet.size === 0) {
+            return {
+              status: 403,
+              body: {
+                error: 'Vendor support submissions require an active authorized vendor membership.',
+                code: 'VENDOR_MEMBERSHIP_REQUIRED'
+              }
+            };
+          }
+          effectiveReporterContext = 'vendor';
+          if (effectiveVendorId) {
+            if (!memberVendorSet.has(effectiveVendorId)) {
+              return {
+                status: 403,
+                body: {
+                  error: 'You are not an authorized member of the selected vendor listing.',
+                  code: 'VENDOR_SCOPE_FORBIDDEN'
+                }
+              };
+            }
+          } else if (memberVendorSet.size === 1 && category !== 'account_access') {
+            effectiveVendorId = Array.from(memberVendorSet)[0];
+          } else if (
+            memberVendorSet.size > 1 &&
+            ['listing_hours_location', 'listing_accuracy', 'event_inquiries', 'booking_dispute', 'pager_notifications', 'pager_issue'].includes(category)
+          ) {
+            return {
+              status: 400,
+              body: {
+                error: 'Select which of your managed vendor listings is affected.',
+                code: 'VENDOR_SELECTION_REQUIRED'
+              }
+            };
+          }
+        } else if (effectiveVendorId) {
+          const vr = await tx.query('SELECT id FROM vendors WHERE id = $1', [effectiveVendorId]);
+          if (!vr.rows.length) return { status: 400, body: { error: 'Unknown vendor_id.' } };
+        }
+
+        // Enforce sharing_scope policy: customer tickets & account_access tickets are ALWAYS personal!
+        const requestedScope = body.sharing_scope === 'personal' ? 'personal' : body.sharing_scope === 'vendor_service' ? 'vendor_service' : null;
+        let sharingScope = 'personal';
+        if (effectiveReporterContext === 'vendor' && effectiveVendorId && category !== 'account_access') {
+          sharingScope = requestedScope === 'personal' ? 'personal' : 'vendor_service';
+        }
+
+        // Check idempotency BEFORE consuming rate-limit quota so network retries never exhaust limits!
+        if (idem.value) {
+          const prev = await tx.query(
+            `SELECT *
+             FROM support_issues
+             WHERE reporter_user_id = $1 AND idempotency_key = $2`,
+            [ctx.user.id, idem.value]
+          );
+          if (prev.rows.length) {
+            return {
+              status: 200,
+              body: {
+                issue: serializeSupportTicketForReporter(prev.rows[0], { viewerUserId: ctx.user.id }),
+                idempotent_replay: true,
+                deduplicated: true
+              }
+            };
+          }
+        }
 
         const rl = await consumeGovernanceRateLimit(tx, {
           scope: 'issue_create',
           subjectKey: ctx.user.id,
-          maxHits: 8,
+          maxHits: 12,
           windowSeconds: 86400
         });
         if (!rl.allowed) {
-          return { status: 429, body: { error: 'Issue submission rate limit reached (max 8 per 24 hours).' } };
-        }
-
-        if (vendorId) {
-          const vr = await tx.query('SELECT id FROM vendors WHERE id = $1', [vendorId]);
-          if (!vr.rows.length) return { status: 400, body: { error: 'Unknown vendor_id.' } };
+          return {
+            status: 429,
+            body: {
+              error: 'Support submission limit reached (max 12 requests per 24 hours). You can still reply to existing open tickets.'
+            }
+          };
         }
 
         if (bookingId) {
@@ -1927,60 +2285,165 @@ export async function handleGovernanceApiRequest({
           if (!br.rows.length) return { status: 400, body: { error: 'Related booking not found.' } };
           const ownsBooking =
             br.rows[0].requester_user_id === ctx.user.id ||
-            (br.rows[0].truck_id && ctx.memberships.has(br.rows[0].truck_id));
+            (br.rows[0].truck_id && memberVendorSet.has(br.rows[0].truck_id));
           if (!ownsBooking && !ctx.isModAdmin) {
             return { status: 403, body: { error: 'Not authorized to link this booking.' } };
           }
         }
 
-        const slaDueAt = computeIssueSlaDueAt(severity);
         const { rows } = await tx.query(
           `INSERT INTO support_issues (
-             reporter_user_id, reporter_email, reporter_context, category, severity,
+             reporter_user_id, reporter_email, reporter_context, entry_kind, sharing_scope,
+             category, reporter_urgency, severity,
              vendor_id, related_booking_id, related_review_id, subject, description,
-             sla_due_at, idempotency_key
+             sla_due_at, idempotency_key, waiting_for_team,
+             affected_feature, operation_name, error_correlation_id, reported_occurred_at,
+             server_release_sha, client_build_version, client_loaded_release_sha, coarse_device_info
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           VALUES (
+             $1, $2, $3, $4, $5,
+             $6, $7, $8,
+             $9, $10, $11, $12, $13,
+             $14, $15, true,
+             $16, $17, $18, $19,
+             $20, $21, $22, $23
+           )
            ON CONFLICT (reporter_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL
            DO NOTHING
-           RETURNING id, category, severity, status, vendor_id, subject, created_at`,
+           RETURNING *`,
           [
             ctx.user.id,
             ctx.user.email || null,
             effectiveReporterContext,
+            effectiveEntryKind,
+            sharingScope,
             category,
-            severity,
-            vendorId,
+            reporterUrgency,
+            staffPriority,
+            effectiveVendorId,
             bookingId,
             reviewId,
             subject,
             description,
             slaDueAt,
-            idem.value
+            idem.value,
+            safeCtx.affectedFeature,
+            safeCtx.operationName,
+            safeCtx.errorCorrelationId,
+            safeCtx.reportedOccurredAt,
+            safeCtx.serverReleaseSha,
+            safeCtx.clientBuildVersion,
+            safeCtx.clientLoadedReleaseSha,
+            safeCtx.coarseDeviceInfo
           ]
         );
+
         if (!rows.length && idem.value) {
           const prev = await tx.query(
-            `SELECT id, category, severity, status, vendor_id, subject, created_at
-             FROM support_issues
-             WHERE reporter_user_id = $1 AND idempotency_key = $2`,
+            'SELECT * FROM support_issues WHERE reporter_user_id = $1 AND idempotency_key = $2',
             [ctx.user.id, idem.value]
           );
-          return { status: 200, body: { issue: prev.rows[0], idempotent_replay: true } };
+          return {
+            status: 200,
+            body: {
+              issue: serializeSupportTicketForReporter(prev.rows[0], { viewerUserId: ctx.user.id }),
+              idempotent_replay: true
+            }
+          };
         }
+
+        const created = rows[0];
+        const createdSummary =
+          reporterUrgency === 'critical'
+            ? `Ticket ${created.ticket_number} received with Critical urgency and placed at the top of the team triage queue (awaiting staff review).`
+            : reporterUrgency === 'feedback'
+              ? `Feedback ${created.ticket_number} received and logged for the BiteShark product & operations team.`
+              : `Ticket ${created.ticket_number} received and queued for BiteShark Support review.`;
+
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, 'ticket_created', 'reporter_visible', $2, $3, $4, $5, $6::jsonb)`,
+          [
+            created.id,
+            ctx.user.id,
+            effectiveReporterContext,
+            'You',
+            createdSummary,
+            JSON.stringify({
+              ticket_number: created.ticket_number,
+              category,
+              reporter_urgency: reporterUrgency,
+              sharing_scope: sharingScope
+            })
+          ]
+        );
+
+        await autoSuggestDiagnosticLinksInTx(tx, {
+          issueId: created.id,
+          errorCorrelationId: safeCtx.errorCorrelationId
+        });
 
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
           actorRole: effectiveReporterContext,
-          vendorId,
+          vendorId: effectiveVendorId,
           targetType: 'support_issue',
-          targetId: rows[0].id,
+          targetId: created.id,
           action: 'issue.create',
-          metadata: { category, severity }
+          metadata: {
+            ticket_number: created.ticket_number,
+            category,
+            reporter_urgency: reporterUrgency,
+            sharing_scope: sharingScope
+          }
         });
-        return { status: 201, body: { issue: rows[0] } };
+
+        return {
+          status: 201,
+          createdRow: created
+        };
       });
-      return sendJson(outcome.status, outcome.body);
+
+      if (outcome.status !== 201 || !outcome.createdRow) {
+        return sendJson(outcome.status, outcome.body);
+      }
+
+      const created = outcome.createdRow;
+      let ackNotif = { notification_delivery: 'recorded_in_app_only', delivery_status: 'in_app_only' };
+      // Immediate acknowledgement notification on Critical/High reports (or any report when email provider is active)
+      if (created.reporter_urgency === 'critical' || created.reporter_urgency === 'high') {
+        ackNotif = await recordAndDispatchSupportNotification({
+          dbAdapter,
+          issueId: created.id,
+          ticketNumber: created.ticket_number,
+          recipientUserId: ctx.user.id,
+          recipientEmail: ctx.user.email,
+          eventKind: 'ticket_acknowledged',
+          dedupeKey: `ack:${created.id}`,
+          statusLabel: 'Received',
+          isCritical: created.reporter_urgency === 'critical'
+        });
+      }
+
+      return sendJson(201, {
+        issue: serializeSupportTicketForReporter(created, { viewerUserId: ctx.user.id }),
+        acknowledgement_delivery: ackNotif.delivery_status,
+        acknowledgement: {
+          ticket_number: created.ticket_number,
+          status: created.status,
+          status_label: SUPPORT_STATUS_LABELS[created.status] || 'Received',
+          read_by_team_yet: false,
+          what_happens_next:
+            created.reporter_urgency === 'critical'
+              ? 'Your Critical report is flagged at the top of our support queue. Automated receipt confirms your ticket was saved — a team member has not read it yet. Updates appear in My Support Requests.'
+              : created.reporter_urgency === 'feedback'
+                ? 'Thank you for sharing an idea with BiteShark! Our team reviews suggestions alongside product planning; if we have follow-up questions, they will appear in My Support Requests.'
+                : 'Your request is recorded in our support queue (not yet read by a team member). Replies and status changes will appear in My Support Requests.',
+          notification: ackNotif
+        }
+      });
     }
 
     return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET, POST' });
@@ -1991,6 +2454,8 @@ export async function handleGovernanceApiRequest({
     if (!ctx.authenticated || !ctx.user?.id) return sendJson(401, { error: 'Sign in is required.' });
     const issueId = typeof body.issue_id === 'string' ? body.issue_id.trim() : '';
     const replyBody = typeof (body.body ?? body.message) === 'string' ? String(body.body ?? body.message).trim() : '';
+    const idem = normalizeOptionalIdempotencyKey(body.idempotency_key);
+    if (!idem.ok) return sendJson(400, { error: idem.error });
     if (!UUID_RE.test(issueId) || replyBody.length < 2 || replyBody.length > 1500) {
       return sendJson(400, { error: 'Valid issue_id and message (2–1500 chars) are required.' });
     }
@@ -2007,31 +2472,262 @@ export async function handleGovernanceApiRequest({
       const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
 
       const { rows } = await tx.query(
-        'SELECT id, status, reporter_context, category, vendor_id, related_booking_id FROM support_issues WHERE id = $1 AND reporter_user_id = $2 FOR UPDATE',
-        [issueId, ctx.user.id]
-      );
-      if (!rows.length) return { status: 404, body: { error: 'Issue not found.' } };
-      if (!isEligible && (rows[0].category !== 'account_access' || rows[0].vendor_id || rows[0].related_booking_id)) {
-        return { status: 403, body: buildAgeAssessmentRequiredPayload('/') };
-      }
-      if (rows[0].status === 'closed') {
-        return { status: 409, body: { error: 'Closed issues cannot receive new replies. Open a new issue if needed.' } };
-      }
-      await tx.query(
-        `INSERT INTO support_issue_notes (issue_id, author_user_id, author_role, visibility, body)
-         VALUES ($1, $2, $3, 'reporter_visible', $4)`,
-        [issueId, ctx.user.id, rows[0].reporter_context, replyBody]
-      );
-      await tx.query(
-        `UPDATE support_issues
-         SET status = CASE WHEN status = 'waiting' THEN 'open' ELSE status END,
-             updated_at = now()
-         WHERE id = $1`,
+        `SELECT id, ticket_number, reporter_user_id, status, assignee_user_id,
+                reporter_context, sharing_scope, category, vendor_id, related_booking_id
+         FROM support_issues
+         WHERE id = $1
+         FOR UPDATE`,
         [issueId]
       );
-      return { status: 201, body: { ok: true } };
+      if (!rows.length) return { status: 404, body: { error: 'Support request not found.' } };
+      const cur = rows[0];
+
+      const isDirectReporter = cur.reporter_user_id === ctx.user.id;
+      let isAuthorizedVendorCoMember = false;
+      if (!isDirectReporter && isEligible && cur.sharing_scope === 'vendor_service' && cur.vendor_id && cur.category !== 'account_access') {
+        const vm = await tx.query(
+          'SELECT 1 FROM vendor_memberships WHERE vendor_id = $1 AND user_id = $2 LIMIT 1',
+          [cur.vendor_id, ctx.user.id]
+        );
+        isAuthorizedVendorCoMember = vm.rows.length > 0;
+      }
+
+      if (!isDirectReporter && !isAuthorizedVendorCoMember) {
+        return { status: 404, body: { error: 'Support request not found.' } };
+      }
+
+      if (!isEligible && (!isDirectReporter || cur.category !== 'account_access' || cur.vendor_id || cur.related_booking_id)) {
+        return { status: 403, body: buildAgeAssessmentRequiredPayload('/') };
+      }
+      if (cur.status === 'closed') {
+        return {
+          status: 409,
+          body: {
+            error: 'Closed tickets cannot receive new replies. Open a new support request referencing this ticket number if needed.',
+            code: 'ISSUE_CLOSED'
+          }
+        };
+      }
+
+      const authorRole = isDirectReporter ? cur.reporter_context : 'vendor';
+      const displayLabel = isDirectReporter ? 'Reporter' : 'Vendor Team Member';
+
+      const { rows: insNotes } = await tx.query(
+        `INSERT INTO support_issue_notes (
+           issue_id, author_user_id, author_role, author_display_label, visibility, body, idempotency_key
+         )
+         VALUES ($1, $2, $3, $4, 'reporter_visible', $5, $6)
+         ON CONFLICT (issue_id, author_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+         DO NOTHING
+         RETURNING id, created_at`,
+        [issueId, ctx.user.id, authorRole, displayLabel, replyBody, idem.value]
+      );
+
+      if (!insNotes.length && idem.value) {
+        return { status: 200, body: { ok: true, deduplicated: true } };
+      }
+
+      const nextStatus =
+        cur.status === 'waiting'
+          ? cur.assignee_user_id
+            ? 'in_progress'
+            : 'open'
+          : cur.status;
+
+      await tx.query(
+        `UPDATE support_issues
+         SET status = $2,
+             waiting_for_team = true,
+             reporter_last_read_at = CASE WHEN reporter_user_id = $3 THEN now() ELSE reporter_last_read_at END,
+             last_activity_at = now(),
+             updated_at = now()
+         WHERE id = $1`,
+        [issueId, nextStatus, ctx.user.id]
+      );
+
+      if (nextStatus !== cur.status) {
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary
+           )
+           VALUES ($1, 'status_changed', 'reporter_visible', $2, $3, $4, $5)`,
+          [
+            issueId,
+            ctx.user.id,
+            authorRole,
+            isDirectReporter ? 'You' : 'Vendor Team Member',
+            `Reply received — status moved from "${SUPPORT_STATUS_LABELS[cur.status] || cur.status}" to "${SUPPORT_STATUS_LABELS[nextStatus] || nextStatus}".`
+          ]
+        );
+      }
+
+      return { status: 201, body: { ok: true, status: nextStatus, status_label: SUPPORT_STATUS_LABELS[nextStatus] || nextStatus } };
     });
     return sendJson(outcome.status, outcome.body);
+  }
+
+  if (normPath === '/api/issues/reopen') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    if (!ctx.authenticated || !ctx.user?.id) return sendJson(401, { error: 'Sign in is required.' });
+    const issueId = typeof body.issue_id === 'string' ? body.issue_id.trim() : '';
+    const reasonBody = typeof (body.reason ?? body.body ?? body.message) === 'string'
+      ? String(body.reason ?? body.body ?? body.message).trim()
+      : '';
+    const idem = normalizeOptionalIdempotencyKey(body.idempotency_key);
+    if (!idem.ok) return sendJson(400, { error: idem.error });
+    if (!UUID_RE.test(issueId) || reasonBody.length < 4 || reasonBody.length > 1500) {
+      return sendJson(400, { error: 'Provide a valid issue_id and a brief note (4–1500 chars) explaining what is still happening.' });
+    }
+
+    const outcome = await withTransaction(dbAdapter, async tx => {
+      await tx.query(
+        "SELECT set_config('app.user_id', $1, true), set_config('app.auth_internal', 'true', true)",
+        [ctx.user.id]
+      );
+      const ageRes = await tx.query('SELECT age_eligibility_status FROM auth_users WHERE id = $1 FOR SHARE', [ctx.user.id]);
+      const isEligible = ageRes.rows[0]?.age_eligibility_status === 'eligible_14_plus';
+
+      const { rows } = await tx.query('SELECT * FROM support_issues WHERE id = $1 FOR UPDATE', [issueId]);
+      if (!rows.length) return { status: 404, body: { error: 'Support request not found.' } };
+      const cur = rows[0];
+
+      const isDirectReporter = cur.reporter_user_id === ctx.user.id;
+      let isAuthorizedVendorCoMember = false;
+      if (!isDirectReporter && isEligible && cur.sharing_scope === 'vendor_service' && cur.vendor_id && cur.category !== 'account_access') {
+        const vm = await tx.query('SELECT 1 FROM vendor_memberships WHERE vendor_id = $1 AND user_id = $2 LIMIT 1', [
+          cur.vendor_id,
+          ctx.user.id
+        ]);
+        isAuthorizedVendorCoMember = vm.rows.length > 0;
+      }
+      if (!isDirectReporter && !isAuthorizedVendorCoMember) {
+        return { status: 404, body: { error: 'Support request not found.' } };
+      }
+      if (!isEligible && (!isDirectReporter || cur.category !== 'account_access' || cur.vendor_id || cur.related_booking_id)) {
+        return { status: 403, body: buildAgeAssessmentRequiredPayload('/') };
+      }
+
+      if (cur.status === 'closed') {
+        return {
+          status: 409,
+          body: {
+            error: 'Closed tickets cannot be reopened. Submit a new request and mention ticket ' + cur.ticket_number + '.',
+            code: 'ISSUE_CLOSED'
+          }
+        };
+      }
+
+      // Check idempotent replay if already reopened with same key
+      if (idem.value) {
+        const dupNote = await tx.query(
+          'SELECT id FROM support_issue_notes WHERE issue_id = $1 AND author_user_id = $2 AND idempotency_key = $3 LIMIT 1',
+          [issueId, ctx.user.id, idem.value]
+        );
+        if (dupNote.rows.length) {
+          return {
+            status: 200,
+            body: {
+              ok: true,
+              deduplicated: true,
+              issue: serializeSupportTicketForReporter(cur, { viewerUserId: ctx.user.id })
+            }
+          };
+        }
+      }
+
+      if (cur.status !== 'resolved') {
+        return {
+          status: 409,
+          body: {
+            error: `Only Resolved tickets can be reopened (this ticket is currently "${SUPPORT_STATUS_LABELS[cur.status] || cur.status}"). Add a reply instead.`,
+            code: 'REOPEN_NOT_ELIGIBLE'
+          }
+        };
+      }
+      if (cur.resolved_at && Date.now() - new Date(cur.resolved_at).getTime() > 30 * 86400_000) {
+        return {
+          status: 409,
+          body: {
+            error: 'Tickets resolved more than 30 days ago cannot be reopened. Please open a new request referencing ' + cur.ticket_number + '.',
+            code: 'REOPEN_WINDOW_EXPIRED'
+          }
+        };
+      }
+
+      const nextStatus = cur.assignee_user_id ? 'in_progress' : 'open';
+      const authorRole = isDirectReporter ? cur.reporter_context : 'vendor';
+
+      await tx.query(
+        `INSERT INTO support_issue_notes (
+           issue_id, author_user_id, author_role, author_display_label, visibility, body, idempotency_key
+         )
+         VALUES ($1, $2, $3, $4, 'reporter_visible', $5, $6)`,
+        [issueId, ctx.user.id, authorRole, isDirectReporter ? 'Reporter' : 'Vendor Team Member', `[Still happening] ${reasonBody}`, idem.value]
+      );
+
+      const { rows: updRows } = await tx.query(
+        `UPDATE support_issues
+         SET status = $2,
+             reopen_count = reopen_count + 1,
+             reopened_at = now(),
+             waiting_for_team = true,
+             reporter_last_read_at = CASE WHEN reporter_user_id = $3 THEN now() ELSE reporter_last_read_at END,
+             last_activity_at = now(),
+             updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [issueId, nextStatus, ctx.user.id]
+      );
+
+      await tx.query(
+        `INSERT INTO support_issue_events (
+           issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+         )
+         VALUES ($1, 'reopened', 'reporter_visible', $2, $3, $4, $5, $6::jsonb)`,
+        [
+          issueId,
+          ctx.user.id,
+          authorRole,
+          isDirectReporter ? 'You' : 'Vendor Team Member',
+          `Reporter marked "This is still happening" — ticket reopened to "${SUPPORT_STATUS_LABELS[nextStatus]}". Previous resolution history preserved.`,
+          JSON.stringify({ previous_resolution_reason: cur.resolution_reason || null, reopen_count: updRows[0].reopen_count })
+        ]
+      );
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: authorRole,
+        vendorId: cur.vendor_id || null,
+        targetType: 'support_issue',
+        targetId: issueId,
+        action: 'issue.reopen',
+        metadata: { ticket_number: cur.ticket_number, to_status: nextStatus }
+      });
+
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          issue: serializeSupportTicketForReporter(updRows[0], { viewerUserId: ctx.user.id })
+        }
+      };
+    });
+    return sendJson(outcome.status, outcome.body);
+  }
+
+  if (normPath === '/api/issues/read') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    if (!ctx.authenticated || !ctx.user?.id) return sendJson(401, { error: 'Sign in is required.' });
+    const issueId = typeof body.issue_id === 'string' ? body.issue_id.trim() : '';
+    if (!UUID_RE.test(issueId)) return sendJson(400, { error: 'Valid issue_id is required.' });
+    await withTransaction(dbAdapter, async tx => {
+      await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
+      await tx.query(
+        'UPDATE support_issues SET reporter_last_read_at = now() WHERE id = $1 AND reporter_user_id = $2',
+        [issueId, ctx.user.id]
+      );
+    });
+    return sendJson(200, { ok: true });
   }
 
   // =========================================================================
@@ -2082,9 +2778,11 @@ export async function handleGovernanceApiRequest({
       const repQ = await tx.query(`SELECT count(*) FILTER (WHERE status = 'open')::int AS open_reports FROM community_reports`);
       const issQ = await tx.query(`
           SELECT
-            count(*) FILTER (WHERE status IN ('open', 'in_progress', 'waiting'))::int AS open_issues,
-            count(*) FILTER (WHERE status IN ('open', 'in_progress', 'waiting') AND sla_due_at < now())::int AS overdue_issues,
-            count(*) FILTER (WHERE status IN ('open', 'in_progress', 'waiting') AND severity IN ('high', 'urgent'))::int AS high_priority_issues
+            count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting'))::int AS open_issues,
+            count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting') AND sla_due_at < now())::int AS overdue_issues,
+            count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting') AND severity IN ('high', 'urgent'))::int AS high_priority_issues,
+            count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting') AND waiting_for_team = true)::int AS waiting_for_team_issues,
+            count(*) FILTER (WHERE status IN ('open', 'in_review', 'in_progress', 'waiting') AND reporter_urgency = 'critical')::int AS critical_reported_issues
           FROM support_issues
         `);
       const vendQ = await tx.query(`
@@ -3509,6 +4207,18 @@ export async function handleGovernanceApiRequest({
              SET revoked_by = EXCLUDED.revoked_by, reason = EXCLUDED.reason, revoked_at = now()`,
           [targetUserId, ctx.user.id, reason]
         );
+        // Preserve assignee_user_id history on open support tickets while recording that reassignment is now required
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           SELECT id, 'unassigned', 'internal', $1::text, 'top', 'BiteShark Support · Operations Lead',
+                  'Assignee administrative privileges were removed — ticket flagged for active team reassignment.',
+                  jsonb_build_object('inactive_assignee_user_id', $2::text)
+           FROM support_issues
+           WHERE assignee_user_id = $2::text AND status NOT IN ('resolved', 'closed')`,
+          [ctx.user.id, targetUserId]
+        );
       } else {
         await tx.query(
           `INSERT INTO platform_roles (user_id, role, granted_by, notes, updated_at)
@@ -3612,6 +4322,17 @@ export async function handleGovernanceApiRequest({
         await tx.query('UPDATE auth_sessions SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [
           targetUserId
         ]);
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           SELECT id, 'unassigned', 'internal', $1::text, 'top', 'BiteShark Support · Operations Lead',
+                  'Assignee account was suspended — ticket flagged for active team reassignment.',
+                  jsonb_build_object('suspended_assignee_user_id', $2::text)
+           FROM support_issues
+           WHERE assignee_user_id = $2::text AND status NOT IN ('resolved', 'closed')`,
+          [ctx.user.id, targetUserId]
+        );
       } else {
         await tx.query('UPDATE auth_users SET disabled_at = NULL, updated_at = now() WHERE id = $1', [targetUserId]);
       }
@@ -4563,53 +5284,303 @@ export async function handleGovernanceApiRequest({
   }
 
   // -------------------------------------------------------------------------
-  // 6G. Admin Support & Issue Management (`/api/admin/issues*`)
+  // 6G. Admin Support & Feedback Queue, Assignment & Diagnostic Linking (`/api/admin/issues*`)
   // -------------------------------------------------------------------------
   if (normPath === '/api/admin/issues') {
     if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
     const { page, pageSize, offset } = parseBoundedPagination(query, 20, 50);
-    const statusFilter = typeof query.status === 'string' ? query.status.trim() : '';
-    const severityFilter = typeof query.severity === 'string' ? query.severity.trim() : '';
-    const categoryFilter = typeof query.category === 'string' ? query.category.trim() : '';
+    const queueView = typeof query.queue_view === 'string' ? query.queue_view.trim().toLowerCase() : 'all';
+    const rawStatus = typeof query.status === 'string' ? query.status.trim().toLowerCase() : '';
+    const statusFilter = rawStatus === 'all' || rawStatus === 'open_all' || !rawStatus ? rawStatus : normalizeSupportStatusInput(rawStatus) || rawStatus;
+    const severityFilter = typeof query.severity === 'string' ? query.severity.trim().toLowerCase() : '';
+    const urgencyFilter = typeof query.reporter_urgency === 'string' ? query.reporter_urgency.trim().toLowerCase() : '';
+    const categoryFilter = typeof query.category === 'string' ? query.category.trim().toLowerCase() : '';
+    const reporterTypeFilter = typeof query.reporter_type === 'string' ? query.reporter_type.trim().toLowerCase() : '';
     const vendorFilter = typeof query.vendor_id === 'string' ? query.vendor_id.trim() : '';
+    const dateFrom = typeof query.date_from === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(query.date_from.trim()) ? query.date_from.trim() : '';
+    const dateTo = typeof query.date_to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(query.date_to.trim()) ? query.date_to.trim() : '';
     const singleIssueId = typeof query.issue_id === 'string' && UUID_RE.test(query.issue_id.trim()) ? query.issue_id.trim() : '';
+    const singleTicketNo =
+      typeof query.ticket_number === 'string' && /^BS-[0-9]{6,10}$/i.test(query.ticket_number.trim())
+        ? query.ticket_number.trim().toUpperCase()
+        : '';
     const overdueOnly = query.overdue_only === '1' || query.overdue_only === 'true' || query.overdue === '1';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const rawSearch = typeof query.q === 'string' ? query.q.trim().slice(0, 80) : '';
+    const qText = rawSearch ? `%${rawSearch.replace(/[\\%_]/g, m => `\\${m}`)}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
       if (!verified.ok) return { denied: verified };
       await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
 
-      if (singleIssueId) {
+      // Load active authorized team roster for assignment controls
+      const rosterRes = await tx.query(`
+        SELECT au.id, au.email_normalized, pr.role
+        FROM platform_roles pr
+        JOIN auth_users au ON au.id = pr.user_id
+        WHERE au.disabled_at IS NULL
+          AND pr.role IN ('mod', 'moderator', 'top', 'platform_admin')
+        ORDER BY CASE WHEN pr.role IN ('top', 'platform_admin') THEN 0 ELSE 1 END ASC, au.email_normalized ASC
+      `);
+      const staffRoster = rosterRes.rows.map(r => {
+        const lvl = normalizeAdminLevel(r.role) || 'mod';
+        return {
+          user_id: r.id,
+          admin_level: lvl,
+          role_label: lvl === 'top' ? 'Admin: Top' : 'Admin: Mod',
+          display_label: isTop ? `${r.email_normalized} (${lvl === 'top' ? 'Admin: Top' : 'Admin: Mod'})` : `${maskEmail(r.email_normalized)} (${lvl === 'top' ? 'Admin: Top' : 'Admin: Mod'})`
+        };
+      });
+
+      const assigneeSelectExpr = `
+        (
+          si.assignee_user_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1
+            FROM platform_roles pr_a
+            JOIN auth_users au_a ON au_a.id = pr_a.user_id
+            WHERE pr_a.user_id = si.assignee_user_id
+              AND au_a.disabled_at IS NULL
+              AND pr_a.role IN ('mod', 'moderator', 'top', 'platform_admin')
+          )
+        ) AS assignee_inactive,
+        (
+          SELECT CASE WHEN pr_a.role IN ('top', 'platform_admin') THEN 'top'
+                      WHEN pr_a.role IN ('mod', 'moderator') THEN 'mod'
+                      ELSE NULL END
+          FROM platform_roles pr_a
+          JOIN auth_users au_a ON au_a.id = pr_a.user_id
+          WHERE pr_a.user_id = si.assignee_user_id AND au_a.disabled_at IS NULL
+          LIMIT 1
+        ) AS assignee_active_role,
+        (
+          SELECT au_a.email_normalized
+          FROM auth_users au_a
+          WHERE au_a.id = si.assignee_user_id
+          LIMIT 1
+        ) AS assignee_raw_email
+      `;
+
+      const formatAdminIssueRow = r => {
+        const assigneeDisplay = !r.assignee_user_id
+          ? null
+          : isTop && r.assignee_raw_email
+            ? r.assignee_raw_email
+            : r.assignee_raw_email
+              ? maskEmail(r.assignee_raw_email)
+              : r.assignee_user_id;
+        return {
+          ...r,
+          status_label: SUPPORT_STATUS_LABELS[r.status] || r.status,
+          category_label: CATEGORY_LABELS[r.category] || r.category,
+          reporter_urgency_label: REPORTER_URGENCY_LABELS[r.reporter_urgency] || r.reporter_urgency,
+          staff_priority_label: STAFF_PRIORITY_LABELS[r.severity] || r.severity,
+          reporter_email: isTop ? r.reporter_email : maskEmail(r.reporter_email || ''),
+          reporter_role: r.reporter_context,
+          assigned_to: r.assignee_user_id,
+          assignee_display: assigneeDisplay,
+          needs_reassignment: Boolean(r.assignee_inactive && !['resolved', 'closed'].includes(r.status)),
+          booking_id: r.related_booking_id,
+          community_post_id: r.related_review_id
+        };
+      };
+
+      if (singleIssueId || singleTicketNo) {
         const { rows: sRows } = await tx.query(
-          `SELECT si.*, (si.status IN ('open', 'in_progress', 'waiting') AND si.sla_due_at < now()) AS is_overdue
-           FROM support_issues si WHERE si.id = $1`,
-          [singleIssueId]
+          `SELECT
+             si.*,
+             (si.status IN ('open', 'in_review', 'in_progress', 'waiting') AND si.sla_due_at < now()) AS is_overdue,
+             ${assigneeSelectExpr}
+           FROM support_issues si
+           WHERE ${singleIssueId ? 'si.id = $1' : 'si.ticket_number = $1'}`,
+          [singleIssueId || singleTicketNo]
         );
         if (!sRows.length) return { notFound: true };
+        const target = sRows[0];
+
+        await tx.query('UPDATE support_issues SET staff_last_read_at = now() WHERE id = $1', [target.id]);
+
         const { rows: sNotes } = await tx.query(
-          `SELECT id, issue_id, author_user_id, author_role, visibility, body, created_at
-           FROM support_issue_notes WHERE issue_id = $1 ORDER BY created_at ASC`,
-          [singleIssueId]
+          `SELECT id, issue_id, author_user_id, author_role, author_display_label, visibility, body, created_at
+           FROM support_issue_notes
+           WHERE issue_id = $1
+           ORDER BY created_at ASC, id ASC`,
+          [target.id]
         );
-        const r = sRows[0];
+        const { rows: sEvents } = await tx.query(
+          `SELECT id, issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata, created_at
+           FROM support_issue_events
+           WHERE issue_id = $1
+           ORDER BY created_at ASC, id ASC`,
+          [target.id]
+        );
+        const { rows: rawLinks } = await tx.query(
+          `SELECT
+             l.*,
+             g.title AS diag_title,
+             g.emitting_component AS diag_component,
+             g.feature_key AS diag_feature_key,
+             g.error_code AS diag_error_code,
+             g.severity AS diag_severity,
+             g.triage_status AS diag_triage_status,
+             g.mod_visible AS diag_mod_visible,
+             g.suspected_fix_sha AS diag_suspected_fix_sha,
+             g.observed_server_releases AS diag_observed_releases,
+             g.occurrence_count AS diag_occurrence_count,
+             g.last_seen_at AS diag_last_seen_at
+           FROM support_issue_diagnostic_links l
+           LEFT JOIN diagnostic_incident_groups g ON g.id = l.diagnostic_group_id
+           WHERE l.issue_id = $1 AND l.unlinked_at IS NULL
+           ORDER BY CASE WHEN l.link_state = 'confirmed' THEN 0 ELSE 1 END ASC, l.created_at DESC`,
+          [target.id]
+        );
+
+        // Fetch co-linked tickets on the same diagnostic incidents (ticket_number + status ONLY — zero cross-reporter PII!)
+        const groupIds = rawLinks.map(l => l.diagnostic_group_id).filter(Boolean);
+        const coTicketsByGroup = new Map();
+        if (groupIds.length) {
+          const { rows: coRows } = await tx.query(
+            `SELECT
+               l.diagnostic_group_id,
+               si.id AS issue_id,
+               si.ticket_number,
+               si.status,
+               si.reporter_context,
+               si.reporter_urgency
+             FROM support_issue_diagnostic_links l
+             JOIN support_issues si ON si.id = l.issue_id
+             WHERE l.diagnostic_group_id = ANY($1::uuid[])
+               AND l.unlinked_at IS NULL
+               AND l.issue_id <> $2
+             ORDER BY si.created_at DESC
+             LIMIT 40`,
+            [groupIds, target.id]
+          );
+          for (const cr of coRows) {
+            if (!coTicketsByGroup.has(cr.diagnostic_group_id)) coTicketsByGroup.set(cr.diagnostic_group_id, []);
+            coTicketsByGroup.get(cr.diagnostic_group_id).push({
+              issue_id: cr.issue_id,
+              ticket_number: cr.ticket_number,
+              status: cr.status,
+              status_label: SUPPORT_STATUS_LABELS[cr.status] || cr.status,
+              reporter_context: cr.reporter_context,
+              reporter_urgency: cr.reporter_urgency
+            });
+          }
+        }
+
+        const diagnosticLinks = rawLinks.map(l => {
+          const restrictedForMod = !isTop && l.diag_mod_visible === false;
+          return {
+            id: l.id,
+            issue_id: l.issue_id,
+            diagnostic_group_id: restrictedForMod ? null : l.diagnostic_group_id,
+            link_state: l.link_state,
+            linked_by: l.linked_by,
+            linked_by_role: l.linked_by_role,
+            link_reason: restrictedForMod ? 'Linked by Admin: Top (restricted security/provider scope).' : l.link_reason,
+            public_summary: l.public_summary,
+            fixing_release_sha: l.fixing_release_sha,
+            verification_status: l.verification_status,
+            verification_note: restrictedForMod ? null : l.verification_note,
+            created_at: l.created_at,
+            updated_at: l.updated_at,
+            restricted_scope: restrictedForMod,
+            incident: restrictedForMod
+              ? {
+                  restricted: true,
+                  title: 'Restricted Top-Admin Diagnostic Incident',
+                  triage_status: l.diag_triage_status || 'investigating'
+                }
+              : {
+                  id: l.diagnostic_group_id,
+                  title: l.diag_title || 'Archived diagnostic incident',
+                  emitting_component: l.diag_component,
+                  feature_key: l.diag_feature_key,
+                  error_code: l.diag_error_code,
+                  severity: l.diag_severity,
+                  triage_status: l.diag_triage_status,
+                  suspected_fix_sha: l.diag_suspected_fix_sha,
+                  observed_server_releases: l.diag_observed_releases || [],
+                  occurrence_count: Number(l.diag_occurrence_count || 1),
+                  last_seen_at: l.diag_last_seen_at
+                },
+            other_linked_tickets: restrictedForMod ? [] : coTicketsByGroup.get(l.diagnostic_group_id) || []
+          };
+        });
+
+        const formatted = formatAdminIssueRow(target);
+        delete formatted.assignee_raw_email;
+
         return {
-          issue: {
-            ...r,
-            reporter_email: verified.actorRole === 'top' ? r.reporter_email : maskEmail(r.reporter_email || ''),
-            reporter_role: r.reporter_context,
-            assigned_to: r.assignee_user_id,
-            booking_id: r.related_booking_id,
-            community_post_id: r.related_review_id
+          issue: formatted,
+          notes: sNotes,
+          events: sEvents,
+          diagnostic_links: diagnosticLinks,
+          staff_roster: staffRoster,
+          permissions: {
+            actor_role: verified.actorRole,
+            can_reopen_closed: isTop,
+            can_record_fix_sha: isTop,
+            can_clear_escalation: isTop
           },
-          notes: sNotes
+          repository_commit_base_url: REPOSITORY_COMMIT_BASE_URL
         };
       }
 
+      // Queue summary counts
+      const queueSummaryRes = await tx.query(
+        `SELECT
+           count(*) FILTER (WHERE status NOT IN ('resolved', 'closed'))::int AS active_total,
+           count(*) FILTER (WHERE status NOT IN ('resolved', 'closed') AND assignee_user_id IS NULL)::int AS unassigned_count,
+           count(*) FILTER (WHERE status NOT IN ('resolved', 'closed') AND assignee_user_id = $1)::int AS assigned_to_me_count,
+           count(*) FILTER (WHERE status NOT IN ('resolved', 'closed') AND waiting_for_team = true)::int AS waiting_for_team_count,
+           count(*) FILTER (WHERE status NOT IN ('resolved', 'closed') AND escalated_to_top = true)::int AS escalated_count,
+           count(*) FILTER (
+             WHERE status NOT IN ('resolved', 'closed')
+               AND assignee_user_id IS NOT NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM platform_roles pr_s
+                 JOIN auth_users au_s ON au_s.id = pr_s.user_id
+                 WHERE pr_s.user_id = support_issues.assignee_user_id
+                   AND au_s.disabled_at IS NULL
+                   AND pr_s.role IN ('mod', 'moderator', 'top', 'platform_admin')
+               )
+           )::int AS needs_reassignment_count
+         FROM support_issues`,
+        [ctx.user.id]
+      );
+
       const conds = ['1=1'];
       const params = [];
-      if (statusFilter && statusFilter !== 'all') {
+
+      if (queueView === 'unassigned') {
+        conds.push("si.status NOT IN ('resolved', 'closed') AND si.assignee_user_id IS NULL");
+      } else if (queueView === 'assigned_to_me') {
+        params.push(ctx.user.id);
+        conds.push(`si.status NOT IN ('resolved', 'closed') AND si.assignee_user_id = $${params.length}`);
+      } else if (queueView === 'waiting_for_team') {
+        conds.push("si.status NOT IN ('resolved', 'closed') AND si.waiting_for_team = true");
+      } else if (queueView === 'escalated') {
+        conds.push("si.status NOT IN ('resolved', 'closed') AND si.escalated_to_top = true");
+      } else if (queueView === 'needs_reassignment') {
+        conds.push(`
+          si.status NOT IN ('resolved', 'closed')
+          AND si.assignee_user_id IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM platform_roles pr_q
+            JOIN auth_users au_q ON au_q.id = pr_q.user_id
+            WHERE pr_q.user_id = si.assignee_user_id
+              AND au_q.disabled_at IS NULL
+              AND pr_q.role IN ('mod', 'moderator', 'top', 'platform_admin')
+          )
+        `);
+      }
+
+      if (statusFilter === 'open_all') {
+        conds.push("si.status NOT IN ('resolved', 'closed')");
+      } else if (statusFilter && statusFilter !== 'all') {
         params.push(statusFilter);
         conds.push(`si.status = $${params.length}`);
       }
@@ -4617,20 +5588,46 @@ export async function handleGovernanceApiRequest({
         params.push(severityFilter);
         conds.push(`si.severity = $${params.length}`);
       }
+      if (urgencyFilter && urgencyFilter !== 'all') {
+        params.push(urgencyFilter);
+        conds.push(`si.reporter_urgency = $${params.length}`);
+      }
       if (categoryFilter && categoryFilter !== 'all') {
-        params.push(categoryFilter);
+        const mappedCat = normalizeSupportCategoryInput(categoryFilter) || categoryFilter;
+        params.push(mappedCat);
         conds.push(`si.category = $${params.length}`);
+      }
+      if (reporterTypeFilter === 'customer' || reporterTypeFilter === 'vendor') {
+        params.push(reporterTypeFilter);
+        conds.push(`si.reporter_context = $${params.length}`);
       }
       if (vendorFilter) {
         params.push(vendorFilter);
         conds.push(`si.vendor_id = $${params.length}`);
       }
+      if (dateFrom) {
+        params.push(dateFrom);
+        conds.push(`si.created_at >= ($${params.length}::date)::timestamptz`);
+      }
+      if (dateTo) {
+        params.push(dateTo);
+        conds.push(`si.created_at < (($${params.length}::date + interval '1 day'))::timestamptz`);
+      }
       if (overdueOnly) {
-        conds.push("si.status IN ('open', 'in_progress', 'waiting') AND si.sla_due_at < now()");
+        conds.push("si.status IN ('open', 'in_review', 'in_progress', 'waiting') AND si.sla_due_at < now()");
       }
       if (qText) {
         params.push(qText);
-        conds.push(`(si.subject ILIKE $${params.length} OR si.description ILIKE $${params.length})`);
+        const qi = params.length;
+        conds.push(
+          `(
+            si.ticket_number ILIKE $${qi} ESCAPE '\\'
+            OR si.subject ILIKE $${qi} ESCAPE '\\'
+            OR si.description ILIKE $${qi} ESCAPE '\\'
+            OR COALESCE(si.vendor_id, '') ILIKE $${qi} ESCAPE '\\'
+            OR COALESCE(si.error_correlation_id, '') ILIKE $${qi} ESCAPE '\\'
+          )`
+        );
       }
 
       const whereSql = conds.join(' AND ');
@@ -4640,14 +5637,26 @@ export async function handleGovernanceApiRequest({
       const { rows } = await tx.query(
         `SELECT
            si.*,
-           (si.status IN ('open', 'in_progress', 'waiting') AND si.sla_due_at < now()) AS is_overdue
+           (si.status IN ('open', 'in_review', 'in_progress', 'waiting') AND si.sla_due_at < now()) AS is_overdue,
+           (
+             SELECT count(*)::int
+             FROM support_issue_diagnostic_links dl
+             WHERE dl.issue_id = si.id AND dl.unlinked_at IS NULL
+           ) AS linked_diagnostics_count,
+           ${assigneeSelectExpr}
          FROM support_issues si
          WHERE ${whereSql}
          ORDER BY
-           CASE WHEN si.status IN ('open', 'in_progress', 'waiting') AND si.sla_due_at < now() THEN 0
-                WHEN si.status IN ('open', 'in_progress') THEN 1
-                ELSE 2 END ASC,
-           si.sla_due_at ASC
+           CASE
+             WHEN si.status NOT IN ('resolved', 'closed') AND si.reporter_urgency = 'critical' THEN 0
+             WHEN si.status NOT IN ('resolved', 'closed') AND si.escalated_to_top = true THEN 1
+             WHEN si.status IN ('open', 'in_review', 'in_progress', 'waiting') AND si.sla_due_at < now() THEN 2
+             WHEN si.status NOT IN ('resolved', 'closed') AND si.waiting_for_team = true THEN 3
+             WHEN si.status NOT IN ('resolved', 'closed') THEN 4
+             ELSE 5
+           END ASC,
+           si.last_activity_at DESC,
+           si.created_at DESC
          LIMIT $${params.length - 1} OFFSET $${params.length}`,
         params
       );
@@ -4656,7 +5665,7 @@ export async function handleGovernanceApiRequest({
       const notesMap = new Map();
       if (ids.length) {
         const { rows: notes } = await tx.query(
-          `SELECT id, issue_id, author_user_id, author_role, visibility, body, created_at
+          `SELECT id, issue_id, author_user_id, author_role, author_display_label, visibility, body, created_at
            FROM support_issue_notes
            WHERE issue_id = ANY($1::uuid[])
            ORDER BY created_at ASC`,
@@ -4672,15 +5681,16 @@ export async function handleGovernanceApiRequest({
         page,
         page_size: pageSize,
         total: totalRes.rows[0]?.total || 0,
-        issues: rows.map(r => ({
-          ...r,
-          reporter_email: verified.actorRole === 'top' ? r.reporter_email : maskEmail(r.reporter_email || ''),
-          reporter_role: r.reporter_context,
-          assigned_to: r.assignee_user_id,
-          booking_id: r.related_booking_id,
-          community_post_id: r.related_review_id,
-          notes: notesMap.get(r.id) || []
-        }))
+        summary: queueSummaryRes.rows[0] || {},
+        staff_roster: staffRoster,
+        issues: rows.map(r => {
+          const fmt = formatAdminIssueRow(r);
+          delete fmt.assignee_raw_email;
+          return {
+            ...fmt,
+            notes: notesMap.get(r.id) || []
+          };
+        })
       };
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
@@ -4691,15 +5701,25 @@ export async function handleGovernanceApiRequest({
   if (normPath === '/api/admin/issues/update') {
     if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
     const issueId = typeof body.issue_id === 'string' ? body.issue_id.trim() : '';
-    const nextStatus = typeof body.status === 'string' && body.status.trim() ? body.status.trim() : null;
-    const nextSeverity = typeof body.severity === 'string' && body.severity.trim() ? body.severity.trim() : null;
+    const rawNextStatus = typeof body.status === 'string' && body.status.trim() ? body.status.trim() : null;
+    const nextStatus = rawNextStatus ? normalizeSupportStatusInput(rawNextStatus) : null;
+    const nextSeverity = typeof body.severity === 'string' && body.severity.trim() ? body.severity.trim().toLowerCase() : null;
+    const priorityChangeReason =
+      typeof body.priority_change_reason === 'string' && body.priority_change_reason.trim()
+        ? body.priority_change_reason.trim().slice(0, 500)
+        : null;
     const rawAssignee = body.assignee_user_id !== undefined ? body.assignee_user_id : body.assigned_to;
-    const assigneeId =
-      rawAssignee !== undefined
-        ? rawAssignee
-          ? String(rawAssignee).trim().slice(0, 128)
-          : null
-        : undefined;
+    const nextAssigneeProvided = rawAssignee !== undefined;
+    const assigneeId = nextAssigneeProvided ? (rawAssignee ? String(rawAssignee).trim().slice(0, 128) : null) : undefined;
+    const assignmentReason =
+      typeof body.assignment_reason === 'string' && body.assignment_reason.trim()
+        ? body.assignment_reason.trim().slice(0, 500)
+        : null;
+    const escalateToTop = typeof body.escalated_to_top === 'boolean' ? body.escalated_to_top : undefined;
+    const escalationReason =
+      typeof body.escalation_reason === 'string' && body.escalation_reason.trim()
+        ? body.escalation_reason.trim().slice(0, 500)
+        : null;
     const resolutionReason =
       typeof body.resolution_reason === 'string' && body.resolution_reason.trim()
         ? body.resolution_reason.trim().slice(0, 800)
@@ -4710,19 +5730,24 @@ export async function handleGovernanceApiRequest({
       typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
         ? body.expected_updated_at.trim()
         : null;
+    const idem = normalizeOptionalIdempotencyKey(body.idempotency_key);
 
+    if (!idem.ok) return sendJson(400, { error: idem.error });
     if (!UUID_RE.test(issueId)) return sendJson(400, { error: 'Valid issue_id is required.' });
-    if (nextStatus && !['open', 'in_progress', 'waiting', 'resolved', 'closed'].includes(nextStatus)) {
+    if (rawNextStatus && !nextStatus) {
       return sendJson(400, { error: 'Invalid issue status.' });
     }
-    if (nextSeverity && !['low', 'normal', 'high', 'urgent'].includes(nextSeverity)) {
-      return sendJson(400, { error: 'Invalid issue severity.' });
+    if (nextSeverity && !VALID_STAFF_PRIORITIES.has(nextSeverity)) {
+      return sendJson(400, { error: 'Invalid staff priority / severity.' });
     }
     if ((nextStatus === 'resolved' || nextStatus === 'closed') && (!resolutionReason || resolutionReason.length < 4)) {
-      return sendJson(400, { error: 'A resolution_reason (at least 4 characters) is required when resolving or closing an issue.' });
+      return sendJson(400, { error: 'A resolution_reason (at least 4 characters) is required when resolving or closing a ticket.' });
     }
     if (noteBody && (noteBody.length < 2 || noteBody.length > 1500)) {
-      return sendJson(400, { error: 'Note body must be 2–1500 characters.' });
+      return sendJson(400, { error: 'Message body must be 2–1500 characters.' });
+    }
+    if (escalateToTop === true && (!escalationReason || escalationReason.length < 4) && (!noteBody || noteBody.length < 4)) {
+      return sendJson(400, { error: 'Provide an escalation_reason (at least 4 characters) when escalating a ticket to Admin: Top.' });
     }
 
     const outcome = await withTransaction(dbAdapter, async tx => {
@@ -4734,6 +5759,24 @@ export async function handleGovernanceApiRequest({
       if (!rows.length) return { status: 404, body: { error: 'Issue not found.' } };
       const cur = rows[0];
 
+      // Check idempotent note replay BEFORE conflict check so network retries succeed cleanly
+      if (idem.value) {
+        const prevNote = await tx.query(
+          'SELECT id FROM support_issue_notes WHERE issue_id = $1 AND author_user_id = $2 AND idempotency_key = $3 LIMIT 1',
+          [issueId, ctx.user.id, idem.value]
+        );
+        if (prevNote.rows.length) {
+          return {
+            status: 200,
+            body: {
+              issue: cur,
+              deduplicated: true,
+              notification_delivery: 'recorded_in_app_only'
+            }
+          };
+        }
+      }
+
       if (expectedUpdatedAt && cur.updated_at) {
         const expMs = new Date(expectedUpdatedAt).getTime();
         const curMs = new Date(cur.updated_at).getTime();
@@ -4741,7 +5784,7 @@ export async function handleGovernanceApiRequest({
           return {
             status: 409,
             body: {
-              error: 'Support issue was modified concurrently by another actor. Refresh the thread before saving.',
+              error: 'Support ticket was modified concurrently by another team member or the reporter. Refresh the ticket before saving.',
               code: 'STALE_ISSUE_STATE'
             }
           };
@@ -4749,38 +5792,252 @@ export async function handleGovernanceApiRequest({
       }
 
       const effStatus = nextStatus || cur.status;
+      const transCheck = validateStaffStatusTransition(cur.status, effStatus, verified.actorRole);
+      if (!transCheck.ok) {
+        return { status: transCheck.status, body: { error: transCheck.error, code: transCheck.code } };
+      }
+
       const effSeverity = nextSeverity || cur.severity;
-      const effAssignee = assigneeId !== undefined ? assigneeId : cur.assignee_user_id;
+      const priorityChanged = effSeverity !== cur.severity;
+      const effPrioReason = priorityChangeReason || (noteVisibility === 'internal' ? noteBody : null);
+      if (priorityChanged && (!effPrioReason || effPrioReason.length < 4)) {
+        return {
+          status: 400,
+          body: {
+            error: 'Changing staff priority requires a reason (at least 4 characters). Original reporter urgency remains unchanged.',
+            code: 'PRIORITY_REASON_REQUIRED'
+          }
+        };
+      }
+
+      // Inspect current assignee status + target assignee validity
+      let currentAssigneeRole = null;
+      let currentAssigneeInactive = false;
+      if (cur.assignee_user_id) {
+        const curAssRes = await tx.query(
+          `SELECT au.disabled_at, pr.role
+           FROM auth_users au
+           LEFT JOIN platform_roles pr ON pr.user_id = au.id
+           WHERE au.id = $1`,
+          [cur.assignee_user_id]
+        );
+        const r = curAssRes.rows[0];
+        const lvl = normalizeAdminLevel(r?.role || null);
+        if (!r || r.disabled_at || !lvl) {
+          currentAssigneeInactive = true;
+        } else {
+          currentAssigneeRole = lvl;
+        }
+      }
+
+      let targetAssigneeRecord = null;
+      if (nextAssigneeProvided && assigneeId) {
+        const targRes = await tx.query(
+          `SELECT au.id, au.disabled_at IS NOT NULL AS is_disabled, pr.role
+           FROM auth_users au
+           LEFT JOIN platform_roles pr ON pr.user_id = au.id
+           WHERE au.id = $1`,
+          [assigneeId]
+        );
+        if (targRes.rows[0]) {
+          targetAssigneeRecord = {
+            id: targRes.rows[0].id,
+            is_disabled: targRes.rows[0].is_disabled,
+            admin_level: normalizeAdminLevel(targRes.rows[0].role)
+          };
+        }
+      }
+
+      const assignEval = evaluateAssignmentMutation({
+        curIssue: cur,
+        currentAssigneeRole,
+        currentAssigneeInactive,
+        nextAssigneeProvided,
+        nextAssigneeId: assigneeId,
+        targetAssigneeRecord,
+        actorUserId: ctx.user.id,
+        actorRole: verified.actorRole,
+        nextStatus: effStatus,
+        escalateToTop,
+        reasonText: assignmentReason || escalationReason || (noteVisibility === 'internal' ? noteBody : null)
+      });
+      if (!assignEval.ok) {
+        return { status: assignEval.status, body: { error: assignEval.error, code: assignEval.code } };
+      }
+
+      const effAssignee = assignEval.effAssignee;
+      const assigneeChanged = effAssignee !== (cur.assignee_user_id || null);
+      const effEscalated = escalateToTop !== undefined ? escalateToTop : Boolean(cur.escalated_to_top);
+      const effEscReason = effEscalated ? escalationReason || cur.escalation_reason || noteBody || null : null;
       const effResReason = resolutionReason || cur.resolution_reason;
+
+      // Recompute internal target if priority changed while open
+      const nextSlaDueAt =
+        priorityChanged && !['resolved', 'closed'].includes(effStatus)
+          ? computeIssueSlaDueAt(effSeverity)
+          : cur.sla_due_at;
+
+      const publicReplyAdded = Boolean(noteBody && noteVisibility === 'reporter_visible');
+      const statusChanged = effStatus !== cur.status;
+      const publicActivityOccurred = publicReplyAdded || statusChanged;
+      const nextWaitingForTeam =
+        publicReplyAdded || ['waiting', 'resolved', 'closed'].includes(effStatus)
+          ? false
+          : effEscalated && !cur.escalated_to_top
+            ? true
+            : cur.waiting_for_team;
 
       const { rows: u } = await tx.query(
         `UPDATE support_issues
          SET status = $2,
              severity = $3,
-             assignee_user_id = $4,
-             resolution_reason = $5,
-             resolved_at = CASE WHEN $2 IN ('resolved', 'closed') AND resolved_at IS NULL THEN now() ELSE resolved_at END,
+             priority_updated_by = CASE WHEN $4::boolean THEN $5 ELSE priority_updated_by END,
+             priority_updated_at = CASE WHEN $4::boolean THEN now() ELSE priority_updated_at END,
+             priority_change_reason = CASE WHEN $4::boolean THEN $6 ELSE priority_change_reason END,
+             sla_due_at = $7,
+             assignee_user_id = $8,
+             assigned_at = CASE WHEN $9::boolean THEN (CASE WHEN $8::text IS NULL THEN NULL ELSE now() END) ELSE assigned_at END,
+             assigned_by = CASE WHEN $9::boolean THEN (CASE WHEN $8::text IS NULL THEN NULL ELSE $5 END) ELSE assigned_by END,
+             escalated_to_top = $10,
+             escalation_reason = $11,
+             resolution_reason = $12,
+             waiting_for_team = $13,
+             staff_last_read_at = now(),
+             last_public_staff_activity_at = CASE WHEN $14::boolean THEN now() ELSE last_public_staff_activity_at END,
+             last_activity_at = now(),
+             resolved_at = CASE
+               WHEN $2 = 'resolved' THEN COALESCE(resolved_at, now())
+               WHEN $2 IN ('open', 'in_review', 'in_progress', 'waiting') THEN resolved_at
+               ELSE resolved_at
+             END,
+             closed_at = CASE WHEN $2 = 'closed' THEN COALESCE(closed_at, now()) ELSE closed_at END,
              updated_at = now()
          WHERE id = $1
          RETURNING *`,
-        [issueId, effStatus, effSeverity, effAssignee, effResReason]
+        [
+          issueId,
+          effStatus,
+          effSeverity,
+          priorityChanged,
+          ctx.user.id,
+          effPrioReason,
+          nextSlaDueAt,
+          effAssignee,
+          assigneeChanged,
+          effEscalated,
+          effEscReason,
+          effResReason,
+          nextWaitingForTeam,
+          publicActivityOccurred
+        ]
       );
 
+      const publicTeamLabel = formatPublicTeamAuthorLabel(verified.actorRole);
+      let insertedNoteId = null;
+
       if (noteBody) {
-        await tx.query(
-          `INSERT INTO support_issue_notes (issue_id, author_user_id, author_role, visibility, body)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [issueId, ctx.user.id, verified.actorRole, noteVisibility, noteBody]
+        const { rows: nIns } = await tx.query(
+          `INSERT INTO support_issue_notes (
+             issue_id, author_user_id, author_role, author_display_label, visibility, body, idempotency_key
+           )
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id`,
+          [issueId, ctx.user.id, verified.actorRole, publicTeamLabel, noteVisibility, noteBody, idem.value]
         );
+        insertedNoteId = nIns[0]?.id || null;
+
         if (noteVisibility === 'reporter_visible') {
           await recordTestSafeNotificationInTx(tx, {
             recipientUserId: cur.reporter_user_id,
             recipientEmail: cur.reporter_email,
             eventKind: 'issue.response',
-            subject: `BiteShark Support Update: ${cur.subject}`,
-            summary: noteBody.slice(0, 400)
+            subject: `BiteShark Support Update (${cur.ticket_number})`,
+            summary: 'New response available in your BiteShark Support thread.'
           });
         }
+      }
+
+      if (priorityChanged) {
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, 'priority_changed', 'internal', $2, $3, $4, $5, $6::jsonb)`,
+          [
+            issueId,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            `Staff priority changed from "${cur.severity}" to "${effSeverity}" (original reporter urgency "${cur.reporter_urgency}" preserved). Reason: ${effPrioReason}`,
+            JSON.stringify({ from_priority: cur.severity, to_priority: effSeverity, reason: effPrioReason })
+          ]
+        );
+      }
+
+      if (assigneeChanged) {
+        const evType = !effAssignee ? 'unassigned' : !cur.assignee_user_id ? 'assigned' : 'reassigned';
+        const reasonSuffix = assignmentReason ? ` Reason: ${assignmentReason}` : '';
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, $2, 'internal', $3, $4, $5, $6, $7::jsonb)`,
+          [
+            issueId,
+            evType,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            !effAssignee
+              ? `Ticket unassigned by staff.${reasonSuffix}`
+              : !cur.assignee_user_id
+                ? `Ticket assigned to team member (${effAssignee}).`
+                : `Ticket reassigned from ${cur.assignee_user_id} to ${effAssignee}.${reasonSuffix}`,
+            JSON.stringify({ from_assignee: cur.assignee_user_id || null, to_assignee: effAssignee })
+          ]
+        );
+      }
+
+      if (effEscalated && !cur.escalated_to_top) {
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, 'escalated', 'internal', $2, $3, $4, $5, $6::jsonb)`,
+          [
+            issueId,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            `Escalated to Admin: Top review: ${effEscReason || 'Requires Top oversight'}`,
+            JSON.stringify({ reason: effEscReason || null })
+          ]
+        );
+      }
+
+      if (statusChanged) {
+        const evType = effStatus === 'resolved' ? 'resolved' : effStatus === 'closed' ? 'closed' : 'status_changed';
+        const pubSummary =
+          effStatus === 'resolved'
+            ? `Marked Resolved by ${publicTeamLabel}: ${effResReason}`
+            : effStatus === 'closed'
+              ? `Ticket Closed by ${publicTeamLabel}: ${effResReason}`
+              : `Status updated from "${SUPPORT_STATUS_LABELS[cur.status] || cur.status}" to "${SUPPORT_STATUS_LABELS[effStatus] || effStatus}".`;
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, $2, 'reporter_visible', $3, $4, $5, $6, $7::jsonb)`,
+          [
+            issueId,
+            evType,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            pubSummary,
+            JSON.stringify({ from_status: cur.status, to_status: effStatus })
+          ]
+        );
       }
 
       await recordAuditLog(tx, {
@@ -4791,8 +6048,12 @@ export async function handleGovernanceApiRequest({
         targetId: issueId,
         action: 'issue.admin_update',
         metadata: {
+          ticket_number: cur.ticket_number,
           from_status: cur.status,
           to_status: effStatus,
+          priority_changed: priorityChanged || undefined,
+          assignee_changed: assigneeChanged || undefined,
+          escalated_to_top: effEscalated || undefined,
           note_added: Boolean(noteBody),
           note_visibility: noteBody ? noteVisibility : undefined
         }
@@ -4800,16 +6061,305 @@ export async function handleGovernanceApiRequest({
 
       return {
         status: 200,
-        body: {
-          issue: u[0],
-          ...(noteBody && noteVisibility === 'reporter_visible'
-            ? { notification_delivery: 'recorded_in_app_only' }
-            : {})
-        }
+        updatedRow: u[0],
+        publicReplyAdded,
+        insertedNoteId,
+        resolvedNow: statusChanged && effStatus === 'resolved',
+        reporterUserId: cur.reporter_user_id,
+        reporterEmail: cur.reporter_email
       };
     });
 
-    return sendJson(outcome.status, outcome.body);
+    if (outcome.status !== 200 || !outcome.updatedRow) {
+      return sendJson(outcome.status, outcome.body);
+    }
+
+    let notifOut = null;
+    if (outcome.publicReplyAdded || outcome.resolvedNow) {
+      const evKind = outcome.resolvedNow ? 'ticket_resolved' : 'staff_public_reply';
+      const dedupeKey = outcome.insertedNoteId
+        ? `note:${outcome.insertedNoteId}`
+        : `status:${outcome.updatedRow.id}:resolved:${outcome.updatedRow.updated_at}`;
+      notifOut = await recordAndDispatchSupportNotification({
+        dbAdapter,
+        issueId: outcome.updatedRow.id,
+        ticketNumber: outcome.updatedRow.ticket_number,
+        recipientUserId: outcome.reporterUserId,
+        recipientEmail: outcome.reporterEmail,
+        eventKind: evKind,
+        dedupeKey,
+        statusLabel: SUPPORT_STATUS_LABELS[outcome.updatedRow.status] || outcome.updatedRow.status
+      });
+    }
+
+    return sendJson(200, {
+      issue: {
+        ...outcome.updatedRow,
+        status_label: SUPPORT_STATUS_LABELS[outcome.updatedRow.status] || outcome.updatedRow.status
+      },
+      ...(notifOut
+        ? {
+            notification_delivery: notifOut.notification_delivery,
+            notification: notifOut
+          }
+        : {})
+    });
+  }
+
+  if (normPath === '/api/admin/issues/diagnostics') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const action = typeof body?.action === 'string' ? body.action.trim().toLowerCase() : 'link';
+    const issueId = typeof body?.issue_id === 'string' ? body.issue_id.trim() : '';
+    const diagGroupId = typeof body?.diagnostic_group_id === 'string' ? body.diagnostic_group_id.trim() : '';
+    const rawReason = typeof body?.reason === 'string' ? body.reason.trim() : '';
+    const rawPublicSummary =
+      body?.public_summary !== undefined
+        ? typeof body.public_summary === 'string' && body.public_summary.trim()
+          ? sanitizeDiagnosticText(body.public_summary.trim(), 235, '')
+          : null
+        : undefined;
+    const rawFixSha =
+      body?.fixing_release_sha !== undefined
+        ? typeof body.fixing_release_sha === 'string' && body.fixing_release_sha.trim()
+          ? body.fixing_release_sha.trim().toLowerCase()
+          : null
+        : undefined;
+    const rawVerifStatus =
+      typeof body?.verification_status === 'string' && body.verification_status.trim()
+        ? body.verification_status.trim().toLowerCase()
+        : undefined;
+    const rawVerifNote =
+      typeof body?.verification_note === 'string' && body.verification_note.trim()
+        ? sanitizeDiagnosticText(body.verification_note.trim(), 480, '')
+        : undefined;
+
+    if (!['link', 'confirm', 'update', 'unlink'].includes(action)) {
+      return sendJson(400, { error: 'action must be "link", "confirm", "update", or "unlink".' });
+    }
+    if (!UUID_RE.test(issueId) || !UUID_RE.test(diagGroupId)) {
+      return sendJson(400, { error: 'Valid issue_id and diagnostic_group_id UUIDs are required.' });
+    }
+    if (['link', 'confirm', 'unlink'].includes(action) && (rawReason.length < 3 || rawReason.length > 500)) {
+      return sendJson(400, { error: 'A reason (3–500 characters) is required when linking, confirming, or unlinking a diagnostic incident.' });
+    }
+    if (rawPublicSummary !== undefined && rawPublicSummary !== null && rawPublicSummary.length < 4) {
+      return sendJson(400, { error: 'Optional public_summary must be at least 4 characters (or empty).' });
+    }
+    if (rawFixSha && !/^[0-9a-f]{7,40}$/.test(rawFixSha)) {
+      return sendJson(400, { error: 'fixing_release_sha must be a 7–40 character hexadecimal commit SHA.' });
+    }
+    if (rawVerifStatus && !['unverified', 'pending_release', 'verified_fixed', 'still_reproducing'].includes(rawVerifStatus)) {
+      return sendJson(400, { error: 'Invalid verification_status.' });
+    }
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+      await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
+
+      if ((rawFixSha !== undefined || rawVerifStatus === 'verified_fixed') && !isTop) {
+        return {
+          status: 403,
+          body: {
+            error: 'Only Admin: Top may record fixing release SHAs or mark diagnostic verification as verified_fixed.',
+            code: 'TOP_REQUIRED'
+          }
+        };
+      }
+
+      const { rows: issRows } = await tx.query('SELECT * FROM support_issues WHERE id = $1 FOR UPDATE', [issueId]);
+      if (!issRows.length) return { status: 404, body: { error: 'Support ticket not found.' } };
+      const curIssue = issRows[0];
+
+      const { rows: gRows } = await tx.query(
+        'SELECT id, fingerprint, title, mod_visible, triage_status FROM diagnostic_incident_groups WHERE id = $1 FOR SHARE',
+        [diagGroupId]
+      );
+      if (!gRows.length) return { status: 404, body: { error: 'Diagnostic incident not found.' } };
+      const diagGroup = gRows[0];
+
+      // Enforce BOTH ticket access and diagnostic scope: Mod cannot link/inspect/unlink Top-only incidents!
+      if (!isTop && !diagGroup.mod_visible) {
+        return {
+          status: 403,
+          body: {
+            error: 'Admin: Top authorization is required to link or modify restricted authentication/invitation/provider diagnostic incidents.',
+            code: 'TOP_DIAGNOSTIC_SCOPE_REQUIRED'
+          }
+        };
+      }
+
+      const safeReason = sanitizeDiagnosticText(rawReason || 'Updated link metadata', 480, 'Updated diagnostic link');
+      const publicTeamLabel = formatPublicTeamAuthorLabel(verified.actorRole);
+
+      if (action === 'unlink') {
+        const { rows: unlinked } = await tx.query(
+          `UPDATE support_issue_diagnostic_links
+           SET unlinked_at = now(),
+               unlinked_by = $3,
+               unlink_reason = $4,
+               updated_at = now()
+           WHERE issue_id = $1 AND diagnostic_group_id = $2 AND unlinked_at IS NULL
+           RETURNING *`,
+          [issueId, diagGroupId, ctx.user.id, safeReason]
+        );
+        if (!unlinked.length) {
+          return { status: 404, body: { error: 'Active diagnostic link not found on this ticket.' } };
+        }
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, 'diagnostic_unlinked', 'internal', $2, $3, $4, $5, $6::jsonb)`,
+          [
+            issueId,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            `Unlinked diagnostic incident "${diagGroup.title}". Reason: ${safeReason}`,
+            JSON.stringify({ diagnostic_group_id: diagGroupId })
+          ]
+        );
+        await recordAuditLog(tx, {
+          actorId: ctx.user.id,
+          actorRole: verified.actorRole,
+          targetType: 'support_issue',
+          targetId: issueId,
+          action: 'issue.diagnostic_unlink',
+          metadata: { diagnostic_group_id: diagGroupId, reason: safeReason }
+        });
+        return { status: 200, body: { ok: true, unlinked: unlinked[0] } };
+      }
+
+      // `link`, `confirm`, or `update`
+      const { rows: existing } = await tx.query(
+        `SELECT * FROM support_issue_diagnostic_links
+         WHERE issue_id = $1 AND diagnostic_group_id = $2 AND unlinked_at IS NULL
+         FOR UPDATE`,
+        [issueId, diagGroupId]
+      );
+
+      let linkRow;
+      let publicSummaryNewlyPublished = false;
+
+      if (!existing.length) {
+        if (action === 'update') {
+          return { status: 404, body: { error: 'Active diagnostic link not found on this ticket.' } };
+        }
+        const pubSum = rawPublicSummary || null;
+        const { rows: ins } = await tx.query(
+          `INSERT INTO support_issue_diagnostic_links (
+             issue_id, diagnostic_group_id, diagnostic_fingerprint, link_state,
+             linked_by, linked_by_role, link_reason, public_summary,
+             fixing_release_sha, verification_status, verification_note
+           )
+           VALUES ($1, $2, $3, 'confirmed', $4, $5, $6, $7, $8, $9, $10)
+           RETURNING *`,
+          [
+            issueId,
+            diagGroupId,
+            diagGroup.fingerprint,
+            ctx.user.id,
+            verified.actorRole,
+            safeReason,
+            pubSum,
+            rawFixSha || null,
+            rawVerifStatus || 'unverified',
+            rawVerifNote || null
+          ]
+        );
+        linkRow = ins[0];
+        publicSummaryNewlyPublished = Boolean(pubSum);
+      } else {
+        const curLink = existing[0];
+        const nextPubSum = rawPublicSummary !== undefined ? rawPublicSummary : curLink.public_summary;
+        const nextFixSha = rawFixSha !== undefined ? rawFixSha : curLink.fixing_release_sha;
+        const nextVerifSt = rawVerifStatus || curLink.verification_status;
+        const nextVerifNote = rawVerifNote !== undefined ? rawVerifNote : curLink.verification_note;
+        const nextReason = rawReason ? safeReason : curLink.link_reason;
+
+        const { rows: upd } = await tx.query(
+          `UPDATE support_issue_diagnostic_links
+           SET link_state = 'confirmed',
+               linked_by = $3,
+               linked_by_role = $4,
+               link_reason = $5,
+               public_summary = $6,
+               fixing_release_sha = $7,
+               verification_status = $8,
+               verification_note = $9,
+               updated_at = now()
+           WHERE id = $1 AND issue_id = $2
+           RETURNING *`,
+          [
+            curLink.id,
+            issueId,
+            ctx.user.id,
+            verified.actorRole,
+            nextReason,
+            nextPubSum,
+            nextFixSha,
+            nextVerifSt,
+            nextVerifNote
+          ]
+        );
+        linkRow = upd[0];
+        publicSummaryNewlyPublished = Boolean(nextPubSum && nextPubSum !== curLink.public_summary);
+      }
+
+      await tx.query(
+        `INSERT INTO support_issue_events (
+           issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+         )
+         VALUES ($1, $2, 'internal', $3, $4, $5, $6, $7::jsonb)`,
+        [
+          issueId,
+          action === 'update' ? 'diagnostic_updated' : 'diagnostic_linked',
+          ctx.user.id,
+          verified.actorRole,
+          publicTeamLabel,
+          `${action === 'confirm' ? 'Confirmed suggested' : action === 'update' ? 'Updated' : 'Linked'} diagnostic incident "${diagGroup.title}". Reason: ${safeReason}`,
+          JSON.stringify({
+            diagnostic_group_id: diagGroupId,
+            fixing_release_sha: linkRow.fixing_release_sha || null,
+            verification_status: linkRow.verification_status
+          })
+        ]
+      );
+
+      if (publicSummaryNewlyPublished && linkRow.public_summary) {
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary
+           )
+           VALUES ($1, 'diagnostic_linked', 'reporter_visible', $2, $3, $4, $5)`,
+          [issueId, ctx.user.id, verified.actorRole, publicTeamLabel, linkRow.public_summary]
+        );
+        await tx.query(
+          'UPDATE support_issues SET last_public_staff_activity_at = now(), last_activity_at = now(), updated_at = now() WHERE id = $1',
+          [issueId]
+        );
+      }
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: verified.actorRole,
+        targetType: 'support_issue',
+        targetId: issueId,
+        action: `issue.diagnostic_${action}`,
+        metadata: {
+          ticket_number: curIssue.ticket_number,
+          diagnostic_group_id: diagGroupId,
+          fixing_release_sha: linkRow.fixing_release_sha || null,
+          verification_status: linkRow.verification_status
+        }
+      });
+
+      return { status: 200, body: { ok: true, link: linkRow } };
+    });
+
+    return sendJson(out.status, out.body);
   }
 
   // -------------------------------------------------------------------------
@@ -5872,6 +7422,21 @@ export async function handleGovernanceApiRequest({
          LIMIT 100`,
         [groupId, group.fingerprint, isTop]
       );
+      const linkedTicketsRes = await tx.query(
+        `SELECT dl.id AS link_id, dl.issue_id, dl.link_state, dl.link_reason, dl.public_summary,
+                dl.fixing_release_sha, dl.verification_status, dl.created_at AS linked_at,
+                si.ticket_number, si.subject, si.status, si.reporter_context, si.reporter_urgency,
+                si.severity, si.waiting_for_team, si.created_at
+         FROM support_issue_diagnostic_links dl
+         JOIN support_issues si ON si.id = dl.issue_id
+         WHERE dl.diagnostic_group_id = $1
+           AND dl.unlinked_at IS NULL
+         ORDER BY
+           CASE WHEN dl.link_state = 'confirmed' THEN 0 ELSE 1 END,
+           si.created_at DESC
+         LIMIT 50`,
+        [groupId]
+      );
 
       return {
         status: 200,
@@ -5883,10 +7448,15 @@ export async function handleGovernanceApiRequest({
           },
           samples: samplesRes.rows,
           notes: notesRes.rows,
+          linked_tickets: linkedTicketsRes.rows.map(r => ({
+            ...r,
+            status_label: SUPPORT_STATUS_LABELS[r.status] || r.status
+          })),
           permissions: {
             can_triage: isTop,
             can_record_fix_sha: isTop,
-            can_add_note: true
+            can_add_note: true,
+            can_notify_linked_tickets: true
           },
           repository_commit_base_url: REPOSITORY_COMMIT_BASE_URL
         }
@@ -6182,6 +7752,220 @@ export async function handleGovernanceApiRequest({
     });
 
     return sendJson(200, cleanupRes);
+  }
+
+  if (normPath === '/api/admin/diagnostics/notify-tickets') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const groupId = typeof body?.group_id === 'string' ? body.group_id.trim() : '';
+    const mode = typeof body?.mode === 'string' ? body.mode.trim().toLowerCase() : 'preview';
+    const rawMessage = typeof body?.message === 'string' ? body.message.trim() : '';
+    const confirmed = body?.confirmed === true;
+
+    if (!UUID_RE.test(groupId)) {
+      return sendJson(400, { error: 'Valid diagnostic incident group_id is required.' });
+    }
+    if (mode !== 'preview' && mode !== 'send') {
+      return sendJson(400, { error: 'mode must be preview or send.' });
+    }
+    if (rawMessage.length < 10 || rawMessage.length > 800) {
+      return sendJson(400, { error: 'Reviewed public update message must be 10–800 characters.' });
+    }
+    const sanitizedMessage = sanitizeDiagnosticText(rawMessage, 800, '');
+    if (sanitizedMessage.length < 8) {
+      return sendJson(400, { error: 'Enter a clear plain-language public update without secrets or raw tokens.' });
+    }
+    if (mode === 'send' && !confirmed) {
+      return sendJson(400, {
+        error: 'Preview recipients first and pass confirmed: true to post the public update to linked open tickets.',
+        code: 'CONFIRMATION_REQUIRED'
+      });
+    }
+
+    const dedupeKey = `diag_upd:${groupId}:${sha256Hex(sanitizedMessage).slice(0, 16)}`;
+
+    const txRes = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+      await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
+
+      const { rows: gRows } = await tx.query(
+        'SELECT id, title, mod_visible, triage_status FROM diagnostic_incident_groups WHERE id = $1 LIMIT 1',
+        [groupId]
+      );
+      if (!gRows.length) return { status: 404, body: { error: 'Diagnostic incident not found.' } };
+      const group = gRows[0];
+      if (!isTop && !group.mod_visible) {
+        return {
+          status: 403,
+          body: {
+            error: 'Admin: Top authorization is required to notify tickets on restricted security/provider incidents.',
+            code: 'TOP_DIAGNOSTIC_SCOPE_REQUIRED'
+          }
+        };
+      }
+
+      const { rows: allLinked } = await tx.query(
+        `SELECT dl.issue_id,
+                si.ticket_number,
+                si.subject,
+                si.status,
+                si.reporter_context,
+                si.reporter_user_id,
+                COALESCE(si.reporter_email, au.email_normalized) AS reporter_email,
+                EXISTS (
+                  SELECT 1
+                  FROM support_issue_notes n
+                  WHERE n.issue_id = si.id
+                    AND n.idempotency_key = $2
+                ) AS already_sent
+         FROM support_issue_diagnostic_links dl
+         JOIN support_issues si ON si.id = dl.issue_id
+         LEFT JOIN auth_users au ON au.id = si.reporter_user_id
+         WHERE dl.diagnostic_group_id = $1
+           AND dl.unlinked_at IS NULL
+           AND dl.link_state = 'confirmed'
+         ORDER BY si.created_at ASC
+         LIMIT 50`,
+        [groupId, dedupeKey]
+      );
+
+      const openActive = allLinked.filter(r =>
+        r.status === 'open' || r.status === 'in_review' || r.status === 'in_progress' || r.status === 'waiting'
+      );
+      const excludedInactiveCount = allLinked.length - openActive.length;
+      const cappedOpen = openActive.slice(0, 25);
+      const recipientsPreview = cappedOpen.map(r => ({
+        issue_id: r.issue_id,
+        ticket_number: r.ticket_number,
+        subject: r.subject,
+        status: r.status,
+        status_label: SUPPORT_STATUS_LABELS[r.status] || r.status,
+        reporter_context: r.reporter_context,
+        recipient_masked: maskEmail(r.reporter_email || ''),
+        already_sent: Boolean(r.already_sent)
+      }));
+      const pendingTargets = cappedOpen.filter(r => !r.already_sent);
+
+      if (mode === 'preview') {
+        return {
+          status: 200,
+          body: {
+            ok: true,
+            mode: 'preview',
+            group_id: groupId,
+            dedupe_key: dedupeKey,
+            sanitized_message: sanitizedMessage,
+            recipient_count: pendingTargets.length,
+            already_sent_count: cappedOpen.length - pendingTargets.length,
+            excluded_inactive_count: excludedInactiveCount,
+            recipients: recipientsPreview
+          }
+        };
+      }
+
+      const publicTeamLabel = formatPublicTeamAuthorLabel(verified.actorRole);
+      const postedTargets = [];
+
+      for (const target of pendingTargets) {
+        const insNote = await tx.query(
+          `INSERT INTO support_issue_notes (
+             issue_id, author_user_id, author_role, author_display_label, visibility, body, idempotency_key
+           )
+           VALUES ($1, $2, $3, $4, 'reporter_visible', $5, $6)
+           ON CONFLICT (issue_id, author_user_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+           DO NOTHING
+           RETURNING id`,
+          [target.issue_id, ctx.user.id, verified.actorRole, publicTeamLabel, sanitizedMessage, dedupeKey]
+        );
+        if (!insNote.rows.length) continue;
+
+        await tx.query(
+          `INSERT INTO support_issue_events (
+             issue_id, event_type, visibility, actor_user_id, actor_role, public_actor_label, summary, metadata
+           )
+           VALUES ($1, 'public_incident_update', 'reporter_visible', $2, $3, $4, $5, $6::jsonb)`,
+          [
+            target.issue_id,
+            ctx.user.id,
+            verified.actorRole,
+            publicTeamLabel,
+            `${publicTeamLabel} posted a status update on a linked service issue.`,
+            JSON.stringify({ diagnostic_group_id: groupId })
+          ]
+        );
+
+        await tx.query(
+          `UPDATE support_issues
+           SET last_public_staff_activity_at = now(),
+               last_activity_at = now(),
+               staff_last_read_at = now(),
+               waiting_for_team = false,
+               updated_at = now()
+           WHERE id = $1`,
+          [target.issue_id]
+        );
+
+        postedTargets.push(target);
+      }
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: verified.actorRole,
+        targetType: 'diagnostic_incident',
+        targetId: groupId,
+        action: 'diagnostics.notify_linked_tickets',
+        metadata: {
+          posted_count: postedTargets.length,
+          already_sent_count: cappedOpen.length - pendingTargets.length,
+          excluded_inactive_count: excludedInactiveCount,
+          tickets: postedTargets.map(t => t.ticket_number)
+        }
+      });
+
+      return {
+        status: 200,
+        postedTargets,
+        alreadySentCount: cappedOpen.length - pendingTargets.length,
+        excludedInactiveCount,
+        recipientsPreview
+      };
+    });
+
+    if (txRes.body) {
+      return sendJson(txRes.status, txRes.body);
+    }
+
+    const deliverySummaries = [];
+    for (const target of txRes.postedTargets || []) {
+      const notifRes = await recordAndDispatchSupportNotification({
+        dbAdapter,
+        issueId: target.issue_id,
+        ticketNumber: target.ticket_number,
+        recipientUserId: target.reporter_user_id,
+        recipientEmail: target.reporter_email || '',
+        eventKind: 'linked_incident_update',
+        dedupeKey,
+        statusLabel: SUPPORT_STATUS_LABELS[target.status] || target.status
+      });
+      deliverySummaries.push({
+        issue_id: target.issue_id,
+        ticket_number: target.ticket_number,
+        notification_delivery: notifRes.notification_delivery,
+        delivery_status: notifRes.delivery_status
+      });
+    }
+
+    return sendJson(200, {
+      ok: true,
+      mode: 'send',
+      group_id: groupId,
+      dedupe_key: dedupeKey,
+      posted_count: (txRes.postedTargets || []).length,
+      already_sent_count: txRes.alreadySentCount || 0,
+      excluded_inactive_count: txRes.excludedInactiveCount || 0,
+      deliveries: deliverySummaries
+    });
   }
 
   return sendJson(404, { error: 'Not found' });

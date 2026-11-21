@@ -499,64 +499,108 @@
         <section class="admin-section" id="sec-issues" aria-labelledby="heading-issues" hidden>
           <div class="sec-head">
             <div>
-              <span class="sec-kicker">PRIVATE SUPPORT &amp; DISPUTE TRIAGE</span>
-              <h1 id="heading-issues">Customer &amp; Vendor Issues</h1>
-              <p>Track private support tickets with separated internal admin notes and reporter-visible responses. Private complainant details never appear in public feeds.</p>
+              <span class="sec-kicker">PRIVATE SUPPORT, FEEDBACK &amp; CONNECTED DIAGNOSTICS</span>
+              <h1 id="heading-issues">Support &amp; Feedback Queue</h1>
+              <p>Triage vendor and customer support tickets, assign active staff ownership, keep internal notes strictly separated from public replies, and link related diagnostic incidents safely.</p>
             </div>
             <button type="button" class="admin-btn admin-btn-secondary" id="refreshIssuesBtn">↻ Refresh</button>
+          </div>
+
+          <div class="subtab-bar" id="issuesQueueTabs" role="tablist" aria-label="Support queue views">
+            <button type="button" class="subtab active" data-iss-queue="all_active">All Active</button>
+            <button type="button" class="subtab" data-iss-queue="unassigned">Unassigned</button>
+            <button type="button" class="subtab" data-iss-queue="mine">Assigned to Me</button>
+            <button type="button" class="subtab" data-iss-queue="waiting_team">Waiting on Team</button>
+            <button type="button" class="subtab" data-iss-queue="needs_reassignment">Needs Reassignment</button>
+            <button type="button" class="subtab" data-iss-queue="escalated">Escalated to Top</button>
+            <button type="button" class="subtab" data-iss-queue="all">All / History</button>
           </div>
 
           <form class="filter-bar" id="issuesFilterForm">
             <label>Status
               <select id="issuesStatusFilter">
+                <option value="" selected>Queue default</option>
                 <option value="all">All statuses</option>
-                <option value="open" selected>Open</option>
+                <option value="open">Received (Open)</option>
+                <option value="in_review">In Review</option>
                 <option value="in_progress">In Progress</option>
                 <option value="waiting">Waiting on Reporter</option>
                 <option value="resolved">Resolved</option>
                 <option value="closed">Closed</option>
               </select>
             </label>
-            <label>Severity
+            <label>Staff Priority
               <select id="issuesSeverityFilter">
-                <option value="all">All severities</option>
-                <option value="urgent">Urgent (4h SLA)</option>
-                <option value="high">High (24h SLA)</option>
-                <option value="normal">Normal (72h SLA)</option>
-                <option value="low">Low (7d SLA)</option>
+                <option value="all">All priorities</option>
+                <option value="urgent">Urgent (4h target)</option>
+                <option value="high">High (24h target)</option>
+                <option value="normal">Normal (72h target)</option>
+                <option value="low">Low (7d target)</option>
+              </select>
+            </label>
+            <label>Reporter Urgency
+              <select id="issuesUrgencyFilter">
+                <option value="all">All urgencies</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="normal">Normal</option>
+                <option value="low">Low</option>
+                <option value="feedback">Feedback / Idea</option>
+              </select>
+            </label>
+            <label>Reporter Type
+              <select id="issuesReporterTypeFilter">
+                <option value="all">All reporters</option>
+                <option value="vendor">Vendor</option>
+                <option value="customer">Customer</option>
               </select>
             </label>
             <label>Category
               <select id="issuesCategoryFilter">
                 <option value="all">All categories</option>
-                <option value="booking_issue">Booking Issue</option>
-                <option value="pager_issue">Pager Issue</option>
-                <option value="listing_accuracy">Listing Accuracy</option>
+                <option value="technical_problem">Technical / App Problem</option>
+                <option value="listing_hours_location">Listing / Hours / Location</option>
+                <option value="event_inquiries">Event Inquiries / Bookings</option>
+                <option value="pager_notifications">Pickup Pager / Notifications</option>
+                <option value="account_access">Account / Login / Invitation</option>
+                <option value="question_help">Question / Help</option>
+                <option value="suggestion_feedback">Suggestion / Feedback</option>
+                <option value="booking_issue">Booking Issue (Legacy)</option>
+                <option value="pager_issue">Pager Issue (Legacy)</option>
+                <option value="listing_accuracy">Listing Accuracy (Legacy)</option>
                 <option value="vendor_dispute">Vendor Dispute</option>
                 <option value="safety_concern">Safety Concern</option>
                 <option value="abuse_report">Abuse Report</option>
-                <option value="account_access">Account Access</option>
                 <option value="other">Other</option>
               </select>
             </label>
+            <label>Vendor ID
+              <input type="text" id="issuesVendorFilter" maxlength="64" placeholder="e.g. iniguez">
+            </label>
+            <label>From Date
+              <input type="date" id="issuesDateFrom">
+            </label>
+            <label>To Date
+              <input type="date" id="issuesDateTo">
+            </label>
             <label class="checkbox-inline">
               <input type="checkbox" id="issuesOverdueOnly">
-              <span>Overdue SLA only</span>
+              <span>Overdue target only</span>
             </label>
-            <label class="grow">Search subject or vendor
-              <input type="search" id="issuesSearchInput" placeholder="Search issues…">
+            <label class="grow">Search ticket #, text, vendor, or corr_…
+              <input type="search" id="issuesSearchInput" placeholder="BS-001001, keyword, vendor, or corr_…">
             </label>
             <button type="submit" class="admin-btn admin-btn-primary">Filter</button>
           </form>
 
           <div class="split-workspace">
             <div class="list-pane">
-              <div id="issuesListState" class="state-box">Loading support issues…</div>
+              <div id="issuesListState" class="state-box">Loading support queue…</div>
               <div id="issuesList" class="record-list" hidden></div>
               <div class="pager-bar" id="issuesPager" hidden></div>
             </div>
             <aside class="detail-pane" id="issuesDetailPane">
-              <div class="empty-detail">Select an issue to inspect linked records, post internal or reporter-visible notes, assign ownership, or record resolution.</div>
+              <div class="empty-detail">Select a support ticket to inspect reporter context, assign ownership, post internal notes or public replies, link diagnostic incidents, or record resolution.</div>
             </aside>
           </div>
         </section>

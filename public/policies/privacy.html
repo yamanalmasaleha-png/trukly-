@@ -111,9 +111,9 @@
               <td>Pager tickets expire automatically; web-push delivery is currently <strong>disabled</strong> on staging (<code>PUSH_PROVIDER_MODE=disabled</code>).</td>
             </tr>
             <tr>
-              <td><strong>Community Reviews, Reports &amp; Support Issues</strong></td>
-              <td>Display name/nickname, star rating, comment text, moderation history, abuse reports, and private support ticket threads.</td>
-              <td>Moderation preserves original submitted text internally for audit/appeals; retention period pending counsel review.</td>
+              <td><strong>Community Reviews, Reports &amp; Support / Feedback Tickets</strong></td>
+              <td>Display name/nickname, star rating, comment text, moderation history, abuse reports, and private support/feedback tickets (ticket number <code>BS-…</code>, category, subject/description, immutable reporter urgency, sharing scope <code>personal</code> vs <code>vendor_service</code>, separated public replies vs internal staff notes, and optional user-reviewable sanitized context such as correlation ID <code>corr_…</code>, release SHA, and coarse device/browser/viewport category — never raw user-agent strings).</td>
+              <td>Moderation preserves original submitted text internally for audit/appeals; support tickets and append-only ticket events/notes are retained separately from short-lived diagnostic event samples so diagnostic cleanup never erases user support conversations; formal retention/archiving schedule pending counsel review.</td>
             </tr>
             <tr>
               <td><strong>Vendor Onboarding Applications &amp; Proof</strong></td>

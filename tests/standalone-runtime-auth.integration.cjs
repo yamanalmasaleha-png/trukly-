@@ -190,7 +190,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRun1.code, 0, `First migration run failed: ${migRun1.stderr}`);
-    assert(migRun1.stdout.includes('"newly_applied":24'), 'Expected all 24 migrations applied on fresh DB');
+    assert(migRun1.stdout.includes('"newly_applied":25'), 'Expected all 25 migrations applied on fresh DB');
 
     // Second run must be a zero-op idempotent checksum verification
     const migRun2 = await runChildExpectExit(

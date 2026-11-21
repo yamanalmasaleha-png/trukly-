@@ -730,6 +730,31 @@
       .replace(/'/g, '&#39;');
   }
 
+  function getCoarseDeviceContext() {
+    let platform = 'other';
+    let browser = 'other';
+    let viewport = 'desktop';
+    try {
+      const ua = String((globalScope.navigator && globalScope.navigator.userAgent) || '').toLowerCase();
+      if (/iphone|ipad|ipod/.test(ua)) platform = 'ios';
+      else if (/android/.test(ua)) platform = 'android';
+      else if (/macintosh|mac os x/.test(ua)) platform = 'macos';
+      else if (/windows/.test(ua)) platform = 'windows';
+      else if (/linux/.test(ua)) platform = 'linux';
+
+      if (/edg\//.test(ua)) browser = 'edge';
+      else if (/firefox\//.test(ua)) browser = 'firefox';
+      else if (/chrome\/|crios\//.test(ua)) browser = 'chrome';
+      else if (/safari\//.test(ua)) browser = 'safari';
+
+      const w = Number(globalScope.innerWidth || 0);
+      if (w > 0 && w < 640) viewport = 'mobile';
+      else if (w >= 640 && w < 1024) viewport = 'tablet';
+      else viewport = 'desktop';
+    } catch {}
+    return { platform: platform, browser: browser, viewport: viewport };
+  }
+
   function renderFeedbackBanner(containerOrId, opts) {
     if (typeof document === 'undefined') return;
     const el = typeof containerOrId === 'string' ? document.getElementById(containerOrId) : containerOrId;
@@ -743,6 +768,11 @@
     const corr = opts.correlationId && /^corr_[0-9a-f]{12,32}$/i.test(opts.correlationId)
       ? opts.correlationId
       : null;
+    const occurredAtIso = opts.occurredAt || new Date().toISOString();
+    const canReportProblem =
+      (meta.tone === 'err' || meta.tone === 'warn') &&
+      !opts.hideReportButton &&
+      typeof globalScope.bitesharkOpenSupport === 'function';
 
     el.hidden = false;
     el.className = 'bs-feedback-banner bs-tone-' + meta.tone;
@@ -762,7 +792,7 @@
       html += '<p class="bs-fb-next">' + escapeHtmlSafe(opts.nextStep) + '</p>';
     }
 
-    if (corr || typeof opts.onRetry === 'function' || opts.loginHref) {
+    if (corr || typeof opts.onRetry === 'function' || opts.loginHref || canReportProblem) {
       html += '<div class="bs-fb-actions">';
       if (typeof opts.onRetry === 'function') {
         html +=
@@ -775,6 +805,12 @@
           '<a class="ghost small bs-fb-login" href="' +
           escapeHtmlSafe(opts.loginHref) +
           '">Sign in →</a>';
+      }
+      if (canReportProblem) {
+        html +=
+          '<button type="button" class="ghost small bs-fb-report">🛟 ' +
+          escapeHtmlSafe(opts.reportLabel || 'Report this problem') +
+          '</button>';
       }
       if (corr) {
         html +=
@@ -792,6 +828,19 @@
     if (retryBtn && typeof opts.onRetry === 'function') {
       retryBtn.addEventListener('click', function () {
         opts.onRetry();
+      });
+    }
+    const reportBtn = el.querySelector('.bs-fb-report');
+    if (reportBtn && typeof globalScope.bitesharkOpenSupport === 'function') {
+      reportBtn.addEventListener('click', function () {
+        globalScope.bitesharkOpenSupport({
+          tab: 'new',
+          mode: 'contextual_error',
+          featureKey: opts.featureKey || '',
+          operationName: opts.operationName || '',
+          correlationId: corr || '',
+          occurredAt: occurredAtIso
+        });
       });
     }
     const copyBtn = el.querySelector('.bs-fb-copy');
@@ -824,6 +873,7 @@
     openModalDialog: openModalDialog,
     closeModalDialog: closeModalDialog,
     renderFeedbackBanner: renderFeedbackBanner,
+    getCoarseDeviceContext: getCoarseDeviceContext,
     prefersReducedMotion: prefersReducedMotion,
     isStaleClientBuild: isStaleClientBuild,
     getReleaseSnapshot: function () {
