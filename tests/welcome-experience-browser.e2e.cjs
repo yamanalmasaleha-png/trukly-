@@ -127,8 +127,9 @@ function getFreePort() {
 }
 
 async function createPostgresCluster() {
-  if (process.env.TEST_ADMIN_DATABASE_URL) {
-    return { adminUrl: process.env.TEST_ADMIN_DATABASE_URL, stop: async () => {} };
+  const extAdminUrl = process.env.TEST_ADMIN_DATABASE_URL || process.env.DATABASE_URL;
+  if (extAdminUrl) {
+    return { adminUrl: extAdminUrl, stop: async () => {} };
   }
   const pgBin = findPostgresBinDir();
   const exe = name =>
@@ -335,28 +336,16 @@ class CdpClient {
     await adminPool.query(`CREATE DATABASE ${dbName} OWNER ${migratorRole}`);
 
     const parsedAdmin = new URL(pgCluster.adminUrl);
-    const migUrl = `postgresql://${migratorRole}:${migratorPass}@${parsedAdmin.hostname}:${parsedAdmin.port}/${dbName}`;
-    const appUrl = `postgresql://${appRole}:${appPass}@${parsedAdmin.hostname}:${parsedAdmin.port}/${dbName}`;
+    const adminPort = parsedAdmin.port || '5432';
+    const migUrl = `postgresql://${migratorRole}:${migratorPass}@${parsedAdmin.hostname}:${adminPort}/${dbName}`;
+    const appUrl = `postgresql://${appRole}:${appPass}@${parsedAdmin.hostname}:${adminPort}/${dbName}`;
 
+    execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'run-migrations.cjs'), '--app-role', appRole], {
+      cwd: ROOT,
+      env: { ...process.env, MIGRATION_DATABASE_URL: migUrl },
+      stdio: 'ignore'
+    });
     migratorPool = new Pool({ connectionString: migUrl, max: 4 });
-    const migFiles = fs
-      .readdirSync(path.join(ROOT, 'migrations'))
-      .filter(f => /^\d+.*\.sql$/.test(f))
-      .sort();
-    for (const file of migFiles) {
-      const sql = fs.readFileSync(path.join(ROOT, 'migrations', file), 'utf8');
-      await migratorPool.query(sql);
-    }
-
-    await migratorPool.query(`GRANT CONNECT ON DATABASE ${dbName} TO ${appRole}`);
-    await migratorPool.query(`GRANT USAGE ON SCHEMA public TO ${appRole}`);
-    await migratorPool.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${appRole}`);
-    await migratorPool.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${appRole}`);
-    await migratorPool.query(
-      `REVOKE DELETE ON TABLE support_issues FROM ${appRole};
-       REVOKE UPDATE, DELETE ON TABLE support_issue_notes FROM ${appRole};
-       REVOKE UPDATE, DELETE ON TABLE support_issue_events FROM ${appRole};`
-    );
 
     async function privQuery(text, params = []) {
       const c = await migratorPool.connect();
@@ -501,27 +490,52 @@ class CdpClient {
     assert(tokMatch, 'Expected single-use #accept-invite token');
     const realInviteToken = decodeURIComponent(tokMatch[1]);
 
-    // Launch Headless Chrome
-    const debugPort = await getFreePort();
-    chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-wel-chrome-'));
-    chromeProc = spawn(
-      chromeBin,
-      [
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        `--remote-debugging-port=${debugPort}`,
-        `--user-data-dir=${chromeProfileDir}`,
-        'about:blank'
-      ],
-      { stdio: 'ignore', windowsHide: true }
-    );
-
-    const verInfo = await waitForCondition(() => httpGetJson(`http://127.0.0.1:${debugPort}/json/version`), {
-      timeoutMs: 12000,
-      label: 'Chrome DevTools endpoint'
-    });
+    // Launch Headless Chrome (with retry for transient CI runner cold-start/port races)
+    let verInfo = null;
+    let lastChromeErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const debugPort = await getFreePort();
+      chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bs-wel-chrome-'));
+      let stderrTail = '';
+      chromeProc = spawn(
+        chromeBin,
+        [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--no-first-run',
+          '--no-default-browser-check',
+          `--remote-debugging-port=${debugPort}`,
+          `--user-data-dir=${chromeProfileDir}`,
+          'about:blank'
+        ],
+        { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true }
+      );
+      if (chromeProc.stderr) {
+        chromeProc.stderr.on('data', chunk => {
+          stderrTail = (stderrTail + chunk.toString('utf8')).slice(-1200);
+        });
+      }
+      try {
+        verInfo = await waitForCondition(() => httpGetJson(`http://127.0.0.1:${debugPort}/json/version`), {
+          timeoutMs: 12000,
+          label: `Chrome DevTools endpoint (attempt ${attempt}/3)`
+        });
+        break;
+      } catch (err) {
+        lastChromeErr = new Error(`${err.message}${stderrTail ? ' | stderr: ' + stderrTail.trim() : ''}`);
+        try {
+          chromeProc.kill('SIGKILL');
+        } catch {}
+        chromeProc = null;
+        try {
+          fs.rmSync(chromeProfileDir, { recursive: true, force: true });
+        } catch {}
+        chromeProfileDir = null;
+      }
+    }
+    if (!verInfo) throw lastChromeErr;
     cdp = new CdpClient(verInfo.webSocketDebuggerUrl);
     await cdp.connect();
 

@@ -302,32 +302,55 @@ class CdpClient {
       { label: 'standalone server/index.js backed by PostgreSQL' }
     );
 
-    // Launch real headless Chrome
-    const cdpPort = await getFreePort();
-    chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'truckly-chrome-e2e-'));
-    chromeProc = spawn(
-      chromeBin,
-      [
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-default-browser-check',
-        `--user-data-dir=${chromeProfileDir}`,
-        `--remote-debugging-port=${cdpPort}`,
-        'about:blank'
-      ],
-      { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true }
-    );
-
-    const versionInfo = await waitForCondition(
-      async () => {
-        const r = await httpGetJson(`http://127.0.0.1:${cdpPort}/json/version`);
-        return r.status === 200 && r.json.webSocketDebuggerUrl ? r.json : null;
-      },
-      { label: 'Chrome DevTools endpoint' }
-    );
+    // Launch real headless Chrome (with retry for transient CI runner cold-start/port races)
+    let versionInfo = null;
+    let lastChromeLaunchErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const cdpPort = await getFreePort();
+      chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'truckly-chrome-e2e-'));
+      let stderrTail = '';
+      chromeProc = spawn(
+        chromeBin,
+        [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--no-first-run',
+          '--no-default-browser-check',
+          `--user-data-dir=${chromeProfileDir}`,
+          `--remote-debugging-port=${cdpPort}`,
+          'about:blank'
+        ],
+        { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true }
+      );
+      if (chromeProc.stderr) {
+        chromeProc.stderr.on('data', chunk => {
+          stderrTail = (stderrTail + chunk.toString('utf8')).slice(-1200);
+        });
+      }
+      try {
+        versionInfo = await waitForCondition(
+          async () => {
+            const r = await httpGetJson(`http://127.0.0.1:${cdpPort}/json/version`);
+            return r.status === 200 && r.json.webSocketDebuggerUrl ? r.json : null;
+          },
+          { timeoutMs: 12000, label: `Chrome DevTools endpoint (attempt ${attempt}/3)` }
+        );
+        break;
+      } catch (err) {
+        lastChromeLaunchErr = new Error(`${err.message}${stderrTail ? ' | stderr: ' + stderrTail.trim() : ''}`);
+        try {
+          chromeProc.kill('SIGKILL');
+        } catch {}
+        chromeProc = null;
+        try {
+          fs.rmSync(chromeProfileDir, { recursive: true, force: true });
+        } catch {}
+        chromeProfileDir = null;
+      }
+    }
+    if (!versionInfo) throw lastChromeLaunchErr;
     console.log(`Connected to headless browser: ${versionInfo.Browser}`);
 
     cdp = new CdpClient(versionInfo.webSocketDebuggerUrl);
