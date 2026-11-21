@@ -272,7 +272,7 @@ async function main() {
 
     const migRes = await runMigrationsCli(migratorUrl, appRole);
     assert.equal(migRes.code, 0, `Migration 025 CLI failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":1'), `Expected 1 newly applied migration (025): ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":2'), `Expected 2 newly applied migrations (025+026): ${migRes.stdout}`);
 
     const preservedCheck = await privQuery('SELECT * FROM support_issues WHERE id = $1', [legacyIssueId]);
     assert.equal(preservedCheck.rows.length, 1);

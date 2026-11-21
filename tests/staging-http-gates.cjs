@@ -666,7 +666,7 @@ async function runStagingSuite(cfg) {
       (await reqJson('/api/community/moderate', {
         method: 'POST',
         cookie: cfg.cookies.moderator,
-        body: { id: postBId, status: 'rejected' }
+        body: { id: postBId, status: 'rejected', reason: 'Staging gate moderation rejection check' }
       })).status,
       200
     );

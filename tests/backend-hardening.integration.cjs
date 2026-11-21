@@ -1047,13 +1047,19 @@ function futurePacificDate(daysAhead = 12) {
     const rejectRes = await callApi('community/moderate.js', {
       method: 'POST',
       user: ACTORS.mod,
-      body: { id: postBId, status: 'rejected' }
+      body: { id: postBId, status: 'rejected', reason: 'Off-topic duplicate submission' }
     });
     assert.equal(rejectRes.status, 200);
 
     // Re-moderating an already-decided post returns 409
     assert.equal(
-      (await callApi('community/moderate.js', { method: 'POST', user: ACTORS.mod, body: { id: postAId, status: 'rejected' } })).status,
+      (
+        await callApi('community/moderate.js', {
+          method: 'POST',
+          user: ACTORS.mod,
+          body: { id: postAId, status: 'rejected', reason: 'Duplicate re-moderation check' }
+        })
+      ).status,
       409
     );
 

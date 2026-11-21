@@ -187,6 +187,14 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/welcome-experience-browser.e2e.cjs
+      - name: Run real PostgreSQL BiteShark Urgent Pre-Pilot Security & Concurrency Integration suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/urgent-pilot-security.integration.cjs
+      - name: Run real headless Chrome + PostgreSQL BiteShark Shared-Device Sign-Out Isolation E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/urgent-pilot-security-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         shell: bash
         env:
