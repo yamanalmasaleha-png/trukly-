@@ -788,16 +788,14 @@ export function createStandaloneServer({
         req.params = {};
         req.body = await readBoundedJsonBody(req, AUTH_MAX_JSON_BYTES);
         bindVerifiedRequestUser(req, sess.user);
-        const resAdapter = createHandlerResponseAdapter(res);
+        const probeGovState = {
+          requireEligibleSessionInTx: true,
+          verifiedSessionId: sess.sessionId,
+          verifiedUserId: sess.user.id
+        };
+        const resAdapter = createHandlerResponseAdapter(res, probeGovState);
         await runWithRequestContext({ db: dbAdapter, user: sess.user }, () =>
-          runWithGovernanceContext(
-            {
-              requireEligibleSessionInTx: true,
-              verifiedSessionId: sess.sessionId,
-              verifiedUserId: sess.user.id
-            },
-            () => stagingGateProbe.default(req, resAdapter)
-          )
+          runWithGovernanceContext(probeGovState, () => stagingGateProbe.default(req, resAdapter))
         );
         if (!res.writableEnded) res.end();
         return;

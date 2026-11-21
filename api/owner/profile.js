@@ -8,7 +8,7 @@ import {
   applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
 import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
@@ -109,7 +109,8 @@ export default async function(req, res) {
 
     if (!rows.length) return res.status(404).json({ error: "Vendor not found." });
     return res.json(rows[0]);
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Owner profile service is temporarily unavailable." });
   }
 }

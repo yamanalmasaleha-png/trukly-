@@ -8,7 +8,7 @@ import {
   isWritePaused,
   applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 import { handlePagerTransitionNotificationsInTx } from "../../lib/pager-notifications.js";
 
 export const access = "user";
@@ -124,7 +124,8 @@ export default async function(req, res) {
     });
 
     return res.status(outcome.status).json(outcome.body);
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Pager update service is temporarily unavailable." });
   }
 }

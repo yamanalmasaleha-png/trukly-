@@ -8,7 +8,7 @@ import {
   evaluateEffectiveVendorRestrictions
 } from "../../lib/authz.js";
 import { validateFuturePacificDate, normalizeCalendarDate } from "../../lib/dates.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["POST"];
@@ -333,7 +333,8 @@ export default async function(req, res) {
     });
 
     return res.status(outcome.status).json(outcome.body);
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Booking request could not be verified or saved right now. Please try again." });
   }
 }

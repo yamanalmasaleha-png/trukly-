@@ -86,6 +86,7 @@ export const db = {
     }
     const client = await this.connect();
     try {
+      delete client.__bsSessionEligibilityVerified;
       await client.query('BEGIN');
       const result = await fn(client);
       await client.query('COMMIT');
@@ -96,6 +97,13 @@ export const db = {
       } catch {}
       throw err;
     } finally {
+      try {
+        if (typeof client.__bsTxCleanup === 'function') {
+          client.__bsTxCleanup();
+        }
+      } catch {}
+      delete client.__bsSessionEligibilityVerified;
+      delete client.__bsTxCleanup;
       if (typeof client.release === 'function') {
         client.release();
       }

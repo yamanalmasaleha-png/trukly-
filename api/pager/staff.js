@@ -11,7 +11,7 @@ import {
   applyPrivateNoStoreHeaders,
   evaluateEffectiveVendorRestrictions
 } from "../../lib/authz.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
@@ -165,7 +165,8 @@ export default async function(req, res) {
     });
 
     return res.status(outcome.status).json(outcome.body);
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Pickup pager staff queue is temporarily unavailable." });
   }
 }

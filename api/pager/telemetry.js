@@ -4,7 +4,7 @@ import {
   reverifyPlatformAdminInTx,
   applyPrivateNoStoreHeaders
 } from "../../lib/authz.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 import {
   enablePagerInternalContext,
   inspectNotificationRuntimeConfig
@@ -96,7 +96,8 @@ export default async function(req, res) {
       controls: runtimeControls,
       ...stats
     });
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({
       error: "Pager notification telemetry is temporarily unavailable.",
       code: "TELEMETRY_DB_UNAVAILABLE"

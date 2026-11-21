@@ -9,7 +9,7 @@ import {
 } from "../../lib/authz.js";
 import { isValidTimeValue } from "../../lib/dates.js";
 import { validateCoordinates, findForbiddenSelfElevationField } from "../../lib/discovery.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
@@ -185,7 +185,8 @@ export default async function(req, res) {
         expires_at: null
       }
     );
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Owner location service is temporarily unavailable." });
   }
 }

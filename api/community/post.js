@@ -1,6 +1,6 @@
 import { db, auth } from "@biteshark/runtime-adapter";
 import { resolveIdentity, isWritePaused, applyPrivateNoStoreHeaders } from "../../lib/authz.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["POST"];
@@ -144,7 +144,8 @@ export default async function(req, res) {
     });
 
     return res.status(outcome.status).json(outcome.body);
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Community submission could not be saved right now." });
   }
 }

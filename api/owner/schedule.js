@@ -10,7 +10,7 @@ import {
 } from "../../lib/authz.js";
 import { isValidCalendarDate, isValidTimeValue, getPacificToday, normalizeCalendarDate } from "../../lib/dates.js";
 import { findForbiddenSelfElevationField } from "../../lib/discovery.js";
-import { withTransaction } from "../../lib/db-tx.js";
+import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-tx.js";
 
 export const access = "user";
 export const methods = ["GET", "POST"];
@@ -120,7 +120,8 @@ export default async function(req, res) {
         service_date: normalizeCalendarDate(r.service_date)
       }))
     });
-  } catch {
+  } catch (err) {
+    if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Owner schedule service is temporarily unavailable." });
   }
 }
