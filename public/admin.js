@@ -37,8 +37,58 @@
       pendingConfirm: null,
       lastTriggerEl: null
     },
+    diagnostics: {
+      page: 1,
+      pageSize: 15,
+      total: 0,
+      items: [],
+      selectedId: null,
+      selectedDetail: null,
+      permissions: null,
+      releases: [],
+      retentionPolicy: null,
+      activeServerSha: 'dev',
+      repoCommitBaseUrl: null
+    },
     audit: { page: 1, total: 0, pageSize: 25, items: [] }
   };
+
+  var inviteDraftKey = null;
+  var inviteDraftSig = '';
+
+  function adminDiag() {
+    return typeof window !== 'undefined' && window.bitesharkDiagnostics ? window.bitesharkDiagnostics : null;
+  }
+
+  function adminOpenModal(modalId, opts) {
+    var el = document.getElementById(modalId);
+    if (!el) return;
+    el.hidden = false;
+    var d = adminDiag();
+    if (d && typeof d.openModalDialog === 'function') {
+      d.openModalDialog(
+        el,
+        Object.assign(
+          {
+            onClose: function () {
+              adminCloseModal(modalId);
+            }
+          },
+          opts || {}
+        )
+      );
+    }
+  }
+
+  function adminCloseModal(modalId) {
+    var el = document.getElementById(modalId);
+    if (!el) return;
+    el.hidden = true;
+    var d = adminDiag();
+    if (d && typeof d.closeModalDialog === 'function') {
+      d.closeModalDialog(el);
+    }
+  }
 
   function esc(val) {
     return String(val == null ? '' : val).replace(/[&<>"']/g, function (c) {
@@ -57,6 +107,37 @@
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  function fmtUtcIso(val) {
+    if (!val) return '—';
+    var d = new Date(val);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  }
+
+  function fmtUtcAndLocalHtml(val) {
+    if (!val) return '—';
+    var d = new Date(val);
+    if (Number.isNaN(d.getTime())) return '—';
+    var utcStr = d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+    var localStr = d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    return '<code>' + esc(utcStr) + '</code> <span class="diag-ts">(Local: ' + esc(localStr) + ')</span>';
+  }
+
+  function safeCommitUrl(baseUrl, sha) {
+    if (!baseUrl || !sha) return null;
+    var cleanBase = String(baseUrl).trim();
+    var cleanSha = String(sha).trim().toLowerCase();
+    if (!/^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/commit\/$/i.test(cleanBase)) return null;
+    if (!/^[0-9a-f]{7,40}$/.test(cleanSha)) return null;
+    return cleanBase + cleanSha;
   }
 
   function showBanner(msg, isError) {
@@ -82,6 +163,46 @@
       },
       opts || {}
     );
+    var method = String(options.method || 'GET').toUpperCase();
+    var isWrite = method !== 'GET' && method !== 'HEAD';
+    var d = adminDiag();
+    if (d && typeof d.fetchJsonBounded === 'function') {
+      var bRes = await d.fetchJsonBounded(url, {
+        method: method,
+        isWrite: isWrite,
+        idempotentWrite: Boolean(options.idempotentWrite),
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: options.headers || {},
+        body: options.body,
+        featureKey: options.featureKey || 'admin_portal',
+        operationName: options.operationName || undefined
+      });
+      if (bRes.status === 401) {
+        window.location.href = '/login.html?next=%2Fadmin';
+        throw new Error('Your session expired. Redirecting to sign in…');
+      }
+      if (bRes.status === 403 && bRes.data && bRes.data.code === 'AGE_ASSESSMENT_REQUIRED') {
+        var targetNextB = encodeURIComponent((window.location.pathname || '/admin') + (window.location.hash || ''));
+        window.location.href = '/login.html?assess=1&next=' + targetNextB;
+        throw new Error('One-time minimum account age check (14+) is required before accessing the Admin Portal.');
+      }
+      if (!bRes.ok) {
+        var errMsg =
+          (bRes.data && bRes.data.error) || bRes.errorMessage || 'Request failed (' + (bRes.status || 'network') + ')';
+        if (bRes.correlationId) {
+          errMsg += ' (Support ref: ' + bRes.correlationId + ')';
+        }
+        var bErr = new Error(errMsg);
+        bErr.status = bRes.status;
+        bErr.code = (bRes.data && bRes.data.code) || null;
+        bErr.correlationId = bRes.correlationId || null;
+        bErr.payload = bRes.data || {};
+        throw bErr;
+      }
+      return bRes.data;
+    }
+
     if (options.body && typeof options.body === 'object') {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(options.body);
@@ -228,7 +349,7 @@
     document.getElementById('aobVendorDisplay').value = vendorObj ? vendorObj.display_name + ' (' + vid + ')' : vid;
     document.getElementById('aobReasonInput').value = '';
     document.getElementById('aobError').hidden = true;
-    modal.hidden = false;
+    adminOpenModal('aobModal', { initialFocusSelector: '#aobReasonInput' });
   }
 
   function switchSection(sectionName, subfilter) {
@@ -259,6 +380,7 @@
     else if (sectionName === 'issues') loadIssues(1);
     else if (sectionName === 'readiness') loadReadiness();
     else if (sectionName === 'features') loadFeatures();
+    else if (sectionName === 'diagnostics') loadDiagnostics(1);
     else if (sectionName === 'audit') loadAudit(1);
     else if (sectionName === 'health') loadHealth();
   }
@@ -326,6 +448,7 @@
       setNavBadge('badgeModeration', (c.pending_comments || 0) + (c.reported_comments || 0));
       setNavBadge('badgeIssues', c.open_issues || 0);
       setNavBadge('badgeReadiness', unresCrit);
+      setNavBadge('badgeDiagnostics', c.open_diagnostics || 0);
 
       loadingEl.hidden = true;
       cardsEl.hidden = false;
@@ -550,16 +673,19 @@
       ')</h3>' +
       evidenceHtml +
       '<div class="admin-form">' +
-      '<label>🔒 Internal Admin Notes (Confidential — never shown to applicant)' +
-      '<textarea id="appInternalNotes" rows="2" maxlength="2000" placeholder="Internal verification notes for Mod/Top reviewers…">' +
-      esc(app.internal_notes || '') +
-      '</textarea></label>' +
-      '<label>💬 Applicant-Visible Feedback (Shown to applicant on status page)' +
-      '<textarea id="appApplicantFeedback" rows="2" maxlength="1200" placeholder="Clear instructions if requesting info or explaining decision…">' +
+      (app.internal_notes
+        ? '<div class="diag-callout"><strong>🔒 Existing Internal Notes:</strong><pre style="white-space:pre-wrap;margin:6px 0 0;font-family:inherit;font-size:12px">' +
+          esc(app.internal_notes) +
+          '</pre></div>'
+        : '') +
+      '<label>🔒 Append New Internal Note (Confidential — never shown to applicant)' +
+      '<textarea id="appInternalNotes" rows="2" maxlength="1800" placeholder="Add a new internal verification note for Mod/Top reviewers…"></textarea></label>' +
+      '<label>💬 Applicant-Visible Feedback (Shown to applicant on their status page — not emailed externally)' +
+      '<textarea id="appApplicantFeedback" rows="2" maxlength="600" placeholder="Clear instructions if requesting info or explaining decision…">' +
       esc(app.applicant_feedback || '') +
       '</textarea></label>' +
-      '<label>Decision / Recommendation Reason (required, 4–800 characters)' +
-      '<input type="text" id="appDecisionReason" maxlength="800" placeholder="Document verification basis or reason…">' +
+      '<label>Decision / Recommendation Reason (required, 4–600 characters)' +
+      '<input type="text" id="appDecisionReason" maxlength="600" placeholder="Document verification basis or reason…">' +
       '</label>' +
       '<div class="action-row">' +
       '<button type="button" class="admin-btn admin-btn-warn" data-app-act="request_info">↩ Request More Information</button>' +
@@ -590,7 +716,7 @@
     }
 
     try {
-      await apiJson('/api/admin/applications/decision', {
+      var out = await apiJson('/api/admin/applications/decision', {
         method: 'POST',
         body: {
           application_id: app.id,
@@ -601,7 +727,11 @@
           expected_updated_at: app.updated_at
         }
       });
-      showBanner('Application "' + app.business_name + '" updated (' + action + ').', false);
+      var inAppNotice =
+        out && out.notification_delivery === 'recorded_in_app_only'
+          ? ' Applicant notice recorded on their in-app application status page (not emailed externally).'
+          : '';
+      showBanner('✓ Saved to server — application "' + app.business_name + '" updated (' + action + ').' + inAppNotice, false);
       await loadApplications(state.apps.page);
       loadOverview();
       loadVendorSelectorCatalog();
@@ -1100,16 +1230,32 @@
     resBox.hidden = true;
     if (submitBtn) submitBtn.disabled = true;
 
+    var d = adminDiag();
+    var invSig = [email.toLowerCase(), role, vendorId || '', note].join('|');
+    if (!inviteDraftKey || inviteDraftSig !== invSig) {
+      inviteDraftKey =
+        d && typeof d.createIdempotencyKey === 'function'
+          ? d.createIdempotencyKey('adinv')
+          : 'adinv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      inviteDraftSig = invSig;
+    }
+
     try {
       var data = await apiJson('/api/admin/invitations/create', {
         method: 'POST',
+        idempotentWrite: true,
+        featureKey: 'invitations',
+        operationName: 'admin.create_invitation',
         body: {
           email: email,
           requested_role: role,
           vendor_id: (role === 'vendor_owner' || role === 'vendor_staff') && vendorId ? vendorId : null,
-          note: note
+          note: note,
+          idempotency_key: inviteDraftKey
         }
       });
+      inviteDraftKey = null;
+      inviteDraftSig = '';
       renderInvitationOutcomeBanner(data, email);
       if (data.delivery && (data.delivery.status === 'delivery_failed' || data.delivery.status === 'delivery_uncertain')) {
         showBanner('Invitation created, but email delivery reported "' + (data.delivery.status_label || data.delivery.status) + '". Use Resend Email below to retry.', true);
@@ -2042,15 +2188,19 @@
       '<option value="internal">🔒 Internal Note (Confidential — Admins only)</option>' +
       '<option value="reporter_visible">💬 User-Visible Response (Shown to reporter)</option>' +
       '</select></label>' +
-      '<label>Add Note or Response (optional)<textarea id="issNoteBody" rows="3" maxlength="2500" placeholder="Write an internal triage note or a response to the reporter…"></textarea></label>' +
-      '<button type="submit" class="admin-btn admin-btn-primary">Save Issue Update</button>' +
+      '<label>Add Note or Response (optional, up to 1500 chars)<textarea id="issNoteBody" rows="3" maxlength="1500" placeholder="Write an internal triage note or an in-app response visible to the reporter…"></textarea></label>' +
+      '<button type="submit" class="admin-btn admin-btn-primary" id="issSaveUpdateBtn">Save Issue Update</button>' +
       '</form>';
 
     document.getElementById('issueUpdateForm').onsubmit = async function (e) {
       e.preventDefault();
+      var saveBtn = document.getElementById('issSaveUpdateBtn');
+      if (saveBtn) saveBtn.disabled = true;
       try {
-        await apiJson('/api/admin/issues/update', {
+        var out = await apiJson('/api/admin/issues/update', {
           method: 'POST',
+          featureKey: 'support_issues',
+          operationName: 'admin.update_issue',
           body: {
             issue_id: iss.id,
             status: document.getElementById('issEditStatus').value,
@@ -2062,11 +2212,16 @@
             expected_updated_at: iss.updated_at
           }
         });
-        showBanner('Issue updated.', false);
+        var repNotice =
+          out && out.notification_delivery === 'recorded_in_app_only'
+            ? ' Reply recorded in reporter’s in-app support thread (not emailed externally).'
+            : '';
+        showBanner('✓ Saved to server — issue updated.' + repNotice, false);
         await loadIssues(state.issues.page);
         loadOverview();
       } catch (err) {
         showBanner(err.message, true);
+        if (saveBtn) saveBtn.disabled = false;
       }
     };
   }
@@ -2514,6 +2669,555 @@
   }
 
   // =========================================================================
+  // 7B. Bounded Release-Aware Error & Diagnostics Portal
+  // =========================================================================
+  function diagSeverityBadge(sev) {
+    var s = String(sev || 'error').toLowerCase();
+    if (s === 'critical') return '<span class="pill pill-danger">🛑 CRITICAL</span>';
+    if (s === 'error') return '<span class="pill pill-danger">✕ ERROR</span>';
+    if (s === 'warning') return '<span class="pill pill-warn">⚠ WARNING</span>';
+    return '<span class="pill pill-info">ℹ INFO</span>';
+  }
+
+  function diagTriageBadge(st) {
+    var s = String(st || 'new').toLowerCase();
+    if (s === 'resolved') return '<span class="pill pill-ok">✓ Resolved</span>';
+    if (s === 'monitoring') return '<span class="pill pill-info">👁 Monitoring</span>';
+    if (s === 'investigating') return '<span class="pill pill-warn">🔍 Investigating</span>';
+    return '<span class="pill pill-danger">● New</span>';
+  }
+
+  async function loadDiagnostics(page, keepSelection) {
+    state.diagnostics.page = page || 1;
+    var listState = document.getElementById('diagListState');
+    var listEl = document.getElementById('diagList');
+    if (listState) {
+      listState.hidden = false;
+      listState.className = 'state-box';
+      listState.textContent = 'Loading operational diagnostic incidents…';
+    }
+    if (listEl) listEl.hidden = true;
+
+    var qs = new URLSearchParams({
+      page: String(state.diagnostics.page),
+      page_size: String(state.diagnostics.pageSize),
+      window: document.getElementById('diagWindowFilter').value || '7d',
+      include_synthetic: document.getElementById('diagIncludeSynthetic').checked ? '1' : '0'
+    });
+    var qVal = document.getElementById('diagSearchInput').value.trim();
+    var sevVal = document.getElementById('diagSeverityFilter').value;
+    var compVal = document.getElementById('diagComponentFilter').value;
+    var featVal = document.getElementById('diagFeatureFilter').value;
+    var triVal = document.getElementById('diagTriageFilter').value;
+    var relVal = document.getElementById('diagReleaseFilter').value.trim();
+    if (qVal) qs.set('q', qVal);
+    if (sevVal) qs.set('severity', sevVal);
+    if (compVal) qs.set('component', compVal);
+    if (featVal) qs.set('feature_key', featVal);
+    if (triVal) qs.set('triage_status', triVal);
+    if (relVal) qs.set('release_sha', relVal);
+
+    try {
+      var data = await apiJson('/api/admin/diagnostics?' + qs.toString());
+      state.diagnostics.items = Array.isArray(data.items) ? data.items : [];
+      state.diagnostics.total = Number((data.pagination && data.pagination.total) || 0);
+      state.diagnostics.permissions = data.permissions || {};
+      state.diagnostics.releases = Array.isArray(data.releases) ? data.releases : [];
+      state.diagnostics.retentionPolicy = data.retention_policy || null;
+      state.diagnostics.activeServerSha = data.active_server_release_sha || 'dev';
+      state.diagnostics.repoCommitBaseUrl = data.repository_commit_base_url || null;
+
+      var synthBtn = document.getElementById('diagCreateSyntheticBtn');
+      var cleanBtn = document.getElementById('diagRunCleanupBtn');
+      if (synthBtn) synthBtn.hidden = !state.diagnostics.permissions.can_create_synthetic;
+      if (cleanBtn) cleanBtn.hidden = !state.diagnostics.permissions.can_run_cleanup;
+
+      renderDiagnosticsHeaderStrip(data);
+      renderDiagnosticsList();
+
+      var stillExists = Boolean(
+        state.diagnostics.selectedId &&
+          state.diagnostics.items.some(function (it) {
+            return it.id === state.diagnostics.selectedId;
+          })
+      );
+      if (keepSelection && stillExists) {
+        await selectDiagnosticIncident(state.diagnostics.selectedId);
+        return;
+      }
+      if (state.diagnostics.items.length > 0) {
+        await selectDiagnosticIncident(stillExists ? state.diagnostics.selectedId : state.diagnostics.items[0].id);
+      } else {
+        state.diagnostics.selectedId = null;
+        var emptyPane = document.getElementById('diagDetailPane');
+        if (emptyPane) {
+          emptyPane.innerHTML = '<div class="state-box">No diagnostic incidents match the current filters.</div>';
+        }
+      }
+    } catch (err) {
+      if (listState) {
+        listState.hidden = false;
+        listState.className = 'state-box state-error';
+        listState.textContent = err.message;
+      }
+    }
+  }
+
+  function renderDiagnosticsHeaderStrip(data) {
+    var strip = document.getElementById('diagReleaseStrip');
+    var kpiRow = document.getElementById('diagSummaryRow');
+    var activeSha = data.active_server_release_sha || 'dev';
+    var activeCommitLink = safeCommitUrl(data.repository_commit_base_url, activeSha);
+    var pol = data.retention_policy || {};
+    var perms = data.permissions || {};
+    var recentRels = Array.isArray(data.releases) ? data.releases.slice(0, 4) : [];
+
+    var relHistoryHtml = recentRels.length
+      ? recentRels
+          .map(function (r) {
+            var shortSha = String(r.release_sha || '').slice(0, 10);
+            var url = safeCommitUrl(data.repository_commit_base_url, r.release_sha);
+            var linkHtml = url
+              ? '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(shortSha) + '</code></a>'
+              : '<code>' + esc(shortSha) + '</code>';
+            return linkHtml + ' <span class="diag-ts">(' + esc(fmtUtcIso(r.first_seen_at)) + ')</span>';
+          })
+          .join(' · ')
+      : 'None recorded yet';
+
+    if (strip) {
+      strip.innerHTML =
+        '<div class="diag-release-row">' +
+        '<div><strong>Active Server Release:</strong> ' +
+        (activeCommitLink
+          ? '<a href="' + esc(activeCommitLink) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(activeSha) + '</code> ↗</a>'
+          : '<code>' + esc(activeSha) + '</code>') +
+        ' · <strong>Client Bundle:</strong> <code>' +
+        esc(data.client_bundle_version || 'unknown') +
+        '</code> · <strong>Access Scope:</strong> ' +
+        (perms.scope === 'full_sanitized'
+          ? '<span class="pill pill-top">Admin: Top · Full Sanitized Scope</span>'
+          : '<span class="pill pill-mod">Admin: Mod · Operational Subset</span>') +
+        '</div>' +
+        '<div><strong>Retention:</strong> Samples ' +
+        Number(pol.sample_retention_days || 14) +
+        'd · Resolved groups ' +
+        Number(pol.resolved_group_retention_days || 30) +
+        'd · Open ' +
+        Number(pol.open_group_retention_days || 60) +
+        'd · Operator notes preserved append-only</div>' +
+        '</div>' +
+        '<div style="margin-top:6px"><strong>Observed Release Timeline:</strong> ' +
+        relHistoryHtml +
+        '</div>';
+    }
+
+    var sum = data.summary || {};
+    if (kpiRow) {
+      kpiRow.innerHTML =
+        '<div class="diag-kpi-card"><b>' + Number(sum.open_count || 0) + '</b><span>Open live incidents</span></div>' +
+        '<div class="diag-kpi-card"><b>' + Number(sum.new_count || 0) + '</b><span>New (untriaged)</span></div>' +
+        '<div class="diag-kpi-card"><b>' + Number(sum.critical_or_error_open || 0) + '</b><span>Open Error / Critical</span></div>' +
+        '<div class="diag-kpi-card"><b>' + Number(sum.stale_client_groups || 0) + '</b><span>Stale browser tab observed</span></div>' +
+        '<div class="diag-kpi-card"><b>' + Number(sum.continued_after_fix_groups || 0) + '</b><span>Continued after suspected fix</span></div>';
+    }
+  }
+
+  function renderDiagnosticsList() {
+    var listState = document.getElementById('diagListState');
+    var listEl = document.getElementById('diagList');
+    var items = state.diagnostics.items;
+
+    if (!items.length) {
+      listState.hidden = false;
+      listState.className = 'state-box';
+      listState.textContent = 'No diagnostic incidents match the current filters.';
+      listEl.hidden = true;
+      renderPager('diagPager', 1, state.diagnostics.pageSize, 0, loadDiagnostics);
+      return;
+    }
+
+    listState.hidden = true;
+    listEl.hidden = false;
+    listEl.innerHTML = items
+      .map(function (g) {
+        var rel = g.release_relationship || {};
+        var isSelected = g.id === state.diagnostics.selectedId;
+        return (
+          '<button type="button" class="record-card' +
+          (isSelected ? ' selected' : '') +
+          '" data-diag-id="' +
+          esc(g.id) +
+          '">' +
+          '<div class="record-card-top">' +
+          '<span>' +
+          diagSeverityBadge(g.severity) +
+          ' ' +
+          diagTriageBadge(g.triage_status) +
+          (g.is_synthetic_test ? ' <span class="pill pill-info">🧪 SYNTHETIC TEST</span>' : '') +
+          '</span>' +
+          '<span class="pill">×' +
+          Number(g.occurrence_count || 1) +
+          '</span>' +
+          '</div>' +
+          '<div class="record-title">' +
+          esc(g.title) +
+          '</div>' +
+          '<div class="record-meta"><code>' +
+          esc(g.emitting_component) +
+          '</code> · <code>' +
+          esc(g.feature_key) +
+          '</code> · <code>' +
+          esc(g.error_code) +
+          '</code>' +
+          (g.notes_count > 0 ? ' · 💬 ' + Number(g.notes_count) + ' note(s)' : '') +
+          '</div>' +
+          '<div class="record-meta">' +
+          esc(g.sanitized_summary) +
+          '</div>' +
+          '<div class="diag-ts">Last seen: ' +
+          esc(fmtUtcIso(g.last_seen_at)) +
+          (g.stale_client_observed ? ' · ⚠ Stale client asset observed' : '') +
+          (g.continued_after_suspected_fix ? ' · ⚠ Continued after suspected fix' : '') +
+          '</div>' +
+          (rel.first_observed_code === 'first_observed_after_deployment'
+            ? '<div class="diag-ts"><strong>Timing:</strong> ' + esc(rel.first_observed_label) + '</div>'
+            : '') +
+          '</button>'
+        );
+      })
+      .join('');
+
+    listEl.querySelectorAll('[data-diag-id]').forEach(function (card) {
+      card.onclick = function () {
+        selectDiagnosticIncident(card.dataset.diagId);
+      };
+    });
+
+    renderPager(
+      'diagPager',
+      state.diagnostics.page,
+      state.diagnostics.pageSize,
+      state.diagnostics.total,
+      loadDiagnostics
+    );
+  }
+
+  async function selectDiagnosticIncident(groupId) {
+    state.diagnostics.selectedId = groupId;
+    renderDiagnosticsList();
+    var pane = document.getElementById('diagDetailPane');
+    if (pane) pane.innerHTML = '<div class="state-box">Loading incident details, samples, and operator notes…</div>';
+
+    try {
+      var data = await apiJson('/api/admin/diagnostics/detail?id=' + encodeURIComponent(groupId));
+      state.diagnostics.selectedDetail = data;
+      renderDiagnosticDetail(data);
+    } catch (err) {
+      if (pane) pane.innerHTML = '<div class="state-box state-error">' + esc(err.message) + '</div>';
+    }
+  }
+
+  function renderDiagnosticDetail(data) {
+    var pane = document.getElementById('diagDetailPane');
+    if (!pane || !data || !data.incident) return;
+    var g = data.incident;
+    var rel = g.release_relationship || {};
+    var samples = Array.isArray(data.samples) ? data.samples : [];
+    var notes = Array.isArray(data.notes) ? data.notes : [];
+    var perms = data.permissions || {};
+    var baseUrl = data.repository_commit_base_url || state.diagnostics.repoCommitBaseUrl;
+
+    var observedServerLinks = (Array.isArray(g.observed_server_releases) ? g.observed_server_releases : [])
+      .map(function (sha) {
+        var u = safeCommitUrl(baseUrl, sha);
+        return u
+          ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(String(sha).slice(0, 12)) + '</code> ↗</a>'
+          : '<code>' + esc(sha) + '</code>';
+      })
+      .join(', ') || '—';
+
+    var observedClientBuilds = (Array.isArray(g.observed_client_builds) && g.observed_client_builds.length
+      ? g.observed_client_builds.map(function (b) { return '<code>' + esc(b) + '</code>'; }).join(', ')
+      : 'Server-emitted (no browser asset tag)');
+
+    var fixLinkHtml = g.suspected_fix_sha
+      ? (function () {
+          var u = safeCommitUrl(baseUrl, g.suspected_fix_sha);
+          return u
+            ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(g.suspected_fix_sha) + '</code> ↗</a>'
+            : '<code>' + esc(g.suspected_fix_sha) + '</code>';
+        })()
+      : 'None recorded';
+
+    var samplesHtml = samples.length
+      ? samples
+          .map(function (s) {
+            var ctxKeys = s.safe_context && typeof s.safe_context === 'object' ? Object.keys(s.safe_context) : [];
+            var ctxStr = ctxKeys.length
+              ? ctxKeys
+                  .map(function (k) {
+                    return esc(k) + '=' + esc(String(s.safe_context[k]));
+                  })
+                  .join(', ')
+              : '';
+            return (
+              '<div class="diag-sample-card">' +
+              '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">' +
+              '<span><strong>Occurred:</strong> ' + fmtUtcAndLocalHtml(s.occurred_at) + '</span>' +
+              '<span><code>' + esc(s.trust_level) + '</code>' +
+              (s.is_stale_client ? ' · <span class="pill pill-warn">Stale Client Tab</span>' : '') +
+              '</span>' +
+              '</div>' +
+              '<div style="margin:4px 0">' + esc(s.sanitized_message) + '</div>' +
+              '<div class="diag-ts">' +
+              'Server SHA: <code>' + esc(String(s.server_release_sha || '').slice(0, 12)) + '</code>' +
+              (s.client_build_version ? ' · Client: <code>' + esc(s.client_build_version) + '</code>' : '') +
+              (s.client_loaded_release_sha ? ' (loaded SHA <code>' + esc(String(s.client_loaded_release_sha).slice(0, 12)) + '</code>)' : '') +
+              (s.http_status ? ' · HTTP ' + Number(s.http_status) : '') +
+              (s.duration_ms != null ? ' · ' + Number(s.duration_ms) + 'ms' : '') +
+              (s.correlation_id ? ' · Ref: <code>' + esc(s.correlation_id) + '</code>' : '') +
+              (ctxStr ? ' · Context: <code>' + ctxStr + '</code>' : '') +
+              '</div>' +
+              '</div>'
+            );
+          })
+          .join('')
+      : '<p class="record-meta">Representative event samples have aged out under sample retention; grouped incident summary and operator notes remain preserved.</p>';
+
+    var notesHtml = notes.length
+      ? notes
+          .map(function (n) {
+            var transitionText =
+              n.action_type !== 'note' && n.new_triage_status
+                ? ' · Triage: <code>' + esc(n.previous_triage_status || '—') + ' → ' + esc(n.new_triage_status) + '</code>'
+                : '';
+            var fixNoteUrl = n.suspected_fix_sha ? safeCommitUrl(baseUrl, n.suspected_fix_sha) : null;
+            return (
+              '<div class="diag-note-card">' +
+              '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px">' +
+              '<span><strong>' + esc(n.actor_id) + '</strong> (' + esc(String(n.actor_role || '').toUpperCase()) + ')' + transitionText + '</span>' +
+              '<span>' + fmtUtcAndLocalHtml(n.created_at) + '</span>' +
+              '</div>' +
+              (n.suspected_cause ? '<div style="margin-top:4px"><strong>Suspected cause:</strong> ' + esc(n.suspected_cause) + '</div>' : '') +
+              (n.suspected_fix_sha
+                ? '<div style="margin-top:2px"><strong>Referenced fix SHA:</strong> ' +
+                  (fixNoteUrl
+                    ? '<a href="' + esc(fixNoteUrl) + '" target="_blank" rel="noopener noreferrer"><code>' + esc(n.suspected_fix_sha) + '</code> ↗</a>'
+                    : '<code>' + esc(n.suspected_fix_sha) + '</code>') +
+                  '</div>'
+                : '') +
+              '<p style="margin:6px 0 0;white-space:pre-wrap">' + esc(n.note_body) + '</p>' +
+              '</div>'
+            );
+          })
+          .join('')
+      : '<p class="record-meta">No operator notes recorded for this incident yet.</p>';
+
+    var triageFormHtml = perms.can_triage
+      ? '<form id="diagTriageForm" class="admin-form" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">' +
+        '<h3>Update Triage &amp; Release Reference (Admin: Top)</h3>' +
+        '<p class="record-meta">Resolving an incident or linking a fixing commit SHA preserves all evidence and does <strong>not</strong> by itself prove the defect is resolved.</p>' +
+        '<div class="form-grid-2">' +
+        '<label>Triage Status' +
+        '<select id="diagEditTriage">' +
+        ['new', 'investigating', 'monitoring', 'resolved']
+          .map(function (st) {
+            return '<option value="' + st + '"' + (g.triage_status === st ? ' selected' : '') + '>' + st.charAt(0).toUpperCase() + st.slice(1) + '</option>';
+          })
+          .join('') +
+        '</select></label>' +
+        '<label>Suspected Fixing Commit SHA (optional, 7–40 hex)' +
+        '<input type="text" id="diagEditFixSha" maxlength="40" value="' + esc(g.suspected_fix_sha || '') + '" placeholder="e.g. 95f2e473668b">' +
+        '</label>' +
+        '</div>' +
+        '<label>Suspected Cause Hypothesis (optional, distinct from deployment timing)' +
+        '<input type="text" id="diagEditCause" maxlength="500" value="' + esc(g.suspected_cause || '') + '" placeholder="Document confirmed or suspected root cause…">' +
+        '</label>' +
+        '<label>Operator Triage Note (required, 4–1500 chars)' +
+        '<textarea id="diagTriageNote" rows="2" required minlength="4" maxlength="1500" placeholder="Explain investigation findings, mitigation, or why status changed…"></textarea>' +
+        '</label>' +
+        '<button type="submit" class="admin-btn admin-btn-primary" id="diagSaveTriageBtn">Save Triage &amp; Append History</button>' +
+        '</form>'
+      : '<div class="diag-callout">Triage state transitions and fixing commit links require <strong>Admin: Top</strong>. As <strong>Admin: Mod</strong>, you can add timestamped operational notes below.</div>';
+
+    var addNoteFormHtml =
+      '<form id="diagNoteForm" class="admin-form" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">' +
+      '<h3>Add Timestamped Operator Note (' + (state.isTop ? 'Admin: Top' : 'Admin: Mod') + ')</h3>' +
+      '<label>Operational Note (required, 4–1500 chars — never paste secrets or customer PII)' +
+      '<textarea id="diagNewNoteBody" rows="2" required minlength="4" maxlength="1500" placeholder="Add context, customer ticket cross-reference, or observation…"></textarea>' +
+      '</label>' +
+      '<button type="submit" class="admin-btn admin-btn-secondary" id="diagSaveNoteBtn">Append Operator Note</button>' +
+      '</form>';
+
+    pane.innerHTML =
+      '<div class="detail-head">' +
+      '<div>' +
+      diagSeverityBadge(g.severity) +
+      ' ' +
+      diagTriageBadge(g.triage_status) +
+      (g.is_synthetic_test ? ' <span class="pill pill-info">🧪 SYNTHETIC TEST DATA</span>' : '') +
+      (!g.mod_visible ? ' <span class="pill pill-top">🔒 Top-Only Scope</span>' : '') +
+      '</div>' +
+      '<h2>' + esc(g.title) + '</h2>' +
+      '<div class="record-meta">Fingerprint: <code>' + esc(g.fingerprint) + '</code> · Occurrences: <strong>' + Number(g.occurrence_count || 1) + '</strong></div>' +
+      '</div>' +
+
+      (g.is_synthetic_test
+        ? '<div class="diag-callout is-synthetic"><strong>🧪 Synthetic Verification Incident:</strong> Explicitly generated by an authorized operator to verify diagnostic reporting, search, and notes. No customer workflow was impacted.</div>'
+        : '') +
+
+      '<div class="diag-callout' + (g.continued_after_suspected_fix ? ' is-warn' : '') + '">' +
+      '<div><strong>Release Timing (Not Causation):</strong> ' + esc(rel.first_observed_label || '—') + '</div>' +
+      '<div style="margin-top:4px"><strong>Recorded Hypothesis:</strong> ' + (g.suspected_cause ? esc(g.suspected_cause) : '<em>Unconfirmed — timing after a deployment does not by itself prove that change introduced the issue.</em>') + '</div>' +
+      '<div style="margin-top:4px"><strong>Fix Tracking:</strong> ' + esc(rel.fix_state_label || '—') + ' (' + fixLinkHtml + ')</div>' +
+      (rel.stale_client_note ? '<div style="margin-top:4px"><strong>⚠ Browser vs Server Build:</strong> ' + esc(rel.stale_client_note) + '</div>' : '') +
+      '</div>' +
+
+      '<div class="kv-grid">' +
+      '<div><strong>First Seen</strong>' + fmtUtcAndLocalHtml(g.first_seen_at) + '</div>' +
+      '<div><strong>Last Seen</strong>' + fmtUtcAndLocalHtml(g.last_seen_at) + '</div>' +
+      '<div><strong>Emitting Component</strong><code>' + esc(g.emitting_component) + '</code> (<code>' + esc(g.trust_level) + '</code>)</div>' +
+      '<div><strong>Feature / Operation</strong><code>' + esc(g.feature_key) + '</code> · <code>' + esc(g.operation_name) + '</code></div>' +
+      '<div><strong>Route Template</strong><code>' + esc(g.route_template || 'n/a') + '</code></div>' +
+      '<div><strong>Error Code / Outcome</strong><code>' + esc(g.error_code) + '</code> · <code>' + esc(g.outcome_state || 'failed') + '</code>' + (g.retryable === true ? ' (retryable)' : g.retryable === false ? ' (non-retryable)' : '') + '</div>' +
+      '<div><strong>Observed Server Releases</strong>' + observedServerLinks + '</div>' +
+      '<div><strong>Observed Browser Builds</strong>' + observedClientBuilds + '</div>' +
+      '<div><strong>Latest Correlation ID</strong>' +
+      (g.last_correlation_id
+        ? '<code class="diag-code-inline">' + esc(g.last_correlation_id) + '</code> <button type="button" class="admin-btn admin-btn-ghost admin-btn-sm" id="diagCopyCorrBtn" data-corr="' + esc(g.last_correlation_id) + '">Copy</button>'
+        : '—') +
+      '</div>' +
+      '</div>' +
+
+      '<div style="margin-top:12px"><strong>Sanitized Explanation:</strong><p style="margin:4px 0">' + esc(g.sanitized_summary) + '</p></div>' +
+      '<div style="margin-top:8px"><strong>User-Visible Impact:</strong><p style="margin:4px 0">' + esc(g.user_impact) + '</p></div>' +
+      '<div style="margin-top:8px"><strong>Safe Operator Next Steps:</strong><p style="margin:4px 0">' + esc(g.safe_next_steps) + '</p></div>' +
+
+      '<h3 style="margin-top:16px">Representative Sanitized Event Samples (' + samples.length + ')</h3>' +
+      samplesHtml +
+
+      '<h3 style="margin-top:16px">Operator Notes &amp; Triage History (' + notes.length + ')</h3>' +
+      notesHtml +
+      triageFormHtml +
+      addNoteFormHtml;
+
+    var copyBtn = document.getElementById('diagCopyCorrBtn');
+    if (copyBtn) {
+      copyBtn.onclick = function () {
+        var c = copyBtn.getAttribute('data-corr') || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(c).then(function () {
+            copyBtn.textContent = 'Copied ✓';
+          });
+        }
+      };
+    }
+
+    var triageForm = document.getElementById('diagTriageForm');
+    if (triageForm) {
+      triageForm.onsubmit = function (e) {
+        e.preventDefault();
+        submitDiagnosticTriage(g.id);
+      };
+    }
+
+    var noteForm = document.getElementById('diagNoteForm');
+    if (noteForm) {
+      noteForm.onsubmit = function (e) {
+        e.preventDefault();
+        submitDiagnosticNote(g.id);
+      };
+    }
+  }
+
+  async function submitDiagnosticTriage(groupId) {
+    var btn = document.getElementById('diagSaveTriageBtn');
+    if (btn) btn.disabled = true;
+    try {
+      await apiJson('/api/admin/diagnostics/triage', {
+        method: 'POST',
+        body: {
+          group_id: groupId,
+          triage_status: document.getElementById('diagEditTriage').value,
+          suspected_fix_sha: document.getElementById('diagEditFixSha').value.trim(),
+          suspected_cause: document.getElementById('diagEditCause').value.trim(),
+          note_body: document.getElementById('diagTriageNote').value.trim()
+        }
+      });
+      showBanner('✓ Saved to server — triage status and operator history updated (evidence preserved).', false);
+      await loadDiagnostics(state.diagnostics.page, true);
+      loadOverview();
+    } catch (err) {
+      showBanner(err.message, true);
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function submitDiagnosticNote(groupId) {
+    var btn = document.getElementById('diagSaveNoteBtn');
+    if (btn) btn.disabled = true;
+    try {
+      await apiJson('/api/admin/diagnostics/note', {
+        method: 'POST',
+        body: {
+          group_id: groupId,
+          note_body: document.getElementById('diagNewNoteBody').value.trim()
+        }
+      });
+      showBanner('✓ Operator note appended to incident history.', false);
+      await selectDiagnosticIncident(groupId);
+      loadDiagnostics(state.diagnostics.page, true);
+    } catch (err) {
+      showBanner(err.message, true);
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function createSyntheticDiagnosticProbe() {
+    var btn = document.getElementById('diagCreateSyntheticBtn');
+    if (btn) btn.disabled = true;
+    try {
+      var out = await apiJson('/api/admin/diagnostics/synthetic-test', {
+        method: 'POST',
+        body: { label: 'Admin portal verification' }
+      });
+      document.getElementById('diagIncludeSynthetic').checked = true;
+      state.diagnostics.selectedId = out.group_id || null;
+      showBanner('🧪 Recorded clearly labeled [SYNTHETIC TEST] verification incident (Ref: ' + (out.correlation_id || 'n/a') + ').', false);
+      await loadDiagnostics(1, true);
+    } catch (err) {
+      showBanner(err.message, true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function runDiagnosticsRetentionCleanup() {
+    var btn = document.getElementById('diagRunCleanupBtn');
+    if (btn) btn.disabled = true;
+    try {
+      var out = await apiJson('/api/admin/diagnostics/cleanup', {
+        method: 'POST',
+        body: {}
+      });
+      showBanner(
+        '🧹 Retention cleanup completed: ' +
+          Number(out.deleted_samples || 0) +
+          ' expired sample(s) and ' +
+          Number((out.deleted_aged_groups || 0) + (out.deleted_overflow_groups || 0)) +
+          ' aged/overflow group(s) removed; 0 operator notes deleted.',
+        false
+      );
+      await loadDiagnostics(1, true);
+    } catch (err) {
+      showBanner(err.message, true);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // =========================================================================
   // 8. Operational Health
   // =========================================================================
   async function loadHealth() {
@@ -2524,32 +3228,44 @@
       var ov = await apiJson('/api/admin/overview');
       var healthz = await apiJson('/api/healthz');
       var telemetry = null;
+      var telemetryErr = null;
       var emailReadiness = null;
+      var emailReadinessErr = null;
       if (state.isTop) {
         try {
           telemetry = await apiJson('/api/pager/telemetry');
-        } catch (_e) {}
+        } catch (tErr) {
+          telemetryErr = tErr;
+        }
         try {
           emailReadiness = await apiJson('/api/admin/email-readiness');
-        } catch (_e2) {}
+        } catch (eErr) {
+          emailReadinessErr = eErr;
+        }
       }
 
       var h = ov.operational_health || {};
       var q = h.outbox_queue || {};
       var wp = h.write_pause || {};
 
-      var telemetryCard = state.isTop && telemetry
-        ? '<div class="card-panel"><h2>Pager &amp; Outbox Telemetry (Admin: Top)</h2>' +
-          '<div class="kv-grid">' +
-          '<div><strong>Push Provider Mode</strong>' + esc(telemetry.runtime_config && telemetry.runtime_config.mode) + '</div>' +
-          '<div><strong>Config Valid</strong>' + esc(String(telemetry.runtime_config && telemetry.runtime_config.valid)) + '</div>' +
-          '<div><strong>Active Subscriptions</strong>' + Number((telemetry.subscriptions && telemetry.subscriptions.active) || 0) + '</div>' +
-          '<div><strong>Sent (24h)</strong>' + Number((telemetry.deliveries_24h && telemetry.deliveries_24h.sent) || 0) + '</div>' +
-          '</div></div>'
-        : '<div class="card-panel"><h2>Extended Pager Telemetry</h2><p class="record-meta">Detailed delivery telemetry is scoped to <strong>Admin: Top</strong>.</p></div>';
+      var telemetryCard = !state.isTop
+        ? '<div class="card-panel"><h2>Extended Pager Telemetry</h2><p class="record-meta">Detailed delivery telemetry is scoped to <strong>Admin: Top</strong>.</p></div>'
+        : telemetryErr
+          ? '<div class="card-panel"><h2>Pager &amp; Outbox Telemetry (Admin: Top)</h2><div class="state-box state-error">⏸ Could not load pager telemetry: ' + esc(telemetryErr.message) + '</div></div>'
+          : '<div class="card-panel"><h2>Pager &amp; Outbox Telemetry (Admin: Top)</h2>' +
+            '<div class="kv-grid">' +
+            '<div><strong>Push Provider Mode</strong><code>' + esc((telemetry.runtime_config && (telemetry.runtime_config.provider_mode || telemetry.runtime_config.mode)) || 'disabled') + '</code></div>' +
+            '<div><strong>Config Valid</strong>' + esc(String(Boolean(telemetry.runtime_config && (telemetry.runtime_config.config_valid ?? telemetry.runtime_config.valid)))) + '</div>' +
+            '<div><strong>Active Subscriptions</strong>' + Number((telemetry.subscriptions && telemetry.subscriptions.active) || 0) + '</div>' +
+            '<div><strong>Delivered (24h)</strong>' + Number((telemetry.deliveries_24h && (telemetry.deliveries_24h.delivered ?? telemetry.deliveries_24h.sent)) || 0) + '</div>' +
+            '</div></div>';
 
       var emailCard = '';
-      if (state.isTop && emailReadiness) {
+      if (!state.isTop) {
+        emailCard = '<div class="card-panel"><h2>Authentication Email Readiness</h2><p class="record-meta">Email delivery &amp; sender-domain diagnostics are scoped to <strong>Admin: Top</strong>.</p></div>';
+      } else if (emailReadinessErr) {
+        emailCard = '<div class="card-panel"><h2>Authentication Email Readiness (Admin: Top)</h2><div class="state-box state-error">⏸ Could not load email readiness: ' + esc(emailReadinessErr.message) + '</div></div>';
+      } else if (emailReadiness) {
         var eCfg = emailReadiness.configuration || {};
         var eDns = emailReadiness.sender_domain_dns || null;
         var lastTest = emailReadiness.last_successful_designated_test;
@@ -2597,8 +3313,6 @@
           failHtml +
           stepsHtml +
           '</div>';
-      } else {
-        emailCard = '<div class="card-panel"><h2>Authentication Email Readiness</h2><p class="record-meta">Email delivery &amp; sender-domain diagnostics are scoped to <strong>Admin: Top</strong>.</p></div>';
       }
 
       container.innerHTML =
@@ -2613,8 +3327,8 @@
         '<div class="kv-grid">' +
         '<div><strong>Push Delivery Mode</strong><code>' + esc(h.push_provider_mode) + '</code></div>' +
         '<div><strong>Write Pause Active</strong>' + (wp.active ? '<span class="pill pill-danger">ACTIVE (' + esc((wp.scopes || []).join(',')) + ')</span>' : '<span class="pill pill-ok">Normal (Unpaused)</span>') + '</div>' +
-        '<div><strong>Outbox Pending / Retrying</strong>' + Number(q.pending || 0) + ' / ' + Number(q.retrying || 0) + '</div>' +
-        '<div><strong>Dead-Letter / Oldest Age (s)</strong>' + Number(q.dead_letter || 0) + ' / ' + Number(q.oldest_pending_age_sec || 0) + 's</div>' +
+        '<div><strong>Last Worker Heartbeat</strong>' + (h.last_worker_run_at ? fmtUtcAndLocalHtml(h.last_worker_run_at) + ' (' + esc(h.worker_status || 'ok') + ')' : 'No worker heartbeat recorded yet') + '</div>' +
+        '<div><strong>Outbox Pending / Retrying / Dead-Letter</strong>' + Number(q.pending || 0) + ' / ' + Number(q.retrying || 0) + ' / ' + Number(q.dead_letter || 0) + ' (oldest ' + Number(q.oldest_pending_age_sec || 0) + 's)</div>' +
         '</div></div>' +
         telemetryCard +
         emailCard;
@@ -3296,7 +4010,7 @@
       var initialHash = String(window.location.hash || '').replace(/^#/, '').trim();
       var initialQuerySec = new URLSearchParams(window.location.search || '').get('section') || '';
       var targetInitialSection = initialHash || initialQuerySec;
-      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'features', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
+      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'features', 'diagnostics', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
         switchSection(targetInitialSection);
       }
     } catch (err) {
@@ -3322,7 +4036,7 @@
   document.getElementById('vpActOnBehalfBtn').onclick = function () { openActOnBehalfModal(); };
 
   document.getElementById('aobCancelBtn').onclick = function () {
-    document.getElementById('aobModal').hidden = true;
+    adminCloseModal('aobModal');
   };
 
   document.getElementById('aobForm').onsubmit = function (e) {
@@ -3347,11 +4061,18 @@
   };
 
   document.getElementById('adminSignOutBtn').onclick = async function () {
-    saveViewpointSession(null);
-    if (window.bitesharkAuth && typeof window.bitesharkAuth.signOut === 'function') {
-      await window.bitesharkAuth.signOut().catch(function () {});
+    var btn = document.getElementById('adminSignOutBtn');
+    if (btn) btn.disabled = true;
+    try {
+      if (window.bitesharkAuth && typeof window.bitesharkAuth.signOut === 'function') {
+        await window.bitesharkAuth.signOut();
+      }
+      saveViewpointSession(null);
+      window.location.href = '/login.html?next=%2Fadmin';
+    } catch (soErr) {
+      if (btn) btn.disabled = false;
+      showBanner('✕ Sign-out failed — your server session may still be active: ' + (soErr.message || 'Retry signing out.'), true);
     }
-    window.location.href = '/login.html?next=%2Fadmin';
   };
 
   document.getElementById('refreshOverviewBtn').onclick = loadOverview;
@@ -3397,6 +4118,12 @@
 
   document.getElementById('refreshAuditBtn').onclick = function () { loadAudit(state.audit.page); };
   document.getElementById('auditFilterForm').onsubmit = function (e) { e.preventDefault(); loadAudit(1); };
+
+  document.getElementById('refreshDiagnosticsBtn').onclick = function () { loadDiagnostics(state.diagnostics.page, true); };
+  document.getElementById('diagFilterForm').onsubmit = function (e) { e.preventDefault(); loadDiagnostics(1, false); };
+  document.getElementById('diagIncludeSynthetic').onchange = function () { loadDiagnostics(1, false); };
+  document.getElementById('diagCreateSyntheticBtn').onclick = createSyntheticDiagnosticProbe;
+  document.getElementById('diagRunCleanupBtn').onclick = runDiagnosticsRetentionCleanup;
 
   document.getElementById('refreshFeaturesBtn').onclick = loadFeatures;
   document.getElementById('featuresFilterForm').onsubmit = function (e) { e.preventDefault(); renderFeaturesSection(); };

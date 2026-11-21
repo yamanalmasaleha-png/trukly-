@@ -119,6 +119,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/invitation-workflow.integration.cjs
+      - name: Run BiteShark operational diagnostics, redaction, release attribution, RBAC & retention PostgreSQL suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/diagnostics-and-reliability.integration.cjs
       - name: Run deployment installer archive-safety, concurrency & service-failure rollback suite on Linux
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
@@ -167,6 +171,10 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/invitation-workflow-browser.e2e.cjs
+      - name: Run real headless Chrome + PostgreSQL BiteShark Reliability, Accessible Feedback & Error Diagnostics Portal E2E suite
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/reliability-accessibility-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         shell: bash
         env:

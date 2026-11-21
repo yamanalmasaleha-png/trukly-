@@ -35,6 +35,26 @@ import {
   updateFeatureControlInTx
 } from '../lib/feature-controls.js';
 import {
+  CLIENT_BUNDLE_VERSION,
+  REPOSITORY_COMMIT_BASE_URL,
+  ALLOWED_COMPONENTS,
+  ALLOWED_SEVERITIES,
+  ALLOWED_OUTCOMES,
+  ALLOWED_TRIAGE_STATUSES,
+  ALLOWED_FEATURE_KEYS,
+  getDiagnosticsRetentionPolicy,
+  sanitizeDiagnosticText,
+  sanitizeIdentifierCode,
+  sanitizeOperationName,
+  sanitizeRouteTemplate,
+  sanitizeSafeContext,
+  normalizeCorrelationId,
+  normalizeReleaseSha,
+  recordDiagnosticEvent,
+  computeReleaseRelationship,
+  cleanupExpiredDiagnostics
+} from '../lib/diagnostics.js';
+import {
   buildAgeAssessmentRequiredPayload,
   daysInGregorianMonth,
   resolvePacificCalendarDateParts
@@ -99,6 +119,13 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/readiness/update',
   '/api/admin/features',
   '/api/admin/features/update',
+  '/api/diagnostics/report',
+  '/api/admin/diagnostics',
+  '/api/admin/diagnostics/detail',
+  '/api/admin/diagnostics/triage',
+  '/api/admin/diagnostics/note',
+  '/api/admin/diagnostics/synthetic-test',
+  '/api/admin/diagnostics/cleanup',
   '/api/admin/audit'
 ]);
 
@@ -406,6 +433,106 @@ export async function handleGovernanceApiRequest({
   rawRes
 }) {
   const normPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+
+  // =========================================================================
+  // 0. Untrusted Browser Operational Failure Report (`POST /api/diagnostics/report`)
+  // =========================================================================
+  if (normPath === '/api/diagnostics/report') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+
+    const rawFeature = typeof body?.feature_key === 'string' ? body.feature_key.trim().toLowerCase() : '';
+    const featureKey =
+      ALLOWED_FEATURE_KEYS.has(rawFeature) && rawFeature !== 'synthetic_verification' ? rawFeature : null;
+    const rawCode = typeof body?.error_code === 'string' ? body.error_code.trim() : '';
+    const rawOp = typeof body?.operation_name === 'string' ? body.operation_name.trim() : '';
+    const rawMsg = typeof body?.message === 'string' ? body.message.trim() : '';
+
+    if (!featureKey || rawCode.length < 2 || rawOp.length < 2 || rawMsg.length < 2) {
+      return sendJson(400, {
+        error: 'Valid feature_key, operation_name, error_code, and message are required.',
+        code: 'INVALID_DIAGNOSTIC_REPORT'
+      });
+    }
+
+    // Ignore normal expected client validation / auth / 404 statuses so dashboards are not flooded by typos.
+    const reportedStatus = Number.isInteger(body?.http_status) ? body.http_status : null;
+    if (
+      reportedStatus !== null &&
+      [400, 401, 403, 404, 405, 409, 422, 429].includes(reportedStatus) &&
+      !/MALFORMED|STORAGE|TILE|STALE|UNCERTAIN/i.test(rawCode)
+    ) {
+      return sendJson(202, { ok: true, accepted: false, ignored: 'expected_http_status' });
+    }
+
+    const maxReportsPerWindow = Math.max(
+      3,
+      Math.min(120, Number.parseInt(readEnvCompat('DIAGNOSTICS_REPORT_MAX_PER_WINDOW') || '25', 10) || 25)
+    );
+    const windowSeconds = Math.max(
+      60,
+      Math.min(3600, Number.parseInt(readEnvCompat('DIAGNOSTICS_REPORT_WINDOW_SEC') || '600', 10) || 600)
+    );
+
+    try {
+      const rl = await withTransaction(dbAdapter, async tx =>
+        consumeGovernanceRateLimit(tx, {
+          scope: 'diag_report',
+          subjectKey: extractClientRateKey(req),
+          maxHits: maxReportsPerWindow,
+          windowSeconds
+        })
+      );
+      if (!rl.allowed) {
+        return sendJson(
+          429,
+          {
+            error: 'Diagnostic report rate limit reached. Please wait before sending additional browser reports.',
+            code: 'DIAGNOSTIC_RATE_LIMITED',
+            retry_after_seconds: rl.retryAfterSeconds
+          },
+          { 'Retry-After': String(rl.retryAfterSeconds) }
+        );
+      }
+    } catch {
+      // Never break or recurse if rate-limit table is degraded; continue with bounded fallback guard.
+    }
+
+    const rawSev = typeof body?.severity === 'string' ? body.severity.trim().toLowerCase() : 'error';
+    const clampedSeverity =
+      rawSev === 'info' || rawSev === 'warning' || rawSev === 'error' ? rawSev : 'error';
+
+    const rec = await recordDiagnosticEvent(dbAdapter, {
+      component: 'browser',
+      trustLevel: 'browser_untrusted',
+      featureKey,
+      operationName: sanitizeOperationName(rawOp),
+      routeTemplate: sanitizeRouteTemplate(typeof body?.route_template === 'string' ? body.route_template : ''),
+      httpMethod: typeof body?.http_method === 'string' ? body.http_method : null,
+      httpStatus: reportedStatus,
+      severity: clampedSeverity,
+      errorCode: sanitizeIdentifierCode(rawCode, 'CLIENT_OPERATION_FAILED').toUpperCase(),
+      message: rawMsg,
+      userImpact: typeof body?.user_impact === 'string' ? body.user_impact : undefined,
+      correlationId:
+        normalizeCorrelationId(body?.correlation_id) || req?.__bsCorrelationId || undefined,
+      serverReleaseSha: req?.__bsServerReleaseSha || readEnvCompat('RELEASE_SHA') || 'dev',
+      clientBuildVersion:
+        typeof body?.client_build_version === 'string' ? body.client_build_version.slice(0, 48) : null,
+      clientLoadedReleaseSha:
+        typeof body?.client_loaded_release_sha === 'string' ? body.client_loaded_release_sha.slice(0, 48) : null,
+      durationMs: Number.isFinite(body?.duration_ms) ? body.duration_ms : null,
+      retryable: typeof body?.retryable === 'boolean' ? body.retryable : null,
+      outcomeState: ALLOWED_OUTCOMES.has(body?.outcome_state) ? body.outcome_state : 'failed',
+      safeContext: sanitizeSafeContext(body?.safe_context)
+    });
+
+    return sendJson(202, {
+      ok: true,
+      accepted: Boolean(rec?.recorded),
+      correlation_id: rec?.correlation_id || req?.__bsCorrelationId || null
+    });
+  }
+
   const ctx = await loadAccessContext(req, auth, dbAdapter);
 
   // =========================================================================
@@ -464,7 +591,14 @@ export async function handleGovernanceApiRequest({
           myIssuesCount = issRes.rows[0]?.c || 0;
         }
       });
-    } catch {}
+    } catch (ctxErr) {
+      if (ctxErr?.code !== '42P01') {
+        return sendJson(503, {
+          error: 'Account context is temporarily unavailable. Please try again in a moment.',
+          code: 'ACCOUNT_CONTEXT_UNAVAILABLE'
+        });
+      }
+    }
 
     const requiresAgeAssessment = ageEligibilityStatus !== 'eligible_14_plus';
     if (requiresAgeAssessment) {
@@ -1972,7 +2106,11 @@ export async function handleGovernanceApiRequest({
           SELECT
             count(*) FILTER (WHERE status = 'queued')::int AS outbox_queued,
             count(*) FILTER (WHERE status = 'retry_scheduled')::int AS outbox_retrying,
-            count(*) FILTER (WHERE status = 'failed_permanent')::int AS outbox_failed_permanent
+            count(*) FILTER (WHERE status = 'failed_permanent')::int AS outbox_failed_permanent,
+            COALESCE(
+              EXTRACT(EPOCH FROM (now() - min(created_at) FILTER (WHERE status IN ('queued', 'retry_scheduled'))))::int,
+              0
+            ) AS oldest_pending_age_sec
           FROM pager_notification_deliveries
         `);
       const readinessQ = await tx.query(`
@@ -1984,6 +2122,31 @@ export async function handleGovernanceApiRequest({
             COALESCE(bool_or(item_key = 'final_legal_launch_gate' AND status = 'legally_approved'), false) AS final_launch_approved
           FROM compliance_readiness_items
         `);
+
+      let openDiagnosticsCount = 0;
+      let workerHeartbeat = null;
+      await tx.query('SAVEPOINT ov_diag_meta');
+      try {
+        const diagQ = await tx.query(
+          `SELECT count(*)::int AS c
+           FROM diagnostic_incident_groups
+           WHERE triage_status <> 'resolved'
+             AND is_synthetic_test = false
+             AND ($1::boolean OR mod_visible = true)`,
+          [verified.actorRole === 'top']
+        );
+        openDiagnosticsCount = diagQ.rows[0]?.c || 0;
+        const hbQ = await tx.query(
+          `SELECT worker_name, last_run_at, last_status, release_sha
+           FROM worker_runtime_heartbeats
+           WHERE worker_name = 'pager_notifications'
+           LIMIT 1`
+        );
+        workerHeartbeat = hbQ.rows[0] || null;
+        await tx.query('RELEASE SAVEPOINT ov_diag_meta');
+      } catch {
+        await tx.query('ROLLBACK TO SAVEPOINT ov_diag_meta').catch(() => {});
+      }
 
       const notifCfg = inspectNotificationRuntimeConfig();
       const writePause = inspectWritePauseConfig();
@@ -2017,7 +2180,8 @@ export async function handleGovernanceApiRequest({
           suspended_vendors: vendRow.restricted_or_suspended_vendors || 0,
           restricted_vendors: vendRow.restricted_or_suspended_vendors || 0,
           unresolved_launch_critical: unresolvedCritical,
-          needs_re_review_items: readinessRow.needs_re_review_count || 0
+          needs_re_review_items: readinessRow.needs_re_review_count || 0,
+          open_diagnostics: openDiagnosticsCount
         },
         launch_readiness: {
           launch_ready: launchReady,
@@ -2040,19 +2204,23 @@ export async function handleGovernanceApiRequest({
           vendors: vendRow
         },
         operational_health: {
-          push_delivery_enabled: Boolean(notifCfg.push_enabled),
+          push_delivery_enabled: Boolean(notifCfg.provider_enabled ?? notifCfg.push_enabled),
           push_provider_mode: notifCfg.provider_mode,
           subscriptions_paused: Boolean(notifCfg.subscriptions_paused),
           delivery_paused: Boolean(notifCfg.delivery_paused),
           write_pause_active: writePause.active,
           write_pause_scopes: writePause.scopes,
           write_pause: { active: writePause.active, scopes: writePause.scopes },
+          last_worker_run_at: workerHeartbeat?.last_run_at
+            ? new Date(workerHeartbeat.last_run_at).toISOString()
+            : null,
+          worker_status: workerHeartbeat?.last_status || null,
           outbox: delivRow,
           outbox_queue: {
             pending: delivRow.outbox_queued || 0,
             retrying: delivRow.outbox_retrying || 0,
             dead_letter: delivRow.outbox_failed_permanent || 0,
-            oldest_pending_age_sec: 0
+            oldest_pending_age_sec: Math.max(0, Number(delivRow.oldest_pending_age_sec || 0))
           }
         },
         observed_at: new Date().toISOString()
@@ -2336,6 +2504,10 @@ export async function handleGovernanceApiRequest({
     const rawAction = typeof body.action === 'string' ? body.action.trim() : '';
     const action = rawAction === 'save_internal_note' ? 'add_internal_note' : rawAction;
     const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    const applicantFeedback =
+      typeof body.applicant_feedback === 'string' && body.applicant_feedback.trim()
+        ? body.applicant_feedback.trim().slice(0, 600)
+        : null;
     const internalNote =
       typeof (body.internal_note ?? body.internal_notes) === 'string'
         ? String(body.internal_note ?? body.internal_notes).trim()
@@ -2418,8 +2590,16 @@ export async function handleGovernanceApiRequest({
       }
 
       if (action === 'add_internal_note') {
-        const stamped = `[${new Date().toISOString()} · ${ctx.user.email || ctx.user.id} (${verified.actorRole.toUpperCase()})] ${internalNote}`;
-        const combined = app.internal_notes ? `${app.internal_notes}\n${stamped}`.slice(-2000) : stamped.slice(0, 2000);
+        const existingNotes = String(app.internal_notes || '').trim();
+        let deltaNote = internalNote;
+        if (existingNotes && deltaNote.startsWith(existingNotes)) {
+          deltaNote = deltaNote.slice(existingNotes.length).trim();
+        }
+        if (!deltaNote) {
+          return { status: 400, body: { error: 'Enter a new internal note to append.' } };
+        }
+        const stamped = `[${new Date().toISOString()} · ${ctx.user.email || ctx.user.id} (${verified.actorRole.toUpperCase()})] ${deltaNote}`;
+        const combined = existingNotes ? `${existingNotes}\n${stamped}`.slice(-2000) : stamped.slice(0, 2000);
         const { rows: u } = await tx.query(
           'UPDATE vendor_applications SET internal_notes = $2, updated_at = now() WHERE id = $1 RETURNING *',
           [appId, combined]
@@ -2439,6 +2619,7 @@ export async function handleGovernanceApiRequest({
         if (!['submitted', 'needs_info'].includes(app.status)) {
           return { status: 409, body: { error: `Cannot request info on an application in "${app.status}" status.` } };
         }
+        const effApplicantMsg = applicantFeedback || reason;
         const { rows: u } = await tx.query(
           `UPDATE vendor_applications
            SET status = 'needs_info',
@@ -2446,14 +2627,14 @@ export async function handleGovernanceApiRequest({
                updated_at = now()
            WHERE id = $1
            RETURNING *`,
-          [appId, reason]
+          [appId, effApplicantMsg]
         );
         await recordTestSafeNotificationInTx(tx, {
           recipientUserId: app.applicant_user_id,
           recipientEmail: app.applicant_email,
           eventKind: 'vendor_application.needs_info',
           subject: 'BiteShark Vendor Application — Additional Information Needed',
-          summary: reason
+          summary: effApplicantMsg
         });
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
@@ -2463,7 +2644,13 @@ export async function handleGovernanceApiRequest({
           targetId: appId,
           action: 'vendor_application.request_info'
         });
-        return { status: 200, body: { application: u[0] } };
+        return {
+          status: 200,
+          body: {
+            application: u[0],
+            notification_delivery: 'recorded_in_app_only'
+          }
+        };
       }
 
       if (action === 'recommend_approve' || action === 'recommend_reject') {
@@ -2498,6 +2685,7 @@ export async function handleGovernanceApiRequest({
         if (!['submitted', 'needs_info'].includes(app.status)) {
           return { status: 409, body: { error: `Application is already "${app.status}".` } };
         }
+        const effRejectFeedback = applicantFeedback || reason;
         const { rows: u } = await tx.query(
           `UPDATE vendor_applications
            SET status = 'rejected',
@@ -2505,18 +2693,18 @@ export async function handleGovernanceApiRequest({
                decided_role = 'top',
                decided_at = now(),
                decision_reason = $3,
-               applicant_feedback = $3,
+               applicant_feedback = $4,
                updated_at = now()
            WHERE id = $1
            RETURNING *`,
-          [appId, ctx.user.id, reason]
+          [appId, ctx.user.id, reason, effRejectFeedback]
         );
         await recordTestSafeNotificationInTx(tx, {
           recipientUserId: app.applicant_user_id,
           recipientEmail: app.applicant_email,
           eventKind: 'vendor_application.rejected',
           subject: 'BiteShark Vendor Application Decision',
-          summary: reason
+          summary: effRejectFeedback
         });
         await recordAuditLog(tx, {
           actorId: ctx.user.id,
@@ -2526,7 +2714,13 @@ export async function handleGovernanceApiRequest({
           targetId: appId,
           action: 'vendor_application.reject'
         });
-        return { status: 200, body: { application: u[0] } };
+        return {
+          status: 200,
+          body: {
+            application: u[0],
+            notification_delivery: 'recorded_in_app_only'
+          }
+        };
       }
 
       if (action === 'approve') {
@@ -2603,6 +2797,7 @@ export async function handleGovernanceApiRequest({
           [resolvedVendorId, app.applicant_user_id, ctx.user.id]
         );
 
+        const effApproveFeedback = applicantFeedback || reason;
         const { rows: u } = await tx.query(
           `UPDATE vendor_applications
            SET status = 'approved',
@@ -2611,11 +2806,11 @@ export async function handleGovernanceApiRequest({
                decided_role = 'top',
                decided_at = now(),
                decision_reason = $4,
-               applicant_feedback = $4,
+               applicant_feedback = $5,
                updated_at = now()
            WHERE id = $1
            RETURNING *`,
-          [appId, resolvedVendorId, ctx.user.id, reason]
+          [appId, resolvedVendorId, ctx.user.id, reason, effApproveFeedback]
         );
 
         await tx.query(
@@ -4511,6 +4706,10 @@ export async function handleGovernanceApiRequest({
         : null;
     const noteBody = typeof body.note_body === 'string' && body.note_body.trim() ? body.note_body.trim() : null;
     const noteVisibility = body.note_visibility === 'reporter_visible' ? 'reporter_visible' : 'internal';
+    const expectedUpdatedAt =
+      typeof body.expected_updated_at === 'string' && body.expected_updated_at.trim()
+        ? body.expected_updated_at.trim()
+        : null;
 
     if (!UUID_RE.test(issueId)) return sendJson(400, { error: 'Valid issue_id is required.' });
     if (nextStatus && !['open', 'in_progress', 'waiting', 'resolved', 'closed'].includes(nextStatus)) {
@@ -4534,6 +4733,20 @@ export async function handleGovernanceApiRequest({
       const { rows } = await tx.query('SELECT * FROM support_issues WHERE id = $1 FOR UPDATE', [issueId]);
       if (!rows.length) return { status: 404, body: { error: 'Issue not found.' } };
       const cur = rows[0];
+
+      if (expectedUpdatedAt && cur.updated_at) {
+        const expMs = new Date(expectedUpdatedAt).getTime();
+        const curMs = new Date(cur.updated_at).getTime();
+        if (Number.isFinite(expMs) && Number.isFinite(curMs) && Math.abs(expMs - curMs) > 5) {
+          return {
+            status: 409,
+            body: {
+              error: 'Support issue was modified concurrently by another actor. Refresh the thread before saving.',
+              code: 'STALE_ISSUE_STATE'
+            }
+          };
+        }
+      }
 
       const effStatus = nextStatus || cur.status;
       const effSeverity = nextSeverity || cur.severity;
@@ -4585,7 +4798,15 @@ export async function handleGovernanceApiRequest({
         }
       });
 
-      return { status: 200, body: { issue: u[0] } };
+      return {
+        status: 200,
+        body: {
+          issue: u[0],
+          ...(noteBody && noteVisibility === 'reporter_visible'
+            ? { notification_delivery: 'recorded_in_app_only' }
+            : {})
+        }
+      };
     });
 
     return sendJson(outcome.status, outcome.body);
@@ -5394,6 +5615,573 @@ export async function handleGovernanceApiRequest({
       updated: outcome.updatedResult,
       ...adminPayload
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // 6I-Diagnostics. Bounded Release-Aware Error & Diagnostics Portal (`/api/admin/diagnostics*`)
+  //   - Explicit Role Policy:
+  //     * `Admin: Top`: Full sanitized incident scope (including `mod_visible = false` auth/invite/provider
+  //       items), triage state management, suspected cause & fixing SHA links, synthetic verification
+  //       probes, and bounded retention cleanup.
+  //     * `Admin: Mod`: Sanitized operational subset (`mod_visible = true` ONLY) + append-only operational
+  //       notes (`POST /api/admin/diagnostics/note`). Cannot modify triage state, record fix SHAs, run
+  //       cleanup, or emit synthetic probes (`403`).
+  //     * Neither role can execute SQL/shell/eval, dump env vars, download raw logs, or read secrets.
+  // -------------------------------------------------------------------------
+  if (normPath === '/api/admin/diagnostics') {
+    if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+
+    const { page, pageSize, offset } = parseBoundedPagination(query, 15, 25);
+    const rawWindow = typeof query.window === 'string' ? query.window.trim().toLowerCase() : '7d';
+    const timeWindow = ['1h', '24h', '7d', '30d', 'all'].includes(rawWindow) ? rawWindow : '7d';
+    const rawSev = typeof query.severity === 'string' ? query.severity.trim().toLowerCase() : '';
+    const sevFilter = ALLOWED_SEVERITIES.has(rawSev) ? rawSev : '';
+    const rawFeature = typeof query.feature_key === 'string' ? query.feature_key.trim().toLowerCase() : '';
+    const featureFilter = ALLOWED_FEATURE_KEYS.has(rawFeature) ? rawFeature : '';
+    const rawComp = typeof query.component === 'string' ? query.component.trim().toLowerCase() : '';
+    const compFilter = ALLOWED_COMPONENTS.has(rawComp) ? rawComp : '';
+    const rawTriage = typeof query.triage_status === 'string' ? query.triage_status.trim().toLowerCase() : '';
+    const triageFilter =
+      ALLOWED_TRIAGE_STATUSES.has(rawTriage) || rawTriage === 'open' ? rawTriage : '';
+    const rawRelease = typeof query.release_sha === 'string' ? query.release_sha.trim().toLowerCase() : '';
+    const releaseFilter = /^[a-z0-9._-]{3,64}$/i.test(rawRelease) ? rawRelease : '';
+    const includeSynthetic = query.include_synthetic !== '0' && query.include_synthetic !== 'false';
+    const rawSearch = typeof query.q === 'string' ? query.q.trim().slice(0, 80) : '';
+    const escapedLike = rawSearch
+      ? `%${rawSearch.replace(/[\\%_]/g, m => `\\${m}`)}%`
+      : null;
+
+    const activeServerSha = normalizeReleaseSha(
+      req?.__bsServerReleaseSha || readEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'dev'
+    );
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { denied: verified };
+      await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
+
+      const relRes = await tx.query(
+        `SELECT release_sha, environment, previous_release_sha, deploy_mode,
+                client_bundle_version, first_seen_at, last_seen_at, startup_count
+         FROM diagnostic_releases
+         ORDER BY first_seen_at DESC
+         LIMIT 15`
+      );
+      const releases = relRes.rows;
+
+      const summaryRes = await tx.query(
+        `SELECT
+           count(*) FILTER (WHERE triage_status <> 'resolved' AND is_synthetic_test = false)::int AS open_count,
+           count(*) FILTER (WHERE triage_status = 'new' AND is_synthetic_test = false)::int AS new_count,
+           count(*) FILTER (WHERE triage_status <> 'resolved' AND severity IN ('error', 'critical') AND is_synthetic_test = false)::int AS critical_or_error_open,
+           count(*) FILTER (WHERE stale_client_observed = true)::int AS stale_client_groups,
+           count(*) FILTER (WHERE continued_after_suspected_fix = true)::int AS continued_after_fix_groups
+         FROM diagnostic_incident_groups
+         WHERE ($1::boolean OR mod_visible = true)`,
+        [isTop]
+      );
+
+      const conds = ['1=1'];
+      const params = [];
+      if (!isTop) {
+        conds.push('g.mod_visible = true');
+      }
+      if (!includeSynthetic) {
+        conds.push('g.is_synthetic_test = false');
+      }
+      if (timeWindow === '1h') conds.push("g.last_seen_at >= now() - interval '1 hour'");
+      else if (timeWindow === '24h') conds.push("g.last_seen_at >= now() - interval '24 hours'");
+      else if (timeWindow === '7d') conds.push("g.last_seen_at >= now() - interval '7 days'");
+      else if (timeWindow === '30d') conds.push("g.last_seen_at >= now() - interval '30 days'");
+
+      if (sevFilter) {
+        params.push(sevFilter);
+        conds.push(`g.severity = $${params.length}`);
+      }
+      if (featureFilter) {
+        params.push(featureFilter);
+        conds.push(`g.feature_key = $${params.length}`);
+      }
+      if (compFilter) {
+        params.push(compFilter);
+        conds.push(`g.emitting_component = $${params.length}`);
+      }
+      if (triageFilter === 'open') {
+        conds.push(`g.triage_status <> 'resolved'`);
+      } else if (triageFilter) {
+        params.push(triageFilter);
+        conds.push(`g.triage_status = $${params.length}`);
+      }
+      if (releaseFilter) {
+        params.push(`${releaseFilter}%`);
+        const pIdx = params.length;
+        conds.push(
+          `(g.first_server_release_sha ILIKE $${pIdx} OR g.last_server_release_sha ILIKE $${pIdx} OR EXISTS (SELECT 1 FROM unnest(g.observed_server_releases) rel WHERE rel ILIKE $${pIdx}))`
+        );
+      }
+      if (escapedLike) {
+        params.push(escapedLike);
+        const qIdx = params.length;
+        conds.push(
+          `(
+            g.title ILIKE $${qIdx} ESCAPE '\\'
+            OR g.sanitized_summary ILIKE $${qIdx} ESCAPE '\\'
+            OR g.error_code ILIKE $${qIdx} ESCAPE '\\'
+            OR g.feature_key ILIKE $${qIdx} ESCAPE '\\'
+            OR g.operation_name ILIKE $${qIdx} ESCAPE '\\'
+            OR COALESCE(g.route_template, '') ILIKE $${qIdx} ESCAPE '\\'
+            OR COALESCE(g.last_correlation_id, '') ILIKE $${qIdx} ESCAPE '\\'
+            OR EXISTS (
+              SELECT 1
+              FROM diagnostic_event_samples s
+              WHERE s.group_id = g.id
+                AND COALESCE(s.correlation_id, '') ILIKE $${qIdx} ESCAPE '\\'
+            )
+          )`
+        );
+      }
+
+      const whereSql = conds.join(' AND ');
+      const countRes = await tx.query(
+        `SELECT count(*)::int AS total
+         FROM diagnostic_incident_groups g
+         WHERE ${whereSql}`,
+        params
+      );
+      const total = countRes.rows[0]?.total || 0;
+
+      const listParams = [...params, pageSize, offset];
+      const listRes = await tx.query(
+        `SELECT g.*,
+                (
+                  SELECT count(*)::int
+                  FROM diagnostic_incident_notes n
+                  WHERE (n.group_id = g.id OR n.group_fingerprint = g.fingerprint)
+                    AND ($${listParams.length + 1}::boolean OR n.mod_visible = true)
+                ) AS notes_count
+         FROM diagnostic_incident_groups g
+         WHERE ${whereSql}
+         ORDER BY
+           CASE WHEN g.triage_status = 'resolved' THEN 1 ELSE 0 END ASC,
+           g.last_seen_at DESC,
+           g.id DESC
+         LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+        [...listParams, isTop]
+      );
+
+      return {
+        active_server_release_sha: activeServerSha,
+        active_commit_url: /^[0-9a-f]{7,40}$/i.test(activeServerSha)
+          ? `${REPOSITORY_COMMIT_BASE_URL}${activeServerSha}`
+          : null,
+        client_bundle_version: CLIENT_BUNDLE_VERSION,
+        repository_commit_base_url: REPOSITORY_COMMIT_BASE_URL,
+        actor_role: verified.actorRole,
+        permissions: {
+          scope: isTop ? 'full_sanitized' : 'operational_subset',
+          can_triage: isTop,
+          can_record_fix_sha: isTop,
+          can_run_cleanup: isTop,
+          can_create_synthetic: isTop,
+          can_add_note: true
+        },
+        retention_policy: getDiagnosticsRetentionPolicy(),
+        releases,
+        summary: {
+          ...(summaryRes.rows[0] || {}),
+          total_matching: total
+        },
+        pagination: {
+          page,
+          page_size: pageSize,
+          total,
+          total_pages: Math.max(1, Math.ceil(total / pageSize))
+        },
+        items: listRes.rows.map(g => ({
+          ...g,
+          occurrence_count: Number(g.occurrence_count || 1),
+          release_relationship: computeReleaseRelationship(g, releases, activeServerSha)
+        }))
+      };
+    });
+
+    if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
+    return sendJson(200, out);
+  }
+
+  if (normPath === '/api/admin/diagnostics/detail') {
+    if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    const groupId = typeof query.id === 'string' ? query.id.trim() : '';
+    if (!UUID_RE.test(groupId)) return sendJson(400, { error: 'Valid diagnostic incident id is required.' });
+
+    const activeServerSha = normalizeReleaseSha(
+      req?.__bsServerReleaseSha || readEnvCompat('RELEASE_SHA') || process.env.GITHUB_SHA || 'dev'
+    );
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+      await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
+
+      const { rows: gRows } = await tx.query(
+        'SELECT * FROM diagnostic_incident_groups WHERE id = $1 LIMIT 1',
+        [groupId]
+      );
+      if (!gRows.length) return { status: 404, body: { error: 'Diagnostic incident not found.' } };
+      const group = gRows[0];
+      if (!isTop && !group.mod_visible) {
+        return {
+          status: 403,
+          body: {
+            error:
+              'Admin: Top authorization is required to view authentication, invitation, or provider configuration diagnostics.',
+            code: 'TOP_DIAGNOSTIC_SCOPE_REQUIRED'
+          }
+        };
+      }
+
+      const relRes = await tx.query(
+        `SELECT release_sha, environment, previous_release_sha, deploy_mode,
+                client_bundle_version, first_seen_at, last_seen_at, startup_count
+         FROM diagnostic_releases
+         ORDER BY first_seen_at DESC
+         LIMIT 15`
+      );
+      const samplesRes = await tx.query(
+        `SELECT id, occurred_at, received_at, emitting_component, trust_level,
+                server_release_sha, client_build_version, client_loaded_release_sha, is_stale_client,
+                feature_key, operation_name, route_template, http_method, http_status,
+                severity, error_code, sanitized_message, user_impact, correlation_id,
+                duration_ms, retryable, outcome_state, safe_context
+         FROM diagnostic_event_samples
+         WHERE group_id = $1
+         ORDER BY received_at DESC, id DESC
+         LIMIT 15`,
+        [groupId]
+      );
+      const notesRes = await tx.query(
+        `SELECT id, group_id, group_fingerprint, group_title, actor_id, actor_role,
+                action_type, previous_triage_status, new_triage_status,
+                suspected_cause, suspected_fix_sha, note_body, correlation_id, created_at
+         FROM diagnostic_incident_notes
+         WHERE (group_id = $1 OR group_fingerprint = $2)
+           AND ($3::boolean OR mod_visible = true)
+         ORDER BY created_at ASC, id ASC
+         LIMIT 100`,
+        [groupId, group.fingerprint, isTop]
+      );
+
+      return {
+        status: 200,
+        body: {
+          incident: {
+            ...group,
+            occurrence_count: Number(group.occurrence_count || 1),
+            release_relationship: computeReleaseRelationship(group, relRes.rows, activeServerSha)
+          },
+          samples: samplesRes.rows,
+          notes: notesRes.rows,
+          permissions: {
+            can_triage: isTop,
+            can_record_fix_sha: isTop,
+            can_add_note: true
+          },
+          repository_commit_base_url: REPOSITORY_COMMIT_BASE_URL
+        }
+      };
+    });
+
+    return sendJson(out.status, out.body);
+  }
+
+  if (normPath === '/api/admin/diagnostics/triage') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const groupId = typeof body?.group_id === 'string' ? body.group_id.trim() : '';
+    const nextStatus = typeof body?.triage_status === 'string' ? body.triage_status.trim().toLowerCase() : '';
+    const rawCause = typeof body?.suspected_cause === 'string' ? body.suspected_cause.trim() : '';
+    const rawFixSha = typeof body?.suspected_fix_sha === 'string' ? body.suspected_fix_sha.trim().toLowerCase() : '';
+    const rawNote = typeof body?.note_body === 'string' ? body.note_body.trim() : '';
+
+    if (!UUID_RE.test(groupId)) return sendJson(400, { error: 'Valid group_id is required.' });
+    if (!ALLOWED_TRIAGE_STATUSES.has(nextStatus)) {
+      return sendJson(400, { error: 'triage_status must be new, investigating, monitoring, or resolved.' });
+    }
+    if (rawFixSha && !/^[0-9a-f]{7,40}$/.test(rawFixSha)) {
+      return sendJson(400, { error: 'suspected_fix_sha must be a 7–40 character hexadecimal commit SHA (or empty).' });
+    }
+    if (rawNote.length < 4 || rawNote.length > 1500) {
+      return sendJson(400, { error: 'An operator note (4–1500 characters) is required when updating triage.' });
+    }
+
+    const sanitizedCause = rawCause ? sanitizeDiagnosticText(rawCause, 550, '') : null;
+    const sanitizedNote = sanitizeDiagnosticText(rawNote, 1400, '');
+    if (sanitizedNote.length < 2) {
+      return sendJson(400, { error: 'Enter a descriptive operator note without secrets or credentials.' });
+    }
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedTop.ok) return { status: verifiedTop.status, body: { error: verifiedTop.error, code: 'TOP_REQUIRED' } };
+      await enableAdminTxGuards(tx, ctx);
+
+      const { rows } = await tx.query(
+        'SELECT * FROM diagnostic_incident_groups WHERE id = $1 FOR UPDATE',
+        [groupId]
+      );
+      if (!rows.length) return { status: 404, body: { error: 'Diagnostic incident not found.' } };
+      const cur = rows[0];
+
+      const effCause = body?.suspected_cause !== undefined ? sanitizedCause : cur.suspected_cause;
+      const effFixSha = body?.suspected_fix_sha !== undefined ? (rawFixSha || null) : cur.suspected_fix_sha;
+      const fixChanged = effFixSha !== (cur.suspected_fix_sha || null);
+
+      const { rows: updatedRows } = await tx.query(
+        `UPDATE diagnostic_incident_groups
+         SET triage_status = $2,
+             suspected_cause = $3,
+             suspected_fix_sha = $4,
+             fix_recorded_at = CASE
+               WHEN $4::text IS NULL THEN NULL
+               WHEN $5::boolean THEN now()
+               ELSE COALESCE(fix_recorded_at, now())
+             END,
+             fix_recorded_by = CASE
+               WHEN $4::text IS NULL THEN NULL
+               WHEN $5::boolean THEN $6
+               ELSE COALESCE(fix_recorded_by, $6)
+             END,
+             continued_after_suspected_fix = CASE
+               WHEN $4::text IS NULL OR $5::boolean THEN false
+               ELSE continued_after_suspected_fix
+             END,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [groupId, nextStatus, effCause, effFixSha, fixChanged, ctx.user.id]
+      );
+
+      const actionType = fixChanged && effFixSha ? 'fix_reference' : 'triage_update';
+      const { rows: noteRows } = await tx.query(
+        `INSERT INTO diagnostic_incident_notes (
+           group_id, group_fingerprint, group_title, mod_visible, actor_id, actor_role,
+           action_type, previous_triage_status, new_triage_status,
+           suspected_cause, suspected_fix_sha, note_body, correlation_id
+         )
+         VALUES ($1, $2, $3, $4, $5, 'top', $6, $7, $8, $9, $10, $11, $12)
+         RETURNING *`,
+        [
+          groupId,
+          cur.fingerprint,
+          cur.title,
+          cur.mod_visible,
+          ctx.user.id,
+          actionType,
+          cur.triage_status,
+          nextStatus,
+          effCause,
+          effFixSha,
+          sanitizedNote,
+          req?.__bsCorrelationId || null
+        ]
+      );
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: 'top',
+        targetType: 'diagnostic_incident',
+        targetId: groupId,
+        action: 'diagnostics.triage_update',
+        metadata: {
+          from_status: cur.triage_status,
+          to_status: nextStatus,
+          suspected_fix_sha: effFixSha || null
+        }
+      });
+
+      return {
+        status: 200,
+        body: {
+          ok: true,
+          incident: updatedRows[0],
+          note: noteRows[0],
+          verification_disclaimer:
+            'Resolving an incident or recording a suspected fixing commit preserves diagnostic evidence and does not by itself prove the underlying defect is fixed.'
+        }
+      };
+    });
+
+    return sendJson(out.status, out.body);
+  }
+
+  if (normPath === '/api/admin/diagnostics/note') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const groupId = typeof body?.group_id === 'string' ? body.group_id.trim() : '';
+    const rawNote = typeof body?.note_body === 'string' ? body.note_body.trim() : '';
+
+    if (!UUID_RE.test(groupId)) return sendJson(400, { error: 'Valid group_id is required.' });
+    if (rawNote.length < 4 || rawNote.length > 1500) {
+      return sendJson(400, { error: 'Operator note must be 4–1500 characters.' });
+    }
+    const sanitizedNote = sanitizeDiagnosticText(rawNote, 1400, '');
+    if (sanitizedNote.length < 2) {
+      return sendJson(400, { error: 'Enter a descriptive operator note without secrets or credentials.' });
+    }
+
+    const out = await withTransaction(dbAdapter, async tx => {
+      const verified = await reverifyModeratorInTx(tx, ctx);
+      if (!verified.ok) return { status: verified.status, body: { error: verified.error } };
+      await enableAdminTxGuards(tx, ctx);
+      const isTop = verified.actorRole === 'top';
+
+      const { rows } = await tx.query(
+        'SELECT * FROM diagnostic_incident_groups WHERE id = $1 LIMIT 1',
+        [groupId]
+      );
+      if (!rows.length) return { status: 404, body: { error: 'Diagnostic incident not found.' } };
+      const cur = rows[0];
+      if (!isTop && !cur.mod_visible) {
+        return {
+          status: 403,
+          body: {
+            error: 'Admin: Top authorization is required to annotate restricted security/provider incidents.',
+            code: 'TOP_DIAGNOSTIC_SCOPE_REQUIRED'
+          }
+        };
+      }
+
+      const { rows: noteRows } = await tx.query(
+        `INSERT INTO diagnostic_incident_notes (
+           group_id, group_fingerprint, group_title, mod_visible, actor_id, actor_role,
+           action_type, previous_triage_status, new_triage_status,
+           suspected_cause, suspected_fix_sha, note_body, correlation_id
+         )
+         VALUES ($1, $2, $3, $4, $5, $6, 'note', $7, $7, $8, $9, $10, $11)
+         RETURNING *`,
+        [
+          groupId,
+          cur.fingerprint,
+          cur.title,
+          cur.mod_visible,
+          ctx.user.id,
+          verified.actorRole,
+          cur.triage_status,
+          cur.suspected_cause,
+          cur.suspected_fix_sha,
+          sanitizedNote,
+          req?.__bsCorrelationId || null
+        ]
+      );
+
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: verified.actorRole,
+        targetType: 'diagnostic_incident',
+        targetId: groupId,
+        action: 'diagnostics.note_added'
+      });
+
+      return { status: 201, body: { ok: true, note: noteRows[0] } };
+    });
+
+    return sendJson(out.status, out.body);
+  }
+
+  if (normPath === '/api/admin/diagnostics/synthetic-test') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const accessCheck = await withTransaction(dbAdapter, async tx => {
+      const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedTop.ok) return { denied: verifiedTop };
+      return { ok: true };
+    });
+    if (accessCheck.denied) {
+      return sendJson(accessCheck.denied.status, { error: accessCheck.denied.error, code: 'TOP_REQUIRED' });
+    }
+
+    const customLabel =
+      typeof body?.label === 'string' && body.label.trim()
+        ? sanitizeDiagnosticText(body.label.trim(), 90, 'Portal verification')
+        : 'Portal verification';
+
+    const rec = await recordDiagnosticEvent(dbAdapter, {
+      component: 'api',
+      trustLevel: 'server_verified',
+      featureKey: 'synthetic_verification',
+      operationName: 'admin.synthetic_diagnostic_probe',
+      routeTemplate: '/api/admin/diagnostics/synthetic-test',
+      httpMethod: 'POST',
+      httpStatus: 200,
+      severity: 'warning',
+      errorCode: 'SYNTHETIC_TEST_PROBE',
+      title: `[SYNTHETIC TEST] Diagnostic portal verification (${customLabel})`,
+      message: `[SYNTHETIC TEST] Operator-triggered verification event (${customLabel}). Not a real customer error.`,
+      userImpact: 'None — clearly labeled synthetic verification probe triggered by Admin: Top.',
+      safeNextSteps: 'Verify search, incident detail, release attribution, and operator notes, then mark Resolved.',
+      correlationId: req?.__bsCorrelationId,
+      serverReleaseSha: req?.__bsServerReleaseSha || readEnvCompat('RELEASE_SHA') || 'dev',
+      retryable: false,
+      outcomeState: 'degraded',
+      isSyntheticTest: true,
+      modVisible: true,
+      safeContext: {
+        synthetic_label: customLabel.slice(0, 48),
+        phase: 'operator_verification'
+      }
+    });
+
+    if (rec?.group_id) {
+      await withTransaction(dbAdapter, async tx => {
+        await enableAdminTxGuards(tx, ctx);
+        await recordAuditLog(tx, {
+          actorId: ctx.user.id,
+          actorRole: 'top',
+          targetType: 'diagnostic_incident',
+          targetId: rec.group_id,
+          action: 'diagnostics.synthetic_probe_recorded'
+        });
+      });
+    }
+
+    return sendJson(201, {
+      ok: true,
+      synthetic_test: true,
+      group_id: rec?.group_id || null,
+      correlation_id: rec?.correlation_id || req?.__bsCorrelationId || null,
+      occurrence_count: rec?.occurrence_count || 1
+    });
+  }
+
+  if (normPath === '/api/admin/diagnostics/cleanup') {
+    if (method !== 'POST') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    const accessCheck = await withTransaction(dbAdapter, async tx => {
+      const verifiedTop = await reverifyPlatformAdminInTx(tx, ctx);
+      if (!verifiedTop.ok) return { denied: verifiedTop };
+      return { ok: true };
+    });
+    if (accessCheck.denied) {
+      return sendJson(accessCheck.denied.status, { error: accessCheck.denied.error, code: 'TOP_REQUIRED' });
+    }
+
+    const cleanupRes = await cleanupExpiredDiagnostics(dbAdapter);
+    await withTransaction(dbAdapter, async tx => {
+      await enableAdminTxGuards(tx, ctx);
+      await recordAuditLog(tx, {
+        actorId: ctx.user.id,
+        actorRole: 'top',
+        targetType: 'diagnostics_retention',
+        targetId: 'global',
+        action: 'diagnostics.retention_cleanup',
+        metadata: {
+          deleted_samples: cleanupRes.deleted_samples,
+          deleted_aged_groups: cleanupRes.deleted_aged_groups,
+          deleted_overflow_groups: cleanupRes.deleted_overflow_groups,
+          notes_deleted: 0
+        }
+      });
+    });
+
+    return sendJson(200, cleanupRes);
   }
 
   return sendJson(404, { error: 'Not found' });

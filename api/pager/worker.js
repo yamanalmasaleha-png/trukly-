@@ -10,6 +10,11 @@ import {
 } from "../../lib/pager-notifications.js";
 import { readEnvCompat, EnvAliasConflictError } from "../../lib/env-compat.js";
 import { cleanupExpiredAuthRecords } from "../../lib/standalone-auth.js";
+import {
+  cleanupExpiredDiagnostics,
+  recordDiagnosticEvent,
+  recordWorkerHeartbeat
+} from "../../lib/diagnostics.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -82,6 +87,7 @@ export default async function(req, res) {
       : undefined;
 
   try {
+    const releaseSha = readEnvCompat("RELEASE_SHA") || process.env.GITHUB_SHA || "dev";
     const result = await runNotificationWorkerBatch(db, {
       batchSize,
       concurrency,
@@ -95,17 +101,70 @@ export default async function(req, res) {
       runCleanup
     });
     let authCleanup = null;
+    let diagnosticsCleanup = null;
     if (runCleanup) {
-      authCleanup = await cleanupExpiredAuthRecords(db, { now: now || new Date() }).catch(() => null);
+      authCleanup = await cleanupExpiredAuthRecords(db, { now: now || new Date() }).catch(async err => {
+        await recordDiagnosticEvent(db, {
+          component: "worker",
+          featureKey: "worker_runtime",
+          operationName: "worker.cleanup_expired_auth_records",
+          routeTemplate: "/api/pager/worker",
+          severity: "warning",
+          errorCode: "AUTH_CLEANUP_FAILED",
+          message: err?.message || "Expired auth cleanup encountered an error.",
+          serverReleaseSha: releaseSha,
+          retryable: true,
+          outcomeState: "degraded"
+        });
+        return null;
+      });
+      diagnosticsCleanup = await cleanupExpiredDiagnostics(db).catch(() => null);
     }
+
+    if ((result.failed || 0) > 0) {
+      await recordDiagnosticEvent(db, {
+        component: "worker",
+        featureKey: "push_delivery",
+        operationName: "worker.pager_notification_batch",
+        routeTemplate: "/api/pager/worker",
+        severity: "warning",
+        errorCode: "PUSH_DELIVERY_BATCH_FAILURE",
+        message: `Pager notification worker marked ${result.failed} delivery item(s) failed during batch.`,
+        serverReleaseSha: releaseSha,
+        retryable: false,
+        outcomeState: "partial_success",
+        safeContext: {
+          queue_depth: Number(result.claimed || 0),
+          attempt: Number(result.failed || 0)
+        }
+      });
+    }
+
+    await recordWorkerHeartbeat(db, {
+      workerName: "pager_notifications",
+      status: (result.failed || 0) > 0 ? "degraded" : "ok",
+      releaseSha,
+      correlationId: req?.__bsCorrelationId || null,
+      summary: {
+        queue_depth: Number(result.claimed || 0)
+      }
+    });
+
     const executedIso = (now || new Date()).toISOString();
     return res.json({
       ok: true,
       executed_at: executedIso,
       ...result,
-      ...(authCleanup ? { auth_cleanup: authCleanup } : {})
+      ...(authCleanup ? { auth_cleanup: authCleanup } : {}),
+      ...(diagnosticsCleanup?.ok ? { diagnostics_cleanup: diagnosticsCleanup } : {})
     });
-  } catch {
+  } catch (err) {
+    await recordWorkerHeartbeat(db, {
+      workerName: "pager_notifications",
+      status: "error",
+      releaseSha: readEnvCompat("RELEASE_SHA") || "dev",
+      correlationId: req?.__bsCorrelationId || null
+    });
     return res.status(503).json({
       error: "Notification delivery worker encountered a database error.",
       code: "WORKER_DB_UNAVAILABLE"

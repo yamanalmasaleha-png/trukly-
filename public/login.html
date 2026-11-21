@@ -441,6 +441,7 @@
     </footer>
   </main>
 
+  <script src="/diagnostics-client.js"></script>
   <script src="/auth-client.js"></script>
   <script>
     (function () {
@@ -949,10 +950,16 @@
       });
 
       document.getElementById('assessSignOutBtn').addEventListener('click', async function () {
+        clearError();
+        const soBtn = document.getElementById('assessSignOutBtn');
+        soBtn.disabled = true;
         try {
           await getAuth().signOut();
-        } catch {}
-        location.href = '/';
+          location.href = '/';
+        } catch (soErr) {
+          soBtn.disabled = false;
+          showError(formatAuthError(soErr, 'Could not sign out right now — your session may still be active. Please retry.'));
+        }
       });
 
       document.getElementById('backBtn').addEventListener('click', function () {
@@ -965,14 +972,16 @@
       document.getElementById('addPasskeyBtn').addEventListener('click', async function () {
         const auth = window.biteshark && window.biteshark.auth;
         const saved = auth ? await auth.registerPasskey({ name: 'My BiteShark passkey' }).catch(function () { return null; }) : null;
-        if (!saved) localStorage.setItem('passkey_offer_declined', '1');
+        if (!saved) {
+          try { localStorage.setItem('passkey_offer_declined', '1'); } catch (_e) {}
+        }
         finish();
       });
 
       document.getElementById('skipPasskeyBtn').addEventListener('click', finish);
 
       function finish() {
-        localStorage.setItem('passkey_offer_declined', '1');
+        try { localStorage.setItem('passkey_offer_declined', '1'); } catch (_e) {}
         if (pendingInviteToken) {
           try { sessionStorage.setItem(PENDING_INVITE_STORAGE_KEY, pendingInviteToken); } catch (_e) {}
           location.href = '/#accept-invite=' + encodeURIComponent(pendingInviteToken);

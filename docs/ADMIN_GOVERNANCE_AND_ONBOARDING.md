@@ -181,3 +181,18 @@ Both `/api/admin/accounts/role` + `/api/admin/accounts/status` (using `FOR UPDAT
   - Provider calls include `Idempotency-Key: biteshark-invite-<id>-gen<token_version>` with bounded retry (at most `2` attempts on network timeout/`5xx`) and record truthful states (`sent`, `failed`, `delivery_uncertain`) in `account_invitations`, append-only `account_invitation_events`, `audit_logs`, and `auth_delivery_telemetry` (`invite_send` / `invite_resend`). Provider acceptance (`200`) is never labeled as confirmed inbox delivery.
   - Explicit `Resend Email` (`decision = 'resend'`, 30s cooldown, valid only on `status = 'issued'`) rotates `token_sha256` and increments `token_version` (invalidating earlier links while issuing a fresh idempotency generation); revoked, rejected, or consumed invitations cannot be resent.
   - Historical pre-`023` `account_invitations` (`delivery_status = 'not_requested'`) and `admin_notification_outbox` (`recorded_test_safe`) rows are **never** automatically emailed during migration or worker startup.
+
+## 10. Bounded Operational Error & Diagnostics Portal (`/admin#diagnostics`, Migration `024`)
+
+- **Separation from Security Audit Logs**: Operational incidents (`diagnostic_incident_groups`, `diagnostic_event_samples`, `diagnostic_releases`, and append-only `diagnostic_incident_notes`) are stored separately from `audit_logs` with distinct purpose, permissions, and retention. The portal exposes **no** SQL/shell/JS evaluation, **no** environment dumps, **no** raw log downloads, **no** stack traces/filesystem paths, and **no** secrets.
+- **Allowlisting, Untrusted Browser Guard & Redaction (`lib/diagnostics.js`)**:
+  - `POST /api/diagnostics/report` treats browser reports as `browser_untrusted`, enforces a `4 KiB` JSON body cap and per-IP rate limiting (`consumeGovernanceRateLimit`), strips control characters, normalizes route templates (`?`/`#`/UUIDs/tokens removed), and scrubs emails, URLs, Bearer/API keys, cookies, OTPs, raw DOBs, GPS coordinates, and hex/JWT tokens.
+  - Failures in diagnostic persistence never break or recurse into the caller's HTTP or worker operation, falling back to a single sanitized operational log line.
+- **Explicit Server-Side Role Split (`Admin: Top` vs `Admin: Mod`)**:
+  - `Admin: Top`: Views all sanitized incident groups (including `mod_visible = false` `auth_login`, `invitations`, `email_delivery`, and `admin_portal` incidents), updates triage state (`new`, `investigating`, `monitoring`, `resolved`), records suspected causes and suspected fixing commit SHAs, triggers `[SYNTHETIC TEST]` verification probes, and runs retention cleanup.
+  - `Admin: Mod`: Views only the sanitized operational subset (`mod_visible = true`) and appends timestamped operational notes (`POST /api/admin/diagnostics/note`); `403` on Top-only groups, triage mutations, fix-SHA links, synthetic probes, and cleanup.
+- **Release Awareness & Retention**:
+  - Startup records server releases in `diagnostic_releases` (`REVOKE DELETE`) and compares browser `X-BiteShark-Loaded-Release` headers against active server SHAs to flag stale tabs (`stale_client_observed`).
+  - Timing labels explicitly distinguish *"First observed after deployment"* from confirmed root cause, and recording a suspected fixing SHA tracks whether occurrences continued (`continued_after_suspected_fix`) without claiming absence of events proves a fix.
+  - Retention cleanup (`cleanupExpiredDiagnostics`, invoked by the worker and `POST /api/admin/diagnostics/cleanup`) purges aged samples (`14d` default) and groups (`30d` resolved / `60d` open, max `500` groups) while **never** deleting `diagnostic_incident_notes` (`REVOKE UPDATE, DELETE`) or `audit_logs`.
+

@@ -121,6 +121,8 @@ function sleepInterruptible(ms) {
       tick++;
       const shouldCleanup = opts.continuous ? tick % opts.cleanupEveryTicks === 0 : tick === opts.maxTicks;
       const startedAt = Date.now();
+      const fetchCtrl = new AbortController();
+      const fetchTimer = setTimeout(() => fetchCtrl.abort(), 28000);
       try {
         const res = await fetch(opts.url, {
           method: 'POST',
@@ -128,7 +130,8 @@ function sleepInterruptible(ms) {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${secret}`
           },
-          body: JSON.stringify({ batch_size: opts.batchSize, cleanup: shouldCleanup })
+          body: JSON.stringify({ batch_size: opts.batchSize, cleanup: shouldCleanup }),
+          signal: fetchCtrl.signal
         });
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -155,9 +158,13 @@ function sleepInterruptible(ms) {
             level: 'error',
             event: 'worker_tick_network_error',
             tick,
+            release_sha: releaseSha,
+            timed_out: err?.name === 'AbortError',
             message: String(err?.message || err).slice(0, 160)
           })
         );
+      } finally {
+        clearTimeout(fetchTimer);
       }
 
       if (!stopRequested && (opts.continuous || tick < opts.maxTicks) && opts.intervalMs > 0) {
@@ -192,8 +199,19 @@ function sleepInterruptible(ms) {
   try {
     const notifMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'pager-notifications.js')).href);
     let authMod = null;
+    let diagMod = null;
     try {
       authMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'standalone-auth.js')).href);
+    } catch {}
+    try {
+      diagMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'diagnostics.js')).href);
+      if (diagMod && typeof diagMod.recordServerReleaseStartup === 'function') {
+        await diagMod.recordServerReleaseStartup(dbAdapter, {
+          releaseSha,
+          environment: readCliEnvCompat('ENV', { defaultValue: 'local' }),
+          deployMode: 'worker_startup'
+        });
+      }
     } catch {}
 
     let tick = 0;
@@ -201,23 +219,60 @@ function sleepInterruptible(ms) {
       tick++;
       const shouldCleanup = opts.continuous ? tick % opts.cleanupEveryTicks === 0 : tick === opts.maxTicks;
       const startedAt = Date.now();
-      const summary = await notifMod.runNotificationWorkerBatch(dbAdapter, {
-        batchSize: opts.batchSize,
-        runCleanup: shouldCleanup
-      });
-      if (shouldCleanup && authMod && typeof authMod.cleanupExpiredAuthRecords === 'function') {
-        await authMod.cleanupExpiredAuthRecords(dbAdapter).catch(() => {});
-      }
-      if (
-        !opts.continuous ||
-        (summary.claimed || 0) > 0 ||
-        (summary.sent || 0) > 0 ||
-        (summary.retried || 0) > 0 ||
-        (summary.failed || 0) > 0 ||
-        tick === 1 ||
-        tick % 30 === 0
-      ) {
-        console.log(JSON.stringify({ tick, duration_ms: Date.now() - startedAt, ...summary }));
+      try {
+        const summary = await notifMod.runNotificationWorkerBatch(dbAdapter, {
+          batchSize: opts.batchSize,
+          runCleanup: shouldCleanup
+        });
+        if (shouldCleanup && authMod && typeof authMod.cleanupExpiredAuthRecords === 'function') {
+          await authMod.cleanupExpiredAuthRecords(dbAdapter).catch(() => {});
+        }
+        if (shouldCleanup && diagMod && typeof diagMod.cleanupExpiredDiagnostics === 'function') {
+          await diagMod.cleanupExpiredDiagnostics(dbAdapter).catch(() => {});
+        }
+        if (diagMod && typeof diagMod.recordWorkerHeartbeat === 'function') {
+          await diagMod.recordWorkerHeartbeat(dbAdapter, {
+            workerName: 'pager_notifications',
+            status: (summary.failed || 0) > 0 ? 'degraded' : 'ok',
+            releaseSha,
+            summary: { queue_depth: Number(summary.claimed || 0) }
+          });
+        }
+        if (
+          !opts.continuous ||
+          (summary.claimed || 0) > 0 ||
+          (summary.sent || 0) > 0 ||
+          (summary.retried || 0) > 0 ||
+          (summary.failed || 0) > 0 ||
+          tick === 1 ||
+          tick % 30 === 0
+        ) {
+          console.log(JSON.stringify({ tick, release_sha: releaseSha, duration_ms: Date.now() - startedAt, ...summary }));
+        }
+      } catch (tickErr) {
+        if (diagMod && typeof diagMod.recordDiagnosticEvent === 'function') {
+          await diagMod.recordDiagnosticEvent(dbAdapter, {
+            component: 'worker',
+            featureKey: 'worker_runtime',
+            operationName: 'worker.direct_db_tick',
+            severity: 'error',
+            errorCode: 'WORKER_TICK_FAILED',
+            message: tickErr?.message || 'Direct DB worker tick failed.',
+            serverReleaseSha: releaseSha,
+            retryable: true,
+            outcomeState: 'failed'
+          });
+        }
+        if (!opts.continuous) throw tickErr;
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'worker_direct_tick_error',
+            tick,
+            release_sha: releaseSha,
+            message: String(tickErr?.message || tickErr).slice(0, 160)
+          })
+        );
       }
       if (!stopRequested && (opts.continuous || tick < opts.maxTicks) && opts.intervalMs > 0) {
         const elapsed = Date.now() - startedAt;

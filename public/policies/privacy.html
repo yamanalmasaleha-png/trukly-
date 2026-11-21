@@ -120,6 +120,11 @@
               <td>Business contact details, permit/license summary, ownership statement, and optional PNG/JPEG/WebP/PDF ownership proof (up to 512 KiB per file, max 3 files).</td>
               <td>Uploaded onboarding evidence records carry a 90-day <code>retention_expires_at</code> timestamp and scrub raw file bytes upon deletion.</td>
             </tr>
+            <tr>
+              <td><strong>First-Party Operational Diagnostics</strong></td>
+              <td>Sanitized error codes, allowlisted route templates, component/feature identifiers, correlation IDs (<code>corr_…</code>), server release SHA, browser bundle version, and rate-limiting truncated SHA-256 IP buckets when unexpected operational errors occur. <strong>Never stores request/response bodies, emails, full URLs/query strings/fragments, cookies, OTPs, raw DOBs, precise coordinates, tokens, or uploaded files.</strong></td>
+              <td>Stored in first-party PostgreSQL only (zero third-party monitoring SDKs). Representative event samples default to 14-day retention, resolved incident groups to 30 days, and open groups to 60 days via scheduled worker cleanup; append-only operator triage notes persist separately for operational auditability.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -136,8 +141,8 @@
       <ul>
         <li><strong>Hosting &amp; infrastructure:</strong> Application and PostgreSQL database run on a dedicated Linux virtual private server in the United States behind TLS encryption.</li>
         <li><strong>Map tiles:</strong> Interactive discovery maps load street map tiles from OpenStreetMap / CARTO tile endpoints in the browser, which receive standard HTTP request metadata (such as IP address and browser user-agent) when map view is displayed.</li>
-        <li><strong>Transactional email &amp; push providers:</strong> External email delivery is not yet connected on staging (restricted operator test mailbox is active); web push delivery is disabled on staging.</li>
-        <li><strong>No analytics or ad networks:</strong> Zero analytics SDKs, ad pixels, session-replay scripts, or data brokers are integrated.</li>
+        <li><strong>Transactional email &amp; push providers:</strong> Staging transactional authentication codes and approved account invitations use a restricted HTTPS email delivery provider (Resend) limited strictly to designated operator test accounts and exact invited recipients; web push delivery remains disabled on staging.</li>
+        <li><strong>No analytics, ad networks, or third-party error trackers:</strong> Zero analytics SDKs, ad pixels, session-replay scripts, third-party crash/telemetry SaaS tools, or data brokers are integrated; operational diagnostics are strictly first-party and redacted.</li>
       </ul>
 
       <h2>2.5 Current Limitations on Privacy Rights &amp; Account Deletion</h2>

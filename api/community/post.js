@@ -59,9 +59,38 @@ export default async function(req, res) {
     return res.status(400).json({ error: "Ratings are only supported on review posts." });
   }
 
+  const rawIdempotencyKey = typeof x.idempotency_key === "string" ? x.idempotency_key.trim() : "";
+  if (
+    rawIdempotencyKey &&
+    (rawIdempotencyKey.length < 8 || rawIdempotencyKey.length > 80 || !/^[A-Za-z0-9_.:-]+$/.test(rawIdempotencyKey))
+  ) {
+    return res.status(400).json({ error: "Invalid submission idempotency key." });
+  }
+  const idempotencyKey = rawIdempotencyKey || null;
+
   try {
     const outcome = await withTransaction(db, async tx => {
       await tx.query("SELECT set_config('app.user_id', $1, true)", [user.id]);
+
+      if (idempotencyKey) {
+        const { rows: existingRows } = await tx.query(
+          `SELECT id, status, created_at
+           FROM community_reviews
+           WHERE author_id = $1 AND idempotency_key = $2
+           LIMIT 1`,
+          [user.id, idempotencyKey]
+        );
+        if (existingRows.length > 0) {
+          return {
+            status: 200,
+            body: {
+              submission: existingRows[0],
+              deduplicated: true,
+              message: "Submitted for review. It will appear publicly only if approved."
+            }
+          };
+        }
+      }
 
       const { rows: placeRows } = await tx.query(
         `SELECT v.id, COALESCE(op.display_name, v.canonical_name) AS place_name, v.city AS town
@@ -85,14 +114,25 @@ export default async function(req, res) {
         return { status: 429, body: { error: "You can contribute up to five times in 24 hours." } };
       }
 
-      const { rows } = await tx.query(
-        `INSERT INTO community_reviews (
-           author_id, nickname, kind, place_id, place_name, town, title, body, rating, status
-         )
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
-         RETURNING id, status, created_at`,
-        [user.id, nickname, kind, placeId, canonicalPlaceName, canonicalTown, title, body, rating]
-      );
+      const { rows } = idempotencyKey
+        ? await tx.query(
+            `INSERT INTO community_reviews (
+               author_id, nickname, kind, place_id, place_name, town, title, body, rating, status, idempotency_key
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', $10)
+             ON CONFLICT (author_id, idempotency_key) WHERE idempotency_key IS NOT NULL
+             DO UPDATE SET nickname = community_reviews.nickname
+             RETURNING id, status, created_at`,
+            [user.id, nickname, kind, placeId, canonicalPlaceName, canonicalTown, title, body, rating, idempotencyKey]
+          )
+        : await tx.query(
+            `INSERT INTO community_reviews (
+               author_id, nickname, kind, place_id, place_name, town, title, body, rating, status
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
+             RETURNING id, status, created_at`,
+            [user.id, nickname, kind, placeId, canonicalPlaceName, canonicalTown, title, body, rating]
+          );
 
       return {
         status: 201,

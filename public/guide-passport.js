@@ -1,4 +1,4 @@
-/* Truckly Local Guides passport: self-reported, on-device beta. */
+/* BiteShark Local Guides passport: self-reported, on-device beta. */
 const guidePassportStorageKey = 'truckly_guide_passport_v1';
 function guideVisitsRead(){
   try {
@@ -8,7 +8,13 @@ function guideVisitsRead(){
 }
 function guideVisitsWrite(rows){
   try{localStorage.setItem(guidePassportStorageKey,JSON.stringify(rows));return true;}
-  catch(e){return false;}
+  catch(e){
+    const d=typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;
+    if(d&&typeof d.reportClientDiagnostic==='function'){
+      d.reportClientDiagnostic({featureKey:'local_photo_storage',operationName:'passport.localStorage',errorCode:'PASSPORT_STORAGE_FAILED',severity:'warning',message:'Local Guides passport write failed in localStorage.',retryable:false,outcomeState:'failed',safeContext:{storage_kind:'localStorage'}});
+    }
+    return false;
+  }
 }
 function guidePlaces(){
   const seen=new Set();

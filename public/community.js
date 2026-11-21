@@ -1,5 +1,7 @@
 /* Community hub: approved posts only, user contributions submitted for moderation. */
 const communityState={posts:[],filter:'all',town:'all',sort:'recent',search:'',loaded:false,myOpen:false};
+let communityDraftKey=null,communityDraftSig='';
+function communityDiag(){return typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;}
 function communityEscape(value){return String(value==null?'':value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function communityDate(value){
   const d=new Date(value);
@@ -30,6 +32,24 @@ async function openCommunity(){
 }
 async function communityLoad(){
   const feed=document.getElementById('communityFeed');
+  const d=communityDiag();
+  if(d&&typeof d.fetchJsonBounded==='function'){
+    const res=await d.fetchJsonBounded('/api/community/list',{
+      credentials:'same-origin',
+      featureKey:'community',
+      operationName:'community.load_public_feed',
+      routeTemplate:'/api/community/list'
+    });
+    if(!res.ok){
+      const msg=res.data?.error||res.errorMessage||'The community feed is temporarily unavailable right now.';
+      feed.innerHTML='<div class="community-empty">⏸ '+communityEscape(msg)+(res.correlationId?' <small>(Support ref: <code>'+communityEscape(res.correlationId)+'</code>)</small>':'')+' <button type="button" onclick="communityLoad()">Try again</button></div>';
+      return;
+    }
+    communityState.posts=Array.isArray(res.data.posts)?res.data.posts:[];
+    communityState.loaded=true;
+    communityRender();
+    return;
+  }
   try{
     const response=await fetch('/api/community/list',{credentials:'same-origin'});
     if(!response.ok)throw new Error('The community feed is unavailable right now.');
@@ -102,7 +122,8 @@ function communityStartPost(kind='review',title=''){
   select.value=kind;
   communityKindChange();
   document.getElementById('communityTitle').value=title||'';
-  form.scrollIntoView({block:'start',behavior:'smooth'});
+  const d=communityDiag();
+  form.scrollIntoView({block:'start',behavior:(d&&typeof d.prefersReducedMotion==='function'&&d.prefersReducedMotion())?'auto':'smooth'});
 }
 function communityClosePost(){
   const form=document.getElementById('communityCompose');form.hidden=true;
@@ -121,7 +142,7 @@ async function communitySubmitPost(e){
   const button=document.getElementById('communitySubmit'),status=document.getElementById('communityActionMessage');
   const placeId=document.getElementById('communityPlace').value;
   const place=communityGetPlaces().find(p=>p.id===placeId);
-  if(!place){status.textContent='Choose a place from the list.';return}
+  if(!place){status.textContent='⚠ Choose a place from the list.';return}
   const kind=document.getElementById('communityKind').value;
   const post={
     kind:kind,place_id:placeId,place_name:place.name,town:place.city,
@@ -130,34 +151,120 @@ async function communitySubmitPost(e){
     body:document.getElementById('communityBody').value.trim(),
     rating:kind==='review'?Number(document.getElementById('communityRating').value):null
   };
-  if(post.title.length<5||post.body.length<20){status.textContent='Use a title of at least 5 characters and at least 20 characters for your post.';return}
-  button.disabled=true;status.textContent='Submitting for review…';
+  if(post.title.length<5||post.body.length<20){status.textContent='⚠ Use a title of at least 5 characters and at least 20 characters for your post.';return}
+  if(kind==='review'&&(!Number.isInteger(post.rating)||post.rating<1||post.rating>5)){status.textContent='⚠ Choose a star rating from 1 to 5.';return}
+
+  const d=communityDiag();
+  const sig=JSON.stringify([post.kind,post.place_id,post.title,post.body,post.rating]);
+  if(!communityDraftKey||communityDraftSig!==sig){
+    communityDraftKey=d&&typeof d.createIdempotencyKey==='function'?d.createIdempotencyKey('comm'):('comm_'+Date.now()+'_'+Math.random().toString(36).slice(2,10));
+    communityDraftSig=sig;
+  }
+  post.idempotency_key=communityDraftKey;
+
+  button.disabled=true;
+  button.setAttribute('aria-busy','true');
+  status.textContent='⏳ Working — submitting your post for moderation…';
   try{
-    const response=await fetch('/api/community/post',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(post)});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Could not submit. You may need to sign in first.');
+    let ok=false,data={},resStatus=0,corrId=null,uncertain=false,errMsg='';
+    if(d&&typeof d.fetchJsonBounded==='function'){
+      const res=await d.fetchJsonBounded('/api/community/post',{
+        method:'POST',
+        isWrite:true,
+        idempotentWrite:true,
+        credentials:'same-origin',
+        featureKey:'community',
+        operationName:'community.submit_post',
+        routeTemplate:'/api/community/post',
+        body:post
+      });
+      ok=res.ok;data=res.data||{};resStatus=res.status;corrId=res.correlationId;uncertain=Boolean(res.uncertainWrite||res.timedOut);errMsg=res.errorMessage||'';
+    }else{
+      const response=await fetch('/api/community/post',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(post)});
+      resStatus=response.status;
+      data=await response.json().catch(()=>({}));
+      ok=response.ok;
+    }
+
+    if(uncertain){
+      communityState.myOpen=true;
+      const myItems=await communityLoadMy();
+      const matched=Array.isArray(myItems)&&myItems.some(m=>m.place_id===placeId&&m.title===post.title);
+      if(matched){
+        communityDraftKey=null;communityDraftSig='';
+        document.getElementById('communityPostForm').reset();communityKindChange();
+        communityClosePost();
+        const success=document.getElementById('communitySuccess');
+        success.hidden=false;success.textContent='📨 Submitted for review — confirmed in My contributions after a connection delay. It is held for moderation and not public yet.';
+        return;
+      }
+      status.textContent='⚠ Outcome uncertain — BiteShark timed out before confirming your submission. Your draft is preserved, and submitting again safely reuses the same key without creating duplicates.'+(corrId?' (Support ref: '+corrId+')':'');
+      return;
+    }
+
+    if(!ok){
+      if(resStatus===401){
+        status.innerHTML='⚠ Sign in is required to submit a community post. Your draft text is preserved below — <a href="/login.html?next=/">Sign in →</a>';
+        return;
+      }
+      const msg=(data.error||errMsg||'Could not submit your post right now.')+(corrId?' (Support ref: '+corrId+')':'');
+      status.textContent='✕ '+msg;
+      return;
+    }
+
+    communityDraftKey=null;communityDraftSig='';
     document.getElementById('communityPostForm').reset();communityKindChange();
     communityClosePost();
     const success=document.getElementById('communitySuccess');
-    success.hidden=false;success.textContent='Your post was submitted for moderation. It is not public yet.';
+    success.hidden=false;
+    success.textContent=data.deduplicated
+      ?'📨 Already submitted for review — showing your pending submission below (not public until approved).'
+      :'📨 Submitted for review — your post is held for moderator review and will appear publicly only if approved.';
     communityState.myOpen=true;await communityLoadMy();
-  }catch(error){status.textContent=error.message}
-  finally{button.disabled=false}
+  }catch(error){
+    status.textContent='✕ '+(error.message||'Could not submit right now.');
+  }finally{
+    button.disabled=false;
+    button.removeAttribute('aria-busy');
+  }
 }
 async function communityLoadMy(){
   const panel=document.getElementById('communityMyPosts');
   panel.hidden=false;
-  panel.innerHTML='<p>Loading your contributions…</p>';
+  panel.innerHTML='<p role="status">⏳ Loading your contributions…</p>';
+  const d=communityDiag();
   try{
-    const response=await fetch('/api/community/mine',{credentials:'same-origin'});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'Sign in to see your contributions.');
+    let ok=false,data={},resStatus=0,corrId=null;
+    if(d&&typeof d.fetchJsonBounded==='function'){
+      const res=await d.fetchJsonBounded('/api/community/mine',{
+        credentials:'same-origin',
+        featureKey:'community',
+        operationName:'community.load_mine',
+        routeTemplate:'/api/community/mine'
+      });
+      ok=res.ok;data=res.data||{};resStatus=res.status;corrId=res.correlationId;
+    }else{
+      const response=await fetch('/api/community/mine',{credentials:'same-origin'});
+      resStatus=response.status;data=await response.json().catch(()=>({}));ok=response.ok;
+    }
+    if(resStatus===401){
+      panel.innerHTML='<p>Sign in to view your submitted contributions and moderation status. <a href="/login.html?next=/">Sign in →</a></p>';
+      return [];
+    }
+    if(!ok){
+      panel.innerHTML='<p role="alert">⏸ '+communityEscape(data.error||'Your contributions are temporarily unavailable right now.')+(corrId?' <small>(Support ref: <code>'+communityEscape(corrId)+'</code>)</small>':'')+' <button type="button" onclick="communityLoadMy()">Try again</button></p>';
+      return [];
+    }
     const items=Array.isArray(data.submissions)?data.submissions:[];
     panel.innerHTML=items.length?'<h3>My contributions</h3><div class="community-my-list">'+items.map(p=>
       '<div><strong>'+communityEscape(p.title)+'</strong><small>'+communityEscape(p.place_name)+' · '+communityDate(p.created_at)+'</small>'+
-      '<span class="community-status">'+communityEscape(p.status)+'</span></div>').join('')+'</div>':
+      '<span class="community-status">'+communityEscape(p.status==='pending'?'Submitted for review':p.status)+'</span></div>').join('')+'</div>':
       '<p>You have not submitted anything yet.</p>';
-  }catch(error){panel.innerHTML='<p>'+communityEscape(error.message)+'</p>';}
+    return items;
+  }catch(error){
+    panel.innerHTML='<p role="alert">⏸ '+communityEscape(error.message||'Could not load your contributions.')+'</p>';
+    return [];
+  }
 }
 function communityToggleMy(){
   communityState.myOpen=!communityState.myOpen;

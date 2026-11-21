@@ -18,6 +18,13 @@ import {
   matchRouteFeatureRule,
   enforceHttpFeatureGate
 } from '../lib/feature-controls.js';
+import {
+  CLIENT_BUNDLE_VERSION,
+  generateCorrelationId,
+  normalizeCorrelationId,
+  recordDiagnosticEvent,
+  recordServerReleaseStartup
+} from '../lib/diagnostics.js';
 import { verifySameOriginMutation as verifyPagerSubscriptionCsrf } from '../lib/pager-notifications.js';
 import { runWithGovernanceContext } from '../lib/request-context.js';
 import { isLoopbackIp, stampTrustedClientIp } from '../lib/client-ip.js';
@@ -46,6 +53,7 @@ const DEFAULT_PUBLIC_DIR = path.resolve(SERVER_DIR, '..', 'public');
 
 export const DEFAULT_MAX_JSON_BYTES = 64 * 1024; // 64 KiB
 export const AUTH_MAX_JSON_BYTES = 8 * 1024; // 8 KiB
+export const DIAGNOSTICS_REPORT_MAX_JSON_BYTES = 4 * 1024; // 4 KiB
 
 const ALLOWED_STATIC_MIME = Object.freeze({
   '.html': 'text/html; charset=utf-8',
@@ -70,6 +78,15 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/admin.js',
   '/role-experience.css',
   '/role-experience.js',
+  '/diagnostics-client.js',
+  '/app.js',
+  '/pager.js',
+  '/community.js',
+  '/local-guides.js',
+  '/guide-passport.js',
+  '/smart.js',
+  '/theme.css',
+  '/mobile-scroll-fix.css',
   '/sw.js',
   '/manifest.json',
   '/auth-client.js',
@@ -171,8 +188,21 @@ function appendSetCookie(res, cookieValue) {
   }
 }
 
+function isIntentionalMaintenanceResponse(statusCode, payload) {
+  if (statusCode !== 503 || !payload || typeof payload !== 'object') return false;
+  if (payload.feature_disabled === true) return true;
+  if (payload.code === 'FEATURE_PAUSED' || payload.code === 'FEATURE_DISABLED') return true;
+  const msg = String(payload.error || '');
+  return /temporarily paused for maintenance|temporarily disabled by an administrator/i.test(msg);
+}
+
 function sendJsonResponse(res, statusCode, payload, extraHeaders = {}) {
   if (res.writableEnded) return;
+  if (statusCode >= 500 && res.__bsDiagHook && !res.__bsDiagHandled) {
+    res.__bsDiagHandled = true;
+    res.__pendingDiagPromise = res.__bsDiagHook(statusCode, payload, extraHeaders);
+    return;
+  }
   res.statusCode = statusCode;
   if (!res.getHeader('Content-Type')) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -420,11 +450,27 @@ export function createStandaloneServer({
     }
   });
 
+  const startupEnvLabel = (() => {
+    try {
+      return readEnvCompat('ENV', { defaultValue: 'local' }).toLowerCase();
+    } catch {
+      return 'local';
+    }
+  })();
+  const startupReleasePromise = recordServerReleaseStartup(dbAdapter, {
+    releaseSha,
+    environment: startupEnvLabel,
+    deployMode: 'startup',
+    clientBundleVersion: CLIENT_BUNDLE_VERSION,
+    logger
+  });
+
   const activeSockets = new Set();
   let shuttingDown = false;
 
   const server = http.createServer(async (req, res) => {
     applyBaselineSecurityHeaders(res);
+    const reqStartedAt = Date.now();
 
     if (shuttingDown) {
       applyPrivateNoStoreHeaders(res);
@@ -458,6 +504,52 @@ export function createStandaloneServer({
     }
 
     const pathname = parsedUrl.pathname;
+    const reqCorrelationId =
+      normalizeCorrelationId(req.headers?.['x-correlation-id']) || generateCorrelationId();
+    req.__bsCorrelationId = reqCorrelationId;
+    req.__bsServerReleaseSha = releaseSha;
+
+    if (pathname === '/api' || pathname.startsWith('/api/')) {
+      res.setHeader('X-BiteShark-Release', String(releaseSha || 'unknown'));
+      res.setHeader('X-BiteShark-Client-Bundle', CLIENT_BUNDLE_VERSION);
+      if (pathname !== '/api/healthz' && pathname !== '/api/diagnostics/report') {
+        res.__bsDiagHook = async (statusCode, payload, extraHeaders = {}) => {
+          const corrId = normalizeCorrelationId(payload?.correlation_id) || req.__bsCorrelationId || reqCorrelationId;
+          const nextHeaders = { ...extraHeaders, 'X-Correlation-Id': corrId };
+          const nextPayload =
+            payload && typeof payload === 'object' && !Array.isArray(payload) && !payload.correlation_id
+              ? { ...payload, correlation_id: corrId }
+              : payload;
+
+          if (!req.__bsDiagnosticRecorded && !isIntentionalMaintenanceResponse(statusCode, payload)) {
+            req.__bsDiagnosticRecorded = true;
+            await recordDiagnosticEvent(
+              dbAdapter,
+              {
+                component: 'api',
+                routeTemplate: req.__bsRouteTemplate || pathname,
+                operationName: `${method} ${req.__bsRouteTemplate || pathname}`,
+                httpMethod: method,
+                httpStatus: statusCode,
+                severity: statusCode === 500 ? 'error' : 'warning',
+                errorCode: String(payload?.code || `HTTP_${statusCode}`),
+                message: String(payload?.error || `Server returned HTTP ${statusCode}.`),
+                correlationId: corrId,
+                serverReleaseSha: releaseSha,
+                clientBuildVersion: String(req.headers?.['x-biteshark-client-build'] || '').slice(0, 48) || null,
+                clientLoadedReleaseSha: String(req.headers?.['x-biteshark-loaded-release'] || '').slice(0, 48) || null,
+                durationMs: Math.max(0, Date.now() - reqStartedAt),
+                retryable: statusCode === 502 || statusCode === 503 || statusCode === 504,
+                outcomeState: statusCode === 503 ? 'temporarily_unavailable' : 'failed'
+              },
+              { fallbackLogger: logger }
+            );
+          }
+
+          sendJsonResponse(res, statusCode, nextPayload, nextHeaders);
+        };
+      }
+    }
 
     try {
       // 0. Server-Side Admin Preview Read-Only Enforcement (`X-BiteShark-Viewpoint: preview`)
@@ -728,17 +820,24 @@ export function createStandaloneServer({
         }
 
         const normGovPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+        req.__bsRouteTemplate = normGovPath;
+        const isUntrustedDiagReport = normGovPath === '/api/diagnostics/report';
         const bodyLimit =
           normGovPath === '/api/onboarding/evidence' && method === 'POST'
             ? EVIDENCE_UPLOAD_MAX_JSON_BYTES
-            : maxJsonBytes;
+            : isUntrustedDiagReport
+              ? DIAGNOSTICS_REPORT_MAX_JSON_BYTES
+              : maxJsonBytes;
 
         let parsedBody = {};
         if (MUTATING_HTTP_METHODS.has(method)) {
           parsedBody = await readBoundedJsonBody(req, bodyLimit);
         }
 
-        const sess = await resolveSessionFromRequest(dbAdapter, req);
+        // Browser diagnostic reports are explicitly untrusted: never resolve or refresh session cookies on them.
+        const sess = isUntrustedDiagReport
+          ? { authenticated: false, user: null, sessionId: null, refreshedCookieHeader: null }
+          : await resolveSessionFromRequest(dbAdapter, req);
         if (sess.refreshedCookieHeader) {
           appendSetCookie(res, sess.refreshedCookieHeader);
         }
@@ -813,6 +912,9 @@ export function createStandaloneServer({
                 })
             )
         );
+        if (res.__pendingDiagPromise) {
+          await res.__pendingDiagPromise;
+        }
         if (!res.writableEnded) {
           res.end();
         }
@@ -832,6 +934,7 @@ export function createStandaloneServer({
         }
 
         const { route, params } = matched;
+        req.__bsRouteTemplate = route.pattern;
 
         if (!route.methods.includes(method)) {
           applyPrivateNoStoreHeaders(res);
@@ -960,6 +1063,9 @@ export function createStandaloneServer({
           () => runWithGovernanceContext(govState, () => route.handler(req, resAdapter))
         );
 
+        if (res.__pendingDiagPromise) {
+          await res.__pendingDiagPromise;
+        }
         if (!res.writableEnded) {
           res.end();
         }
@@ -1104,7 +1210,15 @@ export function createStandaloneServer({
           })
         );
       }
-      return sendJsonResponse(res, 500, { error: 'Internal server error.' });
+      sendJsonResponse(res, 500, { error: 'Internal server error.' });
+      if (res.__pendingDiagPromise) {
+        await res.__pendingDiagPromise;
+      }
+      return;
+    } finally {
+      if (res.__pendingDiagPromise) {
+        await res.__pendingDiagPromise;
+      }
     }
   });
 
@@ -1140,5 +1254,5 @@ export function createStandaloneServer({
     });
   }
 
-  return { server, closeGracefully };
+  return { server, closeGracefully, startupReleasePromise };
 }

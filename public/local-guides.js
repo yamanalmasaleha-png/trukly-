@@ -24,27 +24,64 @@ function showGuidesTab(tab){
 }
 async function openPhotoNotebook(id){await openLocalGuides();showGuidesTab('photos');if(id)document.getElementById('dishPhotoVendor').value=id;document.getElementById('dishPhotoCaption').focus()}
 function dishDb(){
- if(!dishDbPromise)dishDbPromise=new Promise((resolve,reject)=>{if(!window.indexedDB){reject(new Error('Photo storage is unavailable in this browser.'));return}const r=indexedDB.open('truckly-dish-notebook-v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error('Photo storage could not open. Check this browser’s storage settings.'))});
+ if(!dishDbPromise){
+  dishDbPromise=new Promise((resolve,reject)=>{
+   if(!window.indexedDB){
+    dishDbPromise=null;
+    const d=typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;
+    if(d&&typeof d.reportClientDiagnostic==='function'){
+     d.reportClientDiagnostic({featureKey:'local_photo_storage',operationName:'indexedDB.open',errorCode:'INDEXEDDB_UNSUPPORTED',severity:'warning',message:'IndexedDB is unavailable in this browser.',retryable:false,outcomeState:'temporarily_unavailable',safeContext:{storage_kind:'indexedDB'}});
+    }
+    reject(new Error('Local photo storage is unavailable in this browser (private browsing or restricted storage).'));
+    return;
+   }
+   let r;
+   try{r=indexedDB.open('truckly-dish-notebook-v1',1);}catch(openErr){
+    dishDbPromise=null;
+    const d=typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;
+    if(d&&typeof d.reportClientDiagnostic==='function'){
+     d.reportClientDiagnostic({featureKey:'local_photo_storage',operationName:'indexedDB.open',errorCode:'INDEXEDDB_OPEN_THREW',severity:'warning',message:'IndexedDB open threw synchronously.',retryable:true,outcomeState:'failed',safeContext:{storage_kind:'indexedDB'}});
+    }
+    reject(new Error('Photo storage could not open. Check this browser’s storage settings.'));
+    return;
+   }
+   r.onupgradeneeded=()=>r.result.createObjectStore('photos',{keyPath:'id'});
+   r.onsuccess=()=>resolve(r.result);
+   r.onblocked=()=>{dishDbPromise=null;reject(new Error('Photo storage is busy in another tab. Close other tabs or retry.'));};
+   r.onerror=()=>{
+    dishDbPromise=null;
+    const d=typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;
+    if(d&&typeof d.reportClientDiagnostic==='function'){
+     d.reportClientDiagnostic({featureKey:'local_photo_storage',operationName:'indexedDB.open',errorCode:'INDEXEDDB_OPEN_ERROR',severity:'warning',message:'IndexedDB open failed.',retryable:true,outcomeState:'failed',safeContext:{storage_kind:'indexedDB'}});
+    }
+    reject(new Error('Photo storage could not open. Check this browser’s storage settings and retry.'));
+   };
+  }).catch(err=>{dishDbPromise=null;throw err;});
+ }
  return dishDbPromise;
 }
 async function dishRead(){const db=await dishDb();return new Promise((resolve,reject)=>{const r=db.transaction('photos','readonly').objectStore('photos').getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(new Error('Could not read your saved photos.'))})}
-async function dishWrite(action,value){const db=await dishDb();return new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');const s=tx.objectStore('photos');action==='add'?s.add(value):s.delete(value);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(new Error('Could not save this change. Browser storage may be full.'));tx.onabort=()=>reject(new Error('The photo change did not save. Please try again.'))})}
+async function dishWrite(action,value){const db=await dishDb();return new Promise((resolve,reject)=>{const tx=db.transaction('photos','readwrite');const s=tx.objectStore('photos');action==='add'?s.add(value):s.delete(value);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(new Error('Could not save this change on your device. Browser storage may be full.'));tx.onabort=()=>reject(new Error('The photo change did not save. Please try again.'))})}
 async function saveDishPhoto(e){
  e.preventDefault();const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
  if(fc&&!fc.isAvailable('local_guides_passport')){document.getElementById('dishPhotoMessage').textContent=fc.getMessage('local_guides_passport');fc.syncDom();return}
- const button=document.getElementById('dishPhotoSave'),message=document.getElementById('dishPhotoMessage');button.disabled=true;message.textContent='Saving your food memory…';
+ const button=document.getElementById('dishPhotoSave'),message=document.getElementById('dishPhotoMessage');
+ button.disabled=true;button.setAttribute('aria-busy','true');message.textContent='⏳ Working — saving photo on this device…';
  try{const file=document.getElementById('dishPhotoFile').files[0],caption=document.getElementById('dishPhotoCaption').value.trim(),id=document.getElementById('dishPhotoVendor').value;const vendor=trucks.find(t=>t.id===id);
  if(!vendor||!caption)throw new Error('Choose a place and add a short dish note.');if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('Choose a JPEG, PNG, or WebP photo.');if(file.size>5*1024*1024)throw new Error('Choose a photo smaller than 5 MB.');if((await dishRead()).length>=12)throw new Error('Your notebook has 12 photos. Remove one before adding another.');
  const probeUrl=URL.createObjectURL(file);try{const image=new Image();image.src=probeUrl;await image.decode()}catch{throw new Error('That file could not be read as a photo. Please choose another.')}finally{URL.revokeObjectURL(probeUrl)}
  await dishWrite('add',{id:crypto.randomUUID(),vendorId:id,vendorName:vendor.name,caption:caption.slice(0,160),file,created:new Date().toISOString()});
- e.target.reset();await renderDishPhotos();message.textContent='Saved on this device. A delicious memory for later.';
- }catch(err){message.textContent=err.message||'Your photo did not save. Please try again.'}finally{button.disabled=false}
+ e.target.reset();await renderDishPhotos();message.textContent='💾 Saved locally on this device only (not uploaded or shared).';
+ }catch(err){message.textContent='✕ '+(err.message||'Your photo did not save. Your note is still in the form above — try again.')}finally{button.disabled=false;button.removeAttribute('aria-busy')}
 }
 async function renderDishPhotos(){
  const version=++dishPhotoRenderVersion,grid=document.getElementById('dishPhotoGrid');
  try{const rows=await dishRead();if(version!==dishPhotoRenderVersion)return;dishPhotoUrls.forEach(URL.revokeObjectURL);dishPhotoUrls=[];
- grid.innerHTML=rows.length?rows.sort((a,b)=>b.created.localeCompare(a.created)).map(p=>{const url=URL.createObjectURL(p.file);dishPhotoUrls.push(url);return '<article class="dish-photo"><img src="'+url+'" alt="'+guidesEscape(p.caption)+'"><div><small>MY PHOTO · SAVED ON THIS DEVICE</small><h3>'+guidesEscape(p.vendorName)+'</h3><p>'+guidesEscape(p.caption)+'</p><button onclick="openDetail(\''+guidesEscape(p.vendorId)+'\')">View place</button><button onclick="removeDishPhoto(\''+p.id+'\')">Remove photo</button></div></article>'}).join(''):'<div class="dish-empty"><span>'+flavorDoodle('spark')+'</span><h3>Your next favorite bite goes here.</h3><p>No photos saved yet. Add your own dish photo and a little note above.</p></div>';
- }catch(e){grid.innerHTML='';document.getElementById('dishPhotoMessage').textContent=e.message}
+ grid.innerHTML=rows.length?rows.sort((a,b)=>b.created.localeCompare(a.created)).map(p=>{const url=URL.createObjectURL(p.file);dishPhotoUrls.push(url);return '<article class="dish-photo"><img src="'+url+'" alt="'+guidesEscape(p.caption)+'"><div><small>MY PHOTO · SAVED ON THIS DEVICE</small><h3>'+guidesEscape(p.vendorName)+'</h3><p>'+guidesEscape(p.caption)+'</p><button type="button" onclick="openDetail(\''+guidesEscape(p.vendorId)+'\')">View place</button><button type="button" onclick="removeDishPhoto(\''+p.id+'\')">Remove photo</button></div></article>'}).join(''):'<div class="dish-empty"><span aria-hidden="true">'+flavorDoodle('spark')+'</span><h3>Your next favorite bite goes here.</h3><p>No photos saved yet. Add your own dish photo and a little note above.</p></div>';
+ }catch(e){
+  grid.innerHTML='<div class="dish-empty" role="alert"><h3>⏸ Local photo storage is unavailable</h3><p>'+guidesEscape(e.message||'Browser photo storage could not be opened on this device.')+'</p><button type="button" class="secondary" onclick="renderDishPhotos()">Retry photo storage</button></div>';
+  document.getElementById('dishPhotoMessage').textContent='✕ '+(e.message||'Local photo storage is unavailable.');
+ }
 }
 async function removeDishPhoto(id){try{await dishWrite('delete',id);await renderDishPhotos();document.getElementById('dishPhotoMessage').textContent='Photo removed from this device.'}catch(e){document.getElementById('dishPhotoMessage').textContent=e.message}}
 document.querySelectorAll('#guidesScreen [data-truck-character]').forEach(el=>el.innerHTML=truckCharacter(el.dataset.truckCharacter));

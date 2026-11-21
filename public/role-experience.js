@@ -142,17 +142,73 @@
     return fetchPromise;
   };
 
+  function rxDiag() {
+    return typeof window !== 'undefined' && window.bitesharkDiagnostics ? window.bitesharkDiagnostics : null;
+  }
+
+  function rxOpenModal(modalId, opts) {
+    var el = document.getElementById(modalId);
+    if (!el) return;
+    el.hidden = false;
+    var d = rxDiag();
+    if (d && typeof d.openModalDialog === 'function') {
+      d.openModalDialog(el, Object.assign({
+        onClose: function () { rxCloseModal(modalId); }
+      }, opts || {}));
+    }
+  }
+
+  function rxCloseModal(modalId) {
+    var el = document.getElementById(modalId);
+    if (!el) return;
+    el.hidden = true;
+    var d = rxDiag();
+    if (d && typeof d.closeModalDialog === 'function') {
+      d.closeModalDialog(el);
+    }
+  }
+
   async function rxJson(url, opts) {
     var options = Object.assign({ method: 'GET', credentials: 'same-origin', cache: 'no-store', headers: {} }, opts || {});
+    var method = String(options.method || 'GET').toUpperCase();
+    var isWrite = method !== 'GET' && method !== 'HEAD';
+    var d = rxDiag();
+    if (d && typeof d.fetchJsonBounded === 'function') {
+      var res = await d.fetchJsonBounded(url, {
+        method: method,
+        isWrite: isWrite,
+        idempotentWrite: Boolean(options.idempotentWrite),
+        credentials: options.credentials || 'same-origin',
+        cache: options.cache || 'no-store',
+        headers: options.headers || {},
+        body: options.body,
+        featureKey: options.featureKey || undefined,
+        operationName: options.operationName || undefined
+      });
+      if (!res.ok) {
+        var msg = (res.data && res.data.error) || res.errorMessage || ('Request failed (' + (res.status || 'network') + ')');
+        if (res.correlationId) {
+          msg += ' (Support ref: ' + res.correlationId + ')';
+        }
+        var errBounded = new Error(msg);
+        errBounded.status = res.status;
+        errBounded.code = (res.data && res.data.code) || null;
+        errBounded.correlationId = res.correlationId || null;
+        errBounded.uncertainWrite = Boolean(res.uncertainWrite || res.timedOut);
+        throw errBounded;
+      }
+      return res.data;
+    }
+
     if (options.body && typeof options.body === 'object') {
       options.headers['Content-Type'] = 'application/json';
       options.body = JSON.stringify(options.body);
     }
-    var res = await window.fetch(url, options);
-    var data = await res.json().catch(function () { return {}; });
-    if (!res.ok) {
-      var err = new Error(data.error || 'Request failed (' + res.status + ')');
-      err.status = res.status;
+    var rawRes = await window.fetch(url, options);
+    var data = await rawRes.json().catch(function () { return {}; });
+    if (!rawRes.ok) {
+      var err = new Error(data.error || 'Request failed (' + rawRes.status + ')');
+      err.status = rawRes.status;
       err.code = data.code || null;
       throw err;
     }
@@ -284,12 +340,22 @@
       if (totalEl) totalEl.textContent = String((data.customer_impact && data.customer_impact.open_bookings) || 0);
       if (pendingEl) pendingEl.textContent = String((data.customer_impact && data.customer_impact.open_bookings) || 0);
 
-      // Disable mutating controls on #ownerScreen during read-only preview
-      document.querySelectorAll('#ownerScreen button.primary, #ownerScreen #ownerEditProfileBtn, #ownerScreen #pagerCreateButton').forEach(function (b) {
-        b.disabled = true;
-        b.title = 'Disabled in read-only Admin Preview';
-      });
-    } catch (_e) {}
+      // Disable all mutating controls on #ownerScreen during read-only preview
+      document
+        .querySelectorAll(
+          '#ownerScreen button.primary, #ownerScreen button.secondary, #ownerScreen #ownerEditProfileBtn, #ownerScreen #pagerCreateButton, #ownerScreen input:not([readonly]), #ownerScreen select:not(#ownerTruckSelect), #ownerRequests button'
+        )
+        .forEach(function (b) {
+          b.disabled = true;
+          b.title = 'Disabled in read-only Admin Preview';
+        });
+    } catch (previewErr) {
+      var modeBannerErr = document.getElementById('ownerModeBanner');
+      if (modeBannerErr) {
+        modeBannerErr.hidden = false;
+        modeBannerErr.textContent = '⚠ Read-only vendor preview could not be loaded: ' + (previewErr.message || 'Temporarily unavailable.');
+      }
+    }
   }
 
   // =========================================================================
@@ -395,11 +461,12 @@
         // 1. Vendor Onboarding Modal
         '<div class="rx-modal-backdrop" id="vendorApplyModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="vaModalTitle">' +
-        '<div class="rx-modal-head"><div><small>VENDOR ONBOARDING &amp; OWNERSHIP</small><h2 id="vaModalTitle">Claim or Apply for a BiteShark Listing</h2></div><button type="button" class="rx-close" data-rx-close="vendorApplyModal">×</button></div>' +
-        '<div class="rx-tabs">' +
-        '<button type="button" class="rx-tab active" data-va-tab="status">My Applications</button>' +
-        '<button type="button" class="rx-tab" data-va-tab="form">New / Edit Application</button>' +
+        '<div class="rx-modal-head"><div><small>VENDOR ONBOARDING &amp; OWNERSHIP</small><h2 id="vaModalTitle">Claim or Apply for a BiteShark Listing</h2></div><button type="button" class="rx-close" data-rx-close="vendorApplyModal" aria-label="Close vendor application dialog">×</button></div>' +
+        '<div class="rx-tabs" role="tablist" aria-label="Vendor application views">' +
+        '<button type="button" role="tab" aria-selected="true" class="rx-tab active" data-va-tab="status">My Applications</button>' +
+        '<button type="button" role="tab" aria-selected="false" class="rx-tab" data-va-tab="form">New / Edit Application</button>' +
         '</div>' +
+        '<div id="vaSubmitNotice" class="rx-msg" role="status" hidden style="margin-bottom:8px"></div>' +
         '<div id="vaStatusPane"></div>' +
         '<form id="vaFormPane" class="rx-form" hidden>' +
         '<input type="hidden" id="vaEditId">' +
@@ -409,24 +476,24 @@
         '<label id="vaSlugWrap" hidden>Proposed Listing ID (slug)<input type="text" id="vaProposedSlug" maxlength="64" placeholder="e.g. rosa-taco-cart"></label>' +
         '</div>' +
         '<div class="rx-row-2">' +
-        '<label>Business Name<input type="text" id="vaBusinessName" required maxlength="120" placeholder="Official truck or stand name"></label>' +
-        '<label>Primary Sonoma Town<input type="text" id="vaPrimaryTown" required maxlength="80" placeholder="e.g. Santa Rosa"></label>' +
+        '<label>Business Name *<input type="text" id="vaBusinessName" required maxlength="120" placeholder="Official truck or stand name"></label>' +
+        '<label>Primary Sonoma Town *<input type="text" id="vaPrimaryTown" required maxlength="80" placeholder="e.g. Santa Rosa"></label>' +
         '</div>' +
         '<div class="rx-row-2">' +
         '<label>Category<input type="text" id="vaCategory" maxlength="60" value="Food Trucks"></label>' +
         '<label>Cuisine<input type="text" id="vaCuisine" maxlength="80" placeholder="e.g. Mexican, Coffee, Burgers"></label>' +
         '</div>' +
         '<div class="rx-row-2">' +
-        '<label>Contact Name<input type="text" id="vaContactName" required maxlength="120" placeholder="Owner / manager name"></label>' +
+        '<label>Contact Name *<input type="text" id="vaContactName" required maxlength="120" placeholder="Owner / manager name"></label>' +
         '<label>Contact Phone (optional)<input type="text" id="vaContactPhone" maxlength="40" placeholder="(707) 555-0199"></label>' +
         '</div>' +
         '<label>Business Website or Social Link (optional)<input type="url" id="vaWebsite" maxlength="300" placeholder="https://…"></label>' +
-        '<label>Public Listing Summary<textarea id="vaSummary" rows="2" maxlength="500" placeholder="Short description of dishes and regular schedule…"></textarea></label>' +
+        '<label>Public Listing Summary (up to 160 chars)<textarea id="vaSummary" rows="2" maxlength="160" placeholder="Short description of dishes and regular schedule…"></textarea></label>' +
         '<label>Ownership &amp; Permit Verification Statement<textarea id="vaStatement" rows="2" maxlength="1000" placeholder="Describe your business connection (e.g. health permit town, market stall, official website/Instagram)…"></textarea></label>' +
         '<label>Optional Supporting Evidence (PDF, PNG, JPEG, or WebP up to 512 KiB — do NOT upload SSNs or driver licenses)<input type="file" id="vaEvidenceFile" accept="application/pdf,image/png,image/jpeg,image/webp"></label>' +
-        '<div id="vaFormMsg" class="rx-msg" hidden></div>' +
+        '<div id="vaFormMsg" class="rx-msg" role="alert" hidden></div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-        '<button type="submit" class="primary" data-va-mode="submit">Submit for Admin Review →</button>' +
+        '<button type="submit" class="primary" id="vaSubmitAppBtn" data-va-mode="submit">Submit for Admin Review →</button>' +
         '<button type="button" class="secondary" id="vaSaveDraftBtn">Save Draft</button>' +
         '</div>' +
         '</form>' +
@@ -435,34 +502,35 @@
         // 2. Support & Issues Modal
         '<div class="rx-modal-backdrop" id="supportIssuesModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="siModalTitle">' +
-        '<div class="rx-modal-head"><div><small>PRIVATE SUPPORT &amp; TRUST</small><h2 id="siModalTitle">Support &amp; Issue Tracker</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal">×</button></div>' +
-        '<div class="rx-tabs">' +
-        '<button type="button" class="rx-tab active" data-si-tab="list">My Issues</button>' +
-        '<button type="button" class="rx-tab" data-si-tab="new">Report an Issue</button>' +
+        '<div class="rx-modal-head"><div><small>PRIVATE SUPPORT &amp; TRUST</small><h2 id="siModalTitle">Support &amp; Issue Tracker</h2></div><button type="button" class="rx-close" data-rx-close="supportIssuesModal" aria-label="Close support issues dialog">×</button></div>' +
+        '<div class="rx-tabs" role="tablist" aria-label="Support issue views">' +
+        '<button type="button" role="tab" aria-selected="true" class="rx-tab active" data-si-tab="list">My Issues</button>' +
+        '<button type="button" role="tab" aria-selected="false" class="rx-tab" data-si-tab="new">Report an Issue</button>' +
         '</div>' +
+        '<div id="siSubmitNotice" class="rx-msg" role="status" hidden style="margin-bottom:8px"></div>' +
         '<div id="siListPane"></div>' +
         '<form id="siNewPane" class="rx-form" hidden>' +
         '<div class="rx-row-2">' +
         '<label>Category<select id="siCategory"><option value="booking_issue">Booking Issue</option><option value="pager_issue">Pickup Pager Issue</option><option value="listing_accuracy">Listing Accuracy</option><option value="vendor_dispute">Vendor Dispute</option><option value="safety_concern">Safety Concern</option><option value="abuse_report">Abuse Report</option><option value="account_access">Account / Access</option><option value="other">Other</option></select></label>' +
         '<label>Related Food Spot (optional)<select id="siVendorId"><option value="">None / General</option></select></label>' +
         '</div>' +
-        '<label>Subject<input type="text" id="siSubject" required minlength="5" maxlength="160" placeholder="Brief summary of the issue"></label>' +
-        '<label>Details<textarea id="siDescription" required minlength="15" maxlength="2500" rows="4" placeholder="Include relevant dates, order/inquiry context, and how we can help. Private issues are never posted publicly."></textarea></label>' +
-        '<div id="siFormMsg" class="rx-msg" hidden></div>' +
-        '<button type="submit" class="primary">Submit Private Support Issue →</button>' +
+        '<label>Subject (5–140 chars) *<input type="text" id="siSubject" required minlength="5" maxlength="140" placeholder="Brief summary of the issue"></label>' +
+        '<label>Details (15–1500 chars) *<textarea id="siDescription" required minlength="15" maxlength="1500" rows="4" placeholder="Include relevant dates, order/inquiry context, and how we can help. Private issues are never posted publicly."></textarea></label>' +
+        '<div id="siFormMsg" class="rx-msg" role="alert" hidden></div>' +
+        '<button type="submit" class="primary" id="siSubmitIssueBtn">Submit Private Support Issue →</button>' +
         '</form>' +
         '</div></div>' +
 
         // 3. Community Post Report Modal
         '<div class="rx-modal-backdrop" id="communityReportModal" hidden>' +
         '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="crModalTitle">' +
-        '<div class="rx-modal-head"><div><small>COMMUNITY MODERATION</small><h2 id="crModalTitle">Report Community Post</h2></div><button type="button" class="rx-close" data-rx-close="communityReportModal">×</button></div>' +
+        '<div class="rx-modal-head"><div><small>COMMUNITY MODERATION</small><h2 id="crModalTitle">Report Community Post</h2></div><button type="button" class="rx-close" data-rx-close="communityReportModal" aria-label="Close report dialog">×</button></div>' +
         '<form id="crReportForm" class="rx-form">' +
         '<input type="hidden" id="crPostId">' +
         '<label>Reason<select id="crReason" required><option value="inaccurate">Inaccurate or misleading</option><option value="spam">Promotional spam</option><option value="harassment">Harassment or personal attack</option><option value="privacy">Private/personal info shared</option><option value="off_topic">Off-topic</option><option value="other">Other</option></select></label>' +
         '<label>Additional Context (optional)<textarea id="crDetails" rows="3" maxlength="800" placeholder="Help moderators review this submission…"></textarea></label>' +
-        '<div id="crFormMsg" class="rx-msg" hidden></div>' +
-        '<button type="submit" class="primary">Submit Report to Moderators →</button>' +
+        '<div id="crFormMsg" class="rx-msg" role="alert" hidden></div>' +
+        '<button type="submit" class="primary" id="crSubmitReportBtn">Submit Report to Moderators →</button>' +
         '</form></div></div>' +
 
         // 4. Invitation Acceptance Modal
@@ -505,17 +573,18 @@
 
       root.querySelectorAll('[data-rx-close]').forEach(function (btn) {
         btn.onclick = function () {
-          document.getElementById(btn.dataset.rxClose).hidden = true;
+          rxCloseModal(btn.dataset.rxClose);
         };
       });
 
       document.addEventListener('keydown', function (ev) {
         if (ev.key !== 'Escape') return;
-        var closeableIds = ['inviteAcceptModal', 'communityReportModal', 'supportIssuesModal', 'vendorOnboardingModal'];
+        if (rxDiag()) return;
+        var closeableIds = ['inviteAcceptModal', 'communityReportModal', 'supportIssuesModal', 'vendorApplyModal'];
         for (var i = 0; i < closeableIds.length; i++) {
           var el = document.getElementById(closeableIds[i]);
           if (el && !el.hidden) {
-            el.hidden = true;
+            rxCloseModal(closeableIds[i]);
             ev.preventDefault();
             break;
           }
@@ -709,23 +778,65 @@
     }
   }
 
+  var staffInviteDraftKey = null;
+  var staffInviteDraftSig = '';
+  var supportIssueDraftKey = null;
+  var supportIssueDraftSig = '';
+
   async function loadOwnerTeamMembers(vendorId) {
     var box = document.getElementById('ownerTeamList');
     if (!box || !vendorId) return;
     try {
-      var data = await rxJson('/api/vendor/members?vendor_id=' + encodeURIComponent(vendorId));
+      var data = await rxJson('/api/vendor/members?vendor_id=' + encodeURIComponent(vendorId), {
+        featureKey: 'invitations',
+        operationName: 'vendor.load_members'
+      });
       var members = Array.isArray(data.members) ? data.members : [];
       box.innerHTML = members.length
         ? '<strong>Current Members (' + rxEsc(vendorId) + '):</strong><ul style="margin:6px 0 0;padding-left:18px">' +
           members
             .map(function (m) {
-              return '<li>' + rxEsc(m.email || m.user_id) + ' — <strong>' + rxEsc(m.role_label) + '</strong></li>';
+              var canRemove = m.role === 'staff';
+              return (
+                '<li style="margin:4px 0;display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+                '<span>' + rxEsc(m.email || m.user_id) + ' — <strong>' + rxEsc(m.role_label) + '</strong></span>' +
+                (canRemove
+                  ? '<button type="button" class="secondary" style="padding:3px 8px;font-size:12px" data-remove-staff="' +
+                    rxEsc(m.user_id) +
+                    '">Remove staff</button>'
+                  : '') +
+                '</li>'
+              );
             })
             .join('') +
           '</ul>'
         : 'No members found.';
+      box.querySelectorAll('[data-remove-staff]').forEach(function (btn) {
+        btn.onclick = async function () {
+          var targetUid = btn.dataset.removeStaff;
+          btn.disabled = true;
+          try {
+            await rxJson('/api/vendor/members', {
+              method: 'DELETE',
+              idempotentWrite: true,
+              featureKey: 'invitations',
+              operationName: 'vendor.remove_member',
+              body: { vendor_id: vendorId, user_id: targetUid }
+            });
+            await loadOwnerTeamMembers(vendorId);
+          } catch (remErr) {
+            btn.disabled = false;
+            var msgEl = document.getElementById('ownerStaffInviteResult');
+            if (msgEl) {
+              msgEl.hidden = false;
+              msgEl.className = 'rx-msg error';
+              msgEl.textContent = '✕ ' + (remErr.message || 'Could not remove staff member.');
+            }
+          }
+        };
+      });
     } catch (err) {
-      box.textContent = err.message;
+      box.textContent = '⏸ ' + err.message;
     }
   }
 
@@ -735,21 +846,93 @@
     var email = document.getElementById('ownerStaffEmail').value.trim();
     var note = document.getElementById('ownerStaffNote').value.trim();
     var msgEl = document.getElementById('ownerStaffInviteResult');
+    var formEl = document.getElementById('ownerStaffInviteForm');
+    var submitBtn = formEl ? formEl.querySelector('button[type="submit"]') : null;
+
+    var d = rxDiag();
+    var sig = vid + '|' + email.toLowerCase() + '|' + note;
+    if (!staffInviteDraftKey || staffInviteDraftSig !== sig) {
+      staffInviteDraftKey =
+        d && typeof d.createIdempotencyKey === 'function'
+          ? d.createIdempotencyKey('staffinv')
+          : 'staffinv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      staffInviteDraftSig = sig;
+    }
+
     msgEl.hidden = false;
     msgEl.className = 'rx-msg';
-    msgEl.textContent = 'Creating single-use staff invitation…';
+    msgEl.textContent = '⏳ Working — creating staff invitation…';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
 
     try {
       var data = await rxJson('/api/vendor/staff-invitations', {
         method: 'POST',
-        body: { vendor_id: vid, email: email, note: note }
+        idempotentWrite: true,
+        featureKey: 'invitations',
+        operationName: 'vendor.create_staff_invitation',
+        body: { vendor_id: vid, email: email, note: note, idempotency_key: staffInviteDraftKey }
       });
-      var fullLink = window.location.origin + data.accept_path;
-      msgEl.innerHTML = '✓ Staff invitation created for <strong>' + rxEsc(email) + '</strong>:<br><code>' + rxEsc(fullLink) + '</code>';
-      document.getElementById('ownerStaffInviteForm').reset();
+      staffInviteDraftKey = null;
+      staffInviteDraftSig = '';
+
+      var deliv = data.delivery || {};
+      var dStatus = deliv.delivery_status || (data.accept_path ? 'staging_mailbox_only' : 'provider_accepted');
+
+      if (dStatus === 'provider_accepted') {
+        msgEl.className = 'rx-msg';
+        msgEl.innerHTML =
+          '📤 <strong>Accepted by email provider</strong> for <strong>' +
+          rxEsc(email) +
+          '</strong>' +
+          (deliv.provider_message_id ? ' (Ref: <code>' + rxEsc(deliv.provider_message_id) + '</code>)' : '') +
+          '. Provider acceptance confirms handoff, not inbox arrival — ask them to check spam if delayed.';
+        formEl.reset();
+      } else if (dStatus === 'staging_mailbox_only' && typeof data.accept_path === 'string' && data.accept_path.indexOf('/') === 0) {
+        var fullLink = window.location.origin + data.accept_path;
+        msgEl.className = 'rx-msg';
+        msgEl.innerHTML =
+          '🧪 <strong>Staging mailbox mode (not emailed externally)</strong> — share single-use link with <strong>' +
+          rxEsc(email) +
+          '</strong>:<br><code>' +
+          rxEsc(fullLink) +
+          '</code>';
+        formEl.reset();
+      } else if (dStatus === 'delivery_uncertain') {
+        msgEl.className = 'rx-msg error';
+        msgEl.innerHTML =
+          '⚠ <strong>Invitation recorded, but email delivery is uncertain</strong> (provider timed out' +
+          (deliv.correlation_id ? ' · Ref: <code>' + rxEsc(deliv.correlation_id) + '</code>' : '') +
+          '). Confirm with <strong>' +
+          rxEsc(email) +
+          '</strong> before resending.';
+      } else if (dStatus === 'delivery_failed') {
+        msgEl.className = 'rx-msg error';
+        msgEl.innerHTML =
+          '✕ <strong>Invitation saved, but email delivery failed</strong>' +
+          (deliv.error_code ? ' (<code>' + rxEsc(deliv.error_code) + '</code>)' : '') +
+          (deliv.correlation_id ? ' · Support ref: <code>' + rxEsc(deliv.correlation_id) + '</code>' : '') +
+          '. An administrator can resend it from Accounts &amp; Invitations.';
+      } else {
+        msgEl.className = 'rx-msg';
+        msgEl.innerHTML =
+          '✓ Staff invitation recorded for <strong>' +
+          rxEsc(email) +
+          '</strong> (status: <code>' +
+          rxEsc(dStatus) +
+          '</code>).';
+        formEl.reset();
+      }
     } catch (err) {
       msgEl.className = 'rx-msg error';
-      msgEl.textContent = err.message;
+      msgEl.textContent = '✕ ' + err.message;
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+      }
     }
   }
 
@@ -773,7 +956,9 @@
 
   function switchVaTab(tab) {
     document.querySelectorAll('[data-va-tab]').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.vaTab === tab);
+      var active = b.dataset.vaTab === tab;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', String(active));
     });
     document.getElementById('vaStatusPane').hidden = tab !== 'status';
     document.getElementById('vaFormPane').hidden = tab !== 'form';
@@ -783,7 +968,7 @@
   async function openVendorApplyModal() {
     injectRoleNavigationAndModals();
     populateModalVendorSelects();
-    document.getElementById('vendorApplyModal').hidden = false;
+    rxOpenModal('vendorApplyModal');
     applyFeatureControlsToDom();
     if (!rxState.ctx || !rxState.ctx.authenticated) {
       document.getElementById('vaStatusPane').innerHTML =
@@ -869,9 +1054,39 @@
 
   async function saveOrSubmitVendorApp(mode) {
     var msgEl = document.getElementById('vaFormMsg');
+    var submitNotice = document.getElementById('vaSubmitNotice');
+    var submitBtn = document.getElementById('vaSubmitAppBtn');
+    var draftBtn = document.getElementById('vaSaveDraftBtn');
+    if (submitNotice) submitNotice.hidden = true;
+
+    var fileInput = document.getElementById('vaEvidenceFile');
+    var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+    if (file) {
+      var allowedMime = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'];
+      if (allowedMime.indexOf(file.type) === -1) {
+        msgEl.hidden = false;
+        msgEl.className = 'rx-msg error';
+        msgEl.textContent = '✕ Unsupported file format. Choose a PDF, PNG, JPEG, or WebP file (up to 512 KiB). Your form text is preserved.';
+        return;
+      }
+      if (file.size > 512 * 1024) {
+        msgEl.hidden = false;
+        msgEl.className = 'rx-msg error';
+        msgEl.textContent = '✕ Evidence file exceeds 512 KiB (' + Math.ceil(file.size / 1024) + ' KiB). Choose a smaller file or submit without an attachment — your form text is preserved.';
+        return;
+      }
+    }
+
     msgEl.hidden = false;
     msgEl.className = 'rx-msg';
-    msgEl.textContent = mode === 'submit' ? 'Submitting application…' : 'Saving draft…';
+    msgEl.textContent = mode === 'submit' ? '⏳ Working — submitting application for review…' : '⏳ Working — saving draft…';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
+    if (draftBtn) draftBtn.disabled = true;
+
+    var draftSavedFirst = false;
 
     try {
       var appType = document.getElementById('vaType').value;
@@ -892,20 +1107,25 @@
         ownership_statement: document.getElementById('vaStatement').value.trim()
       };
 
-      // Save as draft first if uploading evidence before submitting
-      var fileInput = document.getElementById('vaEvidenceFile');
-      var file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-
       if (file && mode === 'submit') {
         var draftOut = await rxJson('/api/onboarding/applications', {
           method: 'POST',
+          idempotentWrite: true,
+          featureKey: 'onboarding_uploads',
+          operationName: 'onboarding.save_draft_before_upload',
           body: Object.assign({}, payload, { action: 'save_draft' })
         });
         var appId = draftOut.application.id;
+        // Persist the saved draft ID immediately so any subsequent upload/network error updates this draft instead of duplicating!
+        document.getElementById('vaEditId').value = appId;
         payload.application_id = appId;
+        draftSavedFirst = true;
+
         var b64 = await readFileAsBase64(file);
         await rxJson('/api/onboarding/evidence', {
           method: 'POST',
+          featureKey: 'onboarding_uploads',
+          operationName: 'onboarding.upload_evidence',
           body: {
             application_id: appId,
             filename: file.name,
@@ -918,13 +1138,20 @@
 
       var finalOut = await rxJson('/api/onboarding/applications', {
         method: 'POST',
+        idempotentWrite: Boolean(payload.application_id),
+        featureKey: 'onboarding_uploads',
+        operationName: mode === 'submit' ? 'onboarding.submit_application' : 'onboarding.save_draft',
         body: payload
       });
 
       if (file && mode !== 'submit') {
+        document.getElementById('vaEditId').value = finalOut.application.id;
+        draftSavedFirst = true;
         var b64Draft = await readFileAsBase64(file);
         await rxJson('/api/onboarding/evidence', {
           method: 'POST',
+          featureKey: 'onboarding_uploads',
+          operationName: 'onboarding.upload_draft_evidence',
           body: {
             application_id: finalOut.application.id,
             filename: file.name,
@@ -938,10 +1165,31 @@
       document.getElementById('vaFormPane').reset();
       document.getElementById('vaEditId').value = '';
       msgEl.hidden = true;
+      if (submitNotice) {
+        submitNotice.hidden = false;
+        submitNotice.className = 'rx-msg';
+        submitNotice.textContent =
+          mode === 'submit'
+            ? '📨 Submitted for review — your vendor application is queued for administrator review and is not yet approved or live.'
+            : '✓ Draft saved to your account. You can return here anytime to complete and submit it.';
+      }
       switchVaTab('status');
     } catch (err) {
       msgEl.className = 'rx-msg error';
-      msgEl.textContent = err.message;
+      if (draftSavedFirst) {
+        msgEl.textContent =
+          '⚠ Partial completion: your application draft text was saved to your account, but the file upload or final submit step failed (' +
+          err.message +
+          '). Your form text is preserved above — replace or clear the file and click Submit again (no duplicate draft will be created).';
+      } else {
+        msgEl.textContent = '✕ ' + err.message + ' Your form entries remain above so you can fix and retry.';
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+      }
+      if (draftBtn) draftBtn.disabled = false;
     }
   }
 
@@ -950,7 +1198,9 @@
   // =========================================================================
   function switchSiTab(tab) {
     document.querySelectorAll('[data-si-tab]').forEach(function (b) {
-      b.classList.toggle('active', b.dataset.siTab === tab);
+      var active = b.dataset.siTab === tab;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', String(active));
     });
     document.getElementById('siListPane').hidden = tab !== 'list';
     document.getElementById('siNewPane').hidden = tab !== 'new';
@@ -960,7 +1210,7 @@
   async function openSupportIssuesModal() {
     injectRoleNavigationAndModals();
     populateModalVendorSelects();
-    document.getElementById('supportIssuesModal').hidden = false;
+    rxOpenModal('supportIssuesModal');
     if (!rxState.ctx || !rxState.ctx.authenticated) {
       document.getElementById('siListPane').innerHTML =
         '<div class="rx-card"><h3>Sign in required</h3><p>Sign in so our support team can respond privately to your account.</p><a class="primary" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:9px" href="/login.html?next=/">Sign in →</a></div>';
@@ -1024,43 +1274,109 @@
               .join('')
           : '<p><small>No responses yet.</small></p>') +
         '<form class="rx-form" data-si-reply="' + rxEsc(issueId) + '">' +
-        '<input type="text" required minlength="2" maxlength="2000" placeholder="Write a reply…">' +
+        '<label class="sr-only" for="siReplyInput-' + rxEsc(issueId) + '">Write a reply</label>' +
+        '<input id="siReplyInput-' + rxEsc(issueId) + '" type="text" required minlength="2" maxlength="1500" placeholder="Write a reply…">' +
+        '<div class="rx-msg error" data-si-reply-err hidden role="alert"></div>' +
         '<button type="submit" class="secondary">Send Reply</button>' +
         '</form>';
       var form = box.querySelector('[data-si-reply]');
       form.onsubmit = async function (e) {
         e.preventDefault();
         var inp = form.querySelector('input');
-        await rxJson('/api/issues/reply', { method: 'POST', body: { issue_id: issueId, message: inp.value.trim() } });
-        loadSupportIssueThread(issueId);
+        var btn = form.querySelector('button[type="submit"]');
+        var errBox = form.querySelector('[data-si-reply-err]');
+        if (errBox) errBox.hidden = true;
+        if (btn) {
+          btn.disabled = true;
+          btn.setAttribute('aria-busy', 'true');
+        }
+        try {
+          await rxJson('/api/issues/reply', {
+            method: 'POST',
+            featureKey: 'support_issues',
+            operationName: 'issues.reply',
+            body: { issue_id: issueId, message: inp.value.trim() }
+          });
+          await loadSupportIssueThread(issueId);
+        } catch (repErr) {
+          if (errBox) {
+            errBox.hidden = false;
+            errBox.textContent = '✕ ' + (repErr.message || 'Could not send reply. Your message is preserved above.');
+          }
+          if (btn) {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+          }
+        }
       };
     } catch (err) {
-      box.innerHTML = '<div class="rx-msg error">' + rxEsc(err.message) + '</div>';
+      box.innerHTML = '<div class="rx-msg error">⏸ ' + rxEsc(err.message) + '</div>';
     }
   }
 
   async function submitNewSupportIssue(e) {
     e.preventDefault();
     var msgEl = document.getElementById('siFormMsg');
+    var noticeEl = document.getElementById('siSubmitNotice');
+    var submitBtn = document.getElementById('siSubmitIssueBtn');
+    if (noticeEl) noticeEl.hidden = true;
+
+    var cat = document.getElementById('siCategory').value;
+    var vend = document.getElementById('siVendorId').value || null;
+    var subj = document.getElementById('siSubject').value.trim();
+    var desc = document.getElementById('siDescription').value.trim();
+
+    var d = rxDiag();
+    var sig = [cat, vend || '', subj, desc].join('|');
+    if (!supportIssueDraftKey || supportIssueDraftSig !== sig) {
+      supportIssueDraftKey =
+        d && typeof d.createIdempotencyKey === 'function'
+          ? d.createIdempotencyKey('issue')
+          : 'issue_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+      supportIssueDraftSig = sig;
+    }
+
     msgEl.hidden = false;
     msgEl.className = 'rx-msg';
-    msgEl.textContent = 'Submitting issue…';
+    msgEl.textContent = '⏳ Working — submitting private support ticket…';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
+    }
     try {
       await rxJson('/api/issues', {
         method: 'POST',
+        idempotentWrite: true,
+        featureKey: 'support_issues',
+        operationName: 'issues.create',
         body: {
-          category: document.getElementById('siCategory').value,
-          vendor_id: document.getElementById('siVendorId').value || null,
-          subject: document.getElementById('siSubject').value.trim(),
-          description: document.getElementById('siDescription').value.trim()
+          category: cat,
+          vendor_id: vend,
+          subject: subj,
+          description: desc,
+          idempotency_key: supportIssueDraftKey
         }
       });
+      supportIssueDraftKey = null;
+      supportIssueDraftSig = '';
       document.getElementById('siNewPane').reset();
       msgEl.hidden = true;
+      if (noticeEl) {
+        noticeEl.hidden = false;
+        noticeEl.textContent = '📨 Submitted — your private support ticket was saved to your account. Track moderator responses below.';
+      }
       switchSiTab('list');
     } catch (err) {
       msgEl.className = 'rx-msg error';
-      msgEl.textContent = err.message;
+      msgEl.textContent =
+        (err.uncertainWrite
+          ? '⚠ Outcome uncertain — timed out waiting for confirmation. Submitting again safely reuses the same ticket key: '
+          : '✕ ') + err.message;
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
+      }
     }
   }
 
@@ -1072,7 +1388,7 @@
     document.getElementById('crPostId').value = postId;
     document.getElementById('crDetails').value = '';
     document.getElementById('crFormMsg').hidden = true;
-    document.getElementById('communityReportModal').hidden = false;
+    rxOpenModal('communityReportModal');
   };
 
   async function submitCommunityReport(e) {

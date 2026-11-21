@@ -180,8 +180,12 @@ async function joinPager(e){
   await refreshPager();
 }
 
-let pagerDemoTimer=null,pagerDemoAuto=false;
+let pagerDemoTimer=null,pagerDemoAuto=false,lastPagerRenderSignature='';
 const pagerDemoStages=['cooking','almost','ready','collected'];
+
+function pagerDiag(){
+  return typeof window!=='undefined'&&window.bitesharkDiagnostics?window.bitesharkDiagnostics:null;
+}
 
 function pagerClearDemoTimer(){
   if(pagerDemoTimer){clearTimeout(pagerDemoTimer);pagerDemoTimer=null;}
@@ -205,17 +209,32 @@ function renderPager(p){
   if(!pagerDemo&&pagerToken&&(p.status==='collected'||p.status==='cancelled')){
     removeLocalPagerSub(pagerToken);
   }
+  const hasSub=Boolean(!pagerDemo&&pagerToken&&getLocalPagerSub(pagerToken));
+  const notifPerm=typeof Notification!=='undefined'?Notification.permission:'na';
+  const sig=[pagerDemo?'demo':'live',p.vendor||'',p.ticket||'',p.status,pagerSound?'1':'0',pagerPushBusy?'1':'0',pagerPushError||'',pagerPushServer.enabled?'1':'0',hasSub?'1':'0',notifPerm].join('|');
   const panel=document.getElementById('pagerDisplay');
+  const liveNoteText=pagerDemo
+    ?'A sample only — the buttons do not contact a real kitchen.'
+    :'Last checked '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+' · Live check every ~8s while open';
+
+  const liveNoteEl=typeof panel.querySelector==='function'?panel.querySelector('.pager-live-note'):null;
+  if(!changed&&sig===lastPagerRenderSignature&&liveNoteEl){
+    liveNoteEl.textContent=liveNoteText;
+    return;
+  }
+  lastPagerRenderSignature=sig;
+
   panel.className='food-pager pager-stage-'+p.status+(p.status==='ready'?' ready':'')+(pagerDemo?' pager-demo-active':'');
   const steps=['Cooking','Almost there','Ready!','Picked up'];
   const icons=['🍳','🥙','🔔','🙌'];
   const tracker='<ol class="pager-roadmap" aria-label="Pickup progress">'+steps.map(function(label,i){
     const cls=i<state.step?'complete':i===state.step?'current':'waiting';
-    return '<li class="'+cls+'"><span class="pager-roadmap-dot" aria-hidden="true">'+icons[i]+'</span><span>'+label+'</span></li>';
+    const srStep=i<state.step?' (completed)':i===state.step?' (current step)':' (upcoming)';
+    return '<li class="'+cls+'"'+(i===state.step?' aria-current="step"':'')+'><span class="pager-roadmap-dot" aria-hidden="true">'+icons[i]+'</span><span>'+label+'<span class="sr-only">'+srStep+'</span></span></li>';
   }).join('')+'</ol>';
   const meal=pagerDemo?'<div class="pager-demo-ticket"><span>🍔 SAMPLE ORDER · NO CHARGE</span><b>2 smash burgers + crispy fries</b></div>':'';
   const next=pagerDemoStages[pagerDemoStages.indexOf(p.status)+1];
-  const kitchen=pagerDemo?'<div class="pager-demo-workbench"><div class="pager-workbench-label"><span>👩‍🍳</span><div><strong>Now you are the kitchen!</strong><small>Change the fake order status like a food-truck owner.</small></div></div>'+
+  const kitchen=pagerDemo?'<div class="pager-demo-workbench"><div class="pager-workbench-label"><span aria-hidden="true">👩‍🍳</span><div><strong>Now you are the kitchen!</strong><small>Change the fake order status like a food-truck owner.</small></div></div>'+
     (next?'<button type="button" class="pager-next-step" onclick="pagerAdvanceDemo()">Move to '+pagerEscape(steps[pagerDemoStages.indexOf(next)])+' <span aria-hidden="true">→</span></button>':'<button type="button" class="pager-next-step" onclick="startPagerDemo()">🔁 Replay this food adventure</button>')+
     '<div class="pager-demo-utility">'+(next?'<button type="button" onclick="pagerToggleAutoplay()">'+(pagerDemoAuto?'⏸ Pause auto-demo':'▶ Resume auto-demo')+'</button>':'')+
     '<button type="button" onclick="pagerLeaveDemo()">End demo</button></div></div>':'';
@@ -227,8 +246,15 @@ function renderPager(p){
     '<h2>'+state.title+'</h2><p>'+state.copy+'</p>'+tracker+
     '<button type="button" class="pager-sound" onclick="enablePagerSound()">'+(pagerSound?'♫ Sound on · tap to mute':'♫ Try the ready sound')+'</button>'+
     pushSection+
-    '<p class="pager-live-note">'+(pagerDemo?'A sample only — the buttons do not contact a real kitchen.':'Last checked '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})+' · Live check every ~8s while open')+'</p>'+kitchen;
-  if(changed&&p.status==='ready'&&pagerSound)ringPager();
+    '<p class="pager-live-note">'+liveNoteText+'</p>'+kitchen;
+
+  if(changed){
+    const liveStatus=document.getElementById('pagerLiveStatus');
+    if(liveStatus){
+      liveStatus.textContent=(pagerDemo?'Sample order: ':'Order #'+(p.ticket||'')+': ')+state.title;
+    }
+    if(p.status==='ready'&&pagerSound)ringPager();
+  }
 }
 
 async function subscribePagerPush(){
@@ -269,18 +295,40 @@ async function subscribePagerPush(){
     if(priorSaved&&typeof priorSaved.subscription_id==='string'&&priorSaved.subscription_id){
       reqPayload.replaces_subscription_id=priorSaved.subscription_id;
     }
-    const resp=await fetch('/api/pager/subscriptions',{
-      method:'POST',
-      credentials:'same-origin',
-      cache:'no-store',
-      headers:{
-        'Content-Type':'application/json',
-        'X-BiteShark-Client':'web-pager-v1'
-      },
-      body:JSON.stringify(reqPayload)
-    });
-    const out=await resp.json().catch(()=>({}));
-    if(!resp.ok||!out.subscription){
+    const d=pagerDiag();
+    let out={};
+    let ok=false;
+    if(d&&typeof d.fetchJsonBounded==='function'){
+      const res=await d.fetchJsonBounded('/api/pager/subscriptions',{
+        method:'POST',
+        isWrite:true,
+        idempotentWrite:true,
+        credentials:'same-origin',
+        cache:'no-store',
+        featureKey:'pagers',
+        operationName:'pager.subscribe_push',
+        routeTemplate:'/api/pager/subscriptions',
+        headers:{'X-BiteShark-Client':'web-pager-v1'},
+        body:reqPayload
+      });
+      ok=res.ok;
+      out=res.data||{};
+      if(!ok)throw new Error((out.error||res.errorMessage||'Could not activate background ready alerts.')+(res.correlationId?' (Support ref: '+res.correlationId+')':''));
+    }else{
+      const resp=await fetch('/api/pager/subscriptions',{
+        method:'POST',
+        credentials:'same-origin',
+        cache:'no-store',
+        headers:{
+          'Content-Type':'application/json',
+          'X-BiteShark-Client':'web-pager-v1'
+        },
+        body:JSON.stringify(reqPayload)
+      });
+      out=await resp.json().catch(()=>({}));
+      ok=resp.ok;
+    }
+    if(!ok||!out.subscription){
       throw new Error(out.error||'Could not activate background ready alerts.');
     }
     saveLocalPagerSub(pagerToken,{
@@ -307,23 +355,46 @@ async function unsubscribePagerPush(){
 
   try{
     if(saved&&saved.subscription_id){
-      const resp=await fetch('/api/pager/subscriptions',{
-        method:'DELETE',
-        credentials:'same-origin',
-        cache:'no-store',
-        headers:{
-          'Content-Type':'application/json',
-          'X-BiteShark-Client':'web-pager-v1'
-        },
-        body:JSON.stringify({
-          subscription_id:saved.subscription_id,
-          unsubscribe_token:saved.unsubscribe_token||'',
-          code:pagerToken
-        })
-      });
-      if(!resp.ok&&resp.status!==404){
-        const out=await resp.json().catch(()=>({}));
-        throw new Error(out.error||'Could not turn off background alerts.');
+      const d=pagerDiag();
+      if(d&&typeof d.fetchJsonBounded==='function'){
+        const res=await d.fetchJsonBounded('/api/pager/subscriptions',{
+          method:'DELETE',
+          isWrite:true,
+          idempotentWrite:true,
+          credentials:'same-origin',
+          cache:'no-store',
+          featureKey:'pagers',
+          operationName:'pager.unsubscribe_push',
+          routeTemplate:'/api/pager/subscriptions',
+          headers:{'X-BiteShark-Client':'web-pager-v1'},
+          body:{
+            subscription_id:saved.subscription_id,
+            unsubscribe_token:saved.unsubscribe_token||'',
+            code:pagerToken
+          }
+        });
+        if(!res.ok&&res.status!==404){
+          throw new Error((res.data?.error||res.errorMessage||'Could not turn off background alerts.')+(res.correlationId?' (Support ref: '+res.correlationId+')':''));
+        }
+      }else{
+        const resp=await fetch('/api/pager/subscriptions',{
+          method:'DELETE',
+          credentials:'same-origin',
+          cache:'no-store',
+          headers:{
+            'Content-Type':'application/json',
+            'X-BiteShark-Client':'web-pager-v1'
+          },
+          body:JSON.stringify({
+            subscription_id:saved.subscription_id,
+            unsubscribe_token:saved.unsubscribe_token||'',
+            code:pagerToken
+          })
+        });
+        if(!resp.ok&&resp.status!==404){
+          const out=await resp.json().catch(()=>({}));
+          throw new Error(out.error||'Could not turn off background alerts.');
+        }
       }
     }
     removeLocalPagerSub(pagerToken);
@@ -333,7 +404,10 @@ async function unsubscribePagerPush(){
         const reg=await navigator.serviceWorker.getRegistration('/').catch(()=>null);
         const browserSub=reg?await reg.pushManager.getSubscription().catch(()=>null):null;
         if(browserSub&&typeof browserSub.unsubscribe==='function'){
-          await browserSub.unsubscribe().catch(()=>false);
+          const unsubOk=await browserSub.unsubscribe().catch(()=>false);
+          if(!unsubOk){
+            pagerPushError='Server alerts turned off, though your browser retained its push token. You can revoke notification permission in browser settings.';
+          }
         }
       }
     }
@@ -350,9 +424,26 @@ async function refreshPager(){
   pagerBusy=true;
   const requestedToken=pagerToken;
   try{
-    const r=await fetch('/api/pager/status?code='+encodeURIComponent(pagerToken),{cache:'no-store'});
-    const out=await r.json();
-    if(!r.ok)throw new Error(out.error||'Unable to check this pager.');
+    const d=pagerDiag();
+    let out=null;
+    if(d&&typeof d.fetchJsonBounded==='function'){
+      const res=await d.fetchJsonBounded('/api/pager/status?code='+encodeURIComponent(pagerToken),{
+        timeoutMs:7500,
+        cache:'no-store',
+        featureKey:'pagers',
+        operationName:'pager.poll_status',
+        routeTemplate:'/api/pager/status'
+      });
+      if(!res.ok){
+        const baseMsg=res.data?.error||res.errorMessage||'Unable to check this pager right now.';
+        throw new Error(baseMsg+(res.correlationId?' (Support ref: '+res.correlationId+')':''));
+      }
+      out=res.data;
+    }else{
+      const r=await fetch('/api/pager/status?code='+encodeURIComponent(pagerToken),{cache:'no-store'});
+      out=await r.json().catch(()=>null);
+      if(!r.ok||!out)throw new Error((out&&out.error)||'Unable to check this pager right now.');
+    }
     if(pagerDemo||pagerToken!==requestedToken)return;
     if(out.notifications&&typeof out.notifications==='object'){
       pagerPushServer={
@@ -363,8 +454,9 @@ async function refreshPager(){
     renderPager(out.pager);
     document.getElementById('pagerMessage').textContent='';
   }catch(e){
-    document.getElementById('pagerMessage').textContent=e.message||'Connection lost. Your displayed status may be out of date. Try again.';
-    document.querySelector('#pagerDisplay .pager-live-note')?.replaceChildren(document.createTextNode('Not connected — status may be out of date.'));
+    const msg=e.message||'Connection lost. Your displayed status may be out of date. Try again.';
+    document.getElementById('pagerMessage').textContent=msg;
+    document.querySelector('#pagerDisplay .pager-live-note')?.replaceChildren(document.createTextNode('⚠ Not connected — displayed status may be out of date. Retrying automatically…'));
   }finally{
     pagerBusy=false;
   }
@@ -416,9 +508,11 @@ function startPagerDemo(){
   if(!document.getElementById('pagerScreen').classList.contains('active'))showScreen('pager');
   pagerClearDemoTimer();
   pagerDemo=true;
-  pagerDemoAuto=true;
+  const d=pagerDiag();
+  pagerDemoAuto=!(d&&typeof d.prefersReducedMotion==='function'&&d.prefersReducedMotion());
   pagerToken=null;
   pagerStatus=null;
+  lastPagerRenderSignature='';
   pagerPushError='';
   document.getElementById('pagerMessage').textContent='🎮 Demo running: this is not a real order and no one is being notified.';
   demoPagerStep('cooking');
@@ -466,6 +560,44 @@ function currentKitchenVendorId(){
 }
 
 async function kitchenFetch(path,options={}){
+  const d=pagerDiag();
+  const method=String(options.method||'GET').toUpperCase();
+  const isWrite=method!=='GET'&&method!=='HEAD';
+  const cleanRoute='/api/pager/'+String(path||'').split('?')[0];
+  if(d&&typeof d.fetchJsonBounded==='function'){
+    const res=await d.fetchJsonBounded('/api/pager/'+path,{
+      method,
+      isWrite,
+      idempotentWrite:Boolean(options.idempotentWrite),
+      credentials:'same-origin',
+      cache:'no-store',
+      featureKey:'pagers',
+      operationName:'pager.kitchen_'+method.toLowerCase(),
+      routeTemplate:cleanRoute,
+      headers:options.headers||{},
+      body:options.body,
+      fetchInit:{redirect:'manual'}
+    });
+    if(res.status===401){
+      const err=new Error('Sign in with an authorized vendor or admin account to manage pickup tickets.');
+      try{
+        const url=new URL(res.data?.login_url||'/login.html?next=/',location.origin);
+        if(url.origin===location.origin)err.login=url.href;
+      }catch{}
+      throw err;
+    }
+    if(res.uncertainWrite||res.timedOut){
+      const err=new Error((res.errorMessage||'Outcome uncertain — timed out waiting for kitchen server confirmation.')+(res.correlationId?' (Support ref: '+res.correlationId+')':''));
+      err.uncertainWrite=Boolean(res.uncertainWrite);
+      throw err;
+    }
+    if(!res.ok){
+      const base=res.data?.error||(res.status===403?'You do not have permission for this vendor kitchen queue.':(res.errorMessage||'The update did not save. Please retry.'));
+      throw new Error(base+(res.correlationId?' (Support ref: '+res.correlationId+')':''));
+    }
+    return res.data;
+  }
+
   const r=await fetch('/api/pager/'+path,{
     ...options,
     credentials:'same-origin',
@@ -538,14 +670,19 @@ async function createPager(e){
     kitchenRequestSig=sig;
   }
   try{
-    await kitchenFetch('staff',{method:'POST',body:JSON.stringify({vendor_id:vid,ticket,request_key:kitchenRequestKey})});
+    await kitchenFetch('staff',{method:'POST',idempotentWrite:true,body:JSON.stringify({vendor_id:vid,ticket,request_key:kitchenRequestKey})});
     kitchenRequestKey=null;
     kitchenRequestSig='';
     document.getElementById('pagerTicket').value='';
     await loadKitchen();
-    document.getElementById('kitchenMessage').textContent='Pager created. Share its private link with the customer.';
+    document.getElementById('kitchenMessage').textContent='✓ Saved to server — pager created. Share its private link with the customer.';
   }catch(err){
-    kitchenError(err);
+    if(err&&err.uncertainWrite){
+      await loadKitchen();
+      document.getElementById('kitchenMessage').textContent=err.message+' Queue refreshed; retrying safely reuses the same request key.';
+    }else{
+      kitchenError(err);
+    }
   }finally{
     const fc=typeof window!=='undefined'&&window.bitesharkFeatures?window.bitesharkFeatures:null;
     button.disabled=Boolean(fc&&!fc.isAvailable('pickup_pager_creation'));
@@ -555,12 +692,17 @@ async function createPager(e){
 async function updatePagerStatus(id,status,button){
   button.disabled=true;
   try{
-    await kitchenFetch('update',{method:'POST',body:JSON.stringify({id,status})});
+    await kitchenFetch('update',{method:'POST',idempotentWrite:true,body:JSON.stringify({id,status})});
     await loadKitchen();
-    document.getElementById('kitchenMessage').textContent='Ticket updated.';
+    document.getElementById('kitchenMessage').textContent='✓ Ticket status saved to server.';
   }catch(e){
-    button.disabled=false;
-    kitchenError(e);
+    if(e&&e.uncertainWrite){
+      await loadKitchen();
+      document.getElementById('kitchenMessage').textContent=e.message+' Refreshed queue to verify current status.';
+    }else{
+      button.disabled=false;
+      kitchenError(e);
+    }
   }
 }
 

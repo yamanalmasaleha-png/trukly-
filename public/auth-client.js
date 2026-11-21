@@ -18,19 +18,45 @@
   var AUTH_CLIENT_HEADER = 'web-auth-v1';
 
   async function postAuthJson(path, payload) {
-    var res = await fetch('/api/auth/' + path, {
-      method: 'POST',
-      credentials: 'same-origin',
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-BiteShark-Client': AUTH_CLIENT_HEADER
-      },
-      body: JSON.stringify(payload || {})
-    });
+    var overrideMs = Number(window.__BITESHARK_FETCH_TIMEOUT_MS);
+    var timeoutMs = Number.isFinite(overrideMs) && overrideMs >= 50 ? overrideMs : 12000;
+    var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs) : null;
+    var res;
+    try {
+      res = await fetch('/api/auth/' + path, {
+        method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-BiteShark-Client': AUTH_CLIENT_HEADER
+        },
+        body: JSON.stringify(payload || {}),
+        ...(ctrl ? { signal: ctrl.signal } : {})
+      });
+    } catch (netErr) {
+      if (timer) clearTimeout(timer);
+      var timedOut = Boolean(netErr && netErr.name === 'AbortError');
+      var wrapped = new Error(
+        timedOut
+          ? 'BiteShark took too long to respond. Please check your connection and try again.'
+          : 'Could not reach BiteShark right now. Check your connection and try again.'
+      );
+      wrapped.code = timedOut ? 'AUTH_REQUEST_TIMEOUT' : 'AUTH_NETWORK_ERROR';
+      throw wrapped;
+    }
+    if (timer) clearTimeout(timer);
     var data = await res.json().catch(function () {
-      return {};
+      return null;
     });
+    if (data === null) {
+      var badJsonErr = new Error('BiteShark returned an unreadable response (HTTP ' + res.status + '). Please try again.');
+      badJsonErr.status = res.status;
+      badJsonErr.code = 'MALFORMED_AUTH_RESPONSE';
+      badJsonErr.correlationId = res.headers.get('X-Correlation-Id') || null;
+      throw badJsonErr;
+    }
     if (!res.ok) {
       var err = new Error(data.error || 'Authentication request failed.');
       err.status = res.status;
@@ -86,15 +112,26 @@
     },
 
     async getSession() {
-      var res = await fetch('/api/auth/session', {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-      if (!res.ok) return null;
-      return res.json().catch(function () {
+      var overrideMs = Number(window.__BITESHARK_FETCH_TIMEOUT_MS);
+      var timeoutMs = Number.isFinite(overrideMs) && overrideMs >= 50 ? overrideMs : 10000;
+      var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, timeoutMs) : null;
+      try {
+        var res = await fetch('/api/auth/session', {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          ...(ctrl ? { signal: ctrl.signal } : {})
+        });
+        if (!res.ok) return null;
+        return await res.json().catch(function () {
+          return null;
+        });
+      } catch (_e) {
         return null;
-      });
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     },
 
     async getUser() {
