@@ -590,11 +590,11 @@
   color: #183a2d;
 }
 
-.welcome-card h1:focus,
-.welcome-card h1:focus-visible,
-.vendor-intro-card h1:focus,
-.vendor-intro-card h1:focus-visible {
-  outline: none;
+#welcomeHeading:focus,
+#welcomeHeading:focus-visible,
+#vendorIntroHeading:focus,
+#vendorIntroHeading:focus-visible {
+  outline: none !important;
 }
 
 .welcome-lead,

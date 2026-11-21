@@ -574,11 +574,31 @@
         bar.setAttribute('aria-label', 'Help and feedback');
         bar.innerHTML =
           '<span><strong>🛟 Need help or have an idea?</strong> Report a problem, ask a question, or share feedback privately with BiteShark.</span>' +
-          '<button type="button" data-rx-open-help="customer">Help &amp; feedback</button>';
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+          '<button type="button" data-rx-open-help="customer">Help &amp; feedback</button>' +
+          (cfg.barId === 'rxDiscoverHelpBar'
+            ? '<button type="button" id="rxDiscoverForBusinessesBtn">🏪 For food businesses</button>' +
+              '<button type="button" id="rxDiscoverForgetPrefBtn" hidden>↺ Forget start preference</button>'
+            : '') +
+          '</div>';
         host.appendChild(bar);
         bar.querySelector('[data-rx-open-help]').onclick = function () {
           openSupportIssuesModal({ reporterContext: 'customer' });
         };
+        if (cfg.barId === 'rxDiscoverHelpBar') {
+          var bizBtn = document.getElementById('rxDiscoverForBusinessesBtn');
+          if (bizBtn) {
+            bizBtn.onclick = function () {
+              openVendorIntroScreen({ focusHeading: true });
+            };
+          }
+          var fgBtn = document.getElementById('rxDiscoverForgetPrefBtn');
+          if (fgBtn) {
+            fgBtn.onclick = function () {
+              forgetSavedStartPreference();
+            };
+          }
+        }
       }
     });
 
@@ -3353,6 +3373,10 @@
     var viBadge = document.getElementById('viRememberedBadge');
     if (viBadge) {
       viBadge.hidden = savedPref !== 'vendor';
+    }
+    var discForget = document.getElementById('rxDiscoverForgetPrefBtn');
+    if (discForget) {
+      discForget.hidden = !savedPref;
     }
     var swBtn = document.getElementById('rxSwitchExperienceBtn');
     if (swBtn) {
