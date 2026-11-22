@@ -269,6 +269,12 @@ fs.copyFileSync(resolved, dstPath);
 fs.chmodSync(dstPath, 0o600);
 NODE
 
+    if [[ "$(id -u)" -eq 0 && -n "${STG2_UNPRIV_USER}" ]]; then
+      chgrp "${STG2_UNPRIV_USER}" "${SAFE_UPLOAD_DIR}" "${SAFE_UPLOAD_DIR}/release.tar.gz"
+      chmod 0750 "${SAFE_UPLOAD_DIR}"
+      chmod 0640 "${SAFE_UPLOAD_DIR}/release.tar.gz"
+    fi
+
     export BITESHARK_STAGING_ROOT="${STG2_ROOT}"
     export BITESHARK_STAGING_ETC="${STG2_ETC}"
     export BITESHARK_DEPLOY_LOCK_FILE="${STG2_LOCK}"
