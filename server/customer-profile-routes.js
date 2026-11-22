@@ -4,6 +4,7 @@
 
 import { auth } from '@biteshark/runtime-adapter';
 import { loadAccessContext } from '../lib/authz.js';
+import { readEnvCompat } from '../lib/env-compat.js';
 import {
   loadPersistedFeatureControls,
   evaluateFeatureControlsSnapshot
@@ -24,6 +25,16 @@ import {
   createOwnerCollection,
   updateOwnerCollection,
   deleteOwnerCollection,
+  submitAdultSharingEligibility,
+  previewOwnerSharedCollection,
+  listOwnerShares,
+  createCollectionShareLink,
+  updateCollectionShareSettings,
+  rotateCollectionShareLink,
+  revokeCollectionShareLink,
+  resolveLiveSharedCollectionByToken,
+  renderSharedCollectionHtmlPage,
+  renderSharedUnavailableHtmlPage,
   exportCustomerProfileAndExplorationArchive,
   clearCustomerProfileAndCollectionsData
 } from '../lib/customer-profile.js';
@@ -351,6 +362,147 @@ export async function handleCustomerProfileRoute({
       return sendJson(200, deleted);
     }
 
+    // 8. Owner Shared Projection Preview (`POST /api/me/collections/preview`)
+    if (pathname === '/api/me/collections/preview') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, verifiedUser);
+      const out = await previewOwnerSharedCollection(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        featureStates
+      });
+      return sendJson(200, out);
+    }
+
+    // 9. One-Time Self-Attested 18+ Sharing Eligibility (`POST /api/me/sharing-eligibility` — zero DOB stored)
+    if (pathname === '/api/me/sharing-eligibility') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const out = await submitAdultSharingEligibility(dbAdapter, {
+        userId: verifiedUser.id,
+        body
+      });
+      return sendJson(200, out);
+    }
+
+    // 10. List Owner Shares (`GET /api/me/shares` — always available to owner!)
+    if (pathname === '/api/me/shares') {
+      if (method !== 'GET') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const out = await listOwnerShares(dbAdapter, {
+        userId: verifiedUser.id,
+        collectionId: query.collection_id || null
+      });
+      return sendJson(200, out);
+    }
+
+    // 11. Create Hashed Unlisted Share Link (`POST /api/me/shares/create`)
+    if (pathname === '/api/me/shares/create') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const publicOrigin = readEnvCompat('PUBLIC_ORIGIN', { securityCritical: false, defaultValue: '' });
+      const created = await createCollectionShareLink(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        publicOrigin
+      });
+      return sendJson(created.idempotent_replay ? 200 : 201, created);
+    }
+
+    // 12. Update Share Disclosure Flags / Expiry (`POST /api/me/shares/update-settings`)
+    if (pathname === '/api/me/shares/update-settings') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const updated = await updateCollectionShareSettings(dbAdapter, {
+        userId: verifiedUser.id,
+        body
+      });
+      return sendJson(200, updated);
+    }
+
+    // 13. Rotate / Replace Share Link (`POST /api/me/shares/rotate`)
+    if (pathname === '/api/me/shares/rotate') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const publicOrigin = readEnvCompat('PUBLIC_ORIGIN', { securityCritical: false, defaultValue: '' });
+      const rotated = await rotateCollectionShareLink(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        publicOrigin
+      });
+      return sendJson(200, rotated);
+    }
+
+    // 14. Revoke Share Link (`POST /api/me/shares/revoke` — ALWAYS available even if sharing paused/hidden!)
+    if (pathname === '/api/me/shares/revoke') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      assertNoForbiddenClientWriteFields(body);
+      const revoked = await revokeCollectionShareLink(dbAdapter, {
+        userId: verifiedUser.id,
+        shareId: body.share_id,
+        reason: body.reason
+      });
+      return sendJson(200, revoked);
+    }
+
     return sendJson(404, { ok: false, error: 'Profile endpoint not found.', code: 'NOT_FOUND' });
   } catch (err) {
     const status = err instanceof CustomerProfileDomainError ? err.status : 500;
@@ -373,5 +525,95 @@ export async function handleCustomerProfileRoute({
       });
     }
     return sendProfileError(sendJson, req, err);
+  }
+}
+
+export function applyUnlistedSharedSecurityHeaders(res) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+  );
+}
+
+/**
+ * Dynamic server-rendered `/s/<opaque-token>` recipient handler.
+ * Never logs raw tokens; expected invalid/expired/revoked tokens return uniform neutral 404 HTML
+ * without generating high-severity diagnostic incidents.
+ */
+export async function handlePublicSharedPageRequest({
+  rawToken,
+  method,
+  req,
+  res,
+  dbAdapter,
+  viewerAuthenticated = false
+}) {
+  applyUnlistedSharedSecurityHeaders(res);
+  req.__bsRouteTemplate = '/s/:token';
+
+  if (method !== 'GET' && method !== 'HEAD') {
+    res.statusCode = 405;
+    res.setHeader('Allow', 'GET, HEAD');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.end('Method not allowed.');
+    return;
+  }
+
+  try {
+    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, null);
+    const resolved = await resolveLiveSharedCollectionByToken(dbAdapter, {
+      rawToken,
+      systemFeatureStates: featureStates
+    });
+
+    if (!resolved.available) {
+      const html404 = renderSharedUnavailableHtmlPage();
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Length', Buffer.byteLength(html404, 'utf8'));
+      if (method === 'HEAD') {
+        res.end();
+        return;
+      }
+      res.end(html404);
+      return;
+    }
+
+    const html200 = renderSharedCollectionHtmlPage(resolved.dto, { viewerAuthenticated });
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Length', Buffer.byteLength(html200, 'utf8'));
+    if (method === 'HEAD') {
+      res.end();
+      return;
+    }
+    res.end(html200);
+  } catch (err) {
+    await recordProfileDiagnostic(dbAdapter, req, {
+      featureKey: 'unlisted_sharing',
+      operationName: 'render_shared_collection_page',
+      routeTemplate: '/s/:token',
+      httpMethod: method,
+      httpStatus: 500,
+      severity: 'error',
+      errorCode: err?.code || 'SHARED_PAGE_RENDER_ERROR',
+      message: 'Unexpected error while resolving unlisted shared page.',
+      retryable: true
+    });
+    const htmlErr = renderSharedUnavailableHtmlPage();
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Length', Buffer.byteLength(htmlErr, 'utf8'));
+    if (method === 'HEAD') {
+      res.end();
+      return;
+    }
+    res.end(htmlErr);
   }
 }

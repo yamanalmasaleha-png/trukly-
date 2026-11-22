@@ -47,6 +47,7 @@ import {
   isGovernanceApiPath,
   handleGovernanceApiRequest
 } from './admin-routes.js';
+import { handlePublicSharedPageRequest } from './customer-profile-routes.js';
 import { MAX_PHOTO_JSON_BODY_BYTES } from '../lib/photo-storage.js';
 import * as stagingGateProbe from '../scripts/staging-runtime-probe.js';
 
@@ -98,6 +99,7 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/profile-client.js',
   '/customer-profile.js',
   '/greatest-hits.js',
+  '/greatest-hits-sharing.js',
   '/customer-profile.css',
   '/shared-collection-page.js',
   '/shared-collection-page.css',
@@ -1304,6 +1306,42 @@ export function createStandaloneServer({
           }
         });
         indexStream.pipe(res);
+        return;
+      }
+
+      // 4D. Unlisted Shared Greatest Hits Route (`/s/<opaque-token>`)
+      if (pathname === '/s' || pathname.startsWith('/s/')) {
+        const segs = pathname.split('/').filter(Boolean);
+        // Only `/s/<token>` here (Commit 6 adds `/s/<token>/photo/<attachment>`)
+        if (segs.length === 2 && segs[0] === 's') {
+          let viewerAuthenticated = false;
+          if (req.headers?.cookie) {
+            try {
+              const sess = await resolveSessionFromRequest(dbAdapter, req);
+              viewerAuthenticated = Boolean(
+                sess.authenticated && sess.user && !sess.user.requires_age_assessment
+              );
+            } catch {}
+          }
+          await handlePublicSharedPageRequest({
+            rawToken: decodeURIComponent(segs[1]),
+            method,
+            req,
+            res,
+            dbAdapter,
+            viewerAuthenticated
+          });
+          return;
+        }
+        // Any malformed `/s` or unknown subpath returns neutral 404 HTML with strict no-referrer/no-store headers
+        await handlePublicSharedPageRequest({
+          rawToken: '',
+          method,
+          req,
+          res,
+          dbAdapter,
+          viewerAuthenticated: false
+        });
         return;
       }
 
