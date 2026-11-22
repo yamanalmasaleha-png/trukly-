@@ -1355,14 +1355,14 @@ function renderMapCards(show) {
     const name = api.shortName(t.name);
     const label = clustered ? `${t.name}${selected ? ', selected' : ''} and ${group.members.length - 1} more vendors nearby. Illustrated cuisine trucks. Choose a vendor.` : `${t.name}. ${state.label}${selected ? '. Selected' : ''}. Illustrated cuisine truck, not the vendor's actual vehicle. View details.`;
     const html = `<div class="food-map-card is-${state.state}${selected ? ' is-selected' : ''}${clustered ? ' food-map-cluster' : ''}">` +
-      `<span class="food-map-art" title="Illustrated cuisine truck · not the vendor's actual vehicle">${api.truckIcon(t)}</span>` +
-      `<span class="food-map-copy"><span class="food-map-name">${esc(name)}</span><span class="food-map-status">${esc(state.label)}</span></span>` +
+      `<span class="food-map-art">${api.truckIcon(t)}</span>` +
+      `<span class="food-map-copy"><span class="food-map-name">${esc(name)}</span></span>` +
       (clustered ? `<span class="food-map-cluster-count" aria-hidden="true">+${group.members.length - 1}</span>` : '') + `</div>`;
     const latlng = map.containerPointToLatLng([group.x, group.y]);
     const key = group.members.map(p => p.vendor.id).sort().join('|');
     const marker = L.marker(latlng, {
       icon: L.divIcon({ className: 'food-map-icon', html, iconSize: [api.WIDTH, api.HEIGHT], iconAnchor: [api.WIDTH / 2, api.HEIGHT / 2] }),
-      keyboard: true, title: label, alt: label, riseOnHover: true, zIndexOffset: selected ? 1000 : 0
+      keyboard: true, title: t.name, alt: label, riseOnHover: true, zIndexOffset: selected ? 1000 : 0
     }).addTo(map).on('click', () => {
       if (clustered) openMapCluster(group, latlng);
       else { selectTruck(t.id); openDetail(t.id); }

@@ -8,10 +8,8 @@
 .food-map-art{display:block;position:relative;width:80px;height:56px;flex:none}
 .food-truck-svg{display:block;width:100%;height:100%;overflow:visible}
 .food-map-copy{max-width:84px;display:flex;flex-direction:column;align-items:center;gap:1px;margin-top:-2px}
-.food-map-name{box-sizing:border-box;display:block;max-width:84px;padding:2px 5px;border:1px solid #34574770;border-radius:7px;background:#fffaf0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px;font-weight:750;line-height:12px}
+.food-map-name{box-sizing:border-box;display:block;max-width:84px;padding:2px 5px;border:1px solid #34574770;border-radius:7px;background:#fffaf0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:750;line-height:15px}
 .is-selected .food-map-name{background:#234b3a;color:#fffaf0;border-color:#234b3a;box-shadow:0 0 0 2px #fffaf0}
-.food-map-status{font-size:9px;line-height:11px;font-weight:700;white-space:nowrap;color:#435348;text-shadow:0 1px 2px #fffaf0,0 -1px 2px #fffaf0,1px 0 2px #fffaf0,-1px 0 2px #fffaf0}
-.food-map-status::before{content:'◌';margin-right:2px}.is-open .food-map-status{color:#216441}.is-open .food-map-status::before{content:'●'}.is-closed .food-map-status{color:#766659}.is-closed .food-map-status::before{content:'○'}
 .food-map-cluster-count{position:absolute;right:0;top:0;min-width:22px;height:22px;padding:0 4px;box-sizing:border-box;display:grid;place-items:center;border:2px solid #fffaf0;border-radius:12px;background:#234b3a;color:#fffaf0;font-size:10px;font-weight:750}
 .food-cluster-menu{max-height:240px;overflow:auto;min-width:180px;max-width:240px;color:#234b3a}
 .food-cluster-menu p{font-size:12px;margin:6px 0 10px}

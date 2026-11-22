@@ -57,4 +57,6 @@ for (const icon of cuisineIcons) {
 const appSource = fs.readFileSync('public/app.js', 'utf8');
 assert(!appSource.includes("'Nearby trucks'"), 'Clusters must use a shortened actual vendor name');
 assert(appSource.includes('const name = api.shortName(t.name)'));
+assert(!appSource.includes('class="food-map-status"'), 'Hours belong in vendor details');
+assert(appSource.includes('class="food-map-name">${esc(name)}'), 'Show the vendor name on the truck');
 console.log('PASS: 300 dense mobile/desktop layouts, vendor conservation, selected anchoring, stable clustering, truthful status, cuisine artwork, and actual short names');
