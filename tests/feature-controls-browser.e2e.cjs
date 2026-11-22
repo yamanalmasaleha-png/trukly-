@@ -313,32 +313,49 @@ class CdpClient {
       { label: 'standalone server/index.js healthz' }
     );
 
-    const cdpPort = await getFreePort();
-    chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'biteshark-fc-chrome-'));
-    chromeProc = spawn(
-      chromeBin,
-      [
-        '--headless=new',
-        '--no-sandbox',
-        '--disable-gpu',
-        '--disable-dev-shm-usage',
-        '--no-first-run',
-        '--no-default-browser-check',
-        '--window-size=1440,920',
-        `--user-data-dir=${chromeProfileDir}`,
-        `--remote-debugging-port=${cdpPort}`,
-        'about:blank'
-      ],
-      { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true }
-    );
-
-    const versionInfo = await waitForCondition(
-      async () => {
-        const r = await httpGetJson(`http://127.0.0.1:${cdpPort}/json/version`);
-        return r.status === 200 && r.json.webSocketDebuggerUrl ? r.json : null;
-      },
-      { label: 'Chrome DevTools endpoint' }
-    );
+    let versionInfo = null;
+    let lastChromeLaunchErr = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const cdpPort = await getFreePort();
+      chromeProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'biteshark-fc-chrome-'));
+      chromeProc = spawn(
+        chromeBin,
+        [
+          '--headless=new',
+          '--no-sandbox',
+          '--disable-gpu',
+          '--disable-dev-shm-usage',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--window-size=1440,920',
+          `--user-data-dir=${chromeProfileDir}`,
+          `--remote-debugging-port=${cdpPort}`,
+          'about:blank'
+        ],
+        { stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true }
+      );
+      try {
+        versionInfo = await waitForCondition(
+          async () => {
+            const r = await httpGetJson(`http://127.0.0.1:${cdpPort}/json/version`);
+            return r.status === 200 && r.json.webSocketDebuggerUrl ? r.json : null;
+          },
+          { timeoutMs: 12000, label: `Chrome DevTools endpoint (attempt ${attempt}/3)` }
+        );
+        break;
+      } catch (err) {
+        lastChromeLaunchErr = err;
+        try {
+          chromeProc.kill('SIGKILL');
+        } catch {}
+        chromeProc = null;
+        try {
+          fs.rmSync(chromeProfileDir, { recursive: true, force: true });
+        } catch {}
+        chromeProfileDir = null;
+      }
+    }
+    if (!versionInfo) throw lastChromeLaunchErr;
 
     cdp = new CdpClient(versionInfo.webSocketDebuggerUrl);
     await cdp.connect();
