@@ -1789,7 +1789,210 @@
   // =========================================================================
   // 5. Comments & Moderation
   // =========================================================================
+  async function loadSharedPagesModeration(page) {
+    state.mod.page = page || 1;
+    var stateEl = document.getElementById('modListState');
+    var listEl = document.getElementById('modList');
+    stateEl.hidden = false;
+    stateEl.className = 'state-box';
+    stateEl.textContent = 'Loading reported shared pages…';
+    listEl.hidden = true;
+
+    try {
+      var data = await apiJson(
+        '/api/admin/shared-moderation?page=' +
+          encodeURIComponent(String(state.mod.page)) +
+          '&page_size=' +
+          encodeURIComponent(String(state.mod.pageSize))
+      );
+      state.mod.sharedItems = Array.isArray(data.items) ? data.items : [];
+      state.mod.total = Number(data.total) || 0;
+
+      if (!state.mod.sharedItems.length) {
+        stateEl.textContent = 'No reported or suppressed shared pages in queue.';
+        document.getElementById('modDetailPane').innerHTML =
+          '<div class="empty-detail">Select a reported shared page to inspect its allowlisted shared projection and moderation actions.</div>';
+        renderPager('modPager', 1, state.mod.pageSize, 0, loadModeration);
+        return;
+      }
+
+      stateEl.hidden = true;
+      listEl.hidden = false;
+      listEl.innerHTML = state.mod.sharedItems
+        .map(function (it) {
+          var isSel = state.mod.selectedSharedId === it.collection_id;
+          var colTitle = (it.shared_projection && it.shared_projection.collection && it.shared_projection.collection.title) || it.collection_id;
+          return (
+            '<button type="button" class="record-card' +
+            (isSel ? ' selected' : '') +
+            '" data-shared-col-id="' +
+            esc(it.collection_id) +
+            '">' +
+            '<div class="record-card-top"><span class="record-title">' +
+            esc(colTitle) +
+            '</span><span>' +
+            statusPill(it.moderation_status) +
+            (it.open_report_count > 0 ? ' <span class="pill pill-danger">🚩 ' + Number(it.open_report_count) + ' open</span>' : '') +
+            '</span></div>' +
+            '<div class="record-meta">Collection <code>' +
+            esc(it.collection_id) +
+            '</code> · Share <code>' +
+            esc(it.share_id || 'none') +
+            '</code> (' +
+            esc(it.masked_token_hint || 'revoked') +
+            ')</div></button>'
+          );
+        })
+        .join('');
+
+      listEl.querySelectorAll('[data-shared-col-id]').forEach(function (btn) {
+        btn.onclick = function () {
+          state.mod.selectedSharedId = btn.dataset.sharedColId;
+          loadSharedPagesModeration(state.mod.page);
+          renderSharedModerationDetail();
+        };
+      });
+      renderPager('modPager', state.mod.page, state.mod.pageSize, state.mod.total, loadModeration);
+      if (state.mod.selectedSharedId) renderSharedModerationDetail();
+    } catch (err) {
+      stateEl.className = 'state-box state-error';
+      stateEl.textContent = err.message;
+    }
+  }
+
+  function renderSharedModerationDetail() {
+    var pane = document.getElementById('modDetailPane');
+    var items = state.mod.sharedItems || [];
+    var it = items.find(function (x) { return x.collection_id === state.mod.selectedSharedId; });
+    if (!it) {
+      pane.innerHTML = '<div class="empty-detail">Select a reported shared page to review its allowlisted shared content.</div>';
+      return;
+    }
+    var sp = it.shared_projection || {};
+    var col = sp.collection || {};
+    var cur = sp.curator || {};
+    var entries = col.entries || [];
+    var reports = it.reports || [];
+    var events = it.moderation_events || [];
+
+    var entriesHtml = entries
+      .map(function (e) {
+        return (
+          '<div class="thread-item"><strong>#' +
+          Number(e.position) +
+          ' · ' +
+          esc(e.display_name) +
+          '</strong>' +
+          (e.recommendation ? '<p>' + esc(e.recommendation) + '</p>' : '') +
+          (e.shared_photo
+            ? '<div style="margin-top:6px"><img src="' +
+              esc(e.shared_photo.image_url) +
+              '" alt="Reported shared photo" style="max-width:160px;border-radius:8px;display:block;margin-bottom:6px">' +
+              (e.shared_photo.moderation_status === 'suppressed'
+                ? '<button type="button" class="admin-btn admin-btn-secondary" data-shmod-act="reinstate_attachment" data-shmod-att="' + esc(e.shared_photo.attachment_id) + '">↺ Reinstate Photo</button>'
+                : '<button type="button" class="admin-btn admin-btn-danger" data-shmod-act="suppress_attachment" data-shmod-att="' + esc(e.shared_photo.attachment_id) + '">✕ Suppress Photo</button>') +
+              '</div>'
+            : '') +
+          '</div>'
+        );
+      })
+      .join('');
+
+    var repHtml = reports.length
+      ? reports
+          .map(function (r) {
+            return (
+              '<div class="thread-item note-internal"><strong>🚩 ' +
+              esc(r.reason) +
+              '</strong> ' +
+              statusPill(r.status) +
+              ' · <small>' +
+              fmtDate(r.created_at) +
+              '</small><div>' +
+              esc(r.details || 'No extra details.') +
+              '</div></div>'
+            );
+          })
+          .join('')
+      : '<p class="record-meta">No reports filed.</p>';
+
+    var evHtml = events.length
+      ? events
+          .map(function (ev) {
+            return (
+              '<div class="thread-item"><strong>' +
+              esc(ev.action) +
+              '</strong> · <span class="pill">' +
+              esc(ev.actor_authority) +
+              '</span> · <small>' +
+              fmtDate(ev.created_at) +
+              '</small><div>Reason: ' +
+              esc(ev.reason) +
+              '</div></div>'
+            );
+          })
+          .join('')
+      : '<p class="record-meta">No moderation actions yet.</p>';
+
+    pane.innerHTML =
+      '<div class="detail-head">' +
+      statusPill(it.moderation_status) +
+      '<h2>' +
+      esc(col.title || it.collection_id) +
+      '</h2>' +
+      '<div class="record-meta">Scoped shared projection only — private journals, notes, and unshared photos are never exposed to moderators.</div></div>' +
+      (col.intro ? '<div class="thread-item"><strong>Shared Intro:</strong><p>' + esc(col.intro) + '</p></div>' : '') +
+      (cur.included
+        ? '<div class="thread-item"><strong>Opted-in Curator Card:</strong> ' +
+          esc([cur.display_name, cur.preferred_town, cur.bio].filter(Boolean).join(' · ')) +
+          '</div>'
+        : '') +
+      '<h3>Shared Entries (' + entries.length + ')</h3>' +
+      entriesHtml +
+      '<h3>Abuse Reports (' + reports.length + ')</h3>' +
+      repHtml +
+      '<div class="admin-form">' +
+      '<label>Moderation Reason (required, 4–400 chars)<input type="text" id="shModReasonInput" maxlength="400" placeholder="Policy basis for suppression, dismissal, or reinstatement…"></label>' +
+      '<div class="action-row">' +
+      (it.moderation_status === 'active'
+        ? '<button type="button" class="admin-btn admin-btn-danger" data-shmod-act="suppress_collection">✕ Suppress Shared Collection</button>'
+        : '<button type="button" class="admin-btn admin-btn-primary" data-shmod-act="reinstate_collection">↺ Reinstate Collection</button>') +
+      (it.open_report_count > 0
+        ? '<button type="button" class="admin-btn admin-btn-secondary" data-shmod-act="dismiss_reports">✓ Dismiss Open Reports</button>'
+        : '') +
+      '</div></div>' +
+      '<div class="admin-form"><h3>Shared Moderation Audit</h3>' +
+      evHtml +
+      '</div>';
+
+    pane.querySelectorAll('[data-shmod-act]').forEach(function (btn) {
+      btn.onclick = async function () {
+        var act = btn.dataset.shmodAct;
+        var attId = btn.dataset.shmodAtt || null;
+        var rVal = (document.getElementById('shModReasonInput') || {}).value || '';
+        try {
+          await apiJson('/api/admin/shared-moderation/decision', {
+            method: 'POST',
+            body: {
+              collection_id: it.collection_id,
+              action: act,
+              attachment_id: attId,
+              reason: rVal.trim() || 'Reviewed reported shared page'
+            }
+          });
+          showBanner('Shared moderation action "' + act + '" recorded.', false);
+          loadSharedPagesModeration(state.mod.page);
+        } catch (err) {
+          showBanner(err.message, true);
+        }
+      };
+    });
+  }
+
   async function loadModeration(page) {
+    if (state.mod.queue === 'shared_pages') {
+      return loadSharedPagesModeration(page);
+    }
     state.mod.page = page || 1;
     var stateEl = document.getElementById('modListState');
     var listEl = document.getElementById('modList');

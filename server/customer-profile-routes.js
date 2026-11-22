@@ -5,6 +5,7 @@
 import { auth } from '@biteshark/runtime-adapter';
 import { loadAccessContext } from '../lib/authz.js';
 import { readEnvCompat } from '../lib/env-compat.js';
+import { extractClientRateKey } from '../lib/pager-notifications.js';
 import {
   loadPersistedFeatureControls,
   evaluateFeatureControlsSnapshot
@@ -35,6 +36,9 @@ import {
   resolveLiveSharedCollectionByToken,
   renderSharedCollectionHtmlPage,
   renderSharedUnavailableHtmlPage,
+  submitPublicSharedPageReport,
+  listAdminSharedModerationQueue,
+  applyAdminSharedModerationDecision,
   exportCustomerProfileAndExplorationArchive,
   clearCustomerProfileAndCollectionsData
 } from '../lib/customer-profile.js';
@@ -501,6 +505,80 @@ export async function handleCustomerProfileRoute({
         reason: body.reason
       });
       return sendJson(200, revoked);
+    }
+
+    // 15. Signed-Out & Signed-In Abuse Reports on Shared Pages (`POST /api/shared/report`)
+    if (pathname === '/api/shared/report') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      const clientRateKey = extractClientRateKey(req);
+      const out = await submitPublicSharedPageReport(dbAdapter, {
+        reporterUserId: verifiedUser?.id || null,
+        clientRateKey,
+        body
+      });
+      return sendJson(201, out);
+    }
+
+    // 16. Scoped Shared-Page Moderation Queue (`GET /api/admin/shared-moderation` — Mod & Top)
+    if (pathname === '/api/admin/shared-moderation') {
+      if (method !== 'GET') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const accessCtx = await loadAccessContext(req, auth, dbAdapter);
+      if (!accessCtx.isModAdmin) {
+        return sendJson(403, {
+          ok: false,
+          error: 'Moderator or platform administrator access is required.',
+          code: 'MODERATOR_REQUIRED'
+        });
+      }
+      const out = await listAdminSharedModerationQueue(dbAdapter, {
+        accessCtx,
+        statusFilter: String(query.status || '').trim(),
+        page: query.page,
+        pageSize: query.page_size
+      });
+      return sendJson(200, out);
+    }
+
+    // 17. Scoped Shared-Page Moderation Decision (`POST /api/admin/shared-moderation/decision` — Mod & Top)
+    if (pathname === '/api/admin/shared-moderation/decision') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const accessCtx = await loadAccessContext(req, auth, dbAdapter);
+      if (!accessCtx.isModAdmin) {
+        return sendJson(403, {
+          ok: false,
+          error: 'Moderator or platform administrator access is required.',
+          code: 'MODERATOR_REQUIRED'
+        });
+      }
+      const out = await applyAdminSharedModerationDecision(dbAdapter, {
+        accessCtx,
+        body
+      });
+      return sendJson(200, out);
     }
 
     return sendJson(404, { ok: false, error: 'Profile endpoint not found.', code: 'NOT_FOUND' });
