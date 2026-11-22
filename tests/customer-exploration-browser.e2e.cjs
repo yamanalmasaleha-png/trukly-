@@ -1000,6 +1000,47 @@ class CdpClient {
     assert.equal(navFillCheck.discoverActive, true);
     assert(navFillCheck.rightGapPx < 340, `Expected remaining 5 nav buttons to distribute evenly without an empty 6th slot, got rightGapPx=${navFillCheck.rightGapPx}`);
 
+    // While `local_guides_passport` and `private_photos` are STILL `hidden`, verify signed-in User A (in a fresh session or `custTab`)
+    // can open `#rxExplorationPrivacyModal` from `#profileMenu` (`#rxExplorationPrivacyBtn`)!
+    // Sign in as User A on `custTab` while features are hidden -> open privacy modal -> verify User A's saved photo download link + visits + saved trail appear!
+    await cdp.eval(custTab.sessionId, `signOutUser()`);
+    await waitForCondition(async () => cdp.eval(custTab.sessionId, `!isSignedIn`), { label: 'User B signed out for hidden-mode privacy test' });
+    await browserSignIn(custTab.sessionId, userAEmail, '/');
+    await waitForCondition(
+      async () => cdp.eval(custTab.sessionId, `Boolean(document.getElementById('rxExplorationPrivacyBtn') && !document.getElementById('rxExplorationPrivacyBtn').hidden)`),
+      { label: '#rxExplorationPrivacyBtn visible for signed-in user even when exploration hub is hidden' }
+    );
+    await cdp.eval(custTab.sessionId, `document.getElementById('rxExplorationPrivacyBtn').click()`);
+    const privacyModalWhileHidden = await waitForCondition(
+      async () =>
+        cdp.eval(
+          custTab.sessionId,
+          `(() => {
+            const m = document.getElementById('rxExplorationPrivacyModal');
+            if (!m || m.hidden) return null;
+            const txt = document.getElementById('epRecordsContainer')?.textContent || '';
+            if (!txt.includes('Sonoma Sweet Run')) return null;
+            const dlLink = m.querySelector('[data-ep-download-photo]');
+            return {
+              hasPhotoDownloadLink: Boolean(dlLink && dlLink.getAttribute('href')?.includes('download=1')),
+              hasVisitDeleteBtn: Boolean(m.querySelector('[data-ep-ask-del="visit"]')),
+              hasPhotoDeleteBtn: Boolean(m.querySelector('[data-ep-ask-del="photo"]')),
+              hasTrailDeleteBtn: Boolean(m.querySelector('[data-ep-ask-del="trail"]')),
+              hasJsonExportBtn: Boolean(document.getElementById('epDownloadJsonBtn'))
+            };
+          })()`
+        ),
+      { label: 'Privacy export & self-service delete modal rendered User A records while features are hidden' }
+    );
+    assert.deepEqual(privacyModalWhileHidden, {
+      hasPhotoDownloadLink: true,
+      hasVisitDeleteBtn: true,
+      hasPhotoDeleteBtn: true,
+      hasTrailDeleteBtn: true,
+      hasJsonExportBtn: true
+    });
+    await cdp.eval(custTab.sessionId, `document.querySelector('[data-rx-close="rxExplorationPrivacyModal"]').click()`);
+
     // Re-enable parent `local_guides_passport` first, then child `private_photos` (honoring DAG inheritance!)
     for (const key of ['local_guides_passport', 'private_photos']) {
       await cdp.eval(

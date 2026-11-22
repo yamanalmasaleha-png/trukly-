@@ -230,22 +230,53 @@ function inSmartTown(t, city) {
 
 function matchesFinderCraving(t, q) {
   if (!q) return true;
+  const id = String(t.id || '');
+  const cuisine = String(t.cuisine || '');
+  const cuisineLower = cuisine.toLowerCase();
+  const nameLower = String(t.name || '').toLowerCase();
+  const specialLower = String(t.special || '').toLowerCase();
+  const blurbLower = String(t.blurb || '').toLowerCase();
+  const listingKind = String(t.listing_kind || '').toLowerCase();
+  const tags = Array.isArray(t.tags) ? t.tags : [];
+
   if (q === 'Sweets') {
-    const id = String(t.id || '');
     if (['heritage', 'andrew', 'momolicious', 'market-myriad'].includes(id)) return false;
     if (['fruta', 'rich', 'market-boba', 'coffee-crooks'].includes(id)) return true;
-    return String(t.cuisine || '').toLowerCase() === 'sweets';
+    if (cuisineLower === 'sweets' || t.section === 'Sweets') return true;
+    if (/\b(ice cream|gelato|dessert|bakery|pastry|donut|doughnut|italian ice|boba|sweet)\b/i.test(cuisine + ' ' + nameLower)) {
+      return true;
+    }
+    if (/\b(crème brûlée|creme brulee|mocha|pastry|sweet|dessert|horchata|churro)\b/i.test(specialLower + ' ' + blurbLower)) {
+      return true;
+    }
+    return tags.includes('Sweets');
   }
   if (q === 'Coffee') {
-    return t.kind === 'Coffee' || t.id === 'market-myriad' || /coffee|caf/i.test(String(t.cuisine || ''));
+    return (
+      t.kind === 'Coffee' ||
+      listingKind === 'cafe' ||
+      id === 'market-myriad' ||
+      /coffee|caf/i.test(cuisine)
+    );
   }
   if (q === 'Farm Stands') {
-    return t.kind === 'Farm Stands' || (t.tags || []).includes('Farm Stands');
+    return (
+      t.kind === 'Farm Stands' ||
+      listingKind === 'farm_stand' ||
+      cuisineLower.includes('farm') ||
+      tags.includes('Farm Stands')
+    );
   }
   if (q === 'Markets') {
-    return t.kind === 'Markets' || (t.tags || []).includes('Markets');
+    return (
+      t.kind === 'Markets' ||
+      listingKind === 'market_stall' ||
+      (listingKind === 'venue' && tags.includes('Markets')) ||
+      cuisineLower.includes('farmers market') ||
+      tags.includes('Markets')
+    );
   }
-  return t.kind === q || t.cuisine === q || (t.tags || []).includes(q);
+  return t.kind === q || t.cuisine === q || tags.includes(q);
 }
 
 function findFlavor(e) {
@@ -545,7 +576,7 @@ async function renderSavedTrailsList() {
       '<h3 id="savedTrailsHeading">Your saved trails (' +
       trails.length +
       ')</h3>' +
-      '<p>Stops count as visited for a trail when you log a self-reported visit on or after the date the trail was saved. Viewing or sharing a trail never auto-logs a visit.</p>' +
+      '<p>Stops count as visited when you log a self-reported visit after saving the trail (up to one counted visit per business per Pacific calendar day). Viewing or sharing a trail never auto-logs a visit.</p>' +
       '</div>' +
       '<div class="saved-trails-grid">' +
       trails
@@ -599,11 +630,13 @@ async function renderSavedTrailsList() {
                     ? '<span class="stop-visited-badge">✓ Visited ' +
                       smartEscape(st.qualifying_visit_date || '') +
                       '</span>'
-                    : !visitHidden && st.can_open_detail
-                      ? '<button type="button" class="secondary small-btn" data-saved-stop-log="' +
-                        smartEscape(st.vendor_id) +
-                        '">Log a visit</button>'
-                      : '<span class="meta">Not yet logged</span>') +
+                    : st.visited_before_save_today
+                      ? '<span class="meta stop-presave-note">Already visited earlier today (before saving trail) — visit on another day to count</span>'
+                      : !visitHidden && st.can_open_detail
+                        ? '<button type="button" class="secondary small-btn" data-saved-stop-log="' +
+                          smartEscape(st.vendor_id) +
+                          '">Log a visit</button>'
+                        : '<span class="meta">Not yet logged</span>') +
                   '</div>' +
                   '</li>'
               )

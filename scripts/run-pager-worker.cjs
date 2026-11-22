@@ -200,8 +200,12 @@ function sleepInterruptible(ms) {
     const notifMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'pager-notifications.js')).href);
     let authMod = null;
     let diagMod = null;
+    let expMod = null;
     try {
       authMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'standalone-auth.js')).href);
+    } catch {}
+    try {
+      expMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'customer-exploration.js')).href);
     } catch {}
     try {
       diagMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'diagnostics.js')).href);
@@ -229,6 +233,9 @@ function sleepInterruptible(ms) {
         }
         if (shouldCleanup && diagMod && typeof diagMod.cleanupExpiredDiagnostics === 'function') {
           await diagMod.cleanupExpiredDiagnostics(dbAdapter).catch(() => {});
+        }
+        if (shouldCleanup && expMod && typeof expMod.reconcilePhotoStorage === 'function') {
+          await expMod.reconcilePhotoStorage(dbAdapter).catch(() => {});
         }
         if (diagMod && typeof diagMod.recordWorkerHeartbeat === 'function') {
           await diagMod.recordWorkerHeartbeat(dbAdapter, {

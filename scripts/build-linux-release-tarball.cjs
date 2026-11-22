@@ -120,6 +120,7 @@ for (const requiredEntry of [
   'migrations/025_support_feedback_and_diagnostic_links.sql',
   'migrations/026_urgent_pilot_security_hardening.sql',
   'migrations/027_customer_exploration_foundation.sql',
+  'migrations/028_exploration_photo_reconciliation.sql',
   'scripts/run-migrations.cjs',
   'scripts/bootstrap-top-admin.cjs',
   'scripts/operator-read-my-otp.cjs',

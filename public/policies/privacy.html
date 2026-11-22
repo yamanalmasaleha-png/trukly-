@@ -96,9 +96,9 @@
               <td>Processed transiently in memory to calculate distances; customer geolocation coordinates are <strong>not</strong> written to user profiles or sold.</td>
             </tr>
             <tr>
-              <td><strong>Favorites &amp; Dish Notebook</strong></td>
-              <td>Saved truck IDs (stored in PostgreSQL when signed in and cached in browser <code>localStorage</code>); personal dish notebook notes/photos.</td>
-              <td>Dish notebook notes and photos stay locally in your browser’s <code>localStorage</code> and are not uploaded to BiteShark servers.</td>
+              <td><strong>Favorites, Visit Journal, Private Photos &amp; Saved Trails</strong></td>
+              <td>Saved truck IDs (`favorites`), self-reported Visit Journal check-ins and private tasting notes (`customer_visits`), private dish/visit photos and captions (`customer_photos`), and saved suggested trails (`customer_saved_trails`).</td>
+              <td>Stored in account-backed PostgreSQL (`FORCE ROW LEVEL SECURITY` scoped to your user ID); uploaded photos are re-encoded via <code>sharp</code> with EXIF/GPS/XMP/IPTC metadata stripped and stored outside the public web root. You can export your JSON archive, download your private photo files, or delete any visit, photo, or saved trail anytime from <em>Saved exploration data &amp; privacy</em> in the account menu (even when exploration UI features are paused or hidden). Earlier browser-only notes/photos remain on your device unless you explicitly choose to import or discard them.</td>
             </tr>
             <tr>
               <td><strong>Event / Catering Booking Inquiries</strong></td>

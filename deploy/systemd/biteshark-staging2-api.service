@@ -36,7 +36,8 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadOnlyPaths=/srv/biteshark-staging2
-InaccessiblePaths=/srv/truckly-staging /etc/truckly-staging /var/backups
+ReadWritePaths=-/var/lib/biteshark-staging2/customer-photos
+InaccessiblePaths=/srv/truckly-staging /etc/truckly-staging /var/lib/truckly-staging /var/backups
 
 StandardOutput=journal
 StandardError=journal

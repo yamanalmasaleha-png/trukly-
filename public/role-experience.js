@@ -544,6 +544,16 @@
         forgetSavedStartPreference();
       };
 
+      var expPrivacyBtn = document.createElement('button');
+      expPrivacyBtn.type = 'button';
+      expPrivacyBtn.id = 'rxExplorationPrivacyBtn';
+      expPrivacyBtn.hidden = true;
+      expPrivacyBtn.textContent = '🗂️ Saved exploration data & privacy';
+      expPrivacyBtn.onclick = function () {
+        document.getElementById('profileMenu').open = false;
+        openExplorationPrivacyModal(document.getElementById('profileAvatar'));
+      };
+
       var policiesLink = document.createElement('a');
       policiesLink.id = 'rxPolicyDraftsLink';
       policiesLink.href = '/policies/index.html';
@@ -553,6 +563,7 @@
       dropdown.insertBefore(adminLink, signOutBtn);
       dropdown.insertBefore(vendorHubBtn, signOutBtn);
       dropdown.insertBefore(applyVendorBtn, signOutBtn);
+      dropdown.insertBefore(expPrivacyBtn, signOutBtn);
       dropdown.insertBefore(switchExpBtn, signOutBtn);
       dropdown.insertBefore(forgetPrefBtn, signOutBtn);
       dropdown.insertBefore(supportBtn, signOutBtn);
@@ -897,7 +908,26 @@
         '<button type="button" class="secondary" id="rxAgeSupportBtn">Privacy / Accessibility Help</button>' +
         '<button type="button" class="secondary" id="rxAgeSignOutBtn">Sign Out</button>' +
         '</div>' +
-        '</form></div></div>';
+        '</form></div></div>' +
+
+        // 6. Account Exploration Privacy Export, Photo Retrieval & Self-Service Deletion Modal
+        //    (Always reachable for signed-in 14+ users, even when exploration UI features are paused or hidden)
+        '<div class="rx-modal-backdrop" id="rxExplorationPrivacyModal" hidden>' +
+        '<div class="rx-modal" role="dialog" aria-modal="true" aria-labelledby="epModalTitle">' +
+        '<div class="rx-modal-head">' +
+        '<div><small>ACCOUNT DATA &amp; PRIVACY CONTROLS</small><h2 id="epModalTitle">Your Saved Exploration Records</h2></div>' +
+        '<button type="button" class="rx-close" data-rx-close="rxExplorationPrivacyModal" aria-label="Close saved exploration data dialog">×</button>' +
+        '</div>' +
+        '<p style="margin:0 0 10px;font-size:13px;color:#4a544f;line-height:1.45">' +
+        'Export your private Visit Journal notes, download your server-stored private photos, or permanently remove saved visits, photos, and trails — even when exploration screens are paused or hidden.' +
+        '</p>' +
+        '<div id="epStatusMsg" class="rx-msg" role="status" hidden style="margin-bottom:10px"></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
+        '<button type="button" class="primary" id="epDownloadJsonBtn">⬇ Download JSON archive</button>' +
+        '<button type="button" class="secondary" id="epRefreshDataBtn">↻ Refresh</button>' +
+        '</div>' +
+        '<div id="epRecordsContainer" style="display:grid;gap:14px;max-height:58vh;overflow-y:auto;padding-right:4px"></div>' +
+        '</div></div>';
 
       document.body.appendChild(root);
 
@@ -910,7 +940,7 @@
       document.addEventListener('keydown', function (ev) {
         if (ev.key !== 'Escape') return;
         if (rxDiag()) return;
-        var closeableIds = ['inviteAcceptModal', 'communityReportModal', 'supportIssuesModal', 'vendorApplyModal'];
+        var closeableIds = ['rxExplorationPrivacyModal', 'inviteAcceptModal', 'communityReportModal', 'supportIssuesModal', 'vendorApplyModal'];
         for (var i = 0; i < closeableIds.length; i++) {
           var el = document.getElementById(closeableIds[i]);
           if (el && !el.hidden) {
@@ -947,6 +977,12 @@
       document.getElementById('rxAgeSupportBtn').onclick = function () {
         document.getElementById('rxAgeAssessmentModal').hidden = true;
         openSupportIssuesModal({ tab: 'new', category: 'account_access', reporterContext: 'customer' });
+      };
+      document.getElementById('epDownloadJsonBtn').onclick = function () {
+        downloadExplorationJsonArchive();
+      };
+      document.getElementById('epRefreshDataBtn').onclick = function () {
+        loadExplorationPrivacyRecords();
       };
       document.getElementById('rxAgeSignOutBtn').onclick = async function () {
         try {
@@ -1048,16 +1084,29 @@
     var roleBox = document.getElementById('rxProfileRoleBox');
     var adminLink = document.getElementById('navAdminPortalLink');
     var vendorHubBtn = document.getElementById('rxVendorHubBtn');
-    var vpBanner = document.getElementById('rxViewpointBanner');
+    var expPrivacyBtn = document.getElementById('rxExplorationPrivacyBtn');
+    var vpBanner = document.getElementById('bitesharkViewpointBanner');
     if (roleBox) {
       roleBox.hidden = true;
       roleBox.innerHTML = '';
     }
     if (adminLink) adminLink.hidden = true;
     if (vendorHubBtn) vendorHubBtn.hidden = true;
+    if (expPrivacyBtn) expPrivacyBtn.hidden = true;
     if (vpBanner) vpBanner.hidden = true;
 
-    ['rxAgeAssessmentModal', 'vendorApplyModal', 'supportModal', 'myAppsModal'].forEach(function (mid) {
+    epLatestExportPayload = null;
+    epConfirmTarget = null;
+    var epContainer = document.getElementById('epRecordsContainer');
+    if (epContainer) epContainer.innerHTML = '';
+
+    [
+      'rxAgeAssessmentModal',
+      'vendorApplyModal',
+      'supportIssuesModal',
+      'communityReportModal',
+      'rxExplorationPrivacyModal'
+    ].forEach(function (mid) {
       var m = document.getElementById(mid);
       if (m) m.hidden = true;
     });
@@ -1066,7 +1115,7 @@
       if (invMod) invMod.hidden = true;
     }
 
-    ['siDesc', 'siSubject', 'siCorrId'].forEach(function (fid) {
+    ['siDescription', 'siDesc', 'siSubject', 'siCorrId'].forEach(function (fid) {
       var inp = document.getElementById(fid);
       if (inp) inp.value = '';
     });
@@ -1086,6 +1135,269 @@
     }
   }
 
+  var epLatestExportPayload = null;
+  var epConfirmTarget = null; // { kind: 'photo' | 'visit' | 'trail', id: string }
+
+  function setEpStatus(msg, isError) {
+    var el = document.getElementById('epStatusMsg');
+    if (!el) return;
+    if (!msg) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.className = 'rx-msg' + (isError ? ' error' : '');
+    el.textContent = msg;
+  }
+
+  function downloadExplorationJsonArchive() {
+    if (!epLatestExportPayload) {
+      setEpStatus('Load your saved exploration records first.', true);
+      return;
+    }
+    try {
+      var jsonBytes = JSON.stringify(epLatestExportPayload, null, 2);
+      var blob = new Blob([jsonBytes], { type: 'application/json;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      var datePart = String(epLatestExportPayload.exported_at || new Date().toISOString()).slice(0, 10);
+      a.href = url;
+      a.download = 'biteshark-exploration-export-' + datePart + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () {
+        URL.revokeObjectURL(url);
+      }, 2000);
+      setEpStatus('Downloaded JSON archive to your device.', false);
+    } catch (_err) {
+      setEpStatus('Could not prepare JSON download in this browser.', true);
+    }
+  }
+
+  function renderExplorationPrivacyRecords() {
+    var host = document.getElementById('epRecordsContainer');
+    if (!host) return;
+    var data = epLatestExportPayload;
+    if (!data) {
+      host.innerHTML = '<p class="rx-card">Loading your saved records…</p>';
+      return;
+    }
+
+    var photos = Array.isArray(data.photos) ? data.photos : [];
+    var visits = Array.isArray(data.visits) ? data.visits : [];
+    var trails = Array.isArray(data.saved_trails) ? data.saved_trails : [];
+
+    var photosHtml = photos.length
+      ? photos
+          .map(function (p) {
+            var isConf = epConfirmTarget && epConfirmTarget.kind === 'photo' && epConfirmTarget.id === p.photo_id;
+            var dlHref = p.download_url || ('/api/me/photos/file?id=' + encodeURIComponent(p.photo_id) + '&variant=main&download=1');
+            return (
+              '<div class="rx-card" data-ep-photo-row="' +
+              rxEsc(p.photo_id) +
+              '" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">' +
+              '<div>' +
+              '<strong>' +
+              rxEsc(p.business_name || 'Personal food photo') +
+              '</strong>' +
+              '<div style="font-size:12px;color:#4a544f">' +
+              rxEsc(p.taken_local_date || '') +
+              ' · ' +
+              rxEsc(p.mime_type || 'image') +
+              (p.caption ? ' · “' + rxEsc(p.caption) + '”' : '') +
+              '</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+              '<a class="secondary" style="padding:6px 10px;border-radius:8px;text-decoration:none;font-size:13px" data-ep-download-photo="' +
+              rxEsc(p.photo_id) +
+              '" href="' +
+              rxEsc(dlHref) +
+              '" download>⬇ Download file</a>' +
+              (!isConf
+                ? '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-ask-del="photo" data-ep-id="' +
+                  rxEsc(p.photo_id) +
+                  '">Delete photo</button>'
+                : '<button type="button" class="primary" style="padding:6px 10px;font-size:13px;background:#9e2a2b;border-color:#9e2a2b" data-ep-confirm-del="photo" data-ep-id="' +
+                  rxEsc(p.photo_id) +
+                  '">Confirm delete</button>' +
+                  '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-cancel-del="1">Cancel</button>') +
+              '</div></div>'
+            );
+          })
+          .join('')
+      : '<p style="margin:4px 0;font-size:13px;color:#4a544f">No saved private photos.</p>';
+
+    var visitsHtml = visits.length
+      ? visits
+          .map(function (v) {
+            var isConf = epConfirmTarget && epConfirmTarget.kind === 'visit' && epConfirmTarget.id === v.visit_id;
+            return (
+              '<div class="rx-card" data-ep-visit-row="' +
+              rxEsc(v.visit_id) +
+              '" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">' +
+              '<div>' +
+              '<strong>' +
+              rxEsc(v.business_name || v.vendor_id) +
+              '</strong>' +
+              '<div style="font-size:12px;color:#4a544f">' +
+              rxEsc(v.visit_local_date || '') +
+              (v.private_note ? ' · Note: ' + rxEsc(v.private_note) : '') +
+              '</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:8px;align-items:center">' +
+              (!isConf
+                ? '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-ask-del="visit" data-ep-id="' +
+                  rxEsc(v.visit_id) +
+                  '">Delete visit</button>'
+                : '<button type="button" class="primary" style="padding:6px 10px;font-size:13px;background:#9e2a2b;border-color:#9e2a2b" data-ep-confirm-del="visit" data-ep-id="' +
+                  rxEsc(v.visit_id) +
+                  '">Confirm delete</button>' +
+                  '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-cancel-del="1">Cancel</button>') +
+              '</div></div>'
+            );
+          })
+          .join('')
+      : '<p style="margin:4px 0;font-size:13px;color:#4a544f">No saved visits.</p>';
+
+    var trailsHtml = trails.length
+      ? trails
+          .map(function (tr) {
+            var isConf = epConfirmTarget && epConfirmTarget.kind === 'trail' && epConfirmTarget.id === tr.trail_id;
+            return (
+              '<div class="rx-card" data-ep-trail-row="' +
+              rxEsc(tr.trail_id) +
+              '" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">' +
+              '<div>' +
+              '<strong>' +
+              rxEsc(tr.title || 'Saved trail') +
+              '</strong>' +
+              '<div style="font-size:12px;color:#4a544f">Saved ' +
+              rxEsc(tr.saved_local_date || '') +
+              ' · ' +
+              Number((tr.progress && tr.progress.total_stops) || 0) +
+              ' stops</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:8px;align-items:center">' +
+              (!isConf
+                ? '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-ask-del="trail" data-ep-id="' +
+                  rxEsc(tr.trail_id) +
+                  '">Delete trail</button>'
+                : '<button type="button" class="primary" style="padding:6px 10px;font-size:13px;background:#9e2a2b;border-color:#9e2a2b" data-ep-confirm-del="trail" data-ep-id="' +
+                  rxEsc(tr.trail_id) +
+                  '">Confirm delete</button>' +
+                  '<button type="button" class="secondary" style="padding:6px 10px;font-size:13px" data-ep-cancel-del="1">Cancel</button>') +
+              '</div></div>'
+            );
+          })
+          .join('')
+      : '<p style="margin:4px 0;font-size:13px;color:#4a544f">No saved trails.</p>';
+
+    host.innerHTML =
+      '<section aria-labelledby="epPhotosHeading"><h3 id="epPhotosHeading" style="margin:0 0 6px;font-size:15px">Private photos (' +
+      photos.length +
+      ')</h3>' +
+      photosHtml +
+      '</section>' +
+      '<section aria-labelledby="epVisitsHeading"><h3 id="epVisitsHeading" style="margin:0 0 6px;font-size:15px">Visit journal entries (' +
+      visits.length +
+      ')</h3>' +
+      visitsHtml +
+      '</section>' +
+      '<section aria-labelledby="epTrailsHeading"><h3 id="epTrailsHeading" style="margin:0 0 6px;font-size:15px">Saved trails (' +
+      trails.length +
+      ')</h3>' +
+      trailsHtml +
+      '</section>';
+
+    host.querySelectorAll('[data-ep-ask-del]').forEach(function (btn) {
+      btn.onclick = function () {
+        epConfirmTarget = { kind: btn.dataset.epAskDel, id: btn.dataset.epId };
+        renderExplorationPrivacyRecords();
+      };
+    });
+    host.querySelectorAll('[data-ep-cancel-del]').forEach(function (btn) {
+      btn.onclick = function () {
+        epConfirmTarget = null;
+        renderExplorationPrivacyRecords();
+      };
+    });
+    host.querySelectorAll('[data-ep-confirm-del]').forEach(function (btn) {
+      btn.onclick = function () {
+        executeExplorationPrivacyDelete(btn.dataset.epConfirmDel, btn.dataset.epId, btn);
+      };
+    });
+  }
+
+  async function executeExplorationPrivacyDelete(kind, itemId, btnEl) {
+    if (btnEl) btnEl.disabled = true;
+    try {
+      if (kind === 'photo') {
+        if (window.bitesharkExploration && window.bitesharkExploration.deletePhoto) {
+          await window.bitesharkExploration.deletePhoto(itemId);
+        } else {
+          await rxJson('/api/me/photos/delete', { method: 'POST', body: { photo_id: itemId } });
+        }
+      } else if (kind === 'visit') {
+        if (window.bitesharkExploration && window.bitesharkExploration.deleteVisit) {
+          await window.bitesharkExploration.deleteVisit(itemId);
+        } else {
+          await rxJson('/api/me/visits/delete', { method: 'POST', body: { visit_id: itemId } });
+        }
+      } else if (kind === 'trail') {
+        if (window.bitesharkExploration && window.bitesharkExploration.deleteSavedTrail) {
+          await window.bitesharkExploration.deleteSavedTrail(itemId);
+        } else {
+          await rxJson('/api/me/trails/delete', { method: 'POST', body: { trail_id: itemId } });
+        }
+      }
+      epConfirmTarget = null;
+      setEpStatus('Removed ' + kind + ' from your BiteShark account.', false);
+      await loadExplorationPrivacyRecords({ preserveStatus: true });
+    } catch (err) {
+      setEpStatus((err && err.message) || 'Could not remove that record right now.', true);
+      if (btnEl) btnEl.disabled = false;
+    }
+  }
+
+  async function loadExplorationPrivacyRecords(opts) {
+    var options = opts || {};
+    var host = document.getElementById('epRecordsContainer');
+    if (host && !epLatestExportPayload) {
+      host.innerHTML = '<p class="rx-card" role="status">Loading your saved exploration records…</p>';
+    }
+    if (!options.preserveStatus) setEpStatus('', false);
+    try {
+      var data =
+        window.bitesharkExploration && typeof window.bitesharkExploration.exportAccountData === 'function'
+          ? await window.bitesharkExploration.exportAccountData()
+          : await rxJson('/api/me/exploration/export', {
+              featureKey: 'local_guides_passport',
+              operationName: 'privacy.export_exploration'
+            });
+      epLatestExportPayload = data;
+      renderExplorationPrivacyRecords();
+    } catch (err) {
+      if (host) {
+        host.innerHTML =
+          '<div class="rx-msg error" role="alert">' +
+          rxEsc((err && err.message) || 'Could not load your saved exploration records.') +
+          '</div>';
+      }
+    }
+  }
+
+  async function openExplorationPrivacyModal(returnFocusEl) {
+    injectRoleNavigationAndModals();
+    epConfirmTarget = null;
+    rxOpenModal('rxExplorationPrivacyModal', {
+      returnFocusEl: returnFocusEl || document.getElementById('profileAvatar')
+    });
+    await loadExplorationPrivacyRecords();
+  }
+
+  window.openExplorationPrivacyModal = openExplorationPrivacyModal;
   window.bitesharkOnSignedOut = resetRoleExperienceSignedOutState;
 
   async function refreshAccountRoleContext() {
@@ -1100,6 +1412,7 @@
       var roleBox = document.getElementById('rxProfileRoleBox');
       var adminLink = document.getElementById('navAdminPortalLink');
       var vendorHubBtn = document.getElementById('rxVendorHubBtn');
+      var expPrivacyBtn = document.getElementById('rxExplorationPrivacyBtn');
       var profileSub = document.getElementById('profileSub');
 
       if (ctx.authenticated) {
@@ -1123,6 +1436,9 @@
         if (vendorHubBtn) {
           vendorHubBtn.hidden = !(Array.isArray(ctx.memberships) && ctx.memberships.length > 0);
         }
+        if (expPrivacyBtn) {
+          expPrivacyBtn.hidden = Boolean(ctx.requires_age_assessment);
+        }
         var ageModal = document.getElementById('rxAgeAssessmentModal');
         if (ageModal) {
           if (ctx.requires_age_assessment) {
@@ -1137,6 +1453,7 @@
         if (roleBox) roleBox.hidden = true;
         if (adminLink) adminLink.hidden = true;
         if (vendorHubBtn) vendorHubBtn.hidden = true;
+        if (expPrivacyBtn) expPrivacyBtn.hidden = true;
         var ageModalGuest = document.getElementById('rxAgeAssessmentModal');
         if (ageModalGuest) ageModalGuest.hidden = true;
       }
@@ -3896,7 +4213,14 @@
   }
 
   function anyModalCurrentlyOpen() {
-    var rxIds = ['vendorApplyModal', 'supportIssuesModal', 'communityReportModal', 'inviteAcceptModal', 'rxAgeAssessmentModal'];
+    var rxIds = [
+      'vendorApplyModal',
+      'supportIssuesModal',
+      'communityReportModal',
+      'inviteAcceptModal',
+      'rxAgeAssessmentModal',
+      'rxExplorationPrivacyModal'
+    ];
     for (var i = 0; i < rxIds.length; i++) {
       var m = document.getElementById(rxIds[i]);
       if (m && !m.hidden) return true;

@@ -502,15 +502,30 @@ export async function handleCustomerExplorationRoute({
       return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
     }
     try {
+      const requestedVariant = String(query.variant || 'main').toLowerCase() === 'thumb' ? 'thumb' : 'main';
       const fileOut = await readUserPhotoFile(dbAdapter, {
         userId,
         photoId: query.id || '',
-        variant: query.variant || 'main',
+        variant: requestedVariant,
         storageRoot: resolvePhotoStorageRoot()
       });
 
+      const asAttachment = query.download === '1' || query.download === 'true';
+      const ext =
+        fileOut.contentType === 'image/png'
+          ? 'png'
+          : fileOut.contentType === 'image/webp'
+            ? 'webp'
+            : 'jpg';
+
       rawRes.setHeader('Content-Type', fileOut.contentType);
       rawRes.setHeader('Content-Length', String(fileOut.bytes.length));
+      if (asAttachment) {
+        rawRes.setHeader(
+          'Content-Disposition',
+          `attachment; filename="biteshark-${fileOut.photoId}-${requestedVariant}.${ext}"`
+        );
+      }
       rawRes.setHeader('Cache-Control', 'private, no-store, max-age=0');
       rawRes.setHeader('Vary', 'Cookie');
       rawRes.setHeader('X-Content-Type-Options', 'nosniff');

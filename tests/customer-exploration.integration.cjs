@@ -166,7 +166,7 @@ function extractSessionCookie(res) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":27'), `Expected 27 migrations: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":28'), `Expected 28 migrations: ${migRes.stdout}`);
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 10 });
@@ -879,6 +879,26 @@ function extractSessionCookie(res) {
     // =========================================================================
     // 6. Feature Controls (Top vs Mod RBAC, Independent Subfeatures, Parent DAG, Data Preservation)
     // =========================================================================
+    async function setFeatureAsTop(featureKey, state, reason = 'Integration test verification on staging candidate') {
+      const list = await httpReq('/api/admin/features', { cookie: topUser.cookie });
+      const row = list.json.controls.find(f => f.key === featureKey);
+      assert(row, `Feature ${featureKey} missing from /api/admin/features`);
+      const upd = await httpReq('/api/admin/features/update', {
+        method: 'POST',
+        cookie: topUser.cookie,
+        body: {
+          feature_key: featureKey,
+          configured_state: state,
+          audience: 'all',
+          reason,
+          expected_revision: row.revision,
+          confirmed_impact: true
+        }
+      });
+      assert.equal(upd.status, 200, `Failed updating ${featureKey} -> ${state}: ${JSON.stringify(upd.json)}`);
+      return upd.json.controls.find(f => f.key === featureKey);
+    }
+
     {
       // Mod CANNOT mutate feature controls (`403`)
       const modAttempt = await httpReq('/api/admin/features/update', {
@@ -893,26 +913,6 @@ function extractSessionCookie(res) {
         }
       });
       assert.equal(modAttempt.status, 403, 'Mods must not gain feature-control mutation access');
-
-      async function setFeatureAsTop(featureKey, state, reason = 'Integration test verification on staging candidate') {
-        const list = await httpReq('/api/admin/features', { cookie: topUser.cookie });
-        const row = list.json.controls.find(f => f.key === featureKey);
-        assert(row, `Feature ${featureKey} missing from /api/admin/features`);
-        const upd = await httpReq('/api/admin/features/update', {
-          method: 'POST',
-          cookie: topUser.cookie,
-          body: {
-            feature_key: featureKey,
-            configured_state: state,
-            audience: 'all',
-            reason,
-            expected_revision: row.revision,
-            confirmed_impact: true
-          }
-        });
-        assert.equal(upd.status, 200, `Failed updating ${featureKey} -> ${state}: ${JSON.stringify(upd.json)}`);
-        return upd.json.controls.find(f => f.key === featureKey);
-      }
 
       // 6a. Hide `exploration_badges` and `weekly_challenges` ->
       //     `/api/me/exploration` hides badge & challenge presentation (`achievements_hidden: true`, `weekly_challenge_hidden: true`),
@@ -1037,8 +1037,293 @@ function extractSessionCookie(res) {
       }
     }
 
+    // =========================================================================
+    // 8. Integration Audit Regression Gate (Pre-Save Trail Timing, Hidden-Feature
+    //    Privacy Export/Photo-Download/Delete, Photo Reconciliation, Pending-Age
+    //    Public Allowlist, and Admin-Onboarded Vendor Taxonomy)
+    // =========================================================================
+    {
+      // 8a. Pre-save same-day visit timing (`DEF-EXP-01`):
+      //     User B logs a visit to `'fruta'` BEFORE saving a trail containing `['fruta', 'rich']` on the same day.
+      //     The pre-save visit MUST NOT silently count as post-save trail progress (`completed_stops === 0`,
+      //     `visited_since_save === false`, `visited_before_save_today === true`).
+      const userC = await signInEmail('carol-timing@staging.biteshark.invalid');
+      const preSaveVisit = await httpReq('/api/me/visits', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: { vendor_id: 'fruta', private_note: 'Morning fruit bowl before trail saved' }
+      });
+      assert.equal(preSaveVisit.status, 201);
+
+      await new Promise(resolve => setTimeout(resolve, 25));
+
+      const saveAfterVisit = await httpReq('/api/me/trails', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: {
+          title: 'Afternoon Sweet Trail',
+          theme_key: 'sweet',
+          stops: [{ vendor_id: 'fruta' }, { vendor_id: 'rich' }]
+        }
+      });
+      assert.equal(saveAfterVisit.status, 201);
+      assert.equal(
+        saveAfterVisit.json.trail.progress.completed_stops,
+        0,
+        'Visit logged earlier on the same day before saving trail must NOT count as post-save progress'
+      );
+      const frutaStop = saveAfterVisit.json.trail.stops.find(s => s.vendor_id === 'fruta');
+      assert.equal(frutaStop.visited_since_save, false);
+      assert.equal(frutaStop.visited_before_save_today, true, 'Must surface honest same-day pre-save indicator');
+
+      // Same-day duplicate visit to `fruta` remains deduplicated (`200 VISIT_ALREADY_LOGGED_TODAY`) and still does not inflate post-save progress
+      const sameDayRetry = await httpReq('/api/me/visits', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: { vendor_id: 'fruta' }
+      });
+      assert.equal(sameDayRetry.status, 200);
+      assert.equal(sameDayRetry.json.already_logged_today, true);
+
+      // Post-save visit to `rich` (`visited_at >= trail.created_at`) DOES count (`1 / 2`)!
+      await new Promise(resolve => setTimeout(resolve, 15));
+      const postSaveVisit = await httpReq('/api/me/visits', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: { vendor_id: 'rich', private_note: 'Post-save Italian ice' }
+      });
+      assert.equal(postSaveVisit.status, 201);
+      const checkTrailsC = await httpReq('/api/me/trails', { cookie: userC.cookie });
+      assert.equal(checkTrailsC.json.trails[0].progress.completed_stops, 1);
+      assert.equal(checkTrailsC.json.trails[0].stops[0].visited_since_save, false);
+      assert.equal(checkTrailsC.json.trails[0].stops[1].visited_since_save, true);
+
+      // 8b. Privacy export, binary photo retrieval (`?download=1`), and self-service deletion
+      //     while ALL exploration features are `hidden`, with strict cross-user ownership enforcement (`DEF-EXP-02`):
+      const tinyPngBuf = await sharp({
+        create: { width: 32, height: 32, channels: 3, background: { r: 22, g: 120, b: 88 } }
+      })
+        .png()
+        .toBuffer();
+      const cPhotoRes = await httpReq('/api/me/photos', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: {
+          vendor_id: 'rich',
+          caption: 'Carol private photo for hidden-mode retrieval',
+          data_url: `data:image/png;base64,${tinyPngBuf.toString('base64')}`
+        }
+      });
+      assert.equal(cPhotoRes.status, 201);
+      const cPhotoId = cPhotoRes.json.photo.photo_id;
+      const cVisitId = postSaveVisit.json.visit.visit_id;
+      const cTrailId = saveAfterVisit.json.trail.trail_id;
+
+      await setFeatureAsTop('local_guides_passport', 'hidden');
+      await setFeatureAsTop('visit_journal', 'hidden');
+      await setFeatureAsTop('private_photos', 'hidden');
+      await setFeatureAsTop('suggested_trails', 'hidden');
+
+      try {
+        // Standard browse endpoints remain gated (`403 FEATURE_DISABLED`)
+        assert.equal((await httpReq('/api/me/photos', { cookie: userC.cookie })).status, 403);
+        assert.equal((await httpReq('/api/me/visits', { cookie: userC.cookie })).status, 403);
+        assert.equal((await httpReq('/api/me/trails', { cookie: userC.cookie })).status, 403);
+
+        // Owner privacy export succeeds (`200`) and includes downloadable photo URL
+        const cExport = await httpReq('/api/me/exploration/export', { cookie: userC.cookie });
+        assert.equal(cExport.status, 200);
+        const exportedPhoto = cExport.json.photos.find(p => p.photo_id === cPhotoId);
+        assert(exportedPhoto && exportedPhoto.download_url.includes('download=1'));
+
+        // Owner binary photo download succeeds (`200` + `Content-Disposition: attachment` + PNG signature) while feature is hidden!
+        const ownerPhotoDl = await httpReq(exportedPhoto.download_url, {
+          cookie: userC.cookie,
+          rawBuffer: true
+        });
+        assert.equal(ownerPhotoDl.status, 200, 'Owner must be able to retrieve actual photo bytes when feature is hidden');
+        assert(
+          String(ownerPhotoDl.headers.get('content-disposition') || '').startsWith('attachment;'),
+          'download=1 must set Content-Disposition: attachment'
+        );
+        assert.equal(ownerPhotoDl.buffer[0], 0x89);
+        assert.equal(ownerPhotoDl.buffer[1], 0x50);
+
+        // Cross-user and anonymous probes STILL fail (`404` / `401`) — never publicly exposed!
+        assert.equal((await httpReq(exportedPhoto.download_url)).status, 401);
+        assert.equal((await httpReq(exportedPhoto.download_url, { cookie: userA.cookie })).status, 404);
+        assert.equal(
+          (
+            await httpReq('/api/me/photos/delete', {
+              method: 'POST',
+              cookie: userA.cookie,
+              body: { photo_id: cPhotoId }
+            })
+          ).status,
+          404,
+          'Other user must never delete Carol photo'
+        );
+
+        // Owner self-service deletions succeed (`200`) even while all exploration features are hidden!
+        const delPhotoHidden = await httpReq('/api/me/photos/delete', {
+          method: 'POST',
+          cookie: userC.cookie,
+          body: { photo_id: cPhotoId }
+        });
+        assert.equal(delPhotoHidden.status, 200);
+        assert.equal(delPhotoHidden.json.files_cleaned, true);
+
+        const delVisitHidden = await httpReq('/api/me/visits/delete', {
+          method: 'POST',
+          cookie: userC.cookie,
+          body: { visit_id: cVisitId }
+        });
+        assert.equal(delVisitHidden.status, 200);
+
+        const delTrailHidden = await httpReq('/api/me/trails/delete', {
+          method: 'POST',
+          cookie: userC.cookie,
+          body: { trail_id: cTrailId }
+        });
+        assert.equal(delTrailHidden.status, 200);
+      } finally {
+        await setFeatureAsTop('local_guides_passport', 'enabled');
+        await setFeatureAsTop('visit_journal', 'enabled');
+        await setFeatureAsTop('private_photos', 'enabled');
+        await setFeatureAsTop('suggested_trails', 'enabled');
+      }
+
+      // 8c. Photo consistency reconciliation (`DEF-EXP-03`):
+      //     Simulate (1) a soft-deleted photo row whose initial unlink failed (`files_purged_at IS NULL` with files still on disk),
+      //     (2) an aged `.tmp-*` file, and (3) an aged unreferenced `pht_*` derivative file, while User A has an active photo.
+      const reconUpload = await httpReq('/api/me/photos', {
+        method: 'POST',
+        cookie: userC.cookie,
+        body: {
+          caption: 'Simulated failed-unlink photo',
+          data_url: `data:image/png;base64,${tinyPngBuf.toString('base64')}`
+        }
+      });
+      assert.equal(reconUpload.status, 201);
+      const reconPhotoId = reconUpload.json.photo.photo_id;
+
+      let reconMainAbs = '';
+      let reconThumbAbs = '';
+      {
+        const mc = await migratorPool.connect();
+        try {
+          await mc.query('BEGIN');
+          await mc.query("SELECT set_config('app.photo_maintenance', 'true', true)");
+          const reconPathsRes = await mc.query(
+            'SELECT storage_rel_path, thumb_rel_path FROM customer_photos WHERE id = $1',
+            [reconPhotoId]
+          );
+          reconMainAbs = path.join(photoStorageDir, ...reconPathsRes.rows[0].storage_rel_path.split('/'));
+          reconThumbAbs = path.join(photoStorageDir, ...reconPathsRes.rows[0].thumb_rel_path.split('/'));
+          assert(fs.existsSync(reconMainAbs) && fs.existsSync(reconThumbAbs));
+
+          // Mark row soft-deleted WITHOUT unlinking files (`files_purged_at IS NULL`)
+          await mc.query("SELECT set_config('app.user_id', $1, true)", [userC.user.id]);
+          await mc.query(
+            "UPDATE customer_photos SET deleted_at = now() - interval '20 minutes', files_purged_at = NULL WHERE id = $1",
+            [reconPhotoId]
+          );
+          await mc.query('COMMIT');
+        } finally {
+          mc.release();
+        }
+      }
+
+      // Create an aged `.tmp-*` file and an aged orphan `pht_*` file in shard `aa/`
+      const orphanShardDir = path.join(photoStorageDir, 'aa');
+      fs.mkdirSync(orphanShardDir, { recursive: true, mode: 0o700 });
+      const staleTmpAbs = path.join(orphanShardDir, '.tmp-99999-aabbccddeeff');
+      const orphanMainAbs = path.join(orphanShardDir, 'pht_aa11223344556677889900aabbccddee_main.jpg');
+      fs.writeFileSync(staleTmpAbs, Buffer.from('partial'));
+      fs.writeFileSync(orphanMainAbs, Buffer.from('orphan'));
+      const twentyMinAgo = new Date(Date.now() - 20 * 60 * 1000);
+      fs.utimesSync(staleTmpAbs, twentyMinAgo, twentyMinAgo);
+      fs.utimesSync(orphanMainAbs, twentyMinAgo, twentyMinAgo);
+
+      // Run Top Admin diagnostics & photo storage cleanup
+      const adminCleanup = await httpReq('/api/admin/diagnostics/cleanup', {
+        method: 'POST',
+        cookie: topUser.cookie,
+        body: {}
+      });
+      assert.equal(adminCleanup.status, 200);
+      assert(adminCleanup.json.photo_reconciliation, 'Expected photo_reconciliation in cleanup response');
+      assert.equal(adminCleanup.json.photo_reconciliation.pending_purges_completed, 1);
+      assert.equal(adminCleanup.json.photo_reconciliation.stale_tmp_deleted, 1);
+      assert.equal(adminCleanup.json.photo_reconciliation.orphan_files_deleted, 1);
+      assert.equal(fs.existsSync(reconMainAbs), false, 'Failed-unlink main derivative must be purged');
+      assert.equal(fs.existsSync(reconThumbAbs), false, 'Failed-unlink thumb derivative must be purged');
+      assert.equal(fs.existsSync(staleTmpAbs), false, 'Aged .tmp-* file must be purged');
+      assert.equal(fs.existsSync(orphanMainAbs), false, 'Aged orphan pht_* file must be purged');
+
+      {
+        const mc = await migratorPool.connect();
+        try {
+          await mc.query('BEGIN');
+          await mc.query("SELECT set_config('app.photo_maintenance', 'true', true)");
+          const verifyPurgedCol = await mc.query(
+            'SELECT files_purged_at FROM customer_photos WHERE id = $1',
+            [reconPhotoId]
+          );
+          await mc.query('COMMIT');
+          assert(verifyPurgedCol.rows[0].files_purged_at, 'files_purged_at must be stamped after reconciliation');
+        } finally {
+          mc.release();
+        }
+      }
+
+      // Verify User A's active photo was NOT touched by orphan cleanup!
+      const userAPhotosStill = await httpReq('/api/me/photos', { cookie: userA.cookie });
+      assert.equal(userAPhotosStill.status, 200);
+      assert.equal(userAPhotosStill.json.photos.length, 1);
+      const userAPhotoBytes = await httpReq(userAPhotosStill.json.photos[0].main_url, {
+        cookie: userA.cookie,
+        rawBuffer: true
+      });
+      assert.equal(userAPhotoBytes.status, 200, 'Active user photo must remain completely intact after reconciliation');
+
+      // 8d. Signed-in `not_assessed` user (`requires_age_assessment = true`) can still browse public
+      //     `/api/stories` and `/api/trails/suggest`, while `/api/me/*` returns `403 AGE_ASSESSMENT_REQUIRED` (`DEF-EXP-05`):
+      const pendingUser = await signInEmail('pending-age-exp@staging.biteshark.invalid');
+      await migratorPool.query(
+        `BEGIN;
+         SELECT set_config('app.auth_internal', 'true', true);
+         UPDATE auth_users SET age_eligibility_status = 'not_assessed', age_policy_version = NULL, age_assessed_at = NULL, age_assessment_basis = NULL WHERE id = '${pendingUser.user.id}';
+         COMMIT;`
+      );
+      assert.equal((await httpReq('/api/stories', { cookie: pendingUser.cookie })).status, 200);
+      assert.equal((await httpReq('/api/trails/suggest?theme=sweet', { cookie: pendingUser.cookie })).status, 200);
+      const blockedPersonal = await httpReq('/api/me/exploration', { cookie: pendingUser.cookie });
+      assert.equal(blockedPersonal.status, 403);
+      assert.equal(blockedPersonal.json.code, 'AGE_ASSESSMENT_REQUIRED');
+
+      // 8e. Newly `/admin`-onboarded sweet vendor classifies & ranks in Suggested Trails without code edits (`DEF-EXP-04`):
+      await migratorPool.query(
+        `INSERT INTO vendors (id, sort_order, canonical_name, cuisine, city, listing_kind, blurb, curated_location, curated_location_source, curated_location_accuracy, is_active)
+         VALUES ('sonoma-gelato-cart', 25, 'Sonoma Plaza Gelato Cart', 'Artisan Gelato & Sorbet', 'Sonoma', 'food_truck', 'Small-batch seasonal fruit gelato on Sonoma Plaza.', '453 1st St E, Sonoma', 'venue_published', 'venue_address', true);
+         INSERT INTO owner_profiles (truck_id, display_name, cuisine, description, accepting_bookings)
+         VALUES ('sonoma-gelato-cart', 'Sonoma Plaza Gelato Cart', 'Artisan Gelato & Sorbet', 'Fresh Sonoma gelato.', true);`
+      );
+      try {
+        const sonomaSweet = await httpReq('/api/trails/suggest?theme=sweet&town=Sonoma');
+        assert.equal(sonomaSweet.status, 200);
+        assert(
+          sonomaSweet.json.stops.some(s => s.vendor_id === 'sonoma-gelato-cart'),
+          'Newly onboarded gelato vendor must classify automatically into sweet trails without hardcoded ID edits'
+        );
+      } finally {
+        await migratorPool.query("DELETE FROM owner_profiles WHERE truck_id = 'sonoma-gelato-cart'");
+        await migratorPool.query("DELETE FROM vendors WHERE id = 'sonoma-gelato-cart'");
+      }
+    }
+
     console.log(
-      'PASS: Customer exploration PostgreSQL + Sharp integration suite (RLS & authz, repeat/same-day/DST/Monday visits, canonical taxonomy badges, reversible deletes, EXIF rotation + GPS strip + 12-photo cap + disk guards + release survival, idempotent legacy import + export, sweet/farm/shared suggested trails, independent feature controls, and redacted non-cascading diagnostics)'
+      'PASS: Customer exploration PostgreSQL + Sharp integration suite (RLS & authz, repeat/same-day/DST/Monday visits, pre-save vs post-save trail timing, canonical taxonomy + dynamic onboarding, reversible deletes, EXIF rotation + GPS strip + 12-photo cap + failed-unlink/orphan reconciliation, idempotent legacy import + hidden-mode privacy export/download/delete, pending-age public allowlist, independent feature controls, and redacted non-cascading diagnostics)'
     );
   } finally {
     if (standaloneRelease2) {

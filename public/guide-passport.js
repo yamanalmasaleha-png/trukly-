@@ -465,11 +465,14 @@ async function renderGuidePassport(opts = {}) {
       renderWeeklyChallengeHtml(summary) +
       renderAchievementsSectionHtml(summary) +
       '<section class="passport-panel" id="journalHistoryPanel" aria-labelledby="journalHistoryHeading">' +
-      '<div class="passport-title">' +
+      '<div class="passport-title" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">' +
+      '<div>' +
       '<h2 id="journalHistoryHeading">Visit journal history (' +
       journalState.pagination.total +
       ')</h2>' +
       '<p>Your private account-backed visit history across Sonoma County.</p>' +
+      '</div>' +
+      '<button type="button" class="secondary small-btn" id="journalOpenPrivacyExportBtn">Export &amp; manage my data</button>' +
       '</div>' +
       '<ul class="passport-visits" id="journalVisitsList">' +
       visitsHtml +
@@ -504,6 +507,15 @@ function bindVisitJournalHandlers(host) {
   const noteInput = document.getElementById('guideVisitNote');
   const pillEl = document.getElementById('journalSelectedPill');
   const form = document.getElementById('guideVisitForm');
+  const exportBtn = document.getElementById('journalOpenPrivacyExportBtn');
+
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      if (typeof window.openExplorationPrivacyModal === 'function') {
+        window.openExplorationPrivacyModal(exportBtn);
+      }
+    });
+  }
 
   if (searchInput && selectEl) {
     searchInput.addEventListener('input', () => {

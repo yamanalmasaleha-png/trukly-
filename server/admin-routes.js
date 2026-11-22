@@ -105,6 +105,7 @@ import {
   CUSTOMER_EXPLORATION_PATHS,
   handleCustomerExplorationRoute
 } from './customer-exploration-routes.js';
+import { reconcilePhotoStorage } from '../lib/customer-exploration.js';
 
 export const EVIDENCE_UPLOAD_MAX_JSON_BYTES = 900 * 1024; // 900 KiB JSON envelope for <= 512 KiB base64 file
 
@@ -7923,6 +7924,7 @@ export async function handleGovernanceApiRequest({
     }
 
     const cleanupRes = await cleanupExpiredDiagnostics(dbAdapter);
+    const photoRecon = await reconcilePhotoStorage(dbAdapter).catch(() => null);
     await withTransaction(dbAdapter, async tx => {
       await enableAdminTxGuards(tx, ctx);
       await recordAuditLog(tx, {
@@ -7935,12 +7937,17 @@ export async function handleGovernanceApiRequest({
           deleted_samples: cleanupRes.deleted_samples,
           deleted_aged_groups: cleanupRes.deleted_aged_groups,
           deleted_overflow_groups: cleanupRes.deleted_overflow_groups,
+          photo_purges_completed: photoRecon?.pending_purges_completed || 0,
+          photo_orphans_deleted: photoRecon?.orphan_files_deleted || 0,
           notes_deleted: 0
         }
       });
     });
 
-    return sendJson(200, cleanupRes);
+    return sendJson(200, {
+      ...cleanupRes,
+      ...(photoRecon ? { photo_reconciliation: photoRecon } : {})
+    });
   }
 
   if (normPath === '/api/admin/diagnostics/notify-tickets') {

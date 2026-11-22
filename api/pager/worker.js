@@ -15,6 +15,7 @@ import {
   recordDiagnosticEvent,
   recordWorkerHeartbeat
 } from "../../lib/diagnostics.js";
+import { reconcilePhotoStorage } from "../../lib/customer-exploration.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -102,6 +103,7 @@ export default async function(req, res) {
     });
     let authCleanup = null;
     let diagnosticsCleanup = null;
+    let photoReconciliation = null;
     if (runCleanup) {
       authCleanup = await cleanupExpiredAuthRecords(db, { now: now || new Date() }).catch(async err => {
         await recordDiagnosticEvent(db, {
@@ -119,6 +121,7 @@ export default async function(req, res) {
         return null;
       });
       diagnosticsCleanup = await cleanupExpiredDiagnostics(db).catch(() => null);
+      photoReconciliation = await reconcilePhotoStorage(db, { now: now || new Date() }).catch(() => null);
     }
 
     if ((result.failed || 0) > 0) {
@@ -156,7 +159,8 @@ export default async function(req, res) {
       executed_at: executedIso,
       ...result,
       ...(authCleanup ? { auth_cleanup: authCleanup } : {}),
-      ...(diagnosticsCleanup?.ok ? { diagnostics_cleanup: diagnosticsCleanup } : {})
+      ...(diagnosticsCleanup?.ok ? { diagnostics_cleanup: diagnosticsCleanup } : {}),
+      ...(photoReconciliation?.ok ? { photo_reconciliation: photoReconciliation } : {})
     });
   } catch (err) {
     await recordWorkerHeartbeat(db, {
