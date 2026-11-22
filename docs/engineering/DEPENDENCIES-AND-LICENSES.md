@@ -21,7 +21,7 @@
 | `cookie` | `1.1.1` | Runtime | `MIT` | HTTP `Cookie` / `Set-Cookie` parsing & serialization (`lib/standalone-auth.js`, `lib/age-policy.js`). |
 | `otplib` | `13.6.0` | Runtime | `MIT` | RFC 4226 6-digit HOTP generation (`lib/standalone-auth.js`). Pulls 8 pure-JS `MIT` packages (`@otplib/*@13.6.0`, `@noble/hashes@2.4.0`, `@scure/base@2.4.0`). |
 | `pg` | `8.23.1` | Runtime | `MIT` | PostgreSQL client & connection pool (`server/index.js`, `scripts/*.cjs`). Pulls 10 `MIT` packages (`pg-pool`, `pg-protocol`, `pg-types`, `pg-connection-string`, `pgpass`, `pg-cloudflare`, `postgres-*`, `xtend`) and **2 `ISC` packages** (`pg-int8@1.0.1`, `split2@4.2.0`). |
-| *(Branch `83181ba` only)* `sharp` | `0.35.5` | Runtime | `Apache-2.0` *(libvips `LGPL-3.0-or-later`)* | Server-side image decode/strip/WebP normalization (`lib/photo-storage.js`) with `sharp.cache(false); sharp.concurrency(1)`. |
+| `sharp` | `0.35.5` | Runtime (`working/biteshark-vps`; not yet merged into `staging2` branches) | `Apache-2.0` *(libvips `LGPL-3.0-or-later`)* | Server-side image decode/EXIF-strip/WebP thumbnail normalization (`lib/photo-storage.js`) with `sharp.cache(false); sharp.concurrency(1)`. |
 
 *(Note: RFC 8291/8292 Web Push encryption in `lib/webpush-crypto.js` uses built-in `node:crypto` with zero third-party push npm dependencies.)*
 

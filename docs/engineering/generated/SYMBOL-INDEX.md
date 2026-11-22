@@ -3,21 +3,21 @@
 > [!NOTE]
 > **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via `npm run registry:docs` (`node tools/code-registry/cli.mjs generate-docs`).
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
-> - **Branch / Ref at Generation**: `working/biteshark-vps`
+> - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109`
+> - **Deterministic Source Digest**: `fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## Coverage Summary
 
 | Metric | Count |
 |---|---:|
-| JavaScript / CJS / ESM Files Scanned | 110 |
+| JavaScript / CJS / ESM Files Scanned | 117 |
 | Parse Failures | 0 |
-| Named Functions, Methods & Handlers | 2251 |
-| Classes | 16 |
-| Top-Level Constants | 533 |
-| Browser Globals & Assignments | 580 |
+| Named Functions, Methods & Handlers | 2528 |
+| Classes | 19 |
+| Top-Level Constants | 584 |
+| Browser Globals & Assignments | 622 |
 
 > **Type Notation**: BiteShark is plain JavaScript without TypeScript annotations. Parameter types below distinguish `inferred_from_default`, `inferred_from_destructuring`, `inferred_from_rest`, and `undeclared` (`unknown`). Signatures are never invented.
 
@@ -31,55 +31,68 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `configureStandaloneAdapter` | `function` | Yes | `({ db, getUser }: object)` | `void_or_implicit` | `server/app.js:createStandaloneServer` | L13 |
-| `bindVerifiedRequestUser` | `function` | Yes | `(req: unknown, user: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L23 |
-| `runWithRequestContext` | `function` | Yes | `(context: unknown, fn: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L47 |
+| `bindVerifiedRequestUser` | `function` | Yes | `(req: unknown, user: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L23 |
+| `runWithRequestContext` | `function` | Yes | `(context: unknown, fn: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L47 |
 | `getActiveRequestContext` | `function` | Yes | `()` | `sync_value` | — | L51 |
 | `resolveActiveDb` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `packages/runtime-adapter/index.js:query`, `packages/runtime-adapter/index.js:connect`, `packages/runtime-adapter/index.js:transaction` | L55 |
 | `query` | `object_method` | No | `(text: unknown, params: unknown)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1`, `api/bookings/list.js:default`, `api/community/list.js:default`, `api/community/mine.js:default$anon_L16_1` | L67 |
-| `connect` | `object_method` | No | `()` | `sync_value (throws: Error)` | `lib/db-tx.js:withTransaction$anon_L199_3`, `lib/db-tx.js:withTransaction$anon_L201_4`, `lib/diagnostics.js:withDiagnosticsDb$anon_L355_4`, `lib/diagnostics.js:withDiagnosticsDb$anon_L357_5` | L71 |
-| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/db-tx.js:withTransaction`, `public/local-guides.js:dishRead$anon_L63_7`, `public/local-guides.js:dishWrite$anon_L64_8`, `scripts/dev-server.cjs:transaction` | L82 |
+| `connect` | `object_method` | No | `()` | `sync_value (throws: Error)` | `lib/db-tx.js:withTransaction$anon_L199_3`, `lib/db-tx.js:withTransaction$anon_L201_4`, `lib/diagnostics.js:withDiagnosticsDb$anon_L388_4`, `lib/diagnostics.js:withDiagnosticsDb$anon_L390_5` | L71 |
+| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/db-tx.js:withTransaction`, `public/exploration-client.js:req.onsuccess`, `scripts/dev-server.cjs:transaction` | L82 |
 | `pool` | `object_method` | No | `()` | `sync_value` | — | L113 |
 | `getUser` | `object_method` | No | `(req: unknown)` | `async -> promise` | `lib/authz.js:resolveIdentity`, `public/app.js:syncAuthAndUserData` | L122 |
 
 ### [server/admin-routes.js](../../../server/admin-routes.js) (`module`)
-- **Imports / Dependencies**: `../lib/admin-governance.js`, `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/standalone-auth.js`, `../lib/support-tickets.js`, `@biteshark/runtime-adapter`
+- **Imports / Dependencies**: `../lib/admin-governance.js`, `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/customer-exploration.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/standalone-auth.js`, `../lib/support-tickets.js`, `./customer-exploration-routes.js`, `@biteshark/runtime-adapter`
 - **Exports**: `EVIDENCE_UPLOAD_MAX_JSON_BYTES`, `isGovernanceApiPath`, `handleGovernanceApiRequest`
 - **Significant Constants**: `EVIDENCE_UPLOAD_MAX_JSON_BYTES` *(exported)*, `GOVERNANCE_PATHS`, `READINESS_STATUS_CATALOG`, `VALID_READINESS_STATUSES`, `LAUNCH_INCOMPLETE_REMINDER_TEXT`, `DEPLOYMENT_PORTAL_REMINDER_NOTE`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `isGovernanceApiPath` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L156 |
-| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4150_50$anon_L4221_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70$anon_L5495_71` | L161 |
-| `validateIsoCalendarDate` | `function` | No | `(raw: unknown, { allowFuture }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L189 |
-| `serializeReadinessItemForActor` | `function` | No | `(row: unknown, actorRole: unknown, historyRows: array)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L6547_78$anon_L6643_80`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6693_81`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6830_82` | L214 |
-| `enableAdminTxGuards` | `function` | No | `(tx: unknown, ctx: unknown)` | `async -> promise` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1920_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L257 |
-| `getRuntimeReleaseSha` | `function` | No | `()` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation`, `server/admin-routes.js:handleGovernanceApiRequest` | L269 |
-| `loadInvitationEventsMapInTx` | `function` | No | `(tx: unknown, invitationIds: unknown)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L278 |
-| `deliverAndFinalizeIssuedInvitation` | `function` | No | `({ dbAdapter, ctx, invitationId, tokenVersion, rawToken, recipientEmail, requestedRole, vendorId, vendorName, expiresAt, actorId, actorRole }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L305 |
-| `recordAndDispatchSupportNotification` | `function` | No | `({ dbAdapter, issueId, ticketNumber, recipientUserId, recipientEmail, eventKind, dedupeKey, statusLabel, isCritical }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:handleGovernanceApiRequest` | L449 |
-| `handleGovernanceApiRequest` | `function` | Yes | `({ pathname, method, req, query, body, dbAdapter, sendJson, rawRes }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L891_6$anon_L900_7` | L573 |
+| `isGovernanceApiPath` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L161 |
+| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L956_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4169_50$anon_L4240_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5499_70$anon_L5514_71` | L166 |
+| `validateIsoCalendarDate` | `function` | No | `(raw: unknown, { allowFuture }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L194 |
+| `serializeReadinessItemForActor` | `function` | No | `(row: unknown, actorRole: unknown, historyRows: array)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L6566_78$anon_L6662_80`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6712_81`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6849_82` | L219 |
+| `enableAdminTxGuards` | `function` | No | `(tx: unknown, ctx: unknown)` | `async -> promise` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L341_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1074_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1939_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2892_37` | L262 |
+| `getRuntimeReleaseSha` | `function` | No | `()` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation`, `server/admin-routes.js:handleGovernanceApiRequest` | L274 |
+| `loadInvitationEventsMapInTx` | `function` | No | `(tx: unknown, invitationIds: unknown)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L341_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4549_62`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65` | L283 |
+| `deliverAndFinalizeIssuedInvitation` | `function` | No | `({ dbAdapter, ctx, invitationId, tokenVersion, rawToken, recipientEmail, requestedRole, vendorId, vendorName, expiresAt, actorId, actorRole }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L310 |
+| `recordAndDispatchSupportNotification` | `function` | No | `({ dbAdapter, issueId, ticketNumber, recipientUserId, recipientEmail, eventKind, dedupeKey, statusLabel, isCritical }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:handleGovernanceApiRequest` | L454 |
+| `handleGovernanceApiRequest` | `function` | Yes | `({ pathname, method, req, query, body, dbAdapter, sendJson, rawRes }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L915_6$anon_L924_7` | L578 |
 
 ### [server/app.js](../../../server/app.js) (`module`)
-- **Imports / Dependencies**: `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/request-context.js`, `../lib/standalone-auth.js`, `../scripts/staging-runtime-probe.js`, `./admin-routes.js`, `./routes.js`, `@biteshark/runtime-adapter`, `node:fs`, `node:http`, `node:path`, `node:url`
+- **Imports / Dependencies**: `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/photo-storage.js`, `../lib/request-context.js`, `../lib/standalone-auth.js`, `../scripts/staging-runtime-probe.js`, `./admin-routes.js`, `./routes.js`, `@biteshark/runtime-adapter`, `node:fs`, `node:http`, `node:path`, `node:url`
 - **Exports**: `DEFAULT_MAX_JSON_BYTES`, `AUTH_MAX_JSON_BYTES`, `DIAGNOSTICS_REPORT_MAX_JSON_BYTES`, `createStandaloneServer`
 - **Significant Constants**: `SERVER_DIR`, `DEFAULT_PUBLIC_DIR`, `DEFAULT_MAX_JSON_BYTES` *(exported)*, `AUTH_MAX_JSON_BYTES` *(exported)*, `DIAGNOSTICS_REPORT_MAX_JSON_BYTES` *(exported)*, `ALLOWED_STATIC_MIME`, `NO_CACHE_STATIC_FILES`, `MUTATING_HTTP_METHODS`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `escapeHtml` | `function` | No | `(raw: unknown)` | `sync_value` | `server/app.js:renderAdminAccessDeniedHtml` | L96 |
-| `renderAdminAccessDeniedHtml` | `function` | No | `(userEmail: unknown, roleLabels: array)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L105 |
-| `parseActOnBehalfHeaders` | `function` | No | `(req: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L146 |
-| `applyBaselineSecurityHeaders` | `function` | No | `(res: unknown)` | `void_or_implicit` | `server/app.js:createStandaloneServer$anon_L471_3` | L173 |
-| `appendSetCookie` | `function` | No | `(res: unknown, cookieValue: unknown)` | `void_or_implicit` | `server/app.js:createStandaloneServer$anon_L471_3` | L179 |
-| `isIntentionalMaintenanceResponse` | `function` | No | `(statusCode: unknown, payload: unknown)` | `sync_value` | `server/app.js:res.__bsDiagHook` | L191 |
-| `sendJsonResponse` | `function` | No | `(res: unknown, statusCode: unknown, payload: unknown, extraHeaders: object)` | `void_or_implicit` | `server/app.js:json`, `server/app.js:send`, `server/app.js:createStandaloneServer$anon_L471_3`, `server/app.js:res.__bsDiagHook` | L199 |
-| `createHandlerResponseAdapter` | `function` | No | `(rawRes: unknown, govState: null_or_object)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L220 |
-| `BodyParseError.constructor` | `constructor` | No | `(status: unknown, code: unknown, message: unknown)` | `void_or_implicit` | — | L284 |
-| `readBoundedJsonBody` | `function` | No | `(req: unknown, maxBytes: unknown)` | `async -> promise (throws: BodyParseError)` | `server/app.js:createStandaloneServer$anon_L471_3` | L291 |
-| `parseQueryObject` | `function` | No | `(searchParams: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L328 |
-| `resolveSafePublicFile` | `function` | No | `(realPublicRoot: unknown, rawPathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L342 |
-| `readSafeSecurityFlag` | `function` | No | `(suffix: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L417 |
-| `createStandaloneServer` | `function` | Yes | `({ dbAdapter, publicDir, releaseSha, trustProxy, maxJsonBytes, logger }: object)` | `sync_value (throws: Error)` | `server/index.js:main` | L425 |
+| `escapeHtml` | `function` | No | `(raw: unknown)` | `sync_value` | `server/app.js:renderAdminAccessDeniedHtml` | L114 |
+| `renderAdminAccessDeniedHtml` | `function` | No | `(userEmail: unknown, roleLabels: array)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L123 |
+| `parseActOnBehalfHeaders` | `function` | No | `(req: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L164 |
+| `applyBaselineSecurityHeaders` | `function` | No | `(res: unknown)` | `void_or_implicit` | `server/app.js:createStandaloneServer$anon_L489_3` | L191 |
+| `appendSetCookie` | `function` | No | `(res: unknown, cookieValue: unknown)` | `void_or_implicit` | `server/app.js:createStandaloneServer$anon_L489_3` | L197 |
+| `isIntentionalMaintenanceResponse` | `function` | No | `(statusCode: unknown, payload: unknown)` | `sync_value` | `server/app.js:res.__bsDiagHook` | L209 |
+| `sendJsonResponse` | `function` | No | `(res: unknown, statusCode: unknown, payload: unknown, extraHeaders: object)` | `void_or_implicit` | `server/app.js:json`, `server/app.js:send`, `server/app.js:createStandaloneServer$anon_L489_3`, `server/app.js:res.__bsDiagHook` | L217 |
+| `createHandlerResponseAdapter` | `function` | No | `(rawRes: unknown, govState: null_or_object)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L238 |
+| `BodyParseError.constructor` | `constructor` | No | `(status: unknown, code: unknown, message: unknown)` | `void_or_implicit` | — | L302 |
+| `readBoundedJsonBody` | `function` | No | `(req: unknown, maxBytes: unknown)` | `async -> promise (throws: BodyParseError)` | `server/app.js:createStandaloneServer$anon_L489_3` | L309 |
+| `parseQueryObject` | `function` | No | `(searchParams: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L346 |
+| `resolveSafePublicFile` | `function` | No | `(realPublicRoot: unknown, rawPathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L360 |
+| `readSafeSecurityFlag` | `function` | No | `(suffix: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L435 |
+| `createStandaloneServer` | `function` | Yes | `({ dbAdapter, publicDir, releaseSha, trustProxy, maxJsonBytes, logger }: object)` | `sync_value (throws: Error)` | `server/index.js:main` | L443 |
+
+### [server/customer-exploration-routes.js](../../../server/customer-exploration-routes.js) (`module`)
+- **Imports / Dependencies**: `../lib/authz.js`, `../lib/customer-exploration.js`, `../lib/diagnostics.js`, `../lib/discovery.js`, `../lib/editorial-stories.js`, `../lib/feature-controls.js`, `../lib/photo-storage.js`, `@biteshark/runtime-adapter`
+- **Exports**: `CUSTOMER_EXPLORATION_PATHS`, `handleCustomerExplorationRoute`
+- **Significant Constants**: `CUSTOMER_EXPLORATION_PATHS` *(exported)*
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `shortInternalActorTag` | `function` | No | `(userId: unknown)` | `sync_value` | `server/customer-exploration-routes.js:recordExplorationDiagnostic` | L55 |
+| `resolveCallerExplorationFeatureFlags` | `function` | No | `(dbAdapter: unknown, req: unknown, verifiedUser: unknown)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L61 |
+| `recordExplorationDiagnostic` | `function` | No | `(dbAdapter: unknown, req: unknown, { featureKey, operationName, routeTemplate, httpMethod, httpStatus, severity, errorCode, message, retryable, outcomeState, actorId, safeContext }: object)` | `async -> promise` | `server/customer-exploration-routes.js:sendExplorationError`, `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L106 |
+| `sendExplorationError` | `function` | No | `(dbAdapter: unknown, req: unknown, sendJson: unknown, err: unknown, { featureKey, operationName, routeTemplate, method, userId }: object)` | `sync_value (throws: thrown_value)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L150 |
+| `handleCustomerExplorationRoute` | `function` | Yes | `({ pathname, method, req, query, body, verifiedUser, dbAdapter, sendJson, rawRes }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L203 |
 
 ### [server/index.js](../../../server/index.js) (`module`)
 - **Imports / Dependencies**: `../lib/env-compat.js`, `../lib/standalone-auth.js`, `./app.js`, `pg`
@@ -98,7 +111,7 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `defineRoute` | `function` | No | `(pattern: unknown, mod: unknown, extra: object)` | `sync_value (throws: Error)` | `server/routes.js:<top_level>` | L35 |
-| `matchDomainApiRoute` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L103 |
+| `matchDomainApiRoute` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L103 |
 
 ## 2. Shared Backend Libraries (`lib/`)
 
@@ -110,19 +123,19 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `sha256Hex` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/pager/subscriptions.js:default`, `api/pager/subscriptions.js:default$anon_L120_2`, `lib/admin-governance.js:generateOpaqueToken`, `lib/admin-governance.js:verifyEvidenceBufferAndMime` | L24 |
-| `generateOpaqueToken` | `function` | Yes | `(byteLen: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4867_66` | L28 |
-| `normalizeEmailStrict` | `function` | Yes | `(rawEmail: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L36 |
+| `generateOpaqueToken` | `function` | Yes | `(byteLen: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L1393_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4886_66` | L28 |
+| `normalizeEmailStrict` | `function` | Yes | `(rawEmail: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L956_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65` | L36 |
 | `normalizeOptionalIdempotencyKey` | `function` | Yes | `(raw: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L49 |
 | `parseBoundedPagination` | `function` | Yes | `(query: object, defaultSize: number, maxSize: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L59 |
 | `sanitizeFilename` | `function` | Yes | `(rawName: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L69 |
 | `verifyEvidenceBufferAndMime` | `function` | Yes | `(buf: unknown, declaredMime: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L85 |
 | `validateOptionalHttpUrl` | `function` | Yes | `(rawUrl: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L130 |
 | `validateProposedSlug` | `function` | Yes | `(rawSlug: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L149 |
-| `computeIssueSlaDueAt` | `function` | Yes | `(severity: unknown, now: Date)` | `sync_value` | `lib/support-tickets.js:resolveInitialUrgencyAndPriority`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L156 |
-| `recordTestSafeNotificationInTx` | `function` | Yes | `(tx: unknown, { recipientUserId, recipientEmail, eventKind, subject, summary }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L3361_45`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3859_49`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L167 |
-| `consumeGovernanceRateLimit` | `function` | Yes | `(tx: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L629_6`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1632_20` | L187 |
-| `recordInvitationEventInTx` | `function` | Yes | `(tx: unknown, { invitationId, eventType, actorId, actorRole, deliveryMode, providerStatus, providerMessageId, errorCode, correlationId, releaseSha, note }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L224 |
-| `formatInvitationRowForAdmin` | `function` | Yes | `(row: unknown, { events, nowMs }: object)` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62$anon_L4586_64`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L270 |
+| `computeIssueSlaDueAt` | `function` | Yes | `(severity: unknown, now: Date)` | `sync_value` | `lib/support-tickets.js:resolveInitialUrgencyAndPriority`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5943_76` | L156 |
+| `recordTestSafeNotificationInTx` | `function` | Yes | `(tx: unknown, { recipientUserId, recipientEmail, eventKind, subject, summary }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L3380_45`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3878_49`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5943_76` | L167 |
+| `consumeGovernanceRateLimit` | `function` | Yes | `(tx: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L634_6`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1074_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1393_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1651_20` | L187 |
+| `recordInvitationEventInTx` | `function` | Yes | `(tx: unknown, { invitationId, eventType, actorId, actorRole, deliveryMode, providerStatus, providerMessageId, errorCode, correlationId, releaseSha, note }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L341_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1074_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1393_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65` | L224 |
+| `formatInvitationRowForAdmin` | `function` | Yes | `(row: unknown, { events, nowMs }: object)` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L341_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1393_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4549_62$anon_L4605_64`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65` | L270 |
 
 ### [lib/age-policy.js](../../../lib/age-policy.js) (`module`)
 - **Exports**: `PROPOSED_MIN_ACCOUNT_AGE`, `AGE_POLICY_VERSION`, `AGE_BOUNDARY_TIMEZONE`, `MIN_PLAUSIBLE_BIRTH_YEAR`, `isGregorianLeapYear`, `daysInGregorianMonth`, `resolvePacificCalendarDateParts`, `parseAndValidateDobInput`, `computeCompletedYearsOfAge`, `evaluateMinimumAgeEligibility`, `AGE_ASSESSMENT_ALLOWLIST_SPEC`, `isGovernanceRouteExemptFromAgeGate`, `buildAgeAssessmentRequiredPayload`
@@ -136,8 +149,8 @@
 | `parseAndValidateDobInput` | `function` | Yes | `(input: object, now: Date)` | `sync_value` | `lib/age-policy.js:evaluateMinimumAgeEligibility` | L68 |
 | `computeCompletedYearsOfAge` | `function` | Yes | `(birthParts: unknown, refParts: unknown)` | `sync_value` | `lib/age-policy.js:evaluateMinimumAgeEligibility` | L180 |
 | `evaluateMinimumAgeEligibility` | `function` | Yes | `(input: object, now: Date)` | `sync_value` | `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:submitExistingAccountAgeAssessment` | L194 |
-| `isGovernanceRouteExemptFromAgeGate` | `function` | Yes | `(normPathname: unknown, method: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L339 |
-| `buildAgeAssessmentRequiredPayload` | `function` | Yes | `(nextPath: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2584_34`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2703_35`, `server/app.js:json` | L345 |
+| `isGovernanceRouteExemptFromAgeGate` | `function` | Yes | `(normPathname: unknown, method: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L351 |
+| `buildAgeAssessmentRequiredPayload` | `function` | Yes | `(nextPath: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2307_32`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2603_34`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2722_35`, `server/app.js:json` | L357 |
 
 ### [lib/authz.js](../../../lib/authz.js) (`module`)
 - **Imports / Dependencies**: `./env-compat.js`, `./request-context.js`, `node:crypto`
@@ -151,7 +164,7 @@
 | `evaluateEffectiveVendorRestrictions` | `function` | Yes | `(vendorRow: unknown, nowMs: unknown)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1`, `api/pager/staff.js:default$anon_L71_1`, `api/trucks/availability.js:default`, `lib/authz.js:loadAccessContext` | L71 |
 | `configuredAdminIds` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:resolveIdentity`, `lib/authz.js:queryRoleAndRevocation`, `lib/authz.js:reverifyVendorMembershipInTx`, `lib/authz.js:reverifyModeratorInTx` | L95 |
 | `applyPrivateNoStoreHeaders` | `function` | Yes | `(res: unknown)` | `void_or_implicit` | `api/bookings/create.js:default`, `api/bookings/list.js:default`, `api/community/mine.js:default`, `api/community/moderate.js:default` | L114 |
-| `inspectWritePauseConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:isWritePaused`, `lib/feature-controls.js:inspectEnvironmentFeatureOverrides`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L131 |
+| `inspectWritePauseConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:isWritePaused`, `lib/feature-controls.js:inspectEnvironmentFeatureOverrides`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2892_37` | L131 |
 | `isWritePaused` | `function` | Yes | `(scope: unknown)` | `sync_value` | `api/bookings/create.js:default`, `api/community/moderate.js:default`, `api/community/post.js:default`, `api/favorites/toggle.js:default` | L175 |
 | `resolveIdentity` | `function` | Yes | `(req: unknown, auth: unknown)` | `async -> promise` | `api/bookings/create.js:default`, `api/bookings/list.js:default`, `api/community/mine.js:default`, `api/community/post.js:default` | L182 |
 | `queryRoleAndRevocation` | `function` | No | `(dbClient: unknown, userId: unknown, lockClause: string)` | `async -> promise (throws: thrown_value)` | `lib/authz.js:loadAccessContext`, `lib/authz.js:reverifyVendorMembershipInTx`, `lib/authz.js:reverifyModeratorInTx`, `lib/authz.js:reverifyPlatformAdminInTx` | L210 |
@@ -160,8 +173,8 @@
 | `checkStandaloneHttpActOnBehalfRequirement` | `function` | No | `(targetVendorId: unknown)` | `sync_value` | `lib/authz.js:authorizeVendorTarget`, `lib/authz.js:reverifyVendorMembershipInTx` | L344 |
 | `authorizeVendorTarget` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, requiredRole: string, dbClient: null_or_object)` | `async -> promise` | `api/owner/location.js:default`, `api/owner/profile.js:default`, `api/owner/schedule.js:default`, `api/pager/staff.js:default` | L362 |
 | `reverifyVendorMembershipInTx` | `function` | Yes | `(tx: unknown, ctx: unknown, vendorId: unknown, requiredRole: string, options: object)` | `async -> promise (throws: thrown_value)` | `api/owner/location.js:default$anon_L110_1`, `api/owner/profile.js:default$anon_L58_1`, `api/owner/requests.js:default$anon_L42_1`, `api/owner/schedule.js:default$anon_L64_1` | L504 |
-| `reverifyModeratorInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/community/moderate.js:default$anon_L27_1`, `api/community/moderate.js:default$anon_L67_2`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1791_21`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L647 |
-| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1920_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3057_39`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4267_54` | L663 |
+| `reverifyModeratorInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/community/moderate.js:default$anon_L27_1`, `api/community/moderate.js:default$anon_L67_2`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1810_21`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2892_37` | L647 |
+| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1939_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3076_39`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4286_54` | L663 |
 | `authorizeVendorScope` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, dbClient: null_or_object)` | `async -> promise` | `api/owner/bookings.js:default`, `api/owner/requests.js:default`, `api/owner/schedule.js:default`, `api/owner/stats.js:default` | L675 |
 | `redactPagerTargetId` | `function` | Yes | `(pagerUuid: unknown)` | `sync_value` | `api/pager/staff.js:default$anon_L71_1`, `api/pager/update.js:default$anon_L45_1` | L724 |
 | `sanitizeMetadata` | `function` | No | `(meta: unknown)` | `sync_value` | `lib/authz.js:recordAuditLog` | L729 |
@@ -183,10 +196,53 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `normalizeIpAddress` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:isLoopbackIp`, `lib/client-ip.js:extractRightmostForwardedIp`, `lib/client-ip.js:resolveTrustedClientIp` | L6 |
-| `isLoopbackIp` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L696_7`, `server/app.js:createStandaloneServer$anon_L471_3` | L30 |
+| `isLoopbackIp` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L701_7`, `server/app.js:createStandaloneServer$anon_L489_3` | L30 |
 | `extractRightmostForwardedIp` | `function` | No | `(xffHeader: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp` | L35 |
 | `resolveTrustedClientIp` | `function` | Yes | `(req: unknown, options: object)` | `sync_value (throws: thrown_value)` | `lib/client-ip.js:stampTrustedClientIp`, `lib/pager-notifications.js:extractClientRateKey`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge` | L57 |
-| `stampTrustedClientIp` | `function` | Yes | `(req: unknown, options: object)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L104 |
+| `stampTrustedClientIp` | `function` | Yes | `(req: unknown, options: object)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3` | L104 |
+
+### [lib/customer-exploration.js](../../../lib/customer-exploration.js) (`module`)
+- **Imports / Dependencies**: `./dates.js`, `./db-tx.js`, `./discovery.js`, `./photo-storage.js`, `node:crypto`
+- **Exports**: `EXPLORATION_TIMEZONE`, `POINTS_PER_VISIT`, `POINTS_PER_PHOTO`, `MAX_VISIT_NOTE_LENGTH`, `MAX_PHOTO_CAPTION_LENGTH`, `MAX_SAVED_TRAILS_PER_USER`, `WEEKLY_CHALLENGE_TARGET`, `NON_MONETARY_DISCLOSURE`, `REVERSIBLE_PROGRESS_DISCLOSURE`, `TRAIL_DISCLAIMERS`, `EXPLORATION_LEVELS`, `EXPLORATION_BADGE_DEFINITIONS`, `SEED_014_TAXONOMY_CORRECTIONS`, `ExplorationDomainError`, `normalizeCanonicalTown`, `classifyVendorTaxonomy`, `getMondayWeekBounds`, `mapHistoricalTimestampToPacificDate`, `computeExplorationSummaryInTx`, `getExplorationSummary`, `listUserVisits`, `logUserVisit`, `deleteUserVisit`, `listUserPhotos`, `createUserPhoto`, `readUserPhotoFile`, `deleteUserPhoto`, `reconcilePhotoStorage`, `buildSuggestedTrail`, `listUserSavedTrails`, `saveUserTrail`, `deleteUserSavedTrail`, `importLegacyDeviceVisits`, `exportUserExplorationData`
+- **Significant Constants**: `EXPLORATION_TIMEZONE` *(exported)*, `POINTS_PER_VISIT` *(exported)*, `POINTS_PER_PHOTO` *(exported)*, `MAX_VISIT_NOTE_LENGTH` *(exported)*, `MAX_PHOTO_CAPTION_LENGTH` *(exported)*, `MAX_SAVED_TRAILS_PER_USER` *(exported)*, `WEEKLY_CHALLENGE_TARGET` *(exported)*, `NON_MONETARY_DISCLOSURE` *(exported)*, `REVERSIBLE_PROGRESS_DISCLOSURE` *(exported)*, `TRAIL_DISCLAIMERS` *(exported)*, `EXPLORATION_LEVELS` *(exported)*, `EXPLORATION_BADGE_DEFINITIONS` *(exported)*, `CANONICAL_TOWNS_MAP`, `SEED_014_TAXONOMY_CORRECTIONS` *(exported)*, `PRIMARY_SWEET_VENDOR_IDS`, `SOURCED_SWEET_SPECIALTY_NOTES`, `HISTORICAL_SAVORY_DESPITE_SWEETS_SECTION`, `HISTORICAL_COFFEE_DESPITE_SWEETS_SECTION`, `SOURCED_DISH_NOTES`, `VALID_VISIT_SOURCES` (+2 more)
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `ExplorationDomainError.constructor` | `constructor` | No | `(message: unknown, { status, code, retryable }: object)` | `void_or_implicit` | — | L177 |
+| `normalizeCanonicalTown` | `function` | Yes | `(rawCity: unknown)` | `sync_value` | `lib/customer-exploration.js:classifyVendorTaxonomy`, `lib/customer-exploration.js:buildSuggestedTrail`, `lib/customer-exploration.js:hydrateSavedTrailsInTx$anon_L2121_41$anon_L2126_42`, `lib/customer-exploration.js:saveUserTrail` | L186 |
+| `classifyVendorTaxonomy` | `function` | Yes | `(vendorRow: unknown)` | `sync_value` | `lib/customer-exploration.js:loadVendorForUserActionInTx`, `lib/customer-exploration.js:buildSuggestedTrail` | L215 |
+| `getMondayWeekBounds` | `function` | Yes | `(localIsoDate: unknown)` | `sync_value (throws: ExplorationDomainError)` | `lib/customer-exploration.js:computeExplorationSummaryInTx` | L337 |
+| `startOfPacificDateIso` | `function` | No | `(localIsoDate: unknown)` | `sync_value` | `lib/customer-exploration.js:mapHistoricalTimestampToPacificDate` | L361 |
+| `mapHistoricalTimestampToPacificDate` | `function` | Yes | `(rawTimestamp: unknown, now: Date)` | `sync_value` | `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:importLegacyDeviceVisits$anon_L2438_51` | L380 |
+| `sanitizeNoteText` | `function` | No | `(raw: unknown, maxLen: unknown)` | `sync_value (throws: ExplorationDomainError)` | `lib/customer-exploration.js:logUserVisit`, `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:saveUserTrail` | L423 |
+| `sanitizeOptionalIdempotencyKey` | `function` | No | `(raw: unknown)` | `sync_value (throws: ExplorationDomainError)` | `lib/customer-exploration.js:logUserVisit`, `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:saveUserTrail` | L441 |
+| `sanitizeVendorIdInput` | `function` | No | `(raw: unknown, { allowEmpty }: object)` | `sync_value (throws: ExplorationDomainError)` | `lib/customer-exploration.js:listUserVisits`, `lib/customer-exploration.js:logUserVisit`, `lib/customer-exploration.js:listUserPhotos`, `lib/customer-exploration.js:createUserPhoto` | L459 |
+| `generatePrefixedId` | `function` | No | `(prefix: unknown)` | `sync_value` | `lib/customer-exploration.js:logUserVisit$anon_L862_8`, `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:saveUserTrail$anon_L2279_49`, `lib/customer-exploration.js:importLegacyDeviceVisits$anon_L2438_51` | L477 |
+| `setUserRlsContextInTx` | `function` | No | `(tx: unknown, userId: unknown)` | `async -> promise (throws: ExplorationDomainError)` | `lib/customer-exploration.js:computeExplorationSummaryInTx`, `lib/customer-exploration.js:listUserVisits$anon_L774_6`, `lib/customer-exploration.js:logUserVisit$anon_L862_8`, `lib/customer-exploration.js:deleteUserVisit$anon_L1064_9` | L481 |
+| `loadVendorForUserActionInTx` | `function` | No | `(tx: unknown, vendorSlug: unknown, nowMs: unknown)` | `async -> promise` | `lib/customer-exploration.js:logUserVisit$anon_L862_8`, `lib/customer-exploration.js:createUserPhoto$anon_L1238_12`, `lib/customer-exploration.js:saveUserTrail$anon_L2279_49`, `lib/customer-exploration.js:importLegacyDeviceVisits$anon_L2438_51` | L492 |
+| `computeLevelProgress` | `function` | No | `(totalPoints: unknown)` | `sync_value` | `lib/customer-exploration.js:computeExplorationSummaryInTx` | L539 |
+| `computeExplorationSummaryInTx` | `function` | Yes | `(tx: unknown, { userId, now, showAchievements, showWeeklyChallenge, featureStates }: object)` | `async -> promise` | `lib/customer-exploration.js:getExplorationSummary$anon_L741_5`, `lib/customer-exploration.js:logUserVisit$anon_L862_8`, `lib/customer-exploration.js:deleteUserVisit$anon_L1064_9`, `lib/customer-exploration.js:createUserPhoto$anon_L1238_12` | L571 |
+| `getExplorationSummary` | `function` | Yes | `(dbAdapter: unknown, opts: unknown)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L740 |
+| `formatVisitDto` | `function` | No | `(row: unknown, nowMs: unknown)` | `sync_value` | `lib/customer-exploration.js:listUserVisits$anon_L774_6$anon_L825_7`, `lib/customer-exploration.js:logUserVisit$anon_L862_8` | L744 |
+| `listUserVisits` | `function` | Yes | `(dbAdapter: unknown, { userId, limit, offset, vendorId, now }: object)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L766 |
+| `logUserVisit` | `function` | Yes | `(dbAdapter: unknown, { userId, vendorId, privateNote, entrySource, idempotencyKey, now, showAchievements, showWeeklyChallenge, featureStates }: object)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L842 |
+| `deleteUserVisit` | `function` | Yes | `(dbAdapter: unknown, { userId, visitId, now, showAchievements, showWeeklyChallenge, featureStates }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1045 |
+| `formatPhotoDto` | `function` | No | `(row: unknown, nowMs: unknown)` | `sync_value` | `lib/customer-exploration.js:listUserPhotos$anon_L1138_10$anon_L1188_11`, `lib/customer-exploration.js:createUserPhoto$anon_L1238_12`, `lib/customer-exploration.js:createUserPhoto$anon_L1337_13` | L1104 |
+| `listUserPhotos` | `function` | Yes | `(dbAdapter: unknown, { userId, limit, offset, vendorId, now }: object)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1130 |
+| `createUserPhoto` | `function` | Yes | `(dbAdapter: unknown, { userId, vendorId, caption, entrySource, idempotencyKey, takenAtIso, dataBase64, declaredMimeType, storageRoot, minFreeBytes, now, showAchievements }: object)` | `async -> promise (throws: thrown_value)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1205 |
+| `readUserPhotoFile` | `function` | Yes | `(dbAdapter: unknown, { userId, photoId, variant, storageRoot }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1468 |
+| `deleteUserPhoto` | `function` | Yes | `(dbAdapter: unknown, { userId, photoId, storageRoot, now, showAchievements, showWeeklyChallenge, featureStates }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1513 |
+| `reconcilePhotoStorage` | `function` | Yes | `(dbAdapter: unknown, { storageRoot, orphanMinAgeMs, batchLimit, now }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/admin-routes.js:handleGovernanceApiRequest` | L1591 |
+| `buildStopMatchReason` | `function` | No | `(vendor: unknown, themeKey: unknown)` | `sync_value` | `lib/customer-exploration.js:buildSuggestedTrail$anon_L1896_18`, `lib/customer-exploration.js:buildSuggestedTrail$anon_L2015_38` | L1703 |
+| `scoreTrailCandidate` | `function` | No | `(vendor: unknown, themeKey: unknown)` | `sync_value` | `lib/customer-exploration.js:buildSuggestedTrail$anon_L1955_23`, `lib/customer-exploration.js:buildSuggestedTrail$anon_L1963_27`, `lib/customer-exploration.js:buildSuggestedTrail$anon_L1973_31`, `lib/customer-exploration.js:buildSuggestedTrail$anon_L1981_33` | L1753 |
+| `selectDeduplicatedStops` | `function` | No | `(sortedCandidates: unknown, maxCount: number, rotationOffset: number)` | `sync_value` | `lib/customer-exploration.js:buildSuggestedTrail` | L1789 |
+| `buildSuggestedTrail` | `function` | Yes | `(dbAdapter: unknown, { theme, town, offset, explicitIds, now }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L1811 |
+| `hydrateSavedTrailsInTx` | `function` | No | `(tx: unknown, { userId, trailRows, now }: object)` | `async -> promise` | `lib/customer-exploration.js:listUserSavedTrails$anon_L2190_48`, `lib/customer-exploration.js:saveUserTrail$anon_L2279_49`, `lib/customer-exploration.js:exportUserExplorationData$anon_L2605_52` | L2059 |
+| `listUserSavedTrails` | `function` | Yes | `(dbAdapter: unknown, { userId, limit, offset, now }: object)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L2183 |
+| `saveUserTrail` | `function` | Yes | `(dbAdapter: unknown, { userId, title, themeKey, townFilter, stops, idempotencyKey, now }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L2230 |
+| `deleteUserSavedTrail` | `function` | Yes | `(dbAdapter: unknown, { userId, trailId }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L2379 |
+| `importLegacyDeviceVisits` | `function` | Yes | `(dbAdapter: unknown, { userId, visits, now, showAchievements, showWeeklyChallenge, featureStates }: object)` | `async -> promise (throws: ExplorationDomainError)` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L2414 |
+| `exportUserExplorationData` | `function` | Yes | `(dbAdapter: unknown, { userId, now }: object)` | `async -> promise` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L2604 |
 
 ### [lib/dates.js](../../../lib/dates.js) (`module`)
 - **Exports**: `MAX_BOOKING_DAYS_AHEAD`, `isValidCalendarDate`, `normalizeCalendarDate`, `getPacificToday`, `validateFuturePacificDate`, `isValidTimeValue`
@@ -195,9 +251,9 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `pad2` | `function` | No | `(n: unknown)` | `sync_value` | `lib/dates.js:normalizeCalendarDate` | L17 |
-| `isValidCalendarDate` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `api/trucks/availability.js:default`, `lib/dates.js:normalizeCalendarDate` | L21 |
+| `isValidCalendarDate` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `api/trucks/availability.js:default`, `lib/customer-exploration.js:getMondayWeekBounds` | L21 |
 | `normalizeCalendarDate` | `function` | Yes | `(value: unknown)` | `sync_value (throws: TypeError)` | `api/bookings/create.js:formatBookingResponse`, `api/bookings/list.js:default$anon_L29_1`, `api/owner/bookings.js:default$anon_L48_1`, `api/owner/requests.js:default$anon_L42_1` | L41 |
-| `getPacificToday` | `function` | Yes | `(now: Date)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `lib/dates.js:validateFuturePacificDate` | L77 |
+| `getPacificToday` | `function` | Yes | `(now: Date)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `lib/customer-exploration.js:startOfPacificDateIso`, `lib/customer-exploration.js:mapHistoricalTimestampToPacificDate` | L77 |
 | `daysBetweenISO` | `function` | No | `(startIso: unknown, endIso: unknown)` | `sync_value` | `lib/dates.js:validateFuturePacificDate` | L90 |
 | `validateFuturePacificDate` | `function` | Yes | `(dateStr: unknown, now: Date)` | `sync_value` | `api/bookings/create.js:default`, `api/trucks/availability.js:default` | L102 |
 | `isValidTimeValue` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/owner/location.js:default`, `api/owner/schedule.js:default` | L126 |
@@ -222,30 +278,30 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `__setDiagnosticsFaultInjectionForTests` | `function` | Yes | `(fnOrNull: unknown)` | `void_or_implicit` | — | L82 |
-| `readIntEnv` | `function` | No | `(env: unknown, suffix: unknown, fallback: unknown, min: unknown, max: unknown)` | `sync_value` | `lib/diagnostics.js:getDiagnosticsRetentionPolicy` | L86 |
-| `getDiagnosticsRetentionPolicy` | `function` | Yes | `(env: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7379_88` | L95 |
-| `generateCorrelationId` | `function` | Yes | `()` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `server/app.js:createStandaloneServer$anon_L471_3` | L107 |
-| `normalizeCorrelationId` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/support-tickets.js:sanitizeSupportContextFields` | L111 |
-| `normalizeReleaseSha` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:computeReleaseRelationship` | L117 |
-| `sanitizeDiagnosticText` | `function` | Yes | `(input: unknown, maxLen: number, fallback: string)` | `sync_value` | `lib/diagnostics.js:sanitizeSafeContext`, `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/support-tickets.js:autoSuggestDiagnosticLinksInTx` | L125 |
-| `sanitizeRouteTemplate` | `function` | Yes | `(rawInput: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `server/admin-routes.js:handleGovernanceApiRequest` | L177 |
-| `sanitizeIdentifierCode` | `function` | Yes | `(rawInput: unknown, fallback: string, maxLen: number)` | `sync_value` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure` | L209 |
-| `sanitizeOperationName` | `function` | Yes | `(rawInput: unknown, fallback: string)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/support-tickets.js:sanitizeSupportContextFields`, `server/admin-routes.js:handleGovernanceApiRequest` | L219 |
-| `sanitizeSafeContext` | `function` | Yes | `(rawCtx: unknown)` | `sync_value` | `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `server/admin-routes.js:handleGovernanceApiRequest` | L230 |
-| `inferFeatureFromRoute` | `function` | Yes | `(routeTemplate: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L251 |
-| `buildDefaultUserImpact` | `function` | Yes | `(featureKey: unknown, outcomeState: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L272 |
-| `buildDefaultNextSteps` | `function` | Yes | `(featureKey: unknown, component: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L321 |
-| `computeIncidentFingerprint` | `function` | Yes | `({ component, featureKey, routeOrOp, errorCode, isSyntheticTest }: object)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L337 |
-| `withDiagnosticsDb` | `function` | No | `(db: unknown, fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics` | L348 |
-| `recordServerReleaseStartup` | `function` | Yes | `(db: unknown, { releaseSha, environment, deployMode, clientBundleVersion, logger }: object)` | `async -> promise` | `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/app.js:createStandaloneServer` | L381 |
-| `recordWorkerHeartbeat` | `function` | Yes | `(db: unknown, { workerName, status, releaseSha, correlationId, summary }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5` | L437 |
-| `appendBoundedUnique` | `function` | No | `(existingList: unknown, nextVal: unknown, maxItems: number)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent$anon_L594_9` | L472 |
-| `shaMatchesCandidate` | `function` | No | `(actualSha: unknown, candidateFixSha: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:recordDiagnosticEvent$anon_L594_9`, `lib/diagnostics.js:computeReleaseRelationship$anon_L899_12`, `lib/diagnostics.js:computeReleaseRelationship` | L480 |
-| `recordDiagnosticEvent` | `function` | Yes | `(db: unknown, rawEvent: object, { env, fallbackLogger }: object)` | `async -> promise` | `api/pager/worker.js:default$anon_L106_1`, `api/pager/worker.js:default`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/standalone-auth.js:recordAuthTelemetry` | L487 |
-| `reportDomainRouteFailure` | `function` | Yes | `(db: unknown, req: unknown, err: unknown, { featureKey, operationName, routeTemplate, severity, errorCode }: object)` | `async -> promise` | — | L831 |
-| `computeReleaseRelationship` | `function` | Yes | `(group: unknown, releases: array, activeServerSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L7379_88$anon_L7522_89`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7543_90` | L860 |
-| `cleanupExpiredDiagnostics` | `function` | Yes | `(db: unknown, { env }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/admin-routes.js:handleGovernanceApiRequest` | L929 |
+| `__setDiagnosticsFaultInjectionForTests` | `function` | Yes | `(fnOrNull: unknown)` | `void_or_implicit` | — | L91 |
+| `readIntEnv` | `function` | No | `(env: unknown, suffix: unknown, fallback: unknown, min: unknown, max: unknown)` | `sync_value` | `lib/diagnostics.js:getDiagnosticsRetentionPolicy` | L95 |
+| `getDiagnosticsRetentionPolicy` | `function` | Yes | `(env: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7398_88` | L104 |
+| `generateCorrelationId` | `function` | Yes | `()` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `server/app.js:createStandaloneServer$anon_L489_3` | L116 |
+| `normalizeCorrelationId` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/support-tickets.js:sanitizeSupportContextFields` | L120 |
+| `normalizeReleaseSha` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:computeReleaseRelationship` | L126 |
+| `sanitizeDiagnosticText` | `function` | Yes | `(input: unknown, maxLen: number, fallback: string)` | `sync_value` | `lib/diagnostics.js:sanitizeSafeContext`, `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/support-tickets.js:autoSuggestDiagnosticLinksInTx` | L134 |
+| `sanitizeRouteTemplate` | `function` | Yes | `(rawInput: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `server/admin-routes.js:handleGovernanceApiRequest` | L186 |
+| `sanitizeIdentifierCode` | `function` | Yes | `(rawInput: unknown, fallback: string, maxLen: number)` | `sync_value` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure` | L218 |
+| `sanitizeOperationName` | `function` | Yes | `(rawInput: unknown, fallback: string)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/support-tickets.js:sanitizeSupportContextFields`, `server/admin-routes.js:handleGovernanceApiRequest` | L228 |
+| `sanitizeSafeContext` | `function` | Yes | `(rawCtx: unknown)` | `sync_value` | `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `server/admin-routes.js:handleGovernanceApiRequest` | L239 |
+| `inferFeatureFromRoute` | `function` | Yes | `(routeTemplate: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L260 |
+| `buildDefaultUserImpact` | `function` | Yes | `(featureKey: unknown, outcomeState: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L286 |
+| `buildDefaultNextSteps` | `function` | Yes | `(featureKey: unknown, component: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L345 |
+| `computeIncidentFingerprint` | `function` | Yes | `({ component, featureKey, routeOrOp, errorCode, isSyntheticTest }: object)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent` | L370 |
+| `withDiagnosticsDb` | `function` | No | `(db: unknown, fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics` | L381 |
+| `recordServerReleaseStartup` | `function` | Yes | `(db: unknown, { releaseSha, environment, deployMode, clientBundleVersion, logger }: object)` | `async -> promise` | `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/app.js:createStandaloneServer` | L414 |
+| `recordWorkerHeartbeat` | `function` | Yes | `(db: unknown, { workerName, status, releaseSha, correlationId, summary }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5` | L470 |
+| `appendBoundedUnique` | `function` | No | `(existingList: unknown, nextVal: unknown, maxItems: number)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent$anon_L627_9` | L505 |
+| `shaMatchesCandidate` | `function` | No | `(actualSha: unknown, candidateFixSha: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:recordDiagnosticEvent$anon_L627_9`, `lib/diagnostics.js:computeReleaseRelationship$anon_L932_12`, `lib/diagnostics.js:computeReleaseRelationship` | L513 |
+| `recordDiagnosticEvent` | `function` | Yes | `(db: unknown, rawEvent: object, { env, fallbackLogger }: object)` | `async -> promise` | `api/pager/worker.js:default$anon_L108_1`, `api/pager/worker.js:default`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/standalone-auth.js:recordAuthTelemetry` | L520 |
+| `reportDomainRouteFailure` | `function` | Yes | `(db: unknown, req: unknown, err: unknown, { featureKey, operationName, routeTemplate, severity, errorCode }: object)` | `async -> promise` | — | L864 |
+| `computeReleaseRelationship` | `function` | Yes | `(group: unknown, releases: array, activeServerSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L7398_88$anon_L7541_89`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7562_90` | L893 |
+| `cleanupExpiredDiagnostics` | `function` | Yes | `(db: unknown, { env }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/admin-routes.js:handleGovernanceApiRequest` | L962 |
 
 ### [lib/discovery.js](../../../lib/discovery.js) (`module`)
 - **Imports / Dependencies**: `./authz.js`, `node:crypto`
@@ -254,10 +310,10 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `isVendorPubliclyDiscoverable` | `function` | Yes | `(vendorRow: unknown, nowMs: unknown)` | `sync_value` | `api/schedule/today.js:default$anon_L65_1`, `api/trucks/availability.js:default`, `lib/discovery.js:loadDiscoveryCatalog$anon_L724_2` | L8 |
+| `isVendorPubliclyDiscoverable` | `function` | Yes | `(vendorRow: unknown, nowMs: unknown)` | `sync_value` | `api/schedule/today.js:default$anon_L65_1`, `api/trucks/availability.js:default`, `lib/customer-exploration.js:loadVendorForUserActionInTx`, `lib/customer-exploration.js:computeExplorationSummaryInTx$anon_L674_3` | L8 |
 | `findForbiddenSelfElevationField` | `function` | Yes | `(body: unknown)` | `sync_value` | `api/owner/location.js:default`, `api/owner/profile.js:default`, `api/owner/schedule.js:default` | L41 |
 | `validateCoordinates` | `function` | Yes | `(rawLat: unknown, rawLng: unknown)` | `sync_value` | `api/owner/location.js:default`, `api/trucks.js:default`, `api/trucks/[id].js:default`, `api/trucks/nearby.js:default` | L51 |
-| `milesBetween` | `function` | Yes | `(lat1: unknown, lng1: unknown, lat2: unknown, lng2: unknown)` | `sync_value` | `lib/discovery.js:evaluateVendorDiscoveryRow`, `public/app.js:recomputeDistances$anon_L350_11`, `public/app.js:locateMe$anon_L2355_62$anon_L2359_63` | L85 |
+| `milesBetween` | `function` | Yes | `(lat1: unknown, lng1: unknown, lat2: unknown, lng2: unknown)` | `sync_value` | `lib/discovery.js:evaluateVendorDiscoveryRow`, `public/app.js:recomputeDistances$anon_L350_11`, `public/app.js:locateMe$anon_L2381_62$anon_L2385_63` | L85 |
 | `shiftCalendarDate` | `function` | Yes | `(isoDate: unknown, deltaDays: unknown)` | `sync_value` | `lib/discovery.js:getPacificClock` | L95 |
 | `weekdayForCalendarDate` | `function` | Yes | `(isoDate: unknown)` | `sync_value` | `lib/discovery.js:getPacificClock` | L104 |
 | `getPacificClock` | `function` | Yes | `(now: Date)` | `sync_value` | `lib/discovery.js:evaluateVendorDiscoveryRow`, `lib/discovery.js:loadDiscoveryCatalog` | L110 |
@@ -280,6 +336,14 @@
 | `applyDiscoveryCacheHeaders` | `function` | Yes | `(res: unknown, catalogVersion: unknown, { freshRequested, personalized, variantKey }: object)` | `sync_value` | `api/catalog/featured.js:default`, `api/schedule/today.js:default`, `api/trucks.js:default`, `api/trucks/[id].js:default` | L747 |
 | `foldSearchText` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/trucks/search.js:default`, `api/trucks/search.js:default$anon_L33_2` | L777 |
 
+### [lib/editorial-stories.js](../../../lib/editorial-stories.js) (`module`)
+- **Exports**: `EDITORIAL_STORIES`, `EDITORIAL_STORIES_BY_ID`, `EDITORIAL_STORIES_BY_VENDOR_ID`, `buildPublicStoriesPayload`
+- **Significant Constants**: `EDITORIAL_STORIES` *(exported)*, `EDITORIAL_STORIES_BY_ID` *(exported)*, `EDITORIAL_STORIES_BY_VENDOR_ID` *(exported)*
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `buildPublicStoriesPayload` | `function` | Yes | `(discoverableVendorIds: null_or_object)` | `sync_value` | `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L156 |
+
 ### [lib/env-compat.js](../../../lib/env-compat.js) (`module`)
 - **Exports**: `EnvAliasConflictError`, `SECURITY_CRITICAL_ENV_SUFFIXES`, `readEnvCompat`, `findSecurityEnvConflicts`, `assertNoSecurityEnvConflicts`
 - **Significant Constants**: `SECURITY_CRITICAL_ENV_SUFFIXES` *(exported)*
@@ -289,7 +353,7 @@
 | `EnvAliasConflictError.constructor` | `constructor` | No | `(suffix: unknown)` | `void_or_implicit` | — | L12 |
 | `readEnvCompat` | `function` | Yes | `(suffix: unknown, { securityCritical, defaultValue, envObj }: object)` | `sync_value (throws: EnvAliasConflictError)` | `api/pager/telemetry.js:default`, `api/pager/worker.js:default`, `lib/authz.js:configuredAdminIds`, `lib/authz.js:inspectWritePauseConfig` | L53 |
 | `findSecurityEnvConflicts` | `function` | Yes | `(envObj: unknown)` | `sync_value (throws: thrown_value)` | `lib/env-compat.js:assertNoSecurityEnvConflicts`, `lib/standalone-auth.js:inspectAdminEmailReadiness` | L73 |
-| `assertNoSecurityEnvConflicts` | `function` | Yes | `(envObj: unknown)` | `void_or_implicit (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3`, `server/index.js:validateStartupEnvironment` | L89 |
+| `assertNoSecurityEnvConflicts` | `function` | Yes | `(envObj: unknown)` | `void_or_implicit (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3`, `server/index.js:validateStartupEnvironment` | L89 |
 
 ### [lib/feature-controls.js](../../../lib/feature-controls.js) (`module`)
 - **Imports / Dependencies**: `./authz.js`, `./db-tx.js`, `./env-compat.js`, `./map-config.js`
@@ -298,25 +362,25 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `assertCycleFreeFeatureRegistry` | `function` | Yes | `(registry: unknown)` | `sync_value` | `lib/feature-controls.js:<top_level>` | L438 |
-| `setSimulatedFeatureConfigFailureForTests` | `function` | Yes | `(mode: unknown)` | `void_or_implicit` | — | L536 |
-| `parseBoolDisableFlag` | `function` | No | `(suffix: unknown)` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L540 |
-| `inspectPushEnvironmentStatus` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L554 |
-| `inspectEnvironmentFeatureOverrides` | `function` | Yes | `()` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L604 |
-| `validatePersistedRows` | `function` | No | `(rows: unknown)` | `sync_value` | `lib/feature-controls.js:loadPersistedFeatureControls`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L702 |
-| `loadPersistedFeatureControls` | `function` | Yes | `(db: unknown, { requireTablePresent }: object)` | `async -> promise` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L735 |
-| `isCallerEligibleForStaffBeta` | `function` | Yes | `(accessCtx: unknown, viewpointMode: null_or_object)` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot` | L806 |
-| `combineStateSeverity` | `function` | No | `(stateA: unknown, stateB: unknown)` | `sync_value` | `lib/feature-controls.js:evaluateKey` | L820 |
-| `evaluateFeatureControlsSnapshot` | `function` | Yes | `({ persistedResult, accessCtx, viewpointMode, envOverrides }: object)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L827 |
-| `buildPublicFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L990 |
-| `buildAdminFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown, historyRows: array, { actorLevel }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1046 |
-| `requiresInterruptConfirmation` | `function` | Yes | `(spec: unknown, prevState: unknown, prevAudience: unknown, nextState: unknown, nextAudience: unknown)` | `sync_value` | `lib/feature-controls.js:updateFeatureControlInTx` | L1114 |
-| `updateFeatureControlInTx` | `function` | Yes | `(tx: unknown, { actorId, actorEmailMasked, actorRole, changeSource, featureKey, nextState, nextAudience, expectedRevision, reason, confirmedImpact }: object)` | `async -> promise` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7270_86` | L1125 |
-| `matchRouteFeatureRule` | `function` | Yes | `(pathname: unknown, method: unknown)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `server/app.js:createStandaloneServer$anon_L471_3` | L1322 |
-| `enforceHttpFeatureGate` | `function` | Yes | `({ dbAdapter, req, auth, pathname, method, requireTablePresent }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L1333 |
-| `isPagerPushSubscriptionFeatureEnabled` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L1431 |
-| `isPagerPushDeliveryFeatureAllowed` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L1439 |
-| `checkPagerPushDeliveryInTx` | `function` | Yes | `(tx: unknown)` | `async -> promise` | `lib/pager-notifications.js:prepareClaimForDispatch$anon_L1164_8` | L1452 |
+| `assertCycleFreeFeatureRegistry` | `function` | Yes | `(registry: unknown)` | `sync_value` | `lib/feature-controls.js:<top_level>` | L619 |
+| `setSimulatedFeatureConfigFailureForTests` | `function` | Yes | `(mode: unknown)` | `void_or_implicit` | — | L771 |
+| `parseBoolDisableFlag` | `function` | No | `(suffix: unknown)` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L775 |
+| `inspectPushEnvironmentStatus` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L789 |
+| `inspectEnvironmentFeatureOverrides` | `function` | Yes | `()` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L839 |
+| `validatePersistedRows` | `function` | No | `(rows: unknown)` | `sync_value` | `lib/feature-controls.js:loadPersistedFeatureControls`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L937 |
+| `loadPersistedFeatureControls` | `function` | Yes | `(db: unknown, { requireTablePresent }: object)` | `async -> promise` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L970 |
+| `isCallerEligibleForStaffBeta` | `function` | Yes | `(accessCtx: unknown, viewpointMode: null_or_object)` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot` | L1041 |
+| `combineStateSeverity` | `function` | No | `(stateA: unknown, stateB: unknown)` | `sync_value` | `lib/feature-controls.js:evaluateKey` | L1055 |
+| `evaluateFeatureControlsSnapshot` | `function` | Yes | `({ persistedResult, accessCtx, viewpointMode, envOverrides }: object)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L1062 |
+| `buildPublicFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1225 |
+| `buildAdminFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown, historyRows: array, { actorLevel }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1281 |
+| `requiresInterruptConfirmation` | `function` | Yes | `(spec: unknown, prevState: unknown, prevAudience: unknown, nextState: unknown, nextAudience: unknown)` | `sync_value` | `lib/feature-controls.js:updateFeatureControlInTx` | L1349 |
+| `updateFeatureControlInTx` | `function` | Yes | `(tx: unknown, { actorId, actorEmailMasked, actorRole, changeSource, featureKey, nextState, nextAudience, expectedRevision, reason, confirmedImpact }: object)` | `async -> promise` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7289_86` | L1360 |
+| `matchRouteFeatureRule` | `function` | Yes | `(pathname: unknown, method: unknown)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `server/app.js:createStandaloneServer$anon_L489_3` | L1557 |
+| `enforceHttpFeatureGate` | `function` | Yes | `({ dbAdapter, req, auth, pathname, method, requireTablePresent }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3` | L1568 |
+| `isPagerPushSubscriptionFeatureEnabled` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L1666 |
+| `isPagerPushDeliveryFeatureAllowed` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L1674 |
+| `checkPagerPushDeliveryInTx` | `function` | Yes | `(tx: unknown)` | `async -> promise` | `lib/pager-notifications.js:prepareClaimForDispatch$anon_L1164_8` | L1687 |
 
 ### [lib/map-config.js](../../../lib/map-config.js) (`module`)
 - **Imports / Dependencies**: `./env-compat.js`
@@ -346,12 +410,12 @@
 | `isSubscriptionsDisabled` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig` | L98 |
 | `isNotificationDeliveryDisabled` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/pager-notifications.js:getPushProviderConfig`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `lib/pager-notifications.js:processSingleClaimedDelivery`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L109 |
 | `getPushProviderConfig` | `function` | Yes | `()` | `sync_value (throws: Error, thrown_value)` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `lib/pager-notifications.js:validateSubscriptionPayload` | L120 |
-| `inspectNotificationRuntimeConfig` | `function` | Yes | `()` | `sync_value` | `api/pager/telemetry.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L315 |
+| `inspectNotificationRuntimeConfig` | `function` | Yes | `()` | `sync_value` | `api/pager/telemetry.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2892_37` | L315 |
 | `extraAllowedPushHosts` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/pager-notifications.js:isAllowedWebPushHostname` | L371 |
 | `isAllowedWebPushHostname` | `function` | No | `(hostname: unknown)` | `sync_value` | `lib/pager-notifications.js:validateSubscriptionPayload` | L388 |
 | `validateSubscriptionPayload` | `function` | Yes | `(body: unknown)` | `sync_value (throws: thrown_value)` | `api/pager/subscriptions.js:default` | L406 |
 | `verifySameOriginMutation` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/subscriptions.js:default` | L506 |
-| `extractClientRateKey` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L629_6` | L540 |
+| `extractClientRateKey` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L634_6` | L540 |
 | `consumePagerRateLimit` | `function` | Yes | `(db: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L545 |
 | `redactProviderError` | `function` | Yes | `(rawError: unknown)` | `sync_value` | `lib/pager-notifications.js:acknowledgeClaimedDelivery$anon_L1367_9` | L573 |
 | `buildPagerReadyEventSpec` | `function` | No | `(pager: unknown, seq: unknown)` | `sync_value` | `lib/pager-notifications.js:ensureReadyEventInTx` | L582 |
@@ -367,6 +431,28 @@
 | `processSingleClaimedDelivery` | `function` | No | `(db: unknown, { claimed, workerId, leaseSeconds, providerTimeoutMs, startedAtMs, executionBudgetMs, getNow, hooks, summary }: object)` | `async -> promise` | `lib/pager-notifications.js:runNotificationWorkerBatch$anon_L1847_12` | L1579 |
 | `runNotificationWorkerBatch` | `function` | Yes | `(db: unknown, { batchSize, concurrency, leaseSeconds, providerTimeoutMs, executionBudgetMs, workerId, now, clock, hooks, runCleanup }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5` | L1690 |
 
+### [lib/photo-storage.js](../../../lib/photo-storage.js) (`module`)
+- **Imports / Dependencies**: `./env-compat.js`, `node:crypto`, `node:fs`, `node:os`, `node:path`, `sharp`
+- **Exports**: `MAX_PHOTO_UPLOAD_BYTES`, `MAX_PHOTO_JSON_BODY_BYTES`, `MAX_ACTIVE_PHOTOS_PER_USER`, `MAX_PHOTO_DIMENSION_PX`, `MAX_PHOTO_INPUT_PIXELS`, `DEFAULT_MIN_FREE_DISK_BYTES`, `SUPPORTED_PHOTO_MIMES`, `PhotoStorageError`, `resolvePhotoStorageRoot`, `resolvePhotoMinFreeBytes`, `detectImageSignature`, `decodeBase64PhotoPayload`, `verifyAndNormalizeUploadedPhoto`, `writePhotoDerivativesAtomically`, `deletePhotoFilesSafely`, `readPhotoDerivativeSafely`, `scanPhotoStorageFiles`, `unlinkConfinedPhotoArtifact`
+- **Significant Constants**: `MAX_PHOTO_UPLOAD_BYTES` *(exported)*, `MAX_PHOTO_JSON_BODY_BYTES` *(exported)*, `MAX_ACTIVE_PHOTOS_PER_USER` *(exported)*, `MAX_PHOTO_DIMENSION_PX` *(exported)*, `MAX_PHOTO_INPUT_PIXELS` *(exported)*, `DEFAULT_MIN_FREE_DISK_BYTES` *(exported)*, `SUPPORTED_PHOTO_MIMES` *(exported)*
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `PhotoStorageError.constructor` | `constructor` | No | `(message: unknown, { status, code, retryable }: object)` | `void_or_implicit` | — | L39 |
+| `resolvePhotoStorageRoot` | `function` | Yes | `(envObj: unknown)` | `sync_value` | `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:readUserPhotoFile`, `lib/customer-exploration.js:deleteUserPhoto`, `lib/customer-exploration.js:reconcilePhotoStorage` | L48 |
+| `resolvePhotoMinFreeBytes` | `function` | Yes | `(envObj: unknown)` | `sync_value` | `lib/customer-exploration.js:createUserPhoto`, `lib/photo-storage.js:writePhotoDerivativesAtomically`, `server/customer-exploration-routes.js:handleCustomerExplorationRoute` | L67 |
+| `detectImageSignature` | `function` | Yes | `(buf: unknown)` | `sync_value` | `lib/photo-storage.js:verifyAndNormalizeUploadedPhoto` | L79 |
+| `decodeBase64PhotoPayload` | `function` | Yes | `(rawBase64: unknown)` | `sync_value (throws: PhotoStorageError)` | `lib/photo-storage.js:verifyAndNormalizeUploadedPhoto` | L118 |
+| `verifyAndNormalizeUploadedPhoto` | `function` | Yes | `({ dataBase64, declaredMimeType }: object)` | `async -> promise (throws: PhotoStorageError, thrown_value)` | `lib/customer-exploration.js:createUserPhoto` | L182 |
+| `ensureAndResolveStorageRoot` | `function` | No | `(storageRoot: unknown, { createIfDev }: object)` | `sync_value (throws: Error, PhotoStorageError)` | `lib/photo-storage.js:writePhotoDerivativesAtomically`, `lib/photo-storage.js:deletePhotoFilesSafely`, `lib/photo-storage.js:readPhotoDerivativeSafely`, `lib/photo-storage.js:scanPhotoStorageFiles` | L320 |
+| `resolveConfinedPath` | `function` | No | `(realRoot: unknown, relPath: unknown)` | `sync_value (throws: PhotoStorageError)` | `lib/photo-storage.js:writePhotoDerivativesAtomically`, `lib/photo-storage.js:deletePhotoFilesSafely`, `lib/photo-storage.js:readPhotoDerivativeSafely` | L366 |
+| `writeAtomicFile` | `function` | No | `(filePath: unknown, dataBuffer: unknown)` | `void_or_implicit (throws: PhotoStorageError)` | `lib/photo-storage.js:writePhotoDerivativesAtomically` | L383 |
+| `writePhotoDerivativesAtomically` | `function` | Yes | `({ storageRoot, photoId, ext, mainBuffer, thumbBuffer, minFreeBytes }: object)` | `sync_value (throws: PhotoStorageError, thrown_value)` | `lib/customer-exploration.js:createUserPhoto` | L418 |
+| `deletePhotoFilesSafely` | `function` | Yes | `({ storageRoot, storageRelPath, thumbRelPath }: object)` | `sync_value` | `lib/customer-exploration.js:createUserPhoto$anon_L1337_13`, `lib/customer-exploration.js:createUserPhoto`, `lib/customer-exploration.js:deleteUserPhoto`, `lib/customer-exploration.js:reconcilePhotoStorage$anon_L1602_17` | L486 |
+| `readPhotoDerivativeSafely` | `function` | Yes | `({ storageRoot, relPath }: object)` | `sync_value (throws: PhotoStorageError)` | `lib/customer-exploration.js:readUserPhotoFile` | L518 |
+| `scanPhotoStorageFiles` | `function` | Yes | `({ storageRoot, nowMs, orphanMinAgeMs }: object)` | `sync_value` | `lib/customer-exploration.js:reconcilePhotoStorage$anon_L1602_17` | L548 |
+| `unlinkConfinedPhotoArtifact` | `function` | Yes | `({ storageRoot, relPath }: object)` | `sync_value` | `lib/customer-exploration.js:reconcilePhotoStorage$anon_L1602_17` | L611 |
+
 ### [lib/request-context.js](../../../lib/request-context.js) (`module`)
 - **Imports / Dependencies**: `node:async_hooks`
 - **Exports**: `runWithGovernanceContext`, `getActiveGovernanceContext`
@@ -374,7 +460,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `runWithGovernanceContext` | `function` | Yes | `(ctx: unknown, fn: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4`, `server/app.js:createStandaloneServer$anon_L471_3$anon_L891_6`, `server/app.js:createStandaloneServer$anon_L471_3$anon_L1061_9` | L5 |
+| `runWithGovernanceContext` | `function` | Yes | `(ctx: unknown, fn: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4`, `server/app.js:createStandaloneServer$anon_L489_3$anon_L915_6`, `server/app.js:createStandaloneServer$anon_L489_3$anon_L1085_9` | L5 |
 | `getActiveGovernanceContext` | `function` | Yes | `()` | `sync_value` | `lib/authz.js:checkStandaloneHttpActOnBehalfRequirement`, `lib/authz.js:authorizeVendorTarget`, `lib/authz.js:reverifyVendorMembershipInTx`, `lib/authz.js:recordAuditLog` | L9 |
 
 ### [lib/standalone-auth.js](../../../lib/standalone-auth.js) (`module`)
@@ -393,7 +479,7 @@
 | `isHostedEnvironment` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:getAuthSecret`, `lib/standalone-auth.js:verifySameOriginMutationRequest` | L91 |
 | `getAuthSecret` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:deriveStagingMailboxKey`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge`, `server/index.js:validateStartupEnvironment` | L102 |
 | `inspectAuthDeliveryConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:getPublicAuthDeliveryModeSummary`, `lib/standalone-auth.js:dispatchInvitationEmail`, `lib/standalone-auth.js:dispatchSupportNotificationEmail`, `lib/standalone-auth.js:startEmailOtpChallenge` | L115 |
-| `getPublicAuthDeliveryModeSummary` | `function` | Yes | `()` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62`, `server/app.js:createStandaloneServer$anon_L471_3` | L248 |
+| `getPublicAuthDeliveryModeSummary` | `function` | Yes | `()` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L4549_62`, `server/app.js:createStandaloneServer$anon_L489_3` | L248 |
 | `parseAllowlistedDomains` | `function` | No | `()` | `sync_value` | `lib/standalone-auth.js:inspectAuthDeliveryConfig`, `lib/standalone-auth.js:hasConfiguredStagingAllowlist`, `lib/standalone-auth.js:isEmailAllowedInStagingMailbox`, `lib/standalone-auth.js:inspectAdminEmailReadiness` | L259 |
 | `parseAllowlistedEmails` | `function` | No | `()` | `sync_value` | `lib/standalone-auth.js:inspectAuthDeliveryConfig`, `lib/standalone-auth.js:hasConfiguredStagingAllowlist`, `lib/standalone-auth.js:isEmailAllowedInStagingMailbox`, `lib/standalone-auth.js:inspectAdminEmailReadiness` | L271 |
 | `hasConfiguredStagingAllowlist` | `function` | Yes | `()` | `sync_value` | `lib/standalone-auth.js:dispatchInvitationEmail`, `lib/standalone-auth.js:dispatchSupportNotificationEmail`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge$anon_L2231_15` | L282 |
@@ -409,7 +495,7 @@
 | `buildAgeGateCooldownCookieHeader` | `function` | Yes | `(maxAgeSeconds: unknown)` | `sync_value` | `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:submitExistingAccountAgeAssessment$anon_L2637_18` | L390 |
 | `hasAgeGateCooldownCookie` | `function` | Yes | `(req: unknown)` | `sync_value` | `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:submitExistingAccountAgeAssessment` | L400 |
 | `extractRawSessionToken` | `function` | Yes | `(req: unknown)` | `sync_value` | `lib/standalone-auth.js:verifyEmailOtpChallenge`, `lib/standalone-auth.js:resolveSessionFromRequest`, `lib/standalone-auth.js:revokeSessionFromRequest` | L407 |
-| `verifySameOriginMutationRequest` | `function` | Yes | `(req: unknown, options: object)` | `sync_value (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3` | L424 |
+| `verifySameOriginMutationRequest` | `function` | Yes | `(req: unknown, options: object)` | `sync_value (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3` | L424 |
 | `consumeAuthRateLimit` | `function` | Yes | `(db: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge`, `lib/standalone-auth.js:readProtectedStagingMailboxCode` | L606 |
 | `createAuthCorrelationId` | `function` | Yes | `()` | `sync_value` | `lib/standalone-auth.js:dispatchInvitationEmail`, `lib/standalone-auth.js:dispatchSupportNotificationEmail`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge` | L638 |
 | `sanitizeDiagnosticCodeSafe` | `function` | Yes | `(raw: unknown, maxLen: number)` | `sync_value` | — | L642 |
@@ -427,12 +513,12 @@
 | `dispatchInvitationEmail` | `function` | Yes | `(db: unknown, { invitationId, tokenVersion, rawToken, recipientEmail, roleKey, roleLabel, vendorId, vendorName, expiresAtIso, flow, correlationId, now }: object)` | `async -> promise` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation` | L1222 |
 | `buildSupportEmailPlainText` | `function` | No | `({ ticketNumber, eventKind, statusLabel, isCritical, viewUrl, isStaging }: object)` | `sync_value` | `lib/standalone-auth.js:dispatchSupportNotificationEmail` | L1443 |
 | `dispatchSupportNotificationEmail` | `function` | Yes | `(db: unknown, { notificationId, recipientEmail, ticketNumber, eventKind, statusLabel, isCritical, correlationId, now, logger }: object)` | `async -> promise` | `server/admin-routes.js:recordAndDispatchSupportNotification` | L1470 |
-| `startEmailOtpChallenge` | `function` | Yes | `(db: unknown, req: unknown, { email, intent, dob, dob_year, dob_month, dob_day, now, logger }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L1660 |
-| `verifyEmailOtpChallenge` | `function` | Yes | `(db: unknown, req: unknown, { email, code, now, logger }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L2139 |
-| `resolveSessionFromRequest` | `function` | Yes | `(db: unknown, req: unknown, { now }: object)` | `async -> promise` | `lib/standalone-auth.js:submitExistingAccountAgeAssessment`, `server/app.js:getUser`, `server/app.js:createStandaloneServer$anon_L471_3` | L2490 |
-| `submitExistingAccountAgeAssessment` | `function` | Yes | `(db: unknown, req: unknown, { dob, dob_year, dob_month, dob_day, now }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L2592 |
-| `revokeSessionFromRequest` | `function` | Yes | `(db: unknown, req: unknown, { now }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L2728 |
-| `readProtectedStagingMailboxCode` | `function` | Yes | `(db: unknown, req: unknown, { email, now }: object)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3` | L2754 |
+| `startEmailOtpChallenge` | `function` | Yes | `(db: unknown, req: unknown, { email, intent, dob, dob_year, dob_month, dob_day, now, logger }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3` | L1660 |
+| `verifyEmailOtpChallenge` | `function` | Yes | `(db: unknown, req: unknown, { email, code, now, logger }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3` | L2139 |
+| `resolveSessionFromRequest` | `function` | Yes | `(db: unknown, req: unknown, { now }: object)` | `async -> promise` | `lib/standalone-auth.js:submitExistingAccountAgeAssessment`, `server/app.js:getUser`, `server/app.js:createStandaloneServer$anon_L489_3` | L2490 |
+| `submitExistingAccountAgeAssessment` | `function` | Yes | `(db: unknown, req: unknown, { dob, dob_year, dob_month, dob_day, now }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3` | L2592 |
+| `revokeSessionFromRequest` | `function` | Yes | `(db: unknown, req: unknown, { now }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3` | L2728 |
+| `readProtectedStagingMailboxCode` | `function` | Yes | `(db: unknown, req: unknown, { email, now }: object)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3` | L2754 |
 | `cleanupExpiredAuthRecords` | `function` | Yes | `(db: unknown, { now }: object)` | `async -> promise (throws: thrown_value)` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5` | L2844 |
 | `resolveTxtSafe` | `function` | No | `(resolver: unknown, host: unknown, timeoutMs: number)` | `async -> promise` | `lib/standalone-auth.js:inspectSenderDomainDns` | L2907 |
 | `resolveMxSafe` | `function` | No | `(resolver: unknown, host: unknown, timeoutMs: number)` | `async -> promise` | `lib/standalone-auth.js:inspectSenderDomainDns` | L2938 |
@@ -447,16 +533,16 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `normalizeSupportStatusInput` | `function` | Yes | `(raw: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L92 |
-| `normalizeSupportCategoryInput` | `function` | Yes | `(rawCat: unknown, entryKind: string, affectedFeature: null_or_object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70` | L101 |
+| `normalizeSupportCategoryInput` | `function` | Yes | `(rawCat: unknown, entryKind: string, affectedFeature: null_or_object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5499_70` | L101 |
 | `resolveInitialUrgencyAndPriority` | `function` | Yes | `({ rawUrgency, rawSeverity, entryKind, category }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L117 |
 | `buildAutoSubjectFromDescription` | `function` | Yes | `(entryKind: unknown, category: unknown, description: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L147 |
 | `sanitizeCoarseDeviceContext` | `function` | Yes | `(rawInput: unknown)` | `sync_value` | `lib/support-tickets.js:sanitizeSupportContextFields` | L168 |
 | `sanitizeSupportContextFields` | `function` | Yes | `(body: object, serverReleaseSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L177 |
-| `formatPublicTeamAuthorLabel` | `function` | Yes | `(role: unknown, reporterContext: string)` | `sync_value` | `lib/support-tickets.js:serializeSupportTicketForReporter$anon_L337_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6326_77`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7957_98` | L221 |
-| `validateStaffStatusTransition` | `function` | Yes | `(fromStatus: unknown, toStatus: unknown, actorRole: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L230 |
-| `evaluateAssignmentMutation` | `function` | Yes | `({ curIssue, currentAssigneeRole, currentAssigneeInactive, nextAssigneeProvided, nextAssigneeId, targetAssigneeRecord, actorUserId, actorRole, nextStatus, escalateToTop, reasonText }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L246 |
-| `serializeSupportTicketForReporter` | `function` | Yes | `(row: unknown, { notes, events, publicDiagnostics, viewerUserId }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2090_25$anon_L2204_29`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2703_35` | L324 |
-| `autoSuggestDiagnosticLinksInTx` | `function` | Yes | `(tx: unknown, { issueId, errorCorrelationId }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32` | L417 |
+| `formatPublicTeamAuthorLabel` | `function` | Yes | `(role: unknown, reporterContext: string)` | `sync_value` | `lib/support-tickets.js:serializeSupportTicketForReporter$anon_L337_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5943_76`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6345_77`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7982_99` | L221 |
+| `validateStaffStatusTransition` | `function` | Yes | `(fromStatus: unknown, toStatus: unknown, actorRole: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5943_76` | L230 |
+| `evaluateAssignmentMutation` | `function` | Yes | `({ curIssue, currentAssigneeRole, currentAssigneeInactive, nextAssigneeProvided, nextAssigneeId, targetAssigneeRecord, actorUserId, actorRole, nextStatus, escalateToTop, reasonText }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5943_76` | L246 |
+| `serializeSupportTicketForReporter` | `function` | Yes | `(row: unknown, { notes, events, publicDiagnostics, viewerUserId }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2109_25$anon_L2223_29`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2307_32`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2722_35` | L324 |
+| `autoSuggestDiagnosticLinksInTx` | `function` | Yes | `(tx: unknown, { issueId, errorCorrelationId }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2307_32` | L417 |
 
 ### [lib/webpush-crypto.js](../../../lib/webpush-crypto.js) (`module`)
 - **Imports / Dependencies**: `node:crypto`
@@ -488,7 +574,7 @@
 | `extractIdempotencyKey` | `function` | No | `(req: unknown, body: unknown)` | `sync_value` | `api/bookings/create.js:default` | L29 |
 | `computeBookingHash` | `function` | No | `(payload: unknown)` | `sync_value` | `api/bookings/create.js:default` | L47 |
 | `formatBookingResponse` | `function` | Yes | `(row: unknown, replay: boolean)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1` | L54 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L73 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L73 |
 
 ### [api/bookings/list.js](../../../api/bookings/list.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `@biteshark/runtime-adapter`
@@ -497,7 +583,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L8 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L8 |
 
 ### [api/catalog/cities.js](../../../api/catalog/cities.js) (`module`)
 - **Exports**: `access`, `methods`, `default`
@@ -505,7 +591,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L1 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L1 |
 
 ### [api/catalog/cuisines.js](../../../api/catalog/cuisines.js) (`module`)
 - **Exports**: `access`, `methods`, `default`
@@ -513,7 +599,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L4 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L4 |
 
 ### [api/catalog/featured.js](../../../api/catalog/featured.js) (`module`)
 - **Imports / Dependencies**: `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -522,7 +608,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L7 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L7 |
 
 ### [api/community/list.js](../../../api/community/list.js) (`module`)
 - **Imports / Dependencies**: `@biteshark/runtime-adapter`
@@ -531,7 +617,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L6 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L6 |
 
 ### [api/community/mine.js](../../../api/community/mine.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -540,7 +626,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L8 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L8 |
 
 ### [api/community/moderate.js](../../../api/community/moderate.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -549,7 +635,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L15 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L15 |
 
 ### [api/community/post.js](../../../api/community/post.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -558,7 +644,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L10 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L10 |
 
 ### [api/favorites/list.js](../../../api/favorites/list.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `@biteshark/runtime-adapter`
@@ -567,7 +653,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L7 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L7 |
 
 ### [api/favorites/toggle.js](../../../api/favorites/toggle.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -576,7 +662,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L8 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L8 |
 
 ### [api/notifications/settings.js](../../../api/notifications/settings.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -585,7 +671,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L8 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L8 |
 
 ### [api/owner/bookings.js](../../../api/owner/bookings.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `@biteshark/runtime-adapter`
@@ -594,7 +680,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L10 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L10 |
 
 ### [api/owner/location.js](../../../api/owner/location.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `../../lib/db-tx.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -604,7 +690,7 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `resolveLocationExpiry` | `function` | No | `(body: unknown, now: Date)` | `sync_value` | `api/owner/location.js:default` | L21 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L57 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L57 |
 
 ### [api/owner/profile.js](../../../api/owner/profile.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -613,7 +699,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L16 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L16 |
 
 ### [api/owner/requests.js](../../../api/owner/requests.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -622,7 +708,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L17 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L17 |
 
 ### [api/owner/schedule.js](../../../api/owner/schedule.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `../../lib/db-tx.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -631,7 +717,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L18 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L18 |
 
 ### [api/owner/stats.js](../../../api/owner/stats.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `@biteshark/runtime-adapter`
@@ -640,7 +726,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L7 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L7 |
 
 ### [api/pager/staff.js](../../../api/pager/staff.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -649,7 +735,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L19 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L19 |
 
 ### [api/pager/status.js](../../../api/pager/status.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/feature-controls.js`, `../../lib/pager-notifications.js`, `@biteshark/runtime-adapter`
@@ -658,7 +744,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L14 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L14 |
 
 ### [api/pager/subscriptions.js](../../../api/pager/subscriptions.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `../../lib/feature-controls.js`, `../../lib/pager-notifications.js`, `@biteshark/runtime-adapter`, `node:crypto`
@@ -668,7 +754,7 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `timingSafeHexEqual` | `function` | No | `(hexA: unknown, hexB: unknown)` | `sync_value` | `api/pager/subscriptions.js:default$anon_L58_1`, `api/pager/subscriptions.js:default$anon_L120_2` | L26 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L33 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L33 |
 
 ### [api/pager/telemetry.js](../../../api/pager/telemetry.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `../../lib/env-compat.js`, `../../lib/pager-notifications.js`, `@biteshark/runtime-adapter`
@@ -677,7 +763,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L17 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L17 |
 
 ### [api/pager/update.js](../../../api/pager/update.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `../../lib/pager-notifications.js`, `@biteshark/runtime-adapter`
@@ -686,18 +772,18 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L19 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L19 |
 
 ### [api/pager/worker.js](../../../api/pager/worker.js) (`module`)
-- **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/diagnostics.js`, `../../lib/env-compat.js`, `../../lib/pager-notifications.js`, `../../lib/standalone-auth.js`, `@biteshark/runtime-adapter`, `node:crypto`
+- **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/customer-exploration.js`, `../../lib/diagnostics.js`, `../../lib/env-compat.js`, `../../lib/pager-notifications.js`, `../../lib/standalone-auth.js`, `@biteshark/runtime-adapter`, `node:crypto`
 - **Exports**: `access`, `methods`, `default`
 - **Significant Constants**: `access` *(exported)*, `methods` *(exported)*
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `extractWorkerToken` | `function` | No | `(req: unknown)` | `sync_value` | `api/pager/worker.js:default` | L22 |
-| `timingSafeSecretEqual` | `function` | No | `(expected: unknown, supplied: unknown)` | `sync_value` | `api/pager/worker.js:default` | L31 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L37 |
+| `extractWorkerToken` | `function` | No | `(req: unknown)` | `sync_value` | `api/pager/worker.js:default` | L23 |
+| `timingSafeSecretEqual` | `function` | No | `(expected: unknown, supplied: unknown)` | `sync_value` | `api/pager/worker.js:default` | L32 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L38 |
 
 ### [api/schedule/today.js](../../../api/schedule/today.js) (`module`)
 - **Imports / Dependencies**: `../../lib/dates.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`, `node:crypto`
@@ -706,7 +792,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L9 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L9 |
 
 ### [api/trucks.js](../../../api/trucks.js) (`module`)
 - **Imports / Dependencies**: `../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -715,7 +801,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L13 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L13 |
 
 ### [api/trucks/[id].js](../../../api/trucks/[id].js) (`module`)
 - **Imports / Dependencies**: `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -724,7 +810,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L11 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L11 |
 
 ### [api/trucks/availability.js](../../../api/trucks/availability.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -733,7 +819,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L9 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L9 |
 
 ### [api/trucks/nearby.js](../../../api/trucks/nearby.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/discovery.js`
@@ -743,7 +829,7 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `miles` | `function` | No | `(a: unknown, b: unknown, c: unknown, d: unknown)` | `sync_value` | `api/trucks/nearby.js:default$anon_L35_1` | L15 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L23 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L23 |
 
 ### [api/trucks/search.js](../../../api/trucks/search.js) (`module`)
 - **Imports / Dependencies**: `../../lib/discovery.js`, `@biteshark/runtime-adapter`
@@ -752,7 +838,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L12 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L12 |
 
 ## 4. Browser Frontend Scripts (`public/`)
 
@@ -764,7 +850,7 @@
 | `<top_level>$anon_L8_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L8 |
 
 ### [public/app.js](../../../public/app.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `activeKind` (browser_global_reassignment @ L51), `activeCuisine` (browser_global_reassignment @ L52), `activeCuisine` (browser_global_reassignment @ L75), `activeKind` (browser_global_reassignment @ L76), `trucks` (browser_global_reassignment @ L420), `catalogVersion` (browser_global_reassignment @ L421), `selectedTruck` (browser_global_reassignment @ L436), `activeTileLayer` (browser_global_reassignment @ L534), `activeMapTileTemplate` (browser_global_reassignment @ L535), `userMarker` (browser_global_reassignment @ L753), `activeTileLayer` (browser_global_reassignment @ L843), `activeMapTileTemplate` (browser_global_reassignment @ L844), `mapLifecycleBound` (browser_global_reassignment @ L850), `map` (browser_global_reassignment @ L903), `map` (browser_global_reassignment @ L916), `map` (browser_global_reassignment @ L927), `bitesharkSyncInteractiveMapControl` (explicit_window_property @ L950), `trucks` (browser_global_reassignment @ L988), `catalogVersion` (browser_global_reassignment @ L991), `selectedTruck` (browser_global_reassignment @ L993), `handleListingImageError` (explicit_window_property @ L1183), `markers` (browser_global_reassignment @ L1317), `activeCuisine` (browser_global_reassignment @ L1368), `activeKind` (browser_global_reassignment @ L1369), `openOnly` (browser_global_reassignment @ L1370), `maxDistance` (browser_global_reassignment @ L1371), `manualAreaTown` (browser_global_reassignment @ L1372), `selectedTruck` (browser_global_reassignment @ L1510), `selectedTruck` (browser_global_reassignment @ L1532), `currentUser` (browser_global_reassignment @ L1608), `currentUser` (browser_global_reassignment @ L1612), `isSignedIn` (browser_global_reassignment @ L1626), `accountSyncState` (browser_global_reassignment @ L1627), `accountSyncState` (browser_global_reassignment @ L1653), `isSignedIn` (browser_global_reassignment @ L1674), `accountSyncState` (browser_global_reassignment @ L1675), `isSignedIn` (browser_global_reassignment @ L1682), `accountSyncState` (browser_global_reassignment @ L1683), `isSignedIn` (browser_global_reassignment @ L1697), `accountSyncState` (browser_global_reassignment @ L1698), `notifySyncState` (browser_global_reassignment @ L1699), `bookings` (browser_global_reassignment @ L1700), `appAuthEpoch` (browser_global_reassignment @ L1747), `isSignedIn` (browser_global_reassignment @ L1750), `currentUser` (browser_global_reassignment @ L1751), `accountSyncState` (browser_global_reassignment @ L1752), `notifySyncState` (browser_global_reassignment @ L1753), `bookings` (browser_global_reassignment @ L1754), `bookingsLoadState` (browser_global_reassignment @ L1755), `bookingsLoadCorr` (browser_global_reassignment @ L1756), `notifyPrefs` (browser_global_reassignment @ L1759), `isOwnerAdmin` (browser_global_reassignment @ L1761), `ownerAccess` (browser_global_reassignment @ L1762), `ownerTruckId` (browser_global_reassignment @ L1763), `ownerProfile` (browser_global_reassignment @ L1764), `ownerSchedule` (browser_global_reassignment @ L1771), `ownerLastKnownLocationHours` (browser_global_reassignment @ L1772), `bitesharkApplyAppSignOutCleanup` (explicit_window_property @ L1808), `accountSyncState` (browser_global_reassignment @ L1888), `accountSyncState` (browser_global_reassignment @ L1897), `isSignedIn` (browser_global_reassignment @ L1899), `accountSyncState` (browser_global_reassignment @ L1900), `accountSyncState` (browser_global_reassignment @ L1960), `notifyPrefs` (browser_global_reassignment @ L2023), `notifySyncState` (browser_global_reassignment @ L2027), `notifySyncState` (browser_global_reassignment @ L2030), `notifyPrefs` (browser_global_reassignment @ L2046), `notifySyncState` (browser_global_reassignment @ L2053), `notifySyncState` (browser_global_reassignment @ L2065), `notifyPrefs` (browser_global_reassignment @ L2080), `notifySyncState` (browser_global_reassignment @ L2085), `isSignedIn` (browser_global_reassignment @ L2097), `accountSyncState` (browser_global_reassignment @ L2098), `notifySyncState` (browser_global_reassignment @ L2099), `notifySyncState` (browser_global_reassignment @ L2113), `openOnly` (browser_global_reassignment @ L2128), `maxDistance` (browser_global_reassignment @ L2149), `manualAreaTown` (browser_global_reassignment @ L2170), `manualAreaOverridden` (browser_global_reassignment @ L2171), `userCoords` (browser_global_reassignment @ L2172), `userMarker` (browser_global_reassignment @ L2175), `bitesharkHasManualOrPreciseLocation` (explicit_window_property @ L2211), `bitesharkSelectManualArea` (explicit_window_property @ L2212), `bitesharkOpenAreaPicker` (explicit_window_property @ L2213), `mode` (browser_global_reassignment @ L2219), `manualAreaOverridden` (browser_global_reassignment @ L2353), `userCoords` (browser_global_reassignment @ L2365), `manualAreaTown` (browser_global_reassignment @ L2366), `manualAreaTown` (browser_global_reassignment @ L2385), `userCoords` (browser_global_reassignment @ L2386), `userMarker` (browser_global_reassignment @ L2403), `bookingDateBlocked` (browser_global_reassignment @ L2520), `bookingDateBlocked` (browser_global_reassignment @ L2534), `bookingDateBlocked` (browser_global_reassignment @ L2547), `bookingDateBlocked` (browser_global_reassignment @ L2585), `bookingDateBlocked` (browser_global_reassignment @ L2596), `bookingDraftKey` (browser_global_reassignment @ L2647), `bookingDraftSignature` (browser_global_reassignment @ L2648), `isSignedIn` (browser_global_reassignment @ L2686), `bookingDraftKey` (browser_global_reassignment @ L2703), `bookingDraftSignature` (browser_global_reassignment @ L2704), `bookingDraftKey` (browser_global_reassignment @ L2732), `bookingDraftSignature` (browser_global_reassignment @ L2733), `bookings` (browser_global_reassignment @ L2749), `bookingsLoadState` (browser_global_reassignment @ L2750), `bookingsLoadState` (browser_global_reassignment @ L2777), `isSignedIn` (browser_global_reassignment @ L2788), `accountSyncState` (browser_global_reassignment @ L2789), `bookings` (browser_global_reassignment @ L2790), `bookingsLoadState` (browser_global_reassignment @ L2791), `bookingsLoadState` (browser_global_reassignment @ L2799), `bookingsLoadCorr` (browser_global_reassignment @ L2800), `bookings` (browser_global_reassignment @ L2815), `bookingsLoadState` (browser_global_reassignment @ L2820), `bookingsLoadCorr` (browser_global_reassignment @ L2821), `previewOwnerRows` (browser_global_reassignment @ L2916), `ownerTruckId` (browser_global_reassignment @ L2947), `ownerTruckId` (browser_global_reassignment @ L3047), `ownerDashboardUnavailable` (browser_global_reassignment @ L3066), `isOwnerAdmin` (browser_global_reassignment @ L3076), `ownerAccess` (browser_global_reassignment @ L3080), `ownerAccess` (browser_global_reassignment @ L3086), `ownerProfile` (browser_global_reassignment @ L3131), `ownerLastKnownLocationHours` (browser_global_reassignment @ L3155), `ownerSchedule` (browser_global_reassignment @ L3168), `ownerDashboardUnavailable` (browser_global_reassignment @ L3197), `isOwnerAdmin` (browser_global_reassignment @ L3216), `ownerAccess` (browser_global_reassignment @ L3217), `ownerProfile` (browser_global_reassignment @ L3223), `ownerRequestFilter` (browser_global_reassignment @ L3240), `ownerSchedule` (browser_global_reassignment @ L3530), `ownerSchedule` (browser_global_reassignment @ L3544), `ownerProfile` (browser_global_reassignment @ L3640), `ownerProfile` (browser_global_reassignment @ L3649), `lastSurpriseId` (browser_global_reassignment @ L3715), `toastTimer` (explicit_window_property @ L3725), `bitesharkReady` (explicit_window_property @ L3747), `trucklyReady` (explicit_window_property @ L3747)
+- **Explicit Window / Reassigned Globals**: `activeKind` (browser_global_reassignment @ L51), `activeCuisine` (browser_global_reassignment @ L52), `activeCuisine` (browser_global_reassignment @ L75), `activeKind` (browser_global_reassignment @ L76), `trucks` (browser_global_reassignment @ L420), `catalogVersion` (browser_global_reassignment @ L421), `selectedTruck` (browser_global_reassignment @ L436), `activeTileLayer` (browser_global_reassignment @ L534), `activeMapTileTemplate` (browser_global_reassignment @ L535), `userMarker` (browser_global_reassignment @ L753), `activeTileLayer` (browser_global_reassignment @ L843), `activeMapTileTemplate` (browser_global_reassignment @ L844), `mapLifecycleBound` (browser_global_reassignment @ L850), `map` (browser_global_reassignment @ L903), `map` (browser_global_reassignment @ L916), `map` (browser_global_reassignment @ L927), `bitesharkSyncInteractiveMapControl` (explicit_window_property @ L950), `trucks` (browser_global_reassignment @ L988), `catalogVersion` (browser_global_reassignment @ L991), `selectedTruck` (browser_global_reassignment @ L993), `handleListingImageError` (explicit_window_property @ L1183), `markers` (browser_global_reassignment @ L1317), `activeCuisine` (browser_global_reassignment @ L1368), `activeKind` (browser_global_reassignment @ L1369), `openOnly` (browser_global_reassignment @ L1370), `maxDistance` (browser_global_reassignment @ L1371), `manualAreaTown` (browser_global_reassignment @ L1372), `selectedTruck` (browser_global_reassignment @ L1510), `selectedTruck` (browser_global_reassignment @ L1532), `currentUser` (browser_global_reassignment @ L1608), `currentUser` (browser_global_reassignment @ L1612), `isSignedIn` (browser_global_reassignment @ L1626), `accountSyncState` (browser_global_reassignment @ L1627), `accountSyncState` (browser_global_reassignment @ L1653), `isSignedIn` (browser_global_reassignment @ L1680), `accountSyncState` (browser_global_reassignment @ L1681), `isSignedIn` (browser_global_reassignment @ L1691), `accountSyncState` (browser_global_reassignment @ L1692), `isSignedIn` (browser_global_reassignment @ L1709), `currentUser` (browser_global_reassignment @ L1710), `accountSyncState` (browser_global_reassignment @ L1711), `notifySyncState` (browser_global_reassignment @ L1712), `bookings` (browser_global_reassignment @ L1713), `appAuthEpoch` (browser_global_reassignment @ L1766), `isSignedIn` (browser_global_reassignment @ L1769), `currentUser` (browser_global_reassignment @ L1770), `accountSyncState` (browser_global_reassignment @ L1771), `notifySyncState` (browser_global_reassignment @ L1772), `bookings` (browser_global_reassignment @ L1773), `bookingsLoadState` (browser_global_reassignment @ L1774), `bookingsLoadCorr` (browser_global_reassignment @ L1775), `notifyPrefs` (browser_global_reassignment @ L1778), `isOwnerAdmin` (browser_global_reassignment @ L1780), `ownerAccess` (browser_global_reassignment @ L1781), `ownerTruckId` (browser_global_reassignment @ L1782), `ownerProfile` (browser_global_reassignment @ L1783), `ownerSchedule` (browser_global_reassignment @ L1790), `ownerLastKnownLocationHours` (browser_global_reassignment @ L1791), `bitesharkApplyAppSignOutCleanup` (explicit_window_property @ L1834), `accountSyncState` (browser_global_reassignment @ L1914), `accountSyncState` (browser_global_reassignment @ L1923), `isSignedIn` (browser_global_reassignment @ L1925), `accountSyncState` (browser_global_reassignment @ L1926), `accountSyncState` (browser_global_reassignment @ L1986), `notifyPrefs` (browser_global_reassignment @ L2049), `notifySyncState` (browser_global_reassignment @ L2053), `notifySyncState` (browser_global_reassignment @ L2056), `notifyPrefs` (browser_global_reassignment @ L2072), `notifySyncState` (browser_global_reassignment @ L2079), `notifySyncState` (browser_global_reassignment @ L2091), `notifyPrefs` (browser_global_reassignment @ L2106), `notifySyncState` (browser_global_reassignment @ L2111), `isSignedIn` (browser_global_reassignment @ L2123), `accountSyncState` (browser_global_reassignment @ L2124), `notifySyncState` (browser_global_reassignment @ L2125), `notifySyncState` (browser_global_reassignment @ L2139), `openOnly` (browser_global_reassignment @ L2154), `maxDistance` (browser_global_reassignment @ L2175), `manualAreaTown` (browser_global_reassignment @ L2196), `manualAreaOverridden` (browser_global_reassignment @ L2197), `userCoords` (browser_global_reassignment @ L2198), `userMarker` (browser_global_reassignment @ L2201), `bitesharkHasManualOrPreciseLocation` (explicit_window_property @ L2237), `bitesharkSelectManualArea` (explicit_window_property @ L2238), `bitesharkOpenAreaPicker` (explicit_window_property @ L2239), `mode` (browser_global_reassignment @ L2245), `manualAreaOverridden` (browser_global_reassignment @ L2379), `userCoords` (browser_global_reassignment @ L2391), `manualAreaTown` (browser_global_reassignment @ L2392), `manualAreaTown` (browser_global_reassignment @ L2411), `userCoords` (browser_global_reassignment @ L2412), `userMarker` (browser_global_reassignment @ L2429), `bookingDateBlocked` (browser_global_reassignment @ L2546), `bookingDateBlocked` (browser_global_reassignment @ L2560), `bookingDateBlocked` (browser_global_reassignment @ L2573), `bookingDateBlocked` (browser_global_reassignment @ L2611), `bookingDateBlocked` (browser_global_reassignment @ L2622), `bookingDraftKey` (browser_global_reassignment @ L2673), `bookingDraftSignature` (browser_global_reassignment @ L2674), `isSignedIn` (browser_global_reassignment @ L2712), `bookingDraftKey` (browser_global_reassignment @ L2729), `bookingDraftSignature` (browser_global_reassignment @ L2730), `bookingDraftKey` (browser_global_reassignment @ L2758), `bookingDraftSignature` (browser_global_reassignment @ L2759), `bookings` (browser_global_reassignment @ L2775), `bookingsLoadState` (browser_global_reassignment @ L2776), `bookingsLoadState` (browser_global_reassignment @ L2803), `isSignedIn` (browser_global_reassignment @ L2814), `accountSyncState` (browser_global_reassignment @ L2815), `bookings` (browser_global_reassignment @ L2816), `bookingsLoadState` (browser_global_reassignment @ L2817), `bookingsLoadState` (browser_global_reassignment @ L2825), `bookingsLoadCorr` (browser_global_reassignment @ L2826), `bookings` (browser_global_reassignment @ L2841), `bookingsLoadState` (browser_global_reassignment @ L2846), `bookingsLoadCorr` (browser_global_reassignment @ L2847), `previewOwnerRows` (browser_global_reassignment @ L2942), `ownerTruckId` (browser_global_reassignment @ L2973), `ownerTruckId` (browser_global_reassignment @ L3073), `ownerDashboardUnavailable` (browser_global_reassignment @ L3092), `isOwnerAdmin` (browser_global_reassignment @ L3102), `ownerAccess` (browser_global_reassignment @ L3106), `ownerAccess` (browser_global_reassignment @ L3112), `ownerProfile` (browser_global_reassignment @ L3157), `ownerLastKnownLocationHours` (browser_global_reassignment @ L3181), `ownerSchedule` (browser_global_reassignment @ L3194), `ownerDashboardUnavailable` (browser_global_reassignment @ L3223), `isOwnerAdmin` (browser_global_reassignment @ L3242), `ownerAccess` (browser_global_reassignment @ L3243), `ownerProfile` (browser_global_reassignment @ L3249), `ownerRequestFilter` (browser_global_reassignment @ L3266), `ownerSchedule` (browser_global_reassignment @ L3556), `ownerSchedule` (browser_global_reassignment @ L3570), `ownerProfile` (browser_global_reassignment @ L3666), `ownerProfile` (browser_global_reassignment @ L3675), `lastSurpriseId` (browser_global_reassignment @ L3741), `toastTimer` (explicit_window_property @ L3752), `bitesharkReady` (explicit_window_property @ L3774), `trucklyReady` (explicit_window_property @ L3774)
 - **Significant Constants**: `API`, `OFFLINE_FALLBACK_TRUCKS`, `CATALOG_CACHE_KEY`, `CATALOG_CACHE_MAX_AGE_MS`, `MEASURED_ACCURACIES`, `cuisineSections`, `PACKAGES`, `HUBS`, `FAVS_SCOPE_STORAGE_KEY`, `favs`, `CLIENT_ALLOWLISTED_TILE_HOSTS`, `DEFAULT_BROWSER_MAP_CONFIG`, `activeTileTimers`, `mapRuntimeState`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
@@ -775,7 +861,7 @@
 | `chooseCuisine` | `function` | No | `(s: unknown)` | `void_or_implicit` | `public/app.js:b.onclick` | L73 |
 | `safeJSON` | `function` | No | `(key: unknown, fallback: unknown)` | `sync_value` | `public/app.js:<top_level>$anon_L276_9`, `public/app.js:<top_level>$anon_L283_10`, `public/app.js:init`, `public/app.js:<top_level>` | L106 |
 | `bsDiag` | `function` | No | `()` | `sync_value` | `public/app.js:isReducedMotion`, `public/app.js:safeStorageSet`, `public/app.js:appFetchJson`, `public/app.js:renderSectionFeedback` | L117 |
-| `isReducedMotion` | `function` | No | `()` | `sync_value` | `public/app.js:chooseKind`, `public/app.js:selectTruck`, `public/app.js:selectManualArea`, `public/app.js:locateMe$anon_L2355_62` | L121 |
+| `isReducedMotion` | `function` | No | `()` | `sync_value` | `public/app.js:chooseKind`, `public/app.js:selectTruck`, `public/app.js:selectManualArea`, `public/app.js:locateMe$anon_L2381_62` | L121 |
 | `safeStorageSet` | `function` | No | `(key: unknown, value: unknown, featureKey: string)` | `sync_value` | `public/app.js:syncAuthAndUserData`, `public/app.js:toggleFav`, `public/app.js:toggleFavRetry`, `public/app.js:loadNotificationSettings` | L126 |
 | `appFetchJson` | `function` | No | `(url: unknown, opts: object)` | `async -> promise` | `public/app.js:syncAuthAndUserData`, `public/app.js:syncAuthAndUserData$anon_L1639_45`, `public/app.js:signOutUser`, `public/app.js:toggleFav` | L148 |
 | `renderSectionFeedback` | `function` | No | `(containerId: unknown, opts: unknown)` | `void_or_implicit` | `public/app.js:syncAuthAndUserData`, `public/app.js:toggleFav`, `public/app.js:toggleFavRetry`, `public/app.js:saveNotificationSettings` | L209 |
@@ -786,13 +872,13 @@
 | `<top_level>$anon_L283_10` | `anonymous_function` | No | `()` | `sync_value` | — | L283 |
 | `formatUTCDateISO` | `function` | No | `(dt: unknown)` | `sync_value` | `public/app.js:addDaysISO`, `public/app.js:toCalendarDateISO` | L290 |
 | `addDaysISO` | `function` | No | `(isoDate: unknown, days: unknown)` | `sync_value` | `public/app.js:defaultEventDate`, `public/app.js:openBooking`, `public/app.js:futureDateISO` | L300 |
-| `toCalendarDateISO` | `function` | No | `(raw: unknown)` | `sync_value` | `public/app.js:parseEventDate`, `public/app.js:submitBooking$anon_L2700_74`, `public/app.js:submitBooking`, `public/app.js:loadUserBookings$anon_L2815_76` | L305 |
+| `toCalendarDateISO` | `function` | No | `(raw: unknown)` | `sync_value` | `public/app.js:parseEventDate`, `public/app.js:submitBooking$anon_L2726_74`, `public/app.js:submitBooking`, `public/app.js:loadUserBookings$anon_L2841_76` | L305 |
 | `defaultEventDate` | `function` | No | `()` | `sync_value` | `public/app.js:init`, `public/app.js:openBooking`, `public/app.js:submitBooking` | L323 |
-| `parseEventDate` | `function` | No | `(raw: unknown)` | `sync_value` | `public/app.js:renderBookings$anon_L2849_77`, `public/app.js:syncOwnerScheduleDay`, `public/app.js:renderOwnerScheduleList$anon_L3034_89`, `public/app.js:loadOwnerRequests$anon_L3300_96` | L327 |
-| `milesBetween` | `function` | No | `(lat1: unknown, lng1: unknown, lat2: unknown, lng2: unknown)` | `sync_value` | `lib/discovery.js:evaluateVendorDiscoveryRow`, `public/app.js:recomputeDistances$anon_L350_11`, `public/app.js:locateMe$anon_L2355_62$anon_L2359_63` | L333 |
+| `parseEventDate` | `function` | No | `(raw: unknown)` | `sync_value` | `public/app.js:renderBookings$anon_L2875_77`, `public/app.js:syncOwnerScheduleDay`, `public/app.js:renderOwnerScheduleList$anon_L3060_89`, `public/app.js:loadOwnerRequests$anon_L3326_96` | L327 |
+| `milesBetween` | `function` | No | `(lat1: unknown, lng1: unknown, lat2: unknown, lng2: unknown)` | `sync_value` | `lib/discovery.js:evaluateVendorDiscoveryRow`, `public/app.js:recomputeDistances$anon_L350_11`, `public/app.js:locateMe$anon_L2381_62$anon_L2385_63` | L333 |
 | `hasCoords` | `function` | No | `(t: unknown)` | `sync_value` | `public/app.js:hasMeasuredCoords`, `public/app.js:selectTruck` | L341 |
 | `hasMeasuredCoords` | `function` | No | `(t: unknown)` | `sync_value` | `public/app.js:recomputeDistances$anon_L350_11` | L345 |
-| `recomputeDistances` | `function` | No | `()` | `void_or_implicit` | `public/app.js:refreshDiscoveryCatalog`, `public/app.js:init`, `public/app.js:selectManualArea`, `public/app.js:locateMe$anon_L2355_62` | L349 |
+| `recomputeDistances` | `function` | No | `()` | `void_or_implicit` | `public/app.js:refreshDiscoveryCatalog`, `public/app.js:init`, `public/app.js:selectManualArea`, `public/app.js:locateMe$anon_L2381_62` | L349 |
 | `distanceLabel` | `function` | No | `(t: unknown, mode: unknown)` | `sync_value` | `public/app.js:cardHTML`, `public/app.js:extraDetail`, `public/app.js:openDetail` | L359 |
 | `sanitizeCatalogItem` | `function` | No | `(t: unknown)` | `sync_value` | — | L386 |
 | `setCatalogOfflineNotice` | `function` | No | `(visible: unknown, text: unknown)` | `void_or_implicit` | `public/app.js:refreshDiscoveryCatalog` | L398 |
@@ -810,7 +896,7 @@
 | `syncUserMarkerOnMap` | `function` | No | `()` | `void_or_implicit` | `public/app.js:attachApprovedTileLayer` | L742 |
 | `attachApprovedTileLayer` | `function` | No | `(cfg: unknown)` | `void_or_implicit` | `public/app.js:ensureMapInitialized` | L757 |
 | `bindMapResizeAndZoomListeners` | `function` | No | `()` | `void_or_implicit` | `public/app.js:ensureMapInitialized` | L848 |
-| `ensureMapInitialized` | `function` | No | `({ forceRetry }: object)` | `sync_value` | `public/app.js:init`, `public/app.js:setMode$anon_L2245_54`, `public/app.js:setMode`, `public/app.js:retryInteractiveMap` | L883 |
+| `ensureMapInitialized` | `function` | No | `({ forceRetry }: object)` | `sync_value` | `public/app.js:init`, `public/app.js:setMode$anon_L2271_54`, `public/app.js:setMode`, `public/app.js:retryInteractiveMap` | L883 |
 | `window.bitesharkSyncInteractiveMapControl` | `function` | No | `()` | `void_or_implicit` | `public/role-experience.js:applyFeatureControlsToDom` | L950 |
 | `init` | `function` | No | `()` | `async -> promise` | — | L962 |
 | `foldText` | `function` | No | `(s: unknown)` | `sync_value` | `public/app.js:filtered`, `public/app.js:filtered$anon_L1022_28` | L1015 |
@@ -836,19 +922,19 @@
 | `resetFilters` | `function` | No | `()` | `void_or_implicit` | — | L1367 |
 | `openTruck` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:handleCardSurfaceClick` | L1409 |
 | `handleCardSurfaceClick` | `function` | No | `(event: unknown, id: unknown)` | `void_or_implicit` | — | L1418 |
-| `cardHTML` | `function` | No | `(t: unknown, index: number)` | `sync_value` | `public/app.js:applyFilters$anon_L1360_36`, `public/app.js:extraCard`, `public/app.js:renderFavorites$anon_L1977_49` | L1429 |
+| `cardHTML` | `function` | No | `(t: unknown, index: number)` | `sync_value` | `public/app.js:applyFilters$anon_L1360_36`, `public/app.js:extraCard`, `public/app.js:renderFavorites$anon_L2003_49` | L1429 |
 | `extraCard` | `function` | No | `(t: unknown)` | `sync_value` | — | L1470 |
 | `resolveDetailRestoreTrigger` | `function` | No | `(id: unknown, explicitTrigger: unknown)` | `sync_value` | `public/app.js:openDetail` | L1474 |
 | `extraDetail` | `function` | No | `(t: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:openDetail` | L1495 |
 | `selectTruck` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/app.js:applyFilters$anon_L1319_33$anon_L1329_34`, `public/app.js:openTruck` | L1509 |
 | `openDetail` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:applyFilters$anon_L1319_33$anon_L1329_34`, `public/app.js:openTruck`, `public/app.js:surpriseMe`, `public/community.js:communityViewPlace` | L1523 |
-| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communityReviewPlace` | L1550 |
+| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communityReviewPlace`, `public/local-guides.js:openVisitJournalForBusiness`, `public/local-guides.js:openPhotoNotebook` | L1550 |
 | `initialsFromUser` | `function` | No | `(user: unknown)` | `sync_value` | `public/app.js:updateAuthUI` | L1554 |
 | `updateAuthUI` | `function` | No | `()` | `void_or_implicit` | `public/app.js:init`, `public/app.js:syncAuthAndUserData`, `public/app.js:applyConfirmedClientSignOutCleanup`, `public/app.js:toggleFav` | L1566 |
 | `syncAuthAndUserData` | `function` | No | `()` | `async -> promise` | `public/app.js:init`, `public/app.js:onRetry`, `scripts/dev-workbench/debug-admin.js:setRole` | L1600 |
-| `renderSignOutFailureNotice` | `function` | No | `(message: unknown)` | `void_or_implicit` | `public/app.js:applyConfirmedClientSignOutCleanup`, `public/app.js:signOutUser` | L1716 |
-| `applyConfirmedClientSignOutCleanup` | `function` | No | `(opts: object)` | `void_or_implicit` | `public/app.js:signOutUser` | L1746 |
-| `signOutUser` | `function` | No | `(opts: object)` | `async -> promise` | `public/app.js:retryBtn.onclick`, `public/role-experience.js:swBtn.onclick` | L1811 |
+| `renderSignOutFailureNotice` | `function` | No | `(message: unknown)` | `void_or_implicit` | `public/app.js:applyConfirmedClientSignOutCleanup`, `public/app.js:signOutUser` | L1735 |
+| `applyConfirmedClientSignOutCleanup` | `function` | No | `(opts: object)` | `void_or_implicit` | `public/app.js:signOutUser` | L1765 |
+| `signOutUser` | `function` | No | `(opts: object)` | `async -> promise` | `public/app.js:retryBtn.onclick`, `public/role-experience.js:swBtn.onclick` | L1837 |
 
 *Showing first 80 of 139 symbols in `public/app.js`; query `npm run registry:locate -- <name>` for full list.*
 
@@ -865,7 +951,7 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `truckCharacter` | `function` | No | `(kind: string)` | `sync_value` | `public/characters.js:<top_level>$anon_L6_1`, `public/characters.js:updateFlavorCharacters`, `public/coffee-club.js:flavorDoodle`, `public/local-guides.js:<top_level>$anon_L87_12` | L1 |
+| `truckCharacter` | `function` | No | `(kind: string)` | `sync_value` | `public/characters.js:<top_level>$anon_L6_1`, `public/characters.js:updateFlavorCharacters`, `public/coffee-club.js:flavorDoodle` | L1 |
 | `updateFlavorCharacters` | `function` | No | `()` | `void_or_implicit` | `public/characters.js:applyFilters`, `public/characters.js:<top_level>` | L8 |
 | `applyFilters` | `function` | No | `()` | `void_or_implicit` | `public/app.js:chooseCuisine`, `public/app.js:refreshDiscoveryCatalog`, `public/app.js:bindMapResizeAndZoomListeners$anon_L862_22`, `public/app.js:init` | L14 |
 
@@ -891,7 +977,7 @@
 | `communitySetFilter` | `function` | No | `(kind: unknown)` | `void_or_implicit` | — | L62 |
 | `communityRender` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communityLoad`, `public/community.js:communitySetFilter` | L70 |
 | `communityViewPlace` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/community.js:communityRender$anon_L103_13$anon_L103_14` | L106 |
-| `communityStartPost` | `function` | No | `(kind: string, title: string)` | `void_or_implicit` | `public/community.js:communityReviewPlace`, `public/street-whispers.js:streetActMission`, `public/street-whispers.js:streetOpenWhisper`, `scripts/dev-workbench/debug-admin.js:seedWhisper` | L111 |
+| `communityStartPost` | `function` | No | `(kind: string, title: string)` | `void_or_implicit` | `public/community.js:communityReviewPlace`, `public/street-whispers.js:streetNextMission$anon_L259_15`, `public/street-whispers.js:streetOpenWhisper`, `scripts/dev-workbench/debug-admin.js:seedWhisper` | L111 |
 | `communityClosePost` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communitySubmitPost` | L128 |
 | `communityKindChange` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communityStartPost`, `public/community.js:communitySubmitPost` | L132 |
 | `communitySubmitPost` | `function` | No | `(e: unknown)` | `async -> promise` | — | L140 |
@@ -907,20 +993,31 @@
 |---|---|---|---|---|---|---:|
 | `initBiteSharkDiagnostics` | `function` | No | `(globalScope: unknown)` | `void_or_implicit` | — | L15 |
 
-### [public/guide-passport.js](../../../public/guide-passport.js) (`script`)
-- **Significant Constants**: `guidePassportStorageKey`
+### [public/exploration-client.js](../../../public/exploration-client.js) (`script`)
+- **Explicit Window / Reassigned Globals**: `bitesharkExploration` (explicit_window_property @ L1031), `bitesharkExploration` (explicit_window_property @ L1034)
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `guideVisitsRead` | `function` | No | `()` | `sync_value` | `public/guide-passport.js:renderGuidePassport`, `public/guide-passport.js:guideLogVisit`, `public/guide-passport.js:guideUndoVisit` | L3 |
-| `guideVisitsWrite` | `function` | No | `(rows: unknown)` | `sync_value` | `public/guide-passport.js:guideLogVisit`, `public/guide-passport.js:guideUndoVisit` | L9 |
-| `guidePlaces` | `function` | No | `()` | `sync_value` | `public/community.js:communityGetPlaces`, `public/guide-passport.js:guidePlace`, `public/guide-passport.js:renderGuidePassport` | L19 |
-| `guidePlace` | `function` | No | `(id: unknown)` | `sync_value` | `public/guide-passport.js:guideLogVisit` | L27 |
-| `guidePassportHtmlEscape` | `function` | No | `(s: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport$anon_L56_13`, `public/guide-passport.js:renderGuidePassport$anon_L59_14`, `public/guide-passport.js:renderGuidePassport$anon_L65_15`, `public/guide-passport.js:renderGuidePassport` | L28 |
-| `guideWeekStart` | `function` | No | `()` | `sync_value` | `public/guide-passport.js:renderGuidePassport$anon_L47_9` | L31 |
-| `renderGuidePassport` | `function` | No | `()` | `async -> promise` | `public/guide-passport.js:guideLogVisit`, `public/guide-passport.js:guideUndoVisit`, `public/local-guides.js:showGuidesTab` | L34 |
-| `guideLogVisit` | `function` | No | `(e: unknown)` | `void_or_implicit` | — | L95 |
-| `guideUndoVisit` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/guide-passport.js:renderGuidePassport$anon_L92_16$anon_L92_17` | L114 |
+| `<top_level>$anon_L8_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L8 |
+
+### [public/guide-passport.js](../../../public/guide-passport.js) (`script`)
+- **Explicit Window / Reassigned Globals**: `preselectedVisitVendorId` (browser_global_reassignment @ L295), `journalState` (browser_global_reassignment @ L779), `bitesharkResetExplorationUiOnAuthChange` (explicit_window_property @ L814)
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `guidePassportHtmlEscape` | `function` | No | `(s: unknown)` | `sync_value` | `public/guide-passport.js:renderLegacyMigrationBannerHtml$anon_L54_5`, `public/guide-passport.js:renderLegacyMigrationBannerHtml$anon_L55_6`, `public/guide-passport.js:renderLegacyMigrationBannerHtml`, `public/guide-passport.js:renderAchievementsSectionHtml$anon_L166_7` | L21 |
+| `guidePlaces` | `function` | No | `()` | `sync_value` | `public/community.js:communityGetPlaces`, `public/guide-passport.js:guidePlace`, `public/guide-passport.js:getFilteredPlaceOptions` | L29 |
+| `guidePlace` | `function` | No | `(id: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport`, `public/guide-passport.js:bindVisitJournalHandlers$anon_L547_19` | L40 |
+| `getJournalFeatureApi` | `function` | No | `()` | `sync_value` | `public/guide-passport.js:renderSignedOutVisitJournalHtml`, `public/guide-passport.js:renderGuidePassport`, `public/guide-passport.js:guideLogVisit` | L44 |
+| `renderLegacyMigrationBannerHtml` | `function` | No | `(legacySnap: unknown, userEmail: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport` | L48 |
+| `renderSignedOutVisitJournalHtml` | `function` | No | `()` | `sync_value` | `public/guide-passport.js:renderGuidePassport` | L131 |
+| `renderAchievementsSectionHtml` | `function` | No | `(summary: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport` | L155 |
+| `renderWeeklyChallengeHtml` | `function` | No | `(summary: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport` | L238 |
+| `getFilteredPlaceOptions` | `function` | No | `(queryText: unknown, selectedId: unknown)` | `sync_value` | `public/guide-passport.js:renderGuidePassport`, `public/guide-passport.js:bindVisitJournalHandlers$anon_L521_17` | L269 |
+| `renderGuidePassport` | `function` | No | `(opts: object)` | `async -> promise` | `public/guide-passport.js:bindVisitJournalHandlers$anon_L579_23$anon_L580_24`, `public/guide-passport.js:bindVisitJournalHandlers$anon_L586_25$anon_L587_26`, `public/guide-passport.js:bindVisitJournalHandlers$anon_L593_27$anon_L594_28`, `public/guide-passport.js:bindVisitJournalHandlers$anon_L616_29` | L288 |
+| `bindVisitJournalHandlers` | `function` | No | `(host: unknown)` | `void_or_implicit` | `public/guide-passport.js:renderGuidePassport` | L504 |
+| `guideLogVisit` | `function` | No | `(e: unknown)` | `async -> promise` | — | L709 |
+| `resetVisitJournalStateOnAuthChange` | `function` | No | `()` | `void_or_implicit` | — | L778 |
 
 ### [public/listing-highlights.js](../../../public/listing-highlights.js) (`script`)
 - **Explicit Window / Reassigned Globals**: `bitesharkListingHighlights` (explicit_window_property @ L79), `bitesharkListingHighlights` (explicit_window_property @ L82), `openDetail` (browser_global_reassignment @ L91)
@@ -930,21 +1027,30 @@
 | `<top_level>$anon_L8_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L8 |
 
 ### [public/local-guides.js](../../../public/local-guides.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `dishDbPromise` (browser_global_reassignment @ L28), `dishDbPromise` (browser_global_reassignment @ L30), `dishDbPromise` (browser_global_reassignment @ L40), `dishDbPromise` (browser_global_reassignment @ L50), `dishDbPromise` (browser_global_reassignment @ L52), `dishDbPromise` (browser_global_reassignment @ L59), `dishPhotoUrls` (browser_global_reassignment @ L79)
-- **Significant Constants**: `localGuideNotes`
+- **Explicit Window / Reassigned Globals**: `activeGuidesTab` (browser_global_reassignment @ L311), `preselectedVisitVendorId` (browser_global_reassignment @ L357), `preselectedPhotoVendorId` (browser_global_reassignment @ L382), `preselectedPhotoVendorId` (browser_global_reassignment @ L462), `pendingDeletePhotoId` (browser_global_reassignment @ L666), `pendingDeletePhotoId` (browser_global_reassignment @ L672), `pendingDeletePhotoId` (browser_global_reassignment @ L682)
+- **Significant Constants**: `LEGACY_DISH_NOTEBOOK_KEY`, `tablist`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `guidesEscape` | `function` | No | `(v: unknown)` | `sync_value` | `public/guide-passport.js:guidePassportHtmlEscape`, `public/local-guides.js:openLocalGuides$anon_L14_2`, `public/local-guides.js:openLocalGuides$anon_L15_3`, `public/local-guides.js:renderDishPhotos$anon_L80_11` | L8 |
-| `openLocalGuides` | `function` | No | `(tab: string)` | `async -> promise` | `public/local-guides.js:openPhotoNotebook`, `public/street-whispers.js:streetActMission`, `scripts/dev-workbench/debug-admin.js:jumpCustomer` | L9 |
-| `showGuidesTab` | `function` | No | `(tab: unknown)` | `void_or_implicit` | `public/local-guides.js:openLocalGuides`, `public/local-guides.js:openPhotoNotebook` | L19 |
-| `openPhotoNotebook` | `function` | No | `(id: unknown)` | `async -> promise` | — | L25 |
-| `dishDb` | `function` | No | `()` | `sync_value` | `public/local-guides.js:dishRead`, `public/local-guides.js:dishWrite` | L26 |
-| `dishRead` | `function` | No | `()` | `async -> promise` | `public/guide-passport.js:renderGuidePassport`, `public/local-guides.js:saveDishPhoto`, `public/local-guides.js:renderDishPhotos` | L63 |
-| `dishWrite` | `function` | No | `(action: unknown, value: unknown)` | `async -> promise` | `public/local-guides.js:saveDishPhoto`, `public/local-guides.js:removeDishPhoto` | L64 |
-| `saveDishPhoto` | `function` | No | `(e: unknown)` | `async -> promise (throws: Error)` | — | L65 |
-| `renderDishPhotos` | `function` | No | `()` | `async -> promise` | `public/local-guides.js:showGuidesTab`, `public/local-guides.js:saveDishPhoto`, `public/local-guides.js:removeDishPhoto` | L77 |
-| `removeDishPhoto` | `function` | No | `(id: unknown)` | `async -> promise` | — | L86 |
+| `guidesEscape` | `function` | No | `(v: unknown)` | `sync_value` | `public/guide-passport.js:guidePassportHtmlEscape`, `public/local-guides.js:populateDishPhotoVendorOptions$anon_L57_3`, `public/local-guides.js:renderStoryCardHtml`, `public/local-guides.js:renderEditorialStories` | L14 |
+| `getGuidesFeatureApi` | `function` | No | `()` | `sync_value` | `public/local-guides.js:isGuidesSubfeatureHidden`, `public/local-guides.js:renderEditorialStories`, `public/local-guides.js:openLocalGuides`, `public/local-guides.js:showGuidesTab` | L20 |
+| `isGuidesSubfeatureHidden` | `function` | No | `(key: unknown)` | `sync_value` | `public/local-guides.js:getAvailableGuidesTabs`, `public/local-guides.js:renderStoryCardHtml`, `public/local-guides.js:renderEditorialStories`, `public/local-guides.js:renderDiscoverStoriesStrip` | L24 |
+| `getAvailableGuidesTabs` | `function` | No | `()` | `sync_value` | `public/local-guides.js:resolveBestGuidesTab` | L31 |
+| `resolveBestGuidesTab` | `function` | No | `(requested: unknown)` | `sync_value` | `public/local-guides.js:openLocalGuides`, `public/local-guides.js:showGuidesTab` | L39 |
+| `populateDishPhotoVendorOptions` | `function` | No | `(selectedId: unknown)` | `void_or_implicit` | `public/local-guides.js:openLocalGuides`, `public/local-guides.js:openPhotoNotebook`, `public/local-guides.js:saveDishPhoto`, `public/local-guides.js:renderDishPhotos` | L46 |
+| `renderStoryCardHtml` | `function` | No | `(story: unknown)` | `sync_value` | — | L71 |
+| `renderEditorialStories` | `function` | No | `()` | `async -> promise` | `public/local-guides.js:showGuidesTab` | L150 |
+| `renderDiscoverStoriesStrip` | `function` | No | `()` | `void_or_implicit` | `public/local-guides.js:<top_level>`, `public/role-experience.js:applyFeatureControlsToDom` | L220 |
+| `openLocalGuides` | `function` | No | `(tab: string)` | `async -> promise` | `public/local-guides.js:renderDiscoverStoriesStrip$anon_L259_15`, `public/local-guides.js:openVisitJournalForBusiness`, `public/local-guides.js:openPhotoNotebook`, `public/local-guides.js:handleGuidesHashRoutes` | L273 |
+| `showGuidesTab` | `function` | No | `(tab: unknown)` | `void_or_implicit` | `public/guide-passport.js:renderGuidePassport$anon_L302_11`, `public/local-guides.js:openLocalGuides`, `public/local-guides.js:<top_level>$anon_L730_37`, `public/role-experience.js:applyFeatureControlsToDom` | L305 |
+| `openVisitJournalForBusiness` | `function` | No | `(vendorId: unknown)` | `async -> promise` | `public/local-guides.js:renderEditorialStories$anon_L208_10$anon_L209_11`, `public/smart.js:renderTrailPreview$anon_L500_22$anon_L501_23`, `public/smart.js:renderSavedTrailsList$anon_L673_34$anon_L674_35` | L348 |
+| `openPhotoNotebook` | `function` | No | `(vendorId: unknown)` | `async -> promise` | `public/local-guides.js:renderEditorialStories$anon_L213_12$anon_L214_13` | L373 |
+| `saveDishPhoto` | `function` | No | `(e: unknown)` | `async -> promise` | — | L397 |
+| `openPrivatePhotoViewer` | `function` | No | `(photo: unknown)` | `void_or_implicit` | `public/local-guides.js:renderDishPhotos$anon_L653_25$anon_L654_26` | L493 |
+| `closePrivatePhotoViewer` | `function` | No | `()` | `void_or_implicit` | `public/local-guides.js:openPrivatePhotoViewer$anon_L499_22` | L531 |
+| `renderDishPhotos` | `function` | No | `()` | `async -> promise` | `public/guide-passport.js:resetVisitJournalStateOnAuthChange`, `public/local-guides.js:showGuidesTab`, `public/local-guides.js:saveDishPhoto` | L540 |
+| `handleGuidesHashRoutes` | `function` | No | `()` | `void_or_implicit` | — | L708 |
+| `<top_level>$anon_L730_37` | `anonymous_function` | No | `(ev: unknown)` | `void_or_implicit` | — | L730 |
 
 ### [public/pager.js](../../../public/pager.js) (`script`)
 - **Explicit Window / Reassigned Globals**: `pagerDemoAuto` (browser_global_reassignment @ L174), `pagerToken` (browser_global_reassignment @ L175), `pagerDemo` (browser_global_reassignment @ L176), `pagerStatus` (browser_global_reassignment @ L177), `pagerPushError` (browser_global_reassignment @ L178), `pagerDemoTimer` (browser_global_reassignment @ L191), `pagerDemoTimer` (browser_global_reassignment @ L197), `pagerDemoTimer` (browser_global_reassignment @ L198), `pagerStatus` (browser_global_reassignment @ L207), `pagerCurrentRendered` (browser_global_reassignment @ L208), `lastPagerRenderSignature` (browser_global_reassignment @ L225), `pagerPushError` (browser_global_reassignment @ L262), `pagerPushBusy` (browser_global_reassignment @ L267), `pagerPushBusy` (browser_global_reassignment @ L273), `pagerPushError` (browser_global_reassignment @ L340), `pagerPushError` (browser_global_reassignment @ L342), `pagerPushBusy` (browser_global_reassignment @ L344), `pagerPushBusy` (browser_global_reassignment @ L352), `pagerPushError` (browser_global_reassignment @ L353), `pagerPushError` (browser_global_reassignment @ L409), `pagerPushError` (browser_global_reassignment @ L415), `pagerPushBusy` (browser_global_reassignment @ L417), `pagerBusy` (browser_global_reassignment @ L424), `pagerPushServer` (browser_global_reassignment @ L449), `pagerBusy` (browser_global_reassignment @ L461), `pagerSound` (browser_global_reassignment @ L467), `pagerAudio` (browser_global_reassignment @ L474), `pagerSound` (browser_global_reassignment @ L476), `pagerDemo` (browser_global_reassignment @ L510), `pagerDemoAuto` (browser_global_reassignment @ L512), `pagerToken` (browser_global_reassignment @ L513), `pagerStatus` (browser_global_reassignment @ L514), `lastPagerRenderSignature` (browser_global_reassignment @ L515), `pagerPushError` (browser_global_reassignment @ L516), `pagerDemoAuto` (browser_global_reassignment @ L529), `pagerDemo` (browser_global_reassignment @ L537), `pagerDemoAuto` (browser_global_reassignment @ L538), `pagerStatus` (browser_global_reassignment @ L539), `pagerToken` (browser_global_reassignment @ L540), `pagerCurrentRendered` (browser_global_reassignment @ L541), `kitchenRequestKey` (browser_global_reassignment @ L669), `kitchenRequestSig` (browser_global_reassignment @ L670), `kitchenRequestKey` (browser_global_reassignment @ L674), `kitchenRequestSig` (browser_global_reassignment @ L675), `pagerDemo` (browser_global_reassignment @ L744), `pagerDemoAuto` (browser_global_reassignment @ L745), `pagerToken` (browser_global_reassignment @ L746)
@@ -995,55 +1101,62 @@
 | `loadPagerHash` | `function` | No | `()` | `void_or_implicit` | `public/pager.js:<top_level>` | L754 |
 
 ### [public/role-experience.js](../../../public/role-experience.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `fetch` (explicit_window_property @ L200), `location.href` (explicit_window_property @ L334), `location.href` (explicit_window_property @ L336), `bitesharkOnSignedOut` (explicit_window_property @ L1089), `location.href` (explicit_window_property @ L2184), `bitesharkOpenSupport` (explicit_window_property @ L2291), `bitesharkSyncOwnerVendorContext` (explicit_window_property @ L2292), `bitesharkOpenCommunityReport` (explicit_window_property @ L2784), `location.href` (explicit_window_property @ L2947), `location.hash` (explicit_window_property @ L3006), `location.href` (explicit_window_property @ L3013), `bitesharkFeatures` (explicit_window_property @ L3426), `location.href` (explicit_window_property @ L3653), `bitesharkMarkDiscoveryInteraction` (explicit_window_property @ L3950), `bitesharkOnScreenChange` (explicit_window_property @ L3953), `bitesharkWelcome` (explicit_window_property @ L3956)
+- **Explicit Window / Reassigned Globals**: `fetch` (explicit_window_property @ L200), `location.href` (explicit_window_property @ L334), `location.href` (explicit_window_property @ L336), `openExplorationPrivacyModal` (explicit_window_property @ L1400), `bitesharkOnSignedOut` (explicit_window_property @ L1401), `location.href` (explicit_window_property @ L2501), `bitesharkOpenSupport` (explicit_window_property @ L2608), `bitesharkSyncOwnerVendorContext` (explicit_window_property @ L2609), `bitesharkOpenCommunityReport` (explicit_window_property @ L3101), `location.href` (explicit_window_property @ L3264), `location.hash` (explicit_window_property @ L3323), `location.href` (explicit_window_property @ L3330), `bitesharkFeatures` (explicit_window_property @ L3832), `location.href` (explicit_window_property @ L4059), `bitesharkMarkDiscoveryInteraction` (explicit_window_property @ L4363), `bitesharkOnScreenChange` (explicit_window_property @ L4366), `bitesharkWelcome` (explicit_window_property @ L4369)
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `<top_level>$anon_L6_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L6 |
 
 ### [public/smart.js](../../../public/smart.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `smartMode` (browser_global_reassignment @ L9), `smartTrailIds` (browser_global_reassignment @ L22), `openDetail` (browser_global_reassignment @ L39), `smartTrailIds` (browser_global_reassignment @ L40)
+- **Explicit Window / Reassigned Globals**: `smartMode` (browser_global_reassignment @ L101), `currentTrailOffset` (browser_global_reassignment @ L177), `currentTrailOffset` (browser_global_reassignment @ L184), `finderRotationOffset` (browser_global_reassignment @ L300), `currentTrailTown` (browser_global_reassignment @ L354), `currentTrailTheme` (browser_global_reassignment @ L355), `currentTrailOffset` (browser_global_reassignment @ L356), `currentTrailPreview` (browser_global_reassignment @ L369), `pendingDeleteTrailId` (browser_global_reassignment @ L688), `pendingDeleteTrailId` (browser_global_reassignment @ L694), `pendingDeleteTrailId` (browser_global_reassignment @ L703), `openDetail` (browser_global_reassignment @ L930)
 - **Significant Constants**: `originalBiteSharkDetail`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `smartEscape` | `arrow_function` | No | `(v: unknown)` | `sync_value` | `public/smart.js:cityOptions$anon_L4_3`, `public/smart.js:openSmart$anon_L11_5`, `public/smart.js:smartCard`, `public/smart.js:findFlavor` | L2 |
-| `spotUrl` | `function` | No | `(id: unknown)` | `sync_value` | `public/smart.js:shareSpot`, `public/smart.js:renderPromo` | L3 |
-| `cityOptions` | `function` | No | `()` | `sync_value` | `public/smart.js:openSmart` | L4 |
-| `smartStatus` | `function` | No | `(msg: unknown)` | `void_or_implicit` | `public/smart.js:openSmart`, `public/smart.js:findFlavor`, `public/smart.js:shareFoodTrail`, `public/smart.js:copyPromo` | L5 |
-| `openSmart` | `function` | No | `(mode: string)` | `async -> promise` | `scripts/dev-workbench/debug-admin.js:jumpProvider` | L6 |
-| `inSmartTown` | `function` | No | `(t: unknown, city: unknown)` | `sync_value` | `public/smart.js:findFlavor$anon_L17_6`, `public/smart.js:buildFoodTrail$anon_L19_8` | L14 |
-| `matchesCraving` | `function` | No | `(t: unknown, q: unknown)` | `sync_value` | `public/smart.js:findFlavor$anon_L17_6`, `public/smart.js:buildFoodTrail$anon_L19_10`, `public/smart.js:buildFoodTrail$anon_L20_12`, `public/smart.js:buildFoodTrail$anon_L20_13` | L15 |
-| `smartCard` | `function` | No | `(t: unknown, n: unknown)` | `sync_value` | `public/smart.js:findFlavor$anon_L17_7`, `public/smart.js:renderTrail$anon_L24_18` | L16 |
-| `findFlavor` | `function` | No | `(e: unknown)` | `void_or_implicit` | — | L17 |
-| `buildFoodTrail` | `function` | No | `(e: unknown)` | `void_or_implicit` | — | L18 |
-| `renderTrail` | `function` | No | `(picks: unknown)` | `void_or_implicit` | `public/smart.js:buildFoodTrail`, `public/smart.js:openSmartHash` | L24 |
-| `shareText` | `function` | No | `(title: unknown, text: unknown, url: unknown)` | `async -> promise` | `public/smart.js:shareSpot`, `public/smart.js:shareFoodTrail` | L25 |
-| `shareSpot` | `function` | No | `(id: unknown)` | `async -> promise` | `public/smart.js:btn.onclick` | L26 |
-| `shareFoodTrail` | `function` | No | `()` | `async -> promise` | — | L27 |
-| `renderPromo` | `function` | No | `()` | `void_or_implicit` | `public/smart.js:openSmart` | L28 |
-| `copyPromo` | `function` | No | `()` | `async -> promise` | — | L32 |
-| `downloadPromo` | `function` | No | `()` | `void_or_implicit` | — | L33 |
-| `openDetail` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:applyFilters$anon_L1319_33$anon_L1329_34`, `public/app.js:openTruck`, `public/app.js:surpriseMe`, `public/community.js:communityViewPlace` | L39 |
-| `openSmartHash` | `function` | No | `()` | `async -> promise` | `public/smart.js:<top_level>` | L40 |
+| `smartEscape` | `arrow_function` | No | `(v: unknown)` | `sync_value` | `public/smart.js:normalizedTownOptions$anon_L42_6`, `public/smart.js:findFlavor`, `public/smart.js:findFlavor$anon_L314_11`, `public/smart.js:buildFoodTrail` | L14 |
+| `spotUrl` | `function` | No | `(id: unknown)` | `sync_value` | `public/smart.js:shareSpot`, `public/smart.js:renderOwnerPromo` | L17 |
+| `getSmartFeatureApi` | `function` | No | `()` | `sync_value` | `public/smart.js:resolveSmartTabAvailability`, `public/smart.js:openSmart`, `public/smart.js:renderTrailPreview`, `public/smart.js:renderSavedTrailsList` | L21 |
+| `normalizedTownOptions` | `function` | No | `(selectedTown: string)` | `sync_value` | `public/smart.js:renderSuggestedTrailsView`, `public/smart.js:renderFlavorFinderView` | L25 |
+| `smartStatus` | `function` | No | `(msg: unknown)` | `void_or_implicit` | `public/smart.js:openSmart`, `public/smart.js:findFlavor`, `public/smart.js:renderTrailPreview$anon_L514_26`, `public/smart.js:renderSavedTrailsList$anon_L698_42$anon_L699_43` | L55 |
+| `resolveSmartTabAvailability` | `function` | No | `(requestedMode: unknown)` | `sync_value` | `public/smart.js:openSmart` | L60 |
+| `openSmart` | `function` | No | `(mode: string)` | `async -> promise` | `public/guide-passport.js:renderGuidePassport$anon_L304_12`, `public/role-experience.js:applyFeatureControlsToDom`, `scripts/dev-workbench/debug-admin.js:jumpProvider` | L78 |
+| `renderSuggestedTrailsView` | `function` | No | `()` | `void_or_implicit` | `public/smart.js:openSmart` | L134 |
+| `renderFlavorFinderView` | `function` | No | `()` | `void_or_implicit` | `public/smart.js:openSmart` | L190 |
+| `inSmartTown` | `function` | No | `(t: unknown, city: unknown)` | `sync_value` | `public/smart.js:findFlavor$anon_L287_10` | L226 |
+| `matchesFinderCraving` | `function` | No | `(t: unknown, q: unknown)` | `sync_value` | `public/smart.js:findFlavor$anon_L287_10` | L231 |
+| `findFlavor` | `function` | No | `(e: unknown)` | `void_or_implicit` | — | L282 |
+| `buildFoodTrail` | `function` | No | `(e: unknown, opts: object)` | `async -> promise` | `public/smart.js:openSmart`, `public/smart.js:renderSuggestedTrailsView$anon_L176_8`, `public/smart.js:renderSuggestedTrailsView$anon_L183_9`, `public/smart.js:openSmartDeepLink` | L347 |
+| `renderTrailPreview` | `function` | No | `(payload: unknown)` | `void_or_implicit` | `public/guide-passport.js:resetVisitJournalStateOnAuthChange`, `public/smart.js:buildFoodTrail` | L382 |
+| `renderSavedTrailsList` | `function` | No | `()` | `async -> promise` | `public/guide-passport.js:resetVisitJournalStateOnAuthChange`, `public/smart.js:openSmart`, `public/smart.js:renderTrailPreview$anon_L514_26`, `public/smart.js:openSmartDeepLink` | L544 |
+| `shareText` | `function` | No | `(title: unknown, text: unknown, url: unknown)` | `async -> promise` | `public/smart.js:shareSpot`, `public/smart.js:shareTrailByStopIds` | L721 |
+| `shareSpot` | `function` | No | `(id: unknown)` | `async -> promise` | `public/smart.js:findFlavor$anon_L341_14$anon_L342_15`, `public/smart.js:renderOwnerPromo$anon_L854_49`, `public/smart.js:btn.onclick` | L740 |
+| `shareTrailByStopIds` | `function` | No | `(stopIds: unknown)` | `async -> promise` | `public/smart.js:renderTrailPreview$anon_L508_24`, `public/smart.js:renderSavedTrailsList$anon_L680_36$anon_L681_37` | L751 |
+| `getAuthorizedOwnerPromoListings` | `function` | No | `()` | `sync_value` | `public/smart.js:openOwnerMarketingKit` | L767 |
+| `openOwnerMarketingKit` | `function` | No | `()` | `void_or_implicit` | `public/smart.js:openSmart` | L784 |
+| `renderOwnerPromo` | `function` | No | `()` | `void_or_implicit` | `public/smart.js:openOwnerMarketingKit` | L816 |
+| `copyOwnerPromo` | `function` | No | `()` | `async -> promise` | — | L857 |
+| `downloadOwnerPromo` | `function` | No | `()` | `void_or_implicit` | — | L870 |
+| `openDetail` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:applyFilters$anon_L1319_33$anon_L1329_34`, `public/app.js:openTruck`, `public/app.js:surpriseMe`, `public/community.js:communityViewPlace` | L930 |
+| `openSmartDeepLink` | `function` | No | `()` | `async -> promise` | `public/smart.js:<top_level>` | L946 |
 
 ### [public/street-whispers.js](../../../public/street-whispers.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `streetQuizIndex` (browser_global_reassignment @ L22), `streetCurrentPick` (browser_global_reassignment @ L61), `streetMissionIndex` (browser_global_reassignment @ L70)
-- **Significant Constants**: `streetFiles`, `streetMissions`
+- **Explicit Window / Reassigned Globals**: `streetQuizIndex` (browser_global_reassignment @ L99), `streetCurrentPick` (browser_global_reassignment @ L214), `streetMissionIndex` (browser_global_reassignment @ L240)
+- **Significant Constants**: `streetMissions`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `streetRandomIndex` | `function` | No | `(length: unknown, previous: unknown)` | `sync_value` | `public/street-whispers.js:streetNextClue`, `public/street-whispers.js:streetNextMission` | L16 |
-| `streetNextClue` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:streetInit` | L21 |
-| `streetEscape` | `function` | No | `(s: unknown)` | `sync_value` | `public/street-whispers.js:streetNextClue`, `public/street-whispers.js:streetNextClue$anon_L29_2`, `public/street-whispers.js:streetAnswerClue`, `public/street-whispers.js:streetRenderFiles$anon_L45_7` | L33 |
-| `streetAnswerClue` | `function` | No | `(choice: unknown)` | `void_or_implicit` | `public/street-whispers.js:streetNextClue$anon_L31_3$anon_L31_4` | L34 |
-| `streetRenderFiles` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:streetInit` | L43 |
-| `streetOpenPlace` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/street-whispers.js:streetRenderFiles$anon_L52_8$anon_L52_9` | L54 |
-| `streetMysteryPick` | `function` | No | `()` | `void_or_implicit` | — | L58 |
-| `streetNextMission` | `function` | No | `()` | `void_or_implicit` | — | L69 |
-| `streetActMission` | `function` | No | `(index: unknown)` | `void_or_implicit` | — | L77 |
-| `streetOpenWhisper` | `function` | No | `()` | `void_or_implicit` | — | L84 |
-| `streetInit` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:<top_level>` | L88 |
+| `getStreetClueFiles` | `function` | No | `()` | `sync_value` | `public/street-whispers.js:streetNextClue`, `public/street-whispers.js:streetAnswerClue`, `public/street-whispers.js:streetRenderFiles`, `public/street-whispers.js:streetMysteryPick` | L7 |
+| `streetEscape` | `function` | No | `(s: unknown)` | `sync_value` | `public/street-whispers.js:streetNextClue`, `public/street-whispers.js:streetNextClue$anon_L121_5`, `public/street-whispers.js:streetAnswerClue`, `public/street-whispers.js:streetRenderFiles$anon_L166_9` | L66 |
+| `streetRandomIndex` | `function` | No | `(length: unknown, previous: unknown)` | `sync_value` | `public/street-whispers.js:streetNextClue`, `public/street-whispers.js:streetNextMission` | L72 |
+| `getEligibleMissions` | `function` | No | `()` | `sync_value` | `public/street-whispers.js:streetNextMission` | L78 |
+| `streetNextClue` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:streetInit` | L95 |
+| `streetAnswerClue` | `function` | No | `(choice: unknown)` | `void_or_implicit` | `public/street-whispers.js:streetNextClue$anon_L131_6$anon_L132_7` | L136 |
+| `streetRenderFiles` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:streetInit` | L160 |
+| `streetOpenPlace` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/street-whispers.js:streetRenderFiles$anon_L190_10$anon_L191_11`, `public/street-whispers.js:streetMysteryPick$anon_L233_14` | L195 |
+| `streetMysteryPick` | `function` | No | `()` | `void_or_implicit` | — | L208 |
+| `streetNextMission` | `function` | No | `()` | `void_or_implicit` | — | L236 |
+| `streetOpenWhisper` | `function` | No | `()` | `void_or_implicit` | — | L270 |
+| `streetInit` | `function` | No | `()` | `void_or_implicit` | `public/street-whispers.js:<top_level>` | L277 |
 
 ### [public/sw.js](../../../public/sw.js) (`module`)
 
@@ -1063,7 +1176,7 @@
 | `parseEnvFile` | `function` | No | `(filePath: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L16 |
 | `readCliEnvCompat` | `function` | No | `(suffix: unknown, fileEnv: object)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:requirePg`, `scripts/run-migrations.cjs:requirePg`, `scripts/run-migrations.cjs:parseArgs`, `scripts/run-pager-worker.cjs:parseArgs` | L35 |
 | `requirePg` | `function` | No | `(fileEnv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/run-migrations.cjs:<top_level>$anon_L60_1` | L44 |
-| `normalizeEmailStrict` | `function` | No | `(raw: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L56 |
+| `normalizeEmailStrict` | `function` | No | `(raw: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L956_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4632_65` | L56 |
 | `parseArgs` | `function` | No | `(argv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/build-linux-release-tarball.cjs:<top_level>`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L64 |
 | `main` | `function` | No | `()` | `async -> promise (throws: Error, thrown_value)` | `scripts/bootstrap-top-admin.cjs:<top_level>`, `scripts/operator-read-my-otp.cjs:<top_level>`, `server/index.js:<top_level>` | L91 |
 
@@ -1087,13 +1200,13 @@
 | `parseCookies` | `function` | No | `(cookieHeader: unknown)` | `sync_value` | `scripts/dev-server.cjs:getRequestRole` | L82 |
 | `getRequestRole` | `function` | No | `(req: unknown)` | `sync_value` | `scripts/dev-server.cjs:<top_level>$anon_L693_61$anon_L698_62` | L94 |
 | `vendorDisplayName` | `function` | No | `(vendorId: unknown)` | `sync_value` | `scripts/dev-server.cjs:query$anon_L145_3`, `scripts/dev-server.cjs:query`, `scripts/dev-server.cjs:query$anon_L462_41` | L103 |
-| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/local-guides.js:dishRead$anon_L63_7`, `public/local-guides.js:dishWrite$anon_L64_8` | L110 |
+| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/exploration-client.js:req.onsuccess` | L110 |
 | `query` | `object_method` | No | `(sql: unknown, params: array)` | `async -> promise` | `api/bookings/create.js:default$anon_L147_1`, `api/bookings/list.js:default`, `api/community/list.js:default`, `api/community/mine.js:default$anon_L16_1` | L113 |
 | `getUser` | `object_method` | No | `()` | `async -> promise` | `lib/authz.js:resolveIdentity`, `public/app.js:syncAuthAndUserData` | L615 |
 | `query` | `object_method` | No | `(text: unknown, params: unknown)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1`, `api/bookings/list.js:default`, `api/community/list.js:default`, `api/community/mine.js:default$anon_L16_1` | L629 |
-| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/local-guides.js:dishRead$anon_L63_7`, `public/local-guides.js:dishWrite$anon_L64_8` | L630 |
+| `transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/exploration-client.js:req.onsuccess` | L630 |
 | `query` | `object_method` | No | `(...args: array)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1`, `api/bookings/list.js:default`, `api/community/list.js:default`, `api/community/mine.js:default$anon_L16_1` | L649 |
-| `transaction` | `object_method` | No | `(fn: unknown)` | `sync_value` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/local-guides.js:dishRead$anon_L63_7`, `public/local-guides.js:dishWrite$anon_L64_8` | L650 |
+| `transaction` | `object_method` | No | `(fn: unknown)` | `sync_value` | `lib/db-tx.js:withTransaction`, `packages/runtime-adapter/index.js:transaction`, `public/exploration-client.js:req.onsuccess` | L650 |
 | `loadRoute` | `function` | No | `(filePath: unknown)` | `async -> promise` | `scripts/dev-server.cjs:<top_level>$anon_L693_61$anon_L698_62` | L668 |
 | `resolveApiRoute` | `function` | No | `(pathname: unknown)` | `sync_value` | `scripts/dev-server.cjs:<top_level>$anon_L693_61$anon_L698_62` | L680 |
 | `<top_level>$anon_L693_61` | `anonymous_function` | No | `()` | `async -> promise` | — | L693 |
@@ -1113,7 +1226,7 @@
 |---|---|---|---|---|---|---:|
 | `parseEnvFile` | `function` | No | `(filePath: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L19 |
 | `requirePg` | `function` | No | `(fileEnv: object)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/run-migrations.cjs:<top_level>$anon_L60_1` | L38 |
-| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4150_50$anon_L4221_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70$anon_L5495_71` | L53 |
+| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L956_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4169_50$anon_L4240_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5499_70$anon_L5514_71` | L53 |
 | `parseArgs` | `function` | No | `(argv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/build-linux-release-tarball.cjs:<top_level>`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L59 |
 | `<top_level>$anon_L98_1` | `anonymous_function` | No | `()` | `async -> promise (throws: Error, thrown_value)` | — | L98 |
 
@@ -1171,4 +1284,4 @@
 |---|---|---|---|---|---|---:|
 | `timingSafeMatch` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `scripts/staging-runtime-probe.js:default` | L22 |
 | `runWebPushCryptoSelfTest` | `function` | No | `()` | `sync_value` | `scripts/staging-runtime-probe.js:default` | L29 |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L797_4$anon_L798_5` | L56 |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer$anon_L489_3$anon_L815_4$anon_L816_5` | L56 |

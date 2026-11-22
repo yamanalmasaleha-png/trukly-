@@ -1,6 +1,6 @@
 # Backend Server, Router & Service Layer Map
 
-All backend code runs on **Node.js >= 22** using native ES modules (`"type": "module"` in `package.json`), `node:http`, `node:crypto`, `pg@8.23.1`, `cookie@1.1.1`, `otplib@13.6.0`, and the repository-owned `@biteshark/runtime-adapter`*(plus `sharp@0.35.5` on `feature/customer-exploration-journal-trails` @ `83181ba`)*.
+All backend code runs on **Node.js >= 22** using native ES modules (`"type": "module"` in `package.json`), `node:http`, `node:crypto`, `pg@8.23.1`, `cookie@1.1.1`, `otplib@13.6.0`, `sharp@0.35.5`, and the repository-owned `@biteshark/runtime-adapter` *(note: `staging2` branches prior to exploration merge do not yet include `sharp@0.35.5`)*.
 
 For the complete endpoint table, see [ROUTE-INVENTORY.md](generated/ROUTE-INVENTORY.md) and [API-CONTRACTS.md](API-CONTRACTS.md).
 
@@ -23,9 +23,9 @@ For the complete endpoint table, see [ROUTE-INVENTORY.md](generated/ROUTE-INVENT
    - Handles `session`, `start`, `verify`, `age-assessment`, `logout`, and loopback-protected `staging-mailbox` (`8 KiB` JSON body cap; requires `X-BiteShark-Client: web-auth-v1` + same-origin CSRF on mutations).
 5. **Step 3 — Ephemeral Staging Probe (`POST /api/_staging_gate_probe`)**:
    - Returns `404` unless `BITESHARK_ENV=staging` AND `BITESHARK_ENABLE_STAGING_PROBE=1`; additionally requires valid `X-Staging-Probe-Token`, same-origin headers, and an active `Admin: Top` session.
-6. **Step 3B — Governance, Onboarding, Support, Features & Diagnostics (`server/admin-routes.js`)**:
-   - Matches `isGovernanceApiPath(pathname)` (46 paths on `a4e9f53`; +12 exploration paths delegated to `server/customer-exploration-routes.js` on `83181ba`).
-   - Enforces `applyPrivateNoStoreHeaders`, `verifySameOriginMutationRequest`, body size bounds (`4 KiB` on `/api/diagnostics/report`, `900 KiB` on `/api/onboarding/evidence`, `8 MiB` on `/api/me/photos` in `83181ba`, `64 KiB` default), `parseActOnBehalfHeaders` (`Admin: Top` only), 14+ age gate (except `isGovernanceRouteExemptFromAgeGate`), and `enforceHttpFeatureGate`.
+6. **Step 3B — Governance, Onboarding, Support, Features, Diagnostics & Customer Exploration (`server/admin-routes.js` + `server/customer-exploration-routes.js`)**:
+   - Matches `isGovernanceApiPath(pathname)` (58 paths on `working/biteshark-vps`, including 12 exploration paths delegated to `server/customer-exploration-routes.js`; 46 paths on `staging2` branches).
+   - Enforces `applyPrivateNoStoreHeaders`, `verifySameOriginMutationRequest`, body size bounds (`4 KiB` on `/api/diagnostics/report`, `900 KiB` on `/api/onboarding/evidence`, `8 MiB` on `/api/me/photos`, `64 KiB` default), `parseActOnBehalfHeaders` (`Admin: Top` only), 14+ age gate (exempting public `GET /api/stories` and `GET /api/trails/suggest` alongside `isGovernanceRouteExemptFromAgeGate`), and `enforceHttpFeatureGate`.
    - Note: `POST /api/diagnostics/report` intentionally skips session resolution/refresh (`trust_level = 'browser_untrusted'`).
 7. **Step 4 — 30 Domain API Routes (`server/routes.js` -> `api/**/*.js`)**:
    - `/api/pager/worker` enforces loopback socket + constant-time `NOTIFICATION_WORKER_SECRET` (`>= 24` chars) and skips cookie CSRF.
@@ -55,3 +55,4 @@ For the complete endpoint table, see [ROUTE-INVENTORY.md](generated/ROUTE-INVENT
 | [support-tickets.js](../../lib/support-tickets.js) | `validateStaffStatusTransition`, `serializeSupportTicketForReporter`, `resolveInitialUrgencyAndPriority` | Customer/vendor support ticket state machine (`BS-001001`+) and reporter-safe serialization. |
 | [pager-notifications.js](../../lib/pager-notifications.js) & [webpush-crypto.js](../../lib/webpush-crypto.js) | `enqueuePagerReadyNotificationsInTx`, `processPagerNotificationBatch`, `encryptWebPushPayload`, `createVapidAuthorizationHeader` | Lease-fenced pickup pager outbox state machine + zero-native-dependency RFC 8291 (`aes128gcm`) & RFC 8292 (`ES256` VAPID) Web Push encryption. |
 | [dates.js](../../lib/dates.js) & [catalog.js](../../lib/catalog.js) | `getPacificDateYYYYMMDD`, `isValidISODateOnly`, `BOOKING_PACKAGES` | Pacific `YYYY-MM-DD` date validation and catering package definitions (`lib/catalog.js` vendor array is legacy simulator-only). |
+| [customer-exploration.js](../../lib/customer-exploration.js), [photo-storage.js](../../lib/photo-storage.js) & [editorial-stories.js](../../lib/editorial-stories.js) | `computeExplorationSummaryInTx`, `logUserVisit`, `createUserPhoto`, `readUserPhotoFile`, `deleteUserPhoto`, `reconcilePhotoStorage`, `buildSuggestedTrail`, `saveUserTrail`, `importLegacyDeviceVisits`, `exportUserExplorationData`, `listEditorialStories` | Account-backed Visit Journal, EXIF-stripped private photos + reconciliation, derived points/levels/badges, Monday–Sunday weekly challenge, Suggested Trails (post-save `visited_at >= trail.created_at` progress), and sourced editorial stories. |

@@ -30,9 +30,9 @@
    - Accepted via `POST /api/onboarding/evidence` (`900 KiB` JSON envelope cap; `<= 512 KiB` decoded file bytes, max `5` files per application).
    - Validated by magic bytes (`verifyEvidenceBufferAndMime`: `%PDF-`, PNG, JPEG, RIFF/WEBP) — never trusting client `Content-Type` or file extension.
    - Stored outside `public/` inside PostgreSQL `vendor_application_evidence.file_bytes` (`BYTEA`, `FORCE ROW LEVEL SECURITY`, 90-day retention metadata) and served with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
-2. **Customer Exploration Private Photos *(Branch `83181ba` — `lib/photo-storage.js` + `migrations/027`)* **:
+2. **Customer Exploration Private Photos (`lib/photo-storage.js` + `migrations/027` & `028`)**:
    - Accepted via `POST /api/me/photos` (`8 MiB` JSON cap; `<= 5 MiB` decoded image, max `12` active photos/user in app layer, `<= 6000x6000` px, `<= 25M` pixels).
-   - Decoded and re-encoded from scratch via `sharp@0.35.5` (`sharp.cache(false); sharp.concurrency(1)` — stripping EXIF/GPS metadata and neutralizing polyglot payloads) into normalized `.webp` display + thumbnail derivatives written atomically outside `public/` under `BITESHARK_PHOTO_STORAGE_DIR` (`/var/lib/truckly-staging/customer-photos`), streamed only to the authenticated owner via `GET /api/me/photos/file` (`Cache-Control: private, no-store`).
+   - Decoded and re-encoded from scratch via `sharp@0.35.5` (`sharp.cache(false); sharp.concurrency(1)` — stripping EXIF/GPS metadata and neutralizing polyglot payloads; raw originals are never stored) into normalized `<2hex>/pht_*_main.<jpg|png|webp>` + `<2hex>/pht_*_thumb.webp` derivatives written atomically outside `public/` under `BITESHARK_PHOTO_STORAGE_DIR` (`/var/lib/truckly-staging/customer-photos`), streamed only to the authenticated owner via `GET /api/me/photos/file` (`Cache-Control: private, no-store`, optional `&download=1` attachment), reconciled via `reconcilePhotoStorage()` (`files_purged_at` retries + stale `.tmp-*` / aged orphan cleanup), and encrypted in `deploy/backup/truckly-staging-backup.sh` (`truckly_staging-photos-<STAMP>.tar.gz.gpg`).
 
 ---
 

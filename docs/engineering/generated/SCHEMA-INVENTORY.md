@@ -3,15 +3,15 @@
 > [!NOTE]
 > **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via `npm run registry:docs` (`node tools/code-registry/cli.mjs generate-docs`).
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
-> - **Branch / Ref at Generation**: `working/biteshark-vps`
+> - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109`
+> - **Deterministic Source Digest**: `fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## Schema Provenance
 - **Basis**: `reconstructed_from_repository_migrations` (cross-validated against embedded PostgreSQL via `node tools/code-registry/cli.mjs validate --verify-db`)
-- **Migrations Indexed**: **26**
-- **Tables Indexed**: **47** (**32** with `FORCE ROW LEVEL SECURITY`)
+- **Migrations Indexed**: **28**
+- **Tables Indexed**: **51** (**36** with `FORCE ROW LEVEL SECURITY`)
 - **Views / Functions / Triggers**: **1** views, **11** SQL functions, **8** triggers
 
 ## 1. Ordered SQL Migration Ledger
@@ -44,6 +44,8 @@
 | 24 | [migrations/024_diagnostics_and_reliability.sql](../../../migrations/024_diagnostics_and_reliability.sql) | `fe7244e50fcb26b1` | `worker_runtime_heartbeats`, `diagnostic_releases`, `diagnostic_incident_groups`, `diagnostic_event_samples`, `diagnostic_incident_notes` | `community_reviews`, `diagnostic_event_samples`, `diagnostic_incident_groups`, `diagnostic_incident_notes`, `diagnostic_releases`, `worker_runtime_heartbeats` | 5 | No |
 | 25 | [migrations/025_support_feedback_and_diagnostic_links.sql](../../../migrations/025_support_feedback_and_diagnostic_links.sql) | `1dcad86db9dff412` | `support_issue_events`, `support_issue_diagnostic_links`, `support_issue_notifications` | `auth_delivery_telemetry`, `support_issue_diagnostic_links`, `support_issue_events`, `support_issue_notes`, `support_issue_notifications`, `support_issues` | 9 | No |
 | 26 | [migrations/026_urgent_pilot_security_hardening.sql](../../../migrations/026_urgent_pilot_security_hardening.sql) | `cd46081cd0193e2d` | — | — | 0 | No |
+| 27 | [migrations/027_customer_exploration_foundation.sql](../../../migrations/027_customer_exploration_foundation.sql) | `ccc2eaeea5e00cac` | `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` | `customer_photos`, `customer_saved_trail_stops`, `customer_saved_trails`, `customer_visits` | 4 | No |
+| 28 | [migrations/028_exploration_photo_reconciliation.sql](../../../migrations/028_exploration_photo_reconciliation.sql) | `0393c64b9001f398` | — | — | 2 | No |
 
 ## 2. Entity-Relationship Diagram (Generated from Foreign Keys)
 
@@ -256,6 +258,58 @@ erDiagram
     BOOLEAN decision_recorded
     BOOLEAN implemented_recorded
     BOOLEAN tested_recorded
+  }
+  customer_photos {
+    TEXT id PK
+    TEXT user_id FK
+    TEXT vendor_id FK
+    TEXT recorded_vendor_id
+    TEXT vendor_name_snapshot
+    TEXT caption
+    TEXT mime_type
+    INTEGER byte_size
+    INTEGER thumb_byte_size
+    INTEGER width
+    INTEGER height
+    TEXT sha256_hex
+    TEXT storage_rel_path
+    TEXT thumb_rel_path
+  }
+  customer_saved_trail_stops {
+    TEXT trail_id PK
+    TEXT user_id FK
+    SMALLINT position PK
+    TEXT vendor_id FK
+    TEXT recorded_vendor_id
+    TEXT vendor_name_snapshot
+    TEXT match_reason
+  }
+  customer_saved_trails {
+    TEXT id PK
+    TEXT user_id FK
+    TEXT title
+    TEXT theme_key
+    TEXT town_filter
+    DATE saved_local_date
+    TEXT idempotency_key
+    TIMESTAMPTZ created_at
+    TIMESTAMPTZ deleted_at
+  }
+  customer_visits {
+    TEXT id PK
+    TEXT user_id FK
+    TEXT vendor_id FK
+    TEXT recorded_vendor_id
+    TEXT vendor_name_snapshot
+    TEXT normalized_cuisine
+    TEXT normalized_town
+    TEXT private_note
+    TIMESTAMPTZ visited_at
+    DATE visit_local_date
+    TEXT calendar_tz
+    TEXT entry_source
+    TEXT idempotency_key
+    TIMESTAMPTZ created_at
   }
   diagnostic_event_samples {
     UUID id PK
@@ -621,6 +675,14 @@ erDiagram
   community_reviews ||--o{ community_moderation_history : "post_id"
   community_reviews ||--o{ community_reports : "post_id"
   compliance_readiness_items ||--o{ compliance_readiness_history : "item_key"
+  auth_users ||--o{ customer_photos : "user_id"
+  vendors ||--o{ customer_photos : "vendor_id"
+  customer_saved_trails ||--o{ customer_saved_trail_stops : "trail_id"
+  auth_users ||--o{ customer_saved_trail_stops : "user_id"
+  vendors ||--o{ customer_saved_trail_stops : "vendor_id"
+  auth_users ||--o{ customer_saved_trails : "user_id"
+  auth_users ||--o{ customer_visits : "user_id"
+  vendors ||--o{ customer_visits : "vendor_id"
   diagnostic_incident_groups ||--o{ diagnostic_event_samples : "group_id"
   vendors ||--o{ owner_profiles : "truck_id"
   vendors ||--o{ owner_schedule : "truck_id"
@@ -647,7 +709,7 @@ erDiagram
   vendors ||--o{ vendor_status_history : "vendor_id"
 ```
 
-## 3. Reconstructed Table & RLS Catalog (47 Tables)
+## 3. Reconstructed Table & RLS Catalog (51 Tables)
 
 ### Table `account_invitation_events`
 - **Created in**: `023_invitation_delivery_and_lifecycle.sql`
@@ -1055,6 +1117,103 @@ erDiagram
 
 - **RLS Policies (1)**:
   - `compliance_items_admin_portal_all` (`FOR ALL`, GUCs: `app.admin_portal`) — `019_age_eligibility_and_compliance_readiness.sql`
+
+### Table `customer_photos`
+- **Created in**: `027_customer_exploration_foundation.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `027_customer_exploration_foundation.sql` |
+| `vendor_id` | `TEXT` | — | No | — | `vendors(id)` (SET NULL) | `027_customer_exploration_foundation.sql` |
+| `recorded_vendor_id` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `vendor_name_snapshot` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `caption` | `TEXT` | — | Yes | `''` | — | `027_customer_exploration_foundation.sql` |
+| `mime_type` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `byte_size` | `INTEGER` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `thumb_byte_size` | `INTEGER` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `width` | `INTEGER` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `height` | `INTEGER` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `sha256_hex` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `storage_rel_path` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `thumb_rel_path` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `entry_source` | `TEXT` | — | Yes | `'manual'` | — | `027_customer_exploration_foundation.sql` |
+| `idempotency_key` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `taken_local_date` | `DATE` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `027_customer_exploration_foundation.sql` |
+| `deleted_at` | `TIMESTAMPTZ` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `files_purged_at` | `TIMESTAMPTZ` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+
+- **Indexes (3)**: `idx_customer_photos_user_idempotency` *(UNIQUE)*, `idx_customer_photos_user_active_created`, `idx_customer_photos_pending_file_purge`
+- **RLS Policies (3)**:
+  - `customer_photos_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
+  - `customer_photos_maintenance_select` (`FOR SELECT`, GUCs: `app.photo_maintenance`) — `028_exploration_photo_reconciliation.sql`
+  - `customer_photos_maintenance_mark_purged` (`FOR UPDATE`, GUCs: `app.photo_maintenance`) — `028_exploration_photo_reconciliation.sql`
+
+### Table `customer_saved_trail_stops`
+- **Created in**: `027_customer_exploration_foundation.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `trail_id` | `TEXT` | PK | Yes | — | `customer_saved_trails(id)` (CASCADE) | `027_customer_exploration_foundation.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `027_customer_exploration_foundation.sql` |
+| `position` | `SMALLINT` | PK | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `vendor_id` | `TEXT` | — | No | — | `vendors(id)` (SET NULL) | `027_customer_exploration_foundation.sql` |
+| `recorded_vendor_id` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `vendor_name_snapshot` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `match_reason` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+
+- **Indexes (1)**: `idx_customer_saved_trail_stops_user`
+- **RLS Policies (1)**:
+  - `customer_saved_trail_stops_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
+
+### Table `customer_saved_trails`
+- **Created in**: `027_customer_exploration_foundation.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `027_customer_exploration_foundation.sql` |
+| `title` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `theme_key` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `town_filter` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `saved_local_date` | `DATE` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `idempotency_key` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `027_customer_exploration_foundation.sql` |
+| `deleted_at` | `TIMESTAMPTZ` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+
+- **Indexes (2)**: `idx_customer_saved_trails_user_idempotency` *(UNIQUE)*, `idx_customer_saved_trails_user_active`
+- **RLS Policies (1)**:
+  - `customer_saved_trails_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
+
+### Table `customer_visits`
+- **Created in**: `027_customer_exploration_foundation.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `027_customer_exploration_foundation.sql` |
+| `vendor_id` | `TEXT` | — | No | — | `vendors(id)` (SET NULL) | `027_customer_exploration_foundation.sql` |
+| `recorded_vendor_id` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `vendor_name_snapshot` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `normalized_cuisine` | `TEXT` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `normalized_town` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `private_note` | `TEXT` | — | Yes | `''` | — | `027_customer_exploration_foundation.sql` |
+| `visited_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `027_customer_exploration_foundation.sql` |
+| `visit_local_date` | `DATE` | — | Yes | — | — | `027_customer_exploration_foundation.sql` |
+| `calendar_tz` | `TEXT` | — | Yes | `'America/Los_Angeles'` | — | `027_customer_exploration_foundation.sql` |
+| `entry_source` | `TEXT` | — | Yes | `'manual'` | — | `027_customer_exploration_foundation.sql` |
+| `idempotency_key` | `TEXT` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `027_customer_exploration_foundation.sql` |
+| `deleted_at` | `TIMESTAMPTZ` | — | No | — | — | `027_customer_exploration_foundation.sql` |
+
+- **Indexes (4)**: `idx_customer_visits_active_user_vendor_day` *(UNIQUE)*, `idx_customer_visits_user_idempotency` *(UNIQUE)*, `idx_customer_visits_user_active_history`, `idx_customer_visits_user_vendor_active`
+- **RLS Policies (1)**:
+  - `customer_visits_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
 
 ### Table `diagnostic_event_samples`
 - **Created in**: `024_diagnostics_and_reliability.sql`

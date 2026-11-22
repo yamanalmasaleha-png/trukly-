@@ -128,6 +128,16 @@
       ],
       "evidence": "Both primary food trucks and neighborhood spots render through cardHTML(t) using compact horizontal layout rules in color-calm.css.",
       "direction_for_new_code": "Modify card markup in cardHTML(t) and styles in color-calm.css without appending !important override sheets."
+    },
+    {
+      "responsibility": "customer_exploration_and_private_photos",
+      "status": "established",
+      "canonical_implementation": "lib/customer-exploration.js + lib/photo-storage.js + lib/editorial-stories.js + server/customer-exploration-routes.js + public/exploration-client.js#window.bitesharkExploration",
+      "competing_or_legacy": [
+        "Legacy localStorage['truckly_guide_passport_v1'] and IndexedDB['truckly-dish-notebook-v1'] (read/pruned only during explicit one-time user-confirmed import via inspectLegacyDeviceData / importLegacyDeviceData)"
+      ],
+      "evidence": "All persistent visits, private tasting notes, EXIF-stripped private photos, derived points/levels/badges, Monday-Sunday weekly challenge progress, and saved suggested trails are stored in PostgreSQL (migrations 027-028, FORCE ROW LEVEL SECURITY) and persistent private host storage (BITESHARK_PHOTO_STORAGE_DIR), with self-service JSON/photo export and deletion via #rxExplorationPrivacyModal.",
+      "direction_for_new_code": "Consume /api/me/exploration*, /api/me/{visits,photos,trails}*, /api/stories, and /api/trails/suggest via window.bitesharkExploration; never write durable customer progress purely to localStorage or IndexedDB."
     }
   ]
 }

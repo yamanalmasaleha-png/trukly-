@@ -9,7 +9,7 @@ For the full column-by-column table ledger and generated Mermaid `erDiagram`, se
 ## 1. Schema Provenance Levels
 
 Per Handbook Section 9, distinguish three levels of schema evidence:
-1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed from `migrations/001_create_bookings.sql` through `026_urgent_pilot_security_hardening.sql` (`47` tables, `49` RLS policies on `a4e9f53`/`a2f0135`; `001`–`027` with `51` tables on `83181ba`).
+1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed from `migrations/001_create_bookings.sql` through `028_exploration_photo_reconciliation.sql` (`51` tables, `55` RLS policies on `working/biteshark-vps`; `47` tables through `026` on `staging2` branches).
 2. **Independently Verified Against Disposable PostgreSQL 16+**: Verified via `node tools/code-registry/cli.mjs validate --verify-db` and the repository's embedded PostgreSQL integration suites (`scripts/run-migrations.cjs` against a fresh database).
 3. **Deployed Schema**: Never run experimental discovery DDL against `staging.biteshark.live` (`truckly_staging`) or `staging2.biteshark.live` (`biteshark_staging2`). Deployed migration state is tracked exclusively in `public.schema_migrations`.
 
@@ -28,14 +28,15 @@ Defined in [bootstrap-staging-roles.sql.template](../../deploy/postgres/bootstra
 
 ## 3. `FORCE ROW LEVEL SECURITY` vs Non-RLS Tables
 
-### A. 34 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY` (at `a4e9f53`)
-Every table added from Migration `013` onward (`community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, plus `customer_*` in `027`) enforces `FORCE ROW LEVEL SECURITY`.
+### A. 38 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY` (`working/biteshark-vps`)
+Every table added from Migration `013` onward (`community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops`) enforces `FORCE ROW LEVEL SECURITY`.
 
 Transactions **must** set the required transaction-local GUC via `SELECT set_config('app.<key>', $1, true)` inside `withTransaction(db, async tx => ...)`:
 
 | GUC Key (`current_setting(..., true)`) | Meaning & Authorized Setters | Primary Consuming Tables |
 |---|---|---|
-| `app.user_id` | Verified `auth_users.id` of the caller | `community_reviews`, `vendor_applications`, `vendor_application_evidence`, `community_reports`, `support_issues*`, *(+ `customer_visits`, `customer_photos`, `customer_saved_trails*` on `83181ba`)* |
+| `app.user_id` | Verified `auth_users.id` of the caller | `community_reviews`, `vendor_applications`, `vendor_application_evidence`, `community_reports`, `support_issues*`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` |
+| `app.photo_maintenance` | `'true'` strictly inside `reconcilePhotoStorage()` (`028`; explicitly cleared in `setUserRlsContextInTx`) | `customer_photos` (`SELECT` + `UPDATE` restricted to `deleted_at IS NOT NULL`) |
 | `app.auth_internal` | `'true'` inside `lib/standalone-auth.js` & `lib/db-tx.js` session lock check | `auth_users`, `auth_sessions`, `auth_otp_challenges`, `auth_rate_limits`, `auth_staging_mailbox`, `auth_delivery_telemetry` |
 | `app.admin_internal` | `'true'` after row-locked admin verification (`enableAdminTxGuards` in `server/admin-routes.js`) | `account_invitations*`, `vendor_status_history`, `platform_role_revocations`, `admin_bootstrap_grants`, `compliance_readiness_*`, `support_issues*`, `diagnostic_*` |
 | `app.is_top_admin` | `'true'` for verified `Admin: Top` actors | `feature_controls` (`feature_controls_top_write`), `feature_control_history` |

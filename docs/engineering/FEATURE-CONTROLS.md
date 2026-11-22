@@ -47,7 +47,7 @@ Effective availability (`evaluateFeatureControls`) requires **all** of the follo
 | `pager_push_subscriptions` | `enabled` (`all`) | `enabled, paused, hidden` | `pager_push_delivery` | `POST /api/pager/subscriptions` *(`DELETE` unsubscribe always allowed!)* | `pager.js` |
 | `nearby_alert_preferences` | `enabled` (`all`) | `enabled, paused, hidden` | — | `POST /api/notifications/settings` | `app.js` |
 | `passkey_signin` / `owner_menu_photo_upload` | Read-only disclosures | `read_only: true` | — | Informational disclosure cards in `/admin#features` | `admin.js` |
-| *(Branch `83181ba` only)* `editorial_stories`, `visit_journal`, `private_photos`, `exploration_badges`, `weekly_challenges`, `suggested_trails`, `street_whispers` | `enabled` (`all`) | Granular sub-controls | `local_guides_passport` / `flavor_lab_tools` / `community_hub` | `/api/stories`, `/api/trails/suggest`, `/api/me/{visits,photos,trails}*` | `exploration-client.js`, `local-guides.js`, `guide-passport.js`, `smart.js`, `street-whispers.js` |
+| `editorial_stories`, `visit_journal`, `private_photos`, `exploration_badges`, `weekly_challenges`, `suggested_trails`, `street_whispers` | `enabled` (`all`) | Granular sub-controls | `local_guides_passport` / `visit_journal` / `community_hub` | `/api/stories`, `/api/trails/suggest`, `/api/me/{visits,photos,trails}` & `/api/me/exploration/import` *(owner `/api/me/exploration/export`, `/api/me/photos/file`, and `/api/me/{visits,photos,trails}/delete` remain available when `hidden`!)* | `exploration-client.js`, `local-guides.js`, `guide-passport.js`, `smart.js`, `street-whispers.js`, `role-experience.js` (`#rxExplorationPrivacyModal`) |
 
 ---
 

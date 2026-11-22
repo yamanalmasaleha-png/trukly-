@@ -28,6 +28,7 @@ For detailed Antigravity and GPT assistant workflows, see [docs/engineering/ASSI
    - `https://biteshark.live` is a static holding page — never deploy application services to the apex domain without explicit launch authorization.
 2. **Respect Worktree & Scope Hygiene**:
    - Never discard uncommitted work, force-push, rewrite remote history, delete branches, or merge unrelated feature branches together unless explicitly instructed.
+   - Verify `git config user.name` and `git config user.email` match the authenticated developer before committing or pushing; never substitute generic `noreply` placeholders or another developer's identity.
    - Do **not** perform drive-by refactors, broad renames, or deletion of suspected unused/orphan code (`REGISTERED_DOMAIN_ROUTE_COUNT === 30` in `server/routes.js` is an enforced contract).
 3. **Zero Secret / Customer Data Exposure**:
    - Never read into prompts/commits, print, or commit `.env` files, `/etc/*/staging.env`, `/etc/*/migrator.env`, SSH keys, OTPs, session cookies, or real customer records. Document configuration variable **names** only in [configuration-keys.json](docs/engineering/contracts/configuration-keys.json).

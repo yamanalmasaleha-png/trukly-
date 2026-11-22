@@ -1,6 +1,6 @@
 # Test Suites, Prerequisites & CI Matrix
 
-All automated checks live in `tests/*.cjs` and run in GitHub Actions via [.github/workflows/truckly-source-review.yml](../../.github/workflows/truckly-source-review.yml) across 3 Linux jobs (`pager-and-source-syntax`, `linux-installer-and-tarball`, `postgres-backend-hardening`).
+All automated checks live in `tests/*.cjs` and run in GitHub Actions via [.github/workflows/truckly-source-review.yml](../../.github/workflows/truckly-source-review.yml) across 4 Linux jobs (`pager-and-source-syntax`, `code-registry-and-handbook`, `linux-installer-and-tarball`, `postgres-backend-hardening`).
 
 > [!IMPORTANT]
 > **Never Run Destructive Tests Against Staging or Production**: PostgreSQL integration and E2E suites provision disposable temporary databases (`DATABASE_URL` pointing to a local/CI Postgres 16 server, never `/etc/*/staging.env`).
@@ -48,7 +48,7 @@ Require `DATABASE_URL` pointing to a disposable local PostgreSQL server with dat
 - `node tests/diagnostics-and-reliability.integration.cjs` — Fingerprinting, PII scrubbing, retention pruning, release skew.
 - `node tests/support-feedback.integration.cjs` — `BS-001001` tickets, SLA transitions, diagnostic link notifications.
 - `node tests/urgent-pilot-security.integration.cjs` — Last-Top `auth_users` trigger (`026`), column-bound triggers, session lock races.
-- *(Branch `83181ba` adds `node tests/customer-exploration.integration.cjs`.)*
+- `node tests/customer-exploration.integration.cjs` — `027`+`028` RLS & ownership, Pacific repeat/same-day/DST/Monday visits, post-save `visited_at >= trail.created_at` trail timing, EXIF rotation + GPS stripping + 12-photo cap + failed-unlink/orphan reconciliation, hidden-mode privacy export/download/delete, pending-age public allowlist, and redacted diagnostics.
 
 ---
 

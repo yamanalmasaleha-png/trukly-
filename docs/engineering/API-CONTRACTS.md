@@ -1,7 +1,7 @@
 # Backend HTTP API Contracts
 
 This document summarizes BiteShark's HTTP route families, shared contracts, internal-only endpoints, and known client-server nuances.
-- For the machine-generated list of all **85** routes at `a4e9f53` (**97** on `83181ba`), see [ROUTE-INVENTORY.md](generated/ROUTE-INVENTORY.md).
+- For the machine-generated list of all **97** routes on `working/biteshark-vps` (**85** on `staging2` branches prior to exploration merge), see [ROUTE-INVENTORY.md](generated/ROUTE-INVENTORY.md).
 - For exact JSON envelope, header, and global error-code contracts, see [contracts/shared-api-envelopes.md](contracts/shared-api-envelopes.md).
 
 ---
@@ -40,7 +40,9 @@ This document summarizes BiteShark's HTTP route families, shared contracts, inte
 - `GET /api/bookings/list`, `POST /api/bookings/create` (`201`, gated by `event_inquiries`, Pacific `event_date >= today`, `pg_advisory_xact_lock` on `(truck_id, event_date)` and `(requester_id, idempotency_key)`).
 - `GET /api/community/list` (`community_hub`), `GET /api/community/mine`, `POST /api/community/post` (`community_submissions`, 5/hr rate limit + `idempotency_key`), `POST /api/community/report`.
 - `GET|POST /api/issues`, `POST /api/issues/reply`, `POST /api/issues/reopen`, `POST /api/issues/read` (`server/admin-routes.js` + `lib/support-tickets.js`; **exempt from feature-control disablement and age-gate lockout** so users can always request privacy/account help).
-- *(Branch `83181ba` adds `GET /api/stories`, `GET /api/trails/suggest`, `GET /api/me/exploration`, `POST /api/me/exploration/import`, `GET /api/me/exploration/export`, `GET|POST /api/me/visits`, `POST /api/me/visits/delete`, `GET|POST /api/me/photos`, `GET /api/me/photos/file`, `POST /api/me/photos/delete`, `GET|POST /api/me/trails`, `POST /api/me/trails/delete` in `server/customer-exploration-routes.js`.)*
+- **Customer Exploration, Journal, Private Photos & Suggested Trails** (`server/customer-exploration-routes.js`):
+  - Public: `GET /api/stories`, `GET /api/trails/suggest` (also exempt from `14+` pending-age gate so signed-in `not_assessed` sessions can still browse public stories and suggested trails).
+  - Personal (`14+` authenticated + `FORCE RLS`): `GET /api/me/exploration`, `POST /api/me/exploration/import`, `GET /api/me/exploration/export`, `GET|POST /api/me/visits`, `POST /api/me/visits/delete`, `GET|POST /api/me/photos`, `GET /api/me/photos/file?id=&variant=&download=`, `POST /api/me/photos/delete`, `GET|POST /api/me/trails`, `POST /api/me/trails/delete` (privacy export `/api/me/exploration/export`, owner binary download `/api/me/photos/file`, and self-service deletes `/api/me/{visits,photos,trails}/delete` remain accessible even when UI feature controls are `hidden`).
 
 ### D. Pickup Pagers (`/api/pager/*`)
 - Customer capability endpoints (unauthenticated UUID bearer): `GET /api/pager/status?code=<uuid>`, `GET|POST|DELETE /api/pager/subscriptions` (`X-BiteShark-Client: web-pager-v1`; `DELETE` remains allowed even when `pager_push_subscriptions` is paused/hidden!).

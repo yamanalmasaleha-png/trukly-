@@ -1,23 +1,23 @@
 {
-  "branch_at_generation": "working/biteshark-vps",
+  "branch_at_generation": "integrate/customer-exploration-verified",
   "coverage_counts": {
-    "browser_globals_and_assignments": 580,
-    "classes": 16,
-    "configuration_keys_observed": 62,
+    "browser_globals_and_assignments": 622,
+    "classes": 19,
+    "configuration_keys_observed": 64,
     "css_files_scanned": 18,
-    "drift_findings_active": 12,
+    "drift_findings_active": 13,
     "drift_findings_suppressed": 2,
-    "feature_controls": 14,
-    "functions_and_methods": 2251,
-    "html_element_ids": 477,
+    "feature_controls": 21,
+    "functions_and_methods": 2528,
+    "html_element_ids": 488,
     "html_files_scanned": 12,
-    "http_routes": 85,
-    "js_files_scanned": 110,
+    "http_routes": 97,
+    "js_files_scanned": 117,
     "js_parse_failures": 0,
-    "significant_constants": 533,
-    "sql_migrations": 26,
-    "sql_rls_policies": 49,
-    "sql_tables": 47,
+    "significant_constants": 584,
+    "sql_migrations": 28,
+    "sql_rls_policies": 55,
+    "sql_tables": 51,
     "storage_keys_observed": 19
   },
   "database_tables": [
@@ -139,6 +139,34 @@
       "policy_count": 1,
       "rls_forced": true,
       "table_name": "compliance_readiness_items"
+    },
+    {
+      "column_count": 20,
+      "created_in_migration": "027_customer_exploration_foundation.sql",
+      "policy_count": 3,
+      "rls_forced": true,
+      "table_name": "customer_photos"
+    },
+    {
+      "column_count": 7,
+      "created_in_migration": "027_customer_exploration_foundation.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "customer_saved_trail_stops"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "027_customer_exploration_foundation.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "customer_saved_trails"
+    },
+    {
+      "column_count": 15,
+      "created_in_migration": "027_customer_exploration_foundation.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "customer_visits"
     },
     {
       "column_count": 24,
@@ -351,15 +379,16 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109",
+  "deterministic_digest_sha256": "fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1",
   "drift_summary": {
-    "active_count": 12,
+    "active_count": 13,
     "active_finding_ids": [
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
+      "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
+      "DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range",
       "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
       "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
-      "DRIFT:MISSING_DOM_TARGET:public/role-experience.js#rxViewpointBanner",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
@@ -427,8 +456,26 @@
     {
       "default_audience": "all",
       "default_state": "enabled",
+      "depends_on": [
+        "local_guides_passport"
+      ],
+      "key": "editorial_stories",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
       "depends_on": [],
       "key": "event_inquiries",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "visit_journal"
+      ],
+      "key": "exploration_badges",
       "read_only": false
     },
     {
@@ -506,8 +553,51 @@
     {
       "default_audience": "all",
       "default_state": "enabled",
+      "depends_on": [
+        "local_guides_passport"
+      ],
+      "key": "private_photos",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "community_hub"
+      ],
+      "key": "street_whispers",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "suggested_trails",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
       "depends_on": [],
       "key": "vendor_onboarding",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "local_guides_passport"
+      ],
+      "key": "visit_journal",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "visit_journal"
+      ],
+      "key": "weekly_challenges",
       "read_only": false
     }
   ],
@@ -951,6 +1041,48 @@
     },
     {
       "exported_symbols": [
+        "EXPLORATION_TIMEZONE",
+        "POINTS_PER_VISIT",
+        "POINTS_PER_PHOTO",
+        "MAX_VISIT_NOTE_LENGTH",
+        "MAX_PHOTO_CAPTION_LENGTH",
+        "MAX_SAVED_TRAILS_PER_USER",
+        "WEEKLY_CHALLENGE_TARGET",
+        "NON_MONETARY_DISCLOSURE",
+        "REVERSIBLE_PROGRESS_DISCLOSURE",
+        "TRAIL_DISCLAIMERS",
+        "EXPLORATION_LEVELS",
+        "EXPLORATION_BADGE_DEFINITIONS",
+        "SEED_014_TAXONOMY_CORRECTIONS",
+        "ExplorationDomainError",
+        "normalizeCanonicalTown",
+        "classifyVendorTaxonomy",
+        "getMondayWeekBounds",
+        "mapHistoricalTimestampToPacificDate",
+        "computeExplorationSummaryInTx",
+        "getExplorationSummary",
+        "listUserVisits",
+        "logUserVisit",
+        "deleteUserVisit",
+        "listUserPhotos",
+        "createUserPhoto",
+        "readUserPhotoFile",
+        "deleteUserPhoto",
+        "reconcilePhotoStorage",
+        "buildSuggestedTrail",
+        "listUserSavedTrails",
+        "saveUserTrail",
+        "deleteUserSavedTrail",
+        "importLegacyDeviceVisits",
+        "exportUserExplorationData"
+      ],
+      "file": "lib/customer-exploration.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 58
+    },
+    {
+      "exported_symbols": [
         "MAX_BOOKING_DAYS_AHEAD",
         "isValidCalendarDate",
         "normalizeCalendarDate",
@@ -1040,6 +1172,18 @@
     },
     {
       "exported_symbols": [
+        "EDITORIAL_STORIES",
+        "EDITORIAL_STORIES_BY_ID",
+        "EDITORIAL_STORIES_BY_VENDOR_ID",
+        "buildPublicStoriesPayload"
+      ],
+      "file": "lib/editorial-stories.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
         "EnvAliasConflictError",
         "SECURITY_CRITICAL_ENV_SUFFIXES",
         "readEnvCompat",
@@ -1126,6 +1270,32 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 35
+    },
+    {
+      "exported_symbols": [
+        "MAX_PHOTO_UPLOAD_BYTES",
+        "MAX_PHOTO_JSON_BODY_BYTES",
+        "MAX_ACTIVE_PHOTOS_PER_USER",
+        "MAX_PHOTO_DIMENSION_PX",
+        "MAX_PHOTO_INPUT_PIXELS",
+        "DEFAULT_MIN_FREE_DISK_BYTES",
+        "SUPPORTED_PHOTO_MIMES",
+        "PhotoStorageError",
+        "resolvePhotoStorageRoot",
+        "resolvePhotoMinFreeBytes",
+        "detectImageSignature",
+        "decodeBase64PhotoPayload",
+        "verifyAndNormalizeUploadedPhoto",
+        "writePhotoDerivativesAtomically",
+        "deletePhotoFilesSafely",
+        "readPhotoDerivativeSafely",
+        "scanPhotoStorageFiles",
+        "unlinkConfinedPhotoArtifact"
+      ],
+      "file": "lib/photo-storage.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 14
     },
     {
       "exported_symbols": [
@@ -1426,6 +1596,7 @@
         "isSignedIn",
         "accountSyncState",
         "isSignedIn",
+        "currentUser",
         "accountSyncState",
         "notifySyncState",
         "bookings",
@@ -1679,21 +1850,39 @@
     },
     {
       "exported_symbols": [],
-      "file": "public/guide-passport.js",
+      "file": "public/exploration-client.js",
       "globals_assigned": [
-        "guidePassportStorageKey",
-        "guideVisitsRead",
-        "guideVisitsWrite",
-        "guidePlaces",
-        "guidePlace",
-        "guidePassportHtmlEscape",
-        "guideWeekStart",
-        "renderGuidePassport",
-        "guideLogVisit",
-        "guideUndoVisit"
+        "bitesharkExploration",
+        "bitesharkExploration"
       ],
       "source_type": "script",
-      "symbol_count": 12
+      "symbol_count": 56
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/guide-passport.js",
+      "globals_assigned": [
+        "journalState",
+        "journalRenderSeq",
+        "guidePassportHtmlEscape",
+        "guidePlaces",
+        "guidePlace",
+        "getJournalFeatureApi",
+        "renderLegacyMigrationBannerHtml",
+        "renderSignedOutVisitJournalHtml",
+        "renderAchievementsSectionHtml",
+        "renderWeeklyChallengeHtml",
+        "getFilteredPlaceOptions",
+        "renderGuidePassport",
+        "preselectedVisitVendorId",
+        "bindVisitJournalHandlers",
+        "guideLogVisit",
+        "resetVisitJournalStateOnAuthChange",
+        "journalState",
+        "bitesharkResetExplorationUiOnAuthChange"
+      ],
+      "source_type": "script",
+      "symbol_count": 33
     },
     {
       "exported_symbols": [],
@@ -1710,30 +1899,41 @@
       "exported_symbols": [],
       "file": "public/local-guides.js",
       "globals_assigned": [
-        "localGuideNotes",
-        "dishDbPromise",
-        "dishPhotoUrls",
-        "dishPhotoRenderVersion",
+        "LEGACY_DISH_NOTEBOOK_KEY",
+        "activeGuidesTab",
+        "preselectedVisitVendorId",
+        "preselectedPhotoVendorId",
+        "pendingDeletePhotoId",
+        "photoRenderSeq",
         "guidesEscape",
+        "getGuidesFeatureApi",
+        "isGuidesSubfeatureHidden",
+        "getAvailableGuidesTabs",
+        "resolveBestGuidesTab",
+        "populateDishPhotoVendorOptions",
+        "renderStoryCardHtml",
+        "renderEditorialStories",
+        "renderDiscoverStoriesStrip",
         "openLocalGuides",
         "showGuidesTab",
+        "activeGuidesTab",
+        "openVisitJournalForBusiness",
+        "preselectedVisitVendorId",
         "openPhotoNotebook",
-        "dishDb",
-        "dishDbPromise",
-        "dishDbPromise",
-        "dishDbPromise",
-        "dishDbPromise",
-        "dishDbPromise",
-        "dishDbPromise",
-        "dishRead",
-        "dishWrite",
+        "preselectedPhotoVendorId",
         "saveDishPhoto",
+        "preselectedPhotoVendorId",
+        "openPrivatePhotoViewer",
+        "closePrivatePhotoViewer",
         "renderDishPhotos",
-        "dishPhotoUrls",
-        "removeDishPhoto"
+        "pendingDeletePhotoId",
+        "pendingDeletePhotoId",
+        "pendingDeletePhotoId",
+        "handleGuidesHashRoutes",
+        "tablist"
       ],
       "source_type": "script",
-      "symbol_count": 20
+      "symbol_count": 38
     },
     {
       "exported_symbols": [],
@@ -1854,6 +2054,7 @@
         "fetch",
         "location.href",
         "location.href",
+        "openExplorationPrivacyModal",
         "bitesharkOnSignedOut",
         "location.href",
         "bitesharkOpenSupport",
@@ -1869,54 +2070,74 @@
         "bitesharkWelcome"
       ],
       "source_type": "script",
-      "symbol_count": 170
+      "symbol_count": 186
     },
     {
       "exported_symbols": [],
       "file": "public/smart.js",
       "globals_assigned": [
-        "smartTrailIds",
         "smartMode",
+        "currentTrailPreview",
+        "currentTrailTheme",
+        "currentTrailTown",
+        "currentTrailOffset",
+        "finderRotationOffset",
+        "pendingDeleteTrailId",
         "smartEscape",
         "spotUrl",
-        "cityOptions",
+        "getSmartFeatureApi",
+        "normalizedTownOptions",
         "smartStatus",
+        "resolveSmartTabAvailability",
         "openSmart",
         "smartMode",
+        "renderSuggestedTrailsView",
+        "currentTrailOffset",
+        "currentTrailOffset",
+        "renderFlavorFinderView",
         "inSmartTown",
-        "matchesCraving",
-        "smartCard",
+        "matchesFinderCraving",
         "findFlavor",
+        "finderRotationOffset",
         "buildFoodTrail",
-        "smartTrailIds",
-        "renderTrail",
+        "currentTrailTown",
+        "currentTrailTheme",
+        "currentTrailOffset",
+        "currentTrailPreview",
+        "renderTrailPreview",
+        "renderSavedTrailsList",
+        "pendingDeleteTrailId",
+        "pendingDeleteTrailId",
+        "pendingDeleteTrailId",
         "shareText",
         "shareSpot",
-        "shareFoodTrail",
-        "renderPromo",
-        "copyPromo",
-        "downloadPromo",
+        "shareTrailByStopIds",
+        "getAuthorizedOwnerPromoListings",
+        "openOwnerMarketingKit",
+        "renderOwnerPromo",
+        "copyOwnerPromo",
+        "downloadOwnerPromo",
         "originalBiteSharkDetail",
         "openDetail",
-        "openSmartHash",
-        "smartTrailIds"
+        "openSmartDeepLink"
       ],
       "source_type": "script",
-      "symbol_count": 20
+      "symbol_count": 45
     },
     {
       "exported_symbols": [],
       "file": "public/street-whispers.js",
       "globals_assigned": [
-        "streetFiles",
+        "getStreetClueFiles",
         "streetMissions",
         "streetQuizIndex",
         "streetMissionIndex",
         "streetCurrentPick",
+        "streetEscape",
         "streetRandomIndex",
+        "getEligibleMissions",
         "streetNextClue",
         "streetQuizIndex",
-        "streetEscape",
         "streetAnswerClue",
         "streetRenderFiles",
         "streetOpenPlace",
@@ -1924,12 +2145,11 @@
         "streetCurrentPick",
         "streetNextMission",
         "streetMissionIndex",
-        "streetActMission",
         "streetOpenWhisper",
         "streetInit"
       ],
       "source_type": "script",
-      "symbol_count": 12
+      "symbol_count": 17
     },
     {
       "exported_symbols": [],
@@ -2046,6 +2266,16 @@
       "symbol_count": 34
     },
     {
+      "exported_symbols": [
+        "CUSTOMER_EXPLORATION_PATHS",
+        "handleCustomerExplorationRoute"
+      ],
+      "file": "server/customer-exploration-routes.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 6
+    },
+    {
       "exported_symbols": [],
       "file": "server/index.js",
       "globals_assigned": [],
@@ -2100,6 +2330,20 @@
       "globals_assigned": [],
       "source_type": "script",
       "symbol_count": 10
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-exploration-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 40
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-exploration.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 16
     },
     {
       "exported_symbols": [],
@@ -2416,7 +2660,7 @@
         "GET"
       ],
       "path": "/api/admin/diagnostics",
-      "test_count": 2
+      "test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2428,7 +2672,7 @@
         "POST"
       ],
       "path": "/api/admin/diagnostics/cleanup",
-      "test_count": 1
+      "test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2513,7 +2757,7 @@
         "POST"
       ],
       "path": "/api/admin/features",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2525,7 +2769,7 @@
         "POST"
       ],
       "path": "/api/admin/features/update",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2779,7 +3023,7 @@
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "test_count": 13
+      "test_count": 15
     },
     {
       "auth_requirement": "public",
@@ -2791,7 +3035,7 @@
         "POST"
       ],
       "path": "/api/auth/start",
-      "test_count": 16
+      "test_count": 17
     },
     {
       "auth_requirement": "public",
@@ -2803,7 +3047,7 @@
         "POST"
       ],
       "path": "/api/auth/verify",
-      "test_count": 16
+      "test_count": 17
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2986,7 +3230,7 @@
         "GET"
       ],
       "path": "/api/healthz",
-      "test_count": 8
+      "test_count": 9
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3061,6 +3305,134 @@
       ],
       "path": "/api/issues/reply",
       "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 4,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/exploration",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/me/exploration/export",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "visit_journal",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/exploration/import",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 4,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "private_photos",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/photos",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/photos/delete",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/me/photos/file",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 4,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "suggested_trails",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/trails",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/trails/delete",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 4,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "visit_journal",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/visits",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/visits/delete",
+      "test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3263,6 +3635,32 @@
       ],
       "path": "/api/schedule/today",
       "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "editorial_stories",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/stories",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "suggested_trails",
+      "handler_file": "server/customer-exploration-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/trails/suggest",
+      "test_count": 1
     },
     {
       "auth_requirement": "public",

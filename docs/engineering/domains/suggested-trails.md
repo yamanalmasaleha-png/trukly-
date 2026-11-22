@@ -1,12 +1,12 @@
-# Domain Map — Flavor Lab & Suggested Trails
+# Domain Map — Flavor Finder & Suggested Trails
 
-## 1. Current Behavior (Branch-Aware)
-- **Baseline (`a4e9f53` & `a2f0135`)**: Client-side Flavor Lab (`#smartScreen`, [public/smart.js](../../../public/smart.js), [public/smart.css](../../../public/smart.css)) providing 3-stop Sonoma trail generation (`#trail=<id1,id2,id3>` hash sharing), dish pairing suggestions, and client-side vendor marketing card previews (`openSmart('marketing')`).
-- **Branch `feature/customer-exploration-journal-trails` (`83181ba`)**: Connects Suggested Trails to canonical PostgreSQL discovery via public `GET /api/trails/suggest` (`theme` in `sweet|farm|mix`, optional town filter, truthful `match_reason` per stop), adds account-backed trail saving/deletion (`customer_saved_trails` + `customer_saved_trail_stops` in `migrations/027`, max `50` saved trails/user, `1..6` stops), adds `#discoverSuggestedTrailsBar` quick-entry on `#discoverScreen`, and relocates the Vendor Marketing Kit onto `#ownerScreen` (`#ownerMarketingCard`). Anonymous visitors can generate and share `#trail=...` links and are prompted to sign in when saving a trail.
+## 1. Current Behavior
+- **Primary (`working/biteshark-vps` / `staging.biteshark.live`)**: Connects Suggested Trails (`#smartScreen`, [public/smart.js](../../../public/smart.js)) to canonical PostgreSQL discovery via public `GET /api/trails/suggest` (`theme` in `sweet|farm|mix`, optional town filter, shared `?trail=` / `#trail=` stop resolution, truthful `match_reason` per stop, documented `SEED_014_TAXONOMY_CORRECTIONS` + attribute-driven classification for newly `/admin`-onboarded businesses, and address-normalized venue deduplication). Supports account-backed trail saving/deletion (`customer_saved_trails` + `customer_saved_trail_stops` in `migrations/027`, max `50` saved trails/user, `1..6` stops), authoritative post-save stop progress (`visited_at >= trail.created_at` with honest `visited_before_save_today` notice for earlier same-day visits), `#discoverSuggestedTrailsBar` quick-entry on `#discoverScreen`, and Vendor Marketing Kit relocated onto `#ownerScreen` (`#ownerMarketingCard`).
+- **Secondary Staging (`staging2` branches prior to exploration merge)**: Still uses client-only `#smartScreen` trail previews.
 
 ## 2. Entry Points, APIs, Flags & Tests
-- **Files**: `public/smart.js`, `public/smart.css`, `#smartScreen` (`public/index.html`) *(+ `lib/customer-exploration.js#buildSuggestedTrail`, `saveUserTrail`, `listUserSavedTrails`, `deleteUserSavedTrail`, `server/customer-exploration-routes.js` on `83181ba`)*.
-- **APIs (`83181ba`)**: `GET /api/trails/suggest` (public), `GET|POST /api/me/trails`, `POST /api/me/trails/delete` (`14+` authenticated).
-- **Feature Flags**: `flavor_lab_tools` *(+ child `suggested_trails` on `83181ba`)*.
-- **Tests**: `tests/feature-controls-browser.e2e.cjs` *(+ `tests/customer-exploration.integration.cjs` & `tests/customer-exploration-browser.e2e.cjs` on `83181ba`)*.
-- **Safe Extension Points**: Generate stops strictly from active `loadUnifiedDiscoveryCatalog` rows (`hidden_from_discovery = false`) and preserve `#trail=<slug1,slug2,...>` URL compatibility.
+- **Files**: `lib/customer-exploration.js` (`buildSuggestedTrail`, `saveUserTrail`, `listUserSavedTrails`, `deleteUserSavedTrail`, `hydrateSavedTrailsInTx`), `server/customer-exploration-routes.js`, `public/exploration-client.js`, `public/smart.js`, `public/smart.css`, `#smartScreen` (`public/index.html`).
+- **APIs**: `GET /api/trails/suggest` (public + pending-age exempt), `GET|POST /api/me/trails`, `POST /api/me/trails/delete` (`14+` authenticated; `POST /api/me/trails/delete` remains available even when `suggested_trails` is `hidden`).
+- **Feature Flags**: `suggested_trails` (itinerary builder, share links & saved trails) and `flavor_lab_tools` (stateless Flavor Finder craving matcher).
+- **Tests**: `tests/customer-exploration.integration.cjs`, `tests/customer-exploration-browser.e2e.cjs`, `tests/feature-controls-browser.e2e.cjs`.
+- **Safe Extension Points**: Generate stops strictly from active `isVendorPubliclyDiscoverable` rows and preserve `?trail=` / `#trail=<slug1,slug2,...>` URL compatibility.
