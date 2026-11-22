@@ -14,7 +14,7 @@
     "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
   ],
   "branch_at_generation": "testing/yaman-staging2",
-  "deterministic_digest_sha256": "378950b7dbad98949958dcaa0e20744916bb3733bea165a0d69c63869f072933",
+  "deterministic_digest_sha256": "aade3704411efc41466837f0f3f31781a562947bf5d356c474f5a5b7feb28703",
   "high_confidence_blocking_categories": [
     "DUPLICATE_HTML_ID",
     "UNRESOLVED_INLINE_HANDLER",
