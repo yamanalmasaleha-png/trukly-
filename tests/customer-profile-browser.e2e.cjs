@@ -672,7 +672,13 @@ class CdpClient {
       async () =>
         cdp.eval(
           mayaTab.sessionId,
-          `document.querySelector('.cp-header-sub')?.textContent?.includes('Sebastopol')`
+          `(async () => {
+            if (window.bitesharkReady) await window.bitesharkReady;
+            return Boolean(
+              document.getElementById('cpTabBtn-collections') &&
+              document.querySelector('.cp-header-sub')?.textContent?.includes('Sebastopol')
+            );
+          })()`
         ),
       { label: 'Direct /profile route loads persisted account state' }
     );
@@ -680,7 +686,19 @@ class CdpClient {
     // =========================================================================
     // Walkthrough Step 3: Create Greatest Hits collection, deliberate note copy & keyboard reorder
     // =========================================================================
-    await cdp.eval(mayaTab.sessionId, `document.getElementById('cpTabBtn-collections').click()`);
+    await waitForCondition(
+      async () =>
+        cdp.eval(
+          mayaTab.sessionId,
+          `(() => {
+            const btn = document.getElementById('cpTabBtn-collections');
+            if (!btn) return false;
+            btn.click();
+            return true;
+          })()`
+        ),
+      { label: 'Click Greatest Hits tab' }
+    );
     await waitForCondition(
       async () => cdp.eval(mayaTab.sessionId, `Boolean(document.getElementById('ghCreateColForm'))`),
       { label: 'Greatest Hits create form ready' }
@@ -931,7 +949,10 @@ class CdpClient {
       async () =>
         cdp.eval(
           mobileTab.sessionId,
-          `Boolean(document.getElementById('profileScreenHeading')?.textContent?.includes('Maya Sonoma'))`
+          `(async () => {
+            if (window.bitesharkReady) await window.bitesharkReady;
+            return Boolean(document.getElementById('profileScreenHeading')?.textContent?.includes('Maya Sonoma'));
+          })()`
         ),
       { label: 'Mobile 390x844 /profile loaded' }
     );
@@ -999,7 +1020,13 @@ class CdpClient {
       async () =>
         cdp.eval(
           mayaTab.sessionId,
-          `Boolean(document.getElementById('profileScreenHeading')) && !document.getElementById('profileScreenHeading').textContent.includes('Maya Sonoma')`
+          `(async () => {
+            if (window.bitesharkReady) await window.bitesharkReady;
+            return Boolean(
+              document.getElementById('profileScreenHeading') &&
+              !document.getElementById('profileScreenHeading').textContent.includes('Maya Sonoma')
+            );
+          })()`
         ),
       { label: 'Second account on same browser sees fresh isolated profile' }
     );
