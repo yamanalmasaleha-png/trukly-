@@ -1,0 +1,120 @@
+# BiteShark isolated secondary testing vhost (`https://staging2.biteshark.live`).
+#
+# Co-tenant & security invariants on 172.233.140.74:
+#   - Install at `/etc/nginx/sites-available/staging2.biteshark.live` and symlink as
+#     `/etc/nginx/sites-enabled/z-staging2.biteshark.live` (prefixed `z-` so `/etc/nginx/sites-enabled/lifestyle-api`
+#     remains the first-loaded default `:80` host without editing `lifestyle-api`).
+#   - Proxies strictly to dedicated loopback `http://127.0.0.1:4102` (never touching `:4100` or `:4000`).
+#   - Overwrites `X-Real-IP` and `X-Forwarded-For` from `$remote_addr` (pair with `BITESHARK_TRUST_PROXY=loopback`
+#     and `BITESHARK_PUBLIC_ORIGIN=https://staging2.biteshark.live` in `/etc/biteshark-staging2/staging.env`).
+#   - Marks responses `X-Robots-Tag: noindex, nofollow, noarchive` (search-indexing hint only, NOT access control;
+#     account access is enforced by BiteShark staging invitation/allowlist gates and RBAC).
+#   - Blocks dotfiles, internal worker, staging mailbox, gate probe, and debug paths at the edge.
+
+server {
+    listen 80;
+    server_name staging2.biteshark.live;
+    server_tokens off;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location / {
+        return 301 https://staging2.biteshark.live$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name staging2.biteshark.live;
+    server_tokens off;
+
+    ssl_certificate /etc/letsencrypt/live/staging2.biteshark.live/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/staging2.biteshark.live/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:BiteSharkTLS:2m;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+
+    client_max_body_size 64k;
+
+    location ~ /\.(?!well-known) {
+        return 404;
+    }
+
+    location = /api/pager/worker {
+        return 403;
+    }
+
+    location = /api/auth/staging-mailbox {
+        return 404;
+    }
+
+    location = /api/_staging_gate_probe {
+        return 404;
+    }
+
+    location ^~ /__debug {
+        return 404;
+    }
+
+    location = /debug-admin.js {
+        return 404;
+    }
+
+    location = /debug-admin.css {
+        return 404;
+    }
+
+    location = /sw.js {
+        proxy_pass http://127.0.0.1:4102;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Service-Worker-Allowed "/" always;
+        add_header Strict-Transport-Security "max-age=31536000" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "same-origin" always;
+        add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location = /api/onboarding/evidence {
+        client_max_body_size 1m;
+        proxy_pass http://127.0.0.1:4102;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4102;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+}

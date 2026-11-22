@@ -1,0 +1,16 @@
+[Unit]
+Description=BiteShark Staging2 Encrypted PostgreSQL Backup
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/biteshark-staging2/backup.env
+ExecStart=/usr/local/lib/biteshark-staging2/backup-staging2.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=biteshark-staging2-backup

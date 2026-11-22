@@ -373,7 +373,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
            console.error('Job for truckly-staging-worker.service failed.');
            process.exit(1);
          }
-         const crashMs = (unit === 'truckly-staging-worker.service' && cfg.workerCrashAfterMsOnSha === activeSha) ? 60 : 0;
+         const crashMs = (unit === 'truckly-staging-worker.service' && cfg.workerCrashAfterMsOnSha === activeSha) ? (process.platform === 'win32' ? 400 : 80) : 0;
          const child = spawn(process.execPath, [daemonScript, String(crashMs)], {
            cwd: resolvedDir,
            detached: true,
@@ -439,6 +439,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     //    - `/holding/*` (`PUBLIC_HOLDING_URL`)
     //    - `/cotenant/` (`COTENANT_HTTP_URL` returning `404` like `lifestyle-api` `:4000` on VPS)
     const httpState = {
+      activeApiUnit: 'truckly-staging-api.service',
       forceDegradedOnSha: null,
       overrideReleaseShaOnSha: null,
       cotenantStatus: 404,
@@ -446,7 +447,7 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     };
 
     function readRunningApiState() {
-      const f = path.join(stateDir, 'truckly-staging-api.service.json');
+      const f = path.join(stateDir, `${httpState.activeApiUnit || 'truckly-staging-api.service'}.json`);
       if (!fs.existsSync(f)) return { active: false, sha: '', cwd: '' };
       return JSON.parse(fs.readFileSync(f, 'utf8'));
     }
@@ -891,9 +892,48 @@ function runInstaller(bashBin, args, envOverrides = {}) {
     assert.equal(path.basename(fs.realpathSync(currentLink)), PREV_SHA);
     const rbEnv = fs.readFileSync(stagingEnvPath, 'utf8');
     assert(rbEnv.includes(`BITESHARK_RELEASE_SHA=${PREV_SHA}`) && rbEnv.includes(`TRUCKLY_RELEASE_SHA=${PREV_SHA}`));
-    console.log('PASS [12/12]: Explicit --rollback-to verified and restored previous release cleanly');
+    console.log('PASS [12/13]: Explicit --rollback-to verified and restored previous release cleanly');
 
-    console.log('\nALL 12 DEPLOYMENT INSTALLER, ARCHIVE SAFETY & VERIFIED ROLLBACK TESTS PASSED.');
+    // =========================================================================
+    // [13/13] Secondary Isolated Environment Parameterization (`staging2` custom API unit + worker=none)
+    // =========================================================================
+    execFileSync(process.execPath, [mockSystemctlJs, 'restart', 'biteshark-staging2-api.service'], { windowsHide: true });
+    httpState.activeApiUnit = 'biteshark-staging2-api.service';
+    writeCtlConfig({
+      failApiRestartOnSha: null,
+      failWorkerRestartOnSha: null,
+      failWorkerRestartAlways: true, // proves truckly-staging-worker.service is NEVER touched when WORKER_SERVICE_UNIT=none
+      workerCrashAfterMsOnSha: null,
+      cotenantInactiveUnit: null
+    });
+    const stg2Env = {
+      ...baseEnv,
+      BITESHARK_API_SERVICE_UNIT: 'biteshark-staging2-api.service',
+      BITESHARK_WORKER_SERVICE_UNIT: 'none'
+    };
+    const stg2InstallRun = await runInstaller(
+      bashBin,
+      ['--sha', TARGET_SHA, '--tarball', toPosixPath(TARBALL_PATH), '--expected-sha256', EXPECTED_SHA256],
+      stg2Env
+    );
+    assert.equal(stg2InstallRun.code, 0, `Secondary staging2 install failed: ${stg2InstallRun.stderr}`);
+    assert(stg2InstallRun.stdout.includes('"event":"staging_release_active"'));
+    const stg2UnitState = JSON.parse(
+      fs.readFileSync(path.join(stateDir, 'biteshark-staging2-api.service.json'), 'utf8')
+    );
+    assert.equal(stg2UnitState.active, true, 'biteshark-staging2-api.service started cleanly');
+    assert.equal(stg2UnitState.sha, TARGET_SHA);
+
+    const stg2RbRun = await runInstaller(bashBin, ['--rollback-to', PREV_SHA], stg2Env);
+    assert.equal(stg2RbRun.code, 0, `Secondary staging2 rollback failed: ${stg2RbRun.stderr}`);
+    const stg2RbState = JSON.parse(
+      fs.readFileSync(path.join(stateDir, 'biteshark-staging2-api.service.json'), 'utf8')
+    );
+    assert.equal(stg2RbState.active, true);
+    assert.equal(stg2RbState.sha, PREV_SHA);
+    console.log('PASS [13/13]: Parameterized secondary environment (biteshark-staging2-api.service + worker=none) install & rollback passed');
+
+    console.log('\nALL 13 DEPLOYMENT INSTALLER, ARCHIVE SAFETY & VERIFIED ROLLBACK TESTS PASSED.');
   } finally {
     // Clean up any spawned mock daemon processes
     for (const unitFile of fs.readdirSync(stateDir)) {

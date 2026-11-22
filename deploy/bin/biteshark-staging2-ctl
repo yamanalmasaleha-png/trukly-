@@ -1,0 +1,331 @@
+#!/usr/bin/env bash
+# Narrow, Root-Owned BiteShark Staging2 Control Helper (`/usr/local/sbin/biteshark-staging2-ctl`)
+#
+# Security & Isolation Invariants:
+#   1. Fixed Environment & Sanitized Process Context: Unsets caller `NODE_OPTIONS`, `LD_*`, and any
+#      caller-supplied `BITESHARK_*` / `TRUCKLY_*` overrides before pinning all paths, service units,
+#      ports, and database roles exclusively to `staging2`.
+#   2. Never Executes Writable User Scripts as Root: Invokes ONLY root-owned immutable scripts under
+#      `/usr/local/lib/biteshark-staging2/`. Tarball extraction, `npm ci --ignore-scripts`, and
+#      `scripts/run-migrations.cjs` drop privileges to unprivileged `biteshark-stg2-mig`.
+#   3. Copy-Before-Verify TOCTOU Protection: Copies caller-supplied release tarballs into a `0700`
+#      root-owned staging directory (enforcing regular-file & 25 MiB bounds) BEFORE SHA-256 and
+#      tar-header verification.
+#   4. Secret Redaction: Never prints `/etc/biteshark-staging2/*` or `/etc/truckly-staging/*` values;
+#      redacts credentials, tokens, cookies, and DSNs from `logs` output.
+
+set -euo pipefail
+umask 022
+
+unset NODE_OPTIONS LD_PRELOAD LD_LIBRARY_PATH NODE_PATH
+for var in $(compgen -v | grep -E '^(BITESHARK_|TRUCKLY_)' || true); do
+  unset "${var}"
+done
+
+export PATH="/opt/nodejs/node-v22-lts/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export HOME="/root"
+
+# Fixed, non-overridable staging2 targets (test harness hook allowed ONLY when running as non-root in unit tests)
+if [[ "$(id -u)" -ne 0 && -n "${STG2_CTL_TEST_HARNESS_CONF:-}" && -f "${STG2_CTL_TEST_HARNESS_CONF}" ]]; then
+  # shellcheck disable=SC1090
+  source "${STG2_CTL_TEST_HARNESS_CONF}"
+else
+  STG2_ROOT="/srv/biteshark-staging2"
+  STG2_ETC="/etc/biteshark-staging2"
+  STG2_LIB="/usr/local/lib/biteshark-staging2"
+  STG2_LOCK="/var/lock/biteshark-staging2-deploy.lock"
+  STG2_API_UNIT="biteshark-staging2-api.service"
+  STG2_WORKER_UNIT="none"
+  STG2_UNPRIV_USER="biteshark-stg2-mig"
+  STG2_APP_DB_ROLE="biteshark_stg2_app"
+  STG2_HEALTH_URL="http://127.0.0.1:4102/api/healthz"
+  STG2_PUBLIC_URL="https://staging2.biteshark.live"
+  STG2_HOLDING_URL="https://biteshark.live"
+  STG2_COTENANTS="nginx.service postgresql.service pm2-matt.service qwen-worker.service truckly-staging-api.service truckly-staging-worker.service"
+  NODE_BIN="/opt/nodejs/node-v22-lts/bin/node"
+  SYSTEMCTL_BIN="/usr/bin/systemctl"
+  JOURNALCTL_BIN="/usr/bin/journalctl"
+  if [[ -f "/etc/biteshark-staging2/ctl.conf" ]]; then
+    # Root-owned optional override for STG2_PUBLIC_URL (e.g. `none` prior to DNS/TLS cutover)
+    # shellcheck disable=SC1091
+    source "/etc/biteshark-staging2/ctl.conf"
+  fi
+fi
+
+INSTALLER_BIN="${STG2_LIB}/install-staging-release.sh"
+BACKUP_BIN="${STG2_LIB}/backup-staging2.sh"
+
+usage_err() {
+  local msg="$1"
+  printf '{"level":"error","event":"staging2_ctl_rejected","message":"%s"}\n' "${msg}" >&2
+  cat >&2 <<'USAGE'
+Usage:
+  sudo /usr/local/sbin/biteshark-staging2-ctl status
+  sudo /usr/local/sbin/biteshark-staging2-ctl health
+  sudo /usr/local/sbin/biteshark-staging2-ctl logs [--lines 1..200]
+  sudo /usr/local/sbin/biteshark-staging2-ctl restart
+  sudo /usr/local/sbin/biteshark-staging2-ctl migrate
+  sudo /usr/local/sbin/biteshark-staging2-ctl backup
+  sudo /usr/local/sbin/biteshark-staging2-ctl deploy --sha <40-hex> --tarball <path.tar.gz> --expected-sha256 <64-hex>
+  sudo /usr/local/sbin/biteshark-staging2-ctl rollback --to <40-hex>
+USAGE
+  exit 2
+}
+
+if [[ $# -lt 1 ]]; then
+  usage_err "Missing subcommand."
+fi
+
+SUBCMD="$1"
+shift
+
+case "${SUBCMD}" in
+  status)
+    if [[ $# -ne 0 ]]; then
+      usage_err "status accepts no extra arguments."
+    fi
+    CUR_REAL=""
+    if [[ -L "${STG2_ROOT}/current" || -e "${STG2_ROOT}/current" ]]; then
+      CUR_REAL="$(readlink -f "${STG2_ROOT}/current" 2>/dev/null || true)"
+    fi
+    echo "=== BiteShark Staging2 Status ==="
+    echo "Current symlink : ${STG2_ROOT}/current -> ${CUR_REAL:-unset}"
+    echo "Installed SHAs  :"
+    if [[ -d "${STG2_ROOT}/releases" ]]; then
+      ls -1 "${STG2_ROOT}/releases" | sed 's/^/  - /'
+    fi
+    echo "Service state   :"
+    "${SYSTEMCTL_BIN}" show -p Id,ActiveState,SubState,MainPID,MemoryCurrent,ExecMainStartTimestamp "${STG2_API_UNIT}"
+    echo "Loopback health :"
+    curl -fsS --max-time 4 "${STG2_HEALTH_URL}" && echo "" || {
+      echo '{"status":"unreachable"}'
+      exit 1
+    }
+    ;;
+
+  health)
+    if [[ $# -ne 0 ]]; then
+      usage_err "health accepts no extra arguments."
+    fi
+    echo "Loopback (${STG2_HEALTH_URL}):"
+    curl -fsS --max-time 4 "${STG2_HEALTH_URL}"
+    echo ""
+    if [[ -n "${STG2_PUBLIC_URL}" && "${STG2_PUBLIC_URL}" != "none" ]]; then
+      echo "Public HTTPS (${STG2_PUBLIC_URL}/api/healthz):"
+      curl -fsS --max-time 5 "${STG2_PUBLIC_URL}/api/healthz"
+      echo ""
+    fi
+    ;;
+
+  logs)
+    LINES="60"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --lines)
+          LINES="${2:-}"
+          shift 2
+          ;;
+        *)
+          usage_err "Unsupported argument for logs: $1"
+          ;;
+      esac
+    done
+    if [[ ! "${LINES}" =~ ^[0-9]+$ ]] || [[ "${LINES}" -lt 1 ]] || [[ "${LINES}" -gt 200 ]]; then
+      usage_err "--lines must be an integer between 1 and 200."
+    fi
+    RAW_LOGS="$("${JOURNALCTL_BIN}" -u "${STG2_API_UNIT}" -n "${LINES}" --no-pager 2>&1 || true)"
+    "${NODE_BIN}" - "${RAW_LOGS}" <<'NODE'
+const raw = String(process.argv[2] || '');
+const redacted = raw
+  .replace(/postgres(?:ql)?:\/\/[^\s"'`]+/gi, 'postgres://[REDACTED_DB_URL]')
+  .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED_TOKEN]')
+  .replace(/((?:SECRET|TOKEN|PASSWORD|PASSPHRASE|API_KEY|PRIVATE_KEY|COOKIE)[A-Z0-9_]*\s*[:=]\s*)([^\s,"']+)/gi, '$1[REDACTED]')
+  .replace(/(__Host-truckly_session=)[^;\s"']+/gi, '$1[REDACTED]');
+process.stdout.write(redacted + (redacted.endsWith('\n') ? '' : '\n'));
+NODE
+    ;;
+
+  restart)
+    if [[ $# -ne 0 ]]; then
+      usage_err "restart accepts no extra arguments."
+    fi
+    "${SYSTEMCTL_BIN}" restart "${STG2_API_UNIT}"
+    "${SYSTEMCTL_BIN}" is-active --quiet "${STG2_API_UNIT}"
+    for _ in 1 2 3 4 5 6; do
+      if curl -fsS --max-time 3 "${STG2_HEALTH_URL}" >/dev/null 2>&1; then
+        curl -fsS --max-time 3 "${STG2_HEALTH_URL}"
+        echo ""
+        exit 0
+      fi
+      sleep 1
+    done
+    echo '{"level":"error","event":"staging2_restart_health_failed"}' >&2
+    exit 1
+    ;;
+
+  migrate)
+    if [[ $# -ne 0 ]]; then
+      usage_err "migrate accepts no extra arguments."
+    fi
+    CUR_DIR="$(readlink -f "${STG2_ROOT}/current" 2>/dev/null || true)"
+    if [[ -z "${CUR_DIR}" || ! -f "${CUR_DIR}/scripts/run-migrations.cjs" ]]; then
+      echo '{"level":"error","event":"staging2_missing_current_release"}' >&2
+      exit 1
+    fi
+    if [[ "${CUR_DIR}" != "${STG2_ROOT}/releases/"* ]]; then
+      echo '{"level":"error","event":"staging2_invalid_current_target"}' >&2
+      exit 1
+    fi
+    runuser -u "${STG2_UNPRIV_USER}" -- bash -c '
+      set -euo pipefail
+      set -a
+      source "$1"
+      set +a
+      cd "$2"
+      exec "$3" scripts/run-migrations.cjs --app-role "$4"
+    ' _ "${STG2_ETC}/migrator.env" "${CUR_DIR}" "${NODE_BIN}" "${STG2_APP_DB_ROLE}"
+    ;;
+
+  backup)
+    if [[ $# -ne 0 ]]; then
+      usage_err "backup accepts no extra arguments."
+    fi
+    set -a
+    # shellcheck disable=SC1090
+    source "${STG2_ETC}/backup.env"
+    set +a
+    exec "${BACKUP_BIN}"
+    ;;
+
+  deploy)
+    SHA=""
+    TARBALL=""
+    EXPECTED_SHA256=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --sha)
+          SHA="${2:-}"
+          shift 2
+          ;;
+        --tarball)
+          TARBALL="${2:-}"
+          shift 2
+          ;;
+        --expected-sha256)
+          EXPECTED_SHA256="$(printf '%s' "${2:-}" | tr 'A-F' 'a-f')"
+          shift 2
+          ;;
+        *)
+          usage_err "Unsupported argument for deploy: $1"
+          ;;
+      esac
+    done
+
+    if [[ ! "${SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+      usage_err "--sha must be a 40-character lowercase hex Git commit SHA."
+    fi
+    if [[ ! "${EXPECTED_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+      usage_err "--expected-sha256 must be a 64-character hex SHA-256 digest."
+    fi
+    if [[ -z "${TARBALL}" || "${TARBALL}" == *$'\n'* || ! "${TARBALL}" =~ \.tar\.gz$ ]]; then
+      usage_err "--tarball must point to a .tar.gz release archive."
+    fi
+
+    SAFE_UPLOAD_DIR="$(mktemp -d /tmp/biteshark-stg2-upload.XXXXXXXXXX)"
+    chmod 0700 "${SAFE_UPLOAD_DIR}"
+    trap 'rm -rf "${SAFE_UPLOAD_DIR}" 2>/dev/null || true' EXIT
+
+    # Safely copy archive to root-owned temp dir after checking it is a regular non-symlink file <= 25 MiB
+    "${NODE_BIN}" - "${TARBALL}" "${SAFE_UPLOAD_DIR}/release.tar.gz" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const [srcRaw, dstPath] = process.argv.slice(2);
+const resolved = path.resolve(srcRaw);
+if (
+  resolved.startsWith('/etc/') ||
+  resolved.startsWith('/srv/truckly-staging') ||
+  resolved.startsWith('/var/backups') ||
+  resolved.startsWith('/root/')
+) {
+  console.error(JSON.stringify({ level: 'error', event: 'forbidden_tarball_source_path' }));
+  process.exit(2);
+}
+let lst;
+try {
+  lst = fs.lstatSync(resolved);
+} catch {
+  console.error(JSON.stringify({ level: 'error', event: 'tarball_not_found' }));
+  process.exit(2);
+}
+if (!lst.isFile() || lst.isSymbolicLink()) {
+  console.error(JSON.stringify({ level: 'error', event: 'tarball_must_be_regular_file' }));
+  process.exit(2);
+}
+if (lst.size <= 0 || lst.size > 25 * 1024 * 1024) {
+  console.error(JSON.stringify({ level: 'error', event: 'tarball_size_out_of_bounds', size: lst.size }));
+  process.exit(2);
+}
+fs.copyFileSync(resolved, dstPath);
+fs.chmodSync(dstPath, 0o600);
+NODE
+
+    export BITESHARK_STAGING_ROOT="${STG2_ROOT}"
+    export BITESHARK_STAGING_ETC="${STG2_ETC}"
+    export BITESHARK_DEPLOY_LOCK_FILE="${STG2_LOCK}"
+    export BITESHARK_API_SERVICE_UNIT="${STG2_API_UNIT}"
+    export BITESHARK_WORKER_SERVICE_UNIT="${STG2_WORKER_UNIT}"
+    export BITESHARK_UNPRIV_BUILD_USER="${STG2_UNPRIV_USER}"
+    export BITESHARK_UNPRIV_MIGRATE_USER="${STG2_UNPRIV_USER}"
+    export BITESHARK_DB_APP_ROLE="${STG2_APP_DB_ROLE}"
+    export BITESHARK_HEALTH_URL="${STG2_HEALTH_URL}"
+    export BITESHARK_PUBLIC_STAGING_URL="${STG2_PUBLIC_URL}"
+    export BITESHARK_PUBLIC_HOLDING_URL="${STG2_HOLDING_URL}"
+    export BITESHARK_COTENANT_UNITS="${STG2_COTENANTS}"
+    export BITESHARK_SYSTEMCTL_CMD="${SYSTEMCTL_BIN}"
+    export BITESHARK_JOURNALCTL_CMD="${JOURNALCTL_BIN}"
+
+    "${INSTALLER_BIN}" \
+      --sha "${SHA}" \
+      --tarball "${SAFE_UPLOAD_DIR}/release.tar.gz" \
+      --expected-sha256 "${EXPECTED_SHA256}"
+    ;;
+
+  rollback)
+    TO_SHA=""
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --to)
+          TO_SHA="${2:-}"
+          shift 2
+          ;;
+        *)
+          usage_err "Unsupported argument for rollback: $1"
+          ;;
+      esac
+    done
+    if [[ ! "${TO_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+      usage_err "--to must be a 40-character lowercase hex Git commit SHA."
+    fi
+
+    export BITESHARK_STAGING_ROOT="${STG2_ROOT}"
+    export BITESHARK_STAGING_ETC="${STG2_ETC}"
+    export BITESHARK_DEPLOY_LOCK_FILE="${STG2_LOCK}"
+    export BITESHARK_API_SERVICE_UNIT="${STG2_API_UNIT}"
+    export BITESHARK_WORKER_SERVICE_UNIT="${STG2_WORKER_UNIT}"
+    export BITESHARK_UNPRIV_BUILD_USER="${STG2_UNPRIV_USER}"
+    export BITESHARK_UNPRIV_MIGRATE_USER="${STG2_UNPRIV_USER}"
+    export BITESHARK_DB_APP_ROLE="${STG2_APP_DB_ROLE}"
+    export BITESHARK_HEALTH_URL="${STG2_HEALTH_URL}"
+    export BITESHARK_PUBLIC_STAGING_URL="${STG2_PUBLIC_URL}"
+    export BITESHARK_PUBLIC_HOLDING_URL="${STG2_HOLDING_URL}"
+    export BITESHARK_COTENANT_UNITS="${STG2_COTENANTS}"
+    export BITESHARK_SYSTEMCTL_CMD="${SYSTEMCTL_BIN}"
+    export BITESHARK_JOURNALCTL_CMD="${JOURNALCTL_BIN}"
+
+    "${INSTALLER_BIN}" --rollback-to "${TO_SHA}"
+    ;;
+
+  *)
+    usage_err "Unknown subcommand: ${SUBCMD}"
+    ;;
+esac

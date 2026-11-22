@@ -38,6 +38,10 @@ LOCK_FILE="${BITESHARK_DEPLOY_LOCK_FILE:-/var/lock/biteshark-staging-deploy.lock
 NODE_BIN_DIR="${BITESHARK_NODE_BIN_DIR:-/opt/nodejs/node-v22-lts/bin}"
 SYSTEMCTL_CMD="${BITESHARK_SYSTEMCTL_CMD:-systemctl}"
 JOURNALCTL_CMD="${BITESHARK_JOURNALCTL_CMD:-journalctl}"
+API_SERVICE_UNIT="${BITESHARK_API_SERVICE_UNIT:-truckly-staging-api.service}"
+WORKER_SERVICE_UNIT="${BITESHARK_WORKER_SERVICE_UNIT:-truckly-staging-worker.service}"
+UNPRIV_BUILD_USER="${BITESHARK_UNPRIV_BUILD_USER:-}"
+UNPRIV_MIGRATE_USER="${BITESHARK_UNPRIV_MIGRATE_USER:-}"
 APP_DB_ROLE="${BITESHARK_DB_APP_ROLE:-truckly_stg_app}"
 HEALTH_URL="${BITESHARK_HEALTH_URL:-http://127.0.0.1:4100/api/healthz}"
 PUBLIC_STAGING_URL="${BITESHARK_PUBLIC_STAGING_URL:-https://staging.biteshark.live}"
@@ -713,9 +717,14 @@ capture_sanitized_diagnostics() {
   local wrk_show=""
   local j_out=""
 
-  api_show="$(${SYSTEMCTL_CMD} show -p Id,ActiveState,SubState,MainPID,ExecMainCode,ExecMainStatus,Result truckly-staging-api.service 2>&1 || true)"
-  wrk_show="$(${SYSTEMCTL_CMD} show -p Id,ActiveState,SubState,MainPID,ExecMainCode,ExecMainStatus,Result truckly-staging-worker.service 2>&1 || true)"
-  j_out="$(${JOURNALCTL_CMD} -u truckly-staging-api.service -u truckly-staging-worker.service -n 20 --no-pager 2>&1 || true)"
+  api_show="$(${SYSTEMCTL_CMD} show -p Id,ActiveState,SubState,MainPID,ExecMainCode,ExecMainStatus,Result "${API_SERVICE_UNIT}" 2>&1 || true)"
+  if [[ -n "${WORKER_SERVICE_UNIT}" && "${WORKER_SERVICE_UNIT}" != "none" ]]; then
+    wrk_show="$(${SYSTEMCTL_CMD} show -p Id,ActiveState,SubState,MainPID,ExecMainCode,ExecMainStatus,Result "${WORKER_SERVICE_UNIT}" 2>&1 || true)"
+    j_out="$(${JOURNALCTL_CMD} -u "${API_SERVICE_UNIT}" -u "${WORKER_SERVICE_UNIT}" -n 20 --no-pager 2>&1 || true)"
+  else
+    wrk_show="disabled_or_omitted"
+    j_out="$(${JOURNALCTL_CMD} -u "${API_SERVICE_UNIT}" -n 20 --no-pager 2>&1 || true)"
+  fi
 
   raw_diag="$(printf '=== api ===\n%s\n=== worker ===\n%s\n=== journal ===\n%s\n' "${api_show}" "${wrk_show}" "${j_out}")"
 
@@ -800,8 +809,12 @@ if [[ "${ROLLBACK_MODE}" -eq 0 ]]; then
     rm -rf "${STAGE_TMP}"
     mkdir -p "${STAGE_TMP}"
     chmod 0755 "${STAGE_TMP}"
-
-    tar -xzf "${TARBALL_PATH}" -C "${STAGE_TMP}" --no-same-owner --no-same-permissions
+    if [[ -n "${UNPRIV_BUILD_USER}" && "${IS_WINDOWS_BASH}" -eq 0 && "$(id -u)" -eq 0 ]]; then
+      chown "${UNPRIV_BUILD_USER}:${UNPRIV_BUILD_USER}" "${STAGE_TMP}"
+      runuser -u "${UNPRIV_BUILD_USER}" -- tar -xzf "${TARBALL_PATH}" -C "${STAGE_TMP}" --no-same-owner --no-same-permissions
+    else
+      tar -xzf "${TARBALL_PATH}" -C "${STAGE_TMP}" --no-same-owner --no-same-permissions
+    fi
 
     if ! verify_archive_or_dir "verify-extracted-stage" "$(to_node_path "${TARBALL_PATH}")" "${TRUSTED_HASH}" "$(to_node_path "${STAGE_TMP}")"; then
       rm -rf "${STAGE_TMP}"
@@ -819,17 +832,50 @@ if [[ "${ROLLBACK_MODE}" -eq 0 ]]; then
         echo "{\"level\":\"fatal\",\"event\":\"missing_npm_binary\",\"npm_exe\":\"${NPM_EXE}\"}" >&2
         exit 1
       fi
-      (
-        cd "${STAGE_TMP}"
-        "${NPM_EXE}" ci --omit=dev --ignore-scripts --no-audit --no-fund
-      )
+      if [[ -n "${UNPRIV_BUILD_USER}" && "${IS_WINDOWS_BASH}" -eq 0 && "$(id -u)" -eq 0 ]]; then
+        NPM_CACHE_TMP="${STAGE_TMP}/.npm-cache-tmp"
+        mkdir -p "${NPM_CACHE_TMP}"
+        chown "${UNPRIV_BUILD_USER}:${UNPRIV_BUILD_USER}" "${NPM_CACHE_TMP}"
+        runuser -u "${UNPRIV_BUILD_USER}" -- env HOME="${NPM_CACHE_TMP}" npm_config_cache="${NPM_CACHE_TMP}" PATH="${NODE_BIN_DIR}:/usr/bin:/bin" "${NPM_EXE}" ci --omit=dev --ignore-scripts --no-audit --no-fund --prefix "${STAGE_TMP}"
+        rm -rf "${NPM_CACHE_TMP}"
+      else
+        (
+          cd "${STAGE_TMP}"
+          "${NPM_EXE}" ci --omit=dev --ignore-scripts --no-audit --no-fund
+        )
+      fi
     fi
 
     if [[ "${IS_WINDOWS_BASH}" -eq 0 ]]; then
+      # Verify no symlink inside STAGE_TMP resolves outside STAGE_TMP before root locks ownership
+      "${NODE_EXE}" - "${STAGE_TMP}" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const rootReal = fs.realpathSync(process.argv[2]);
+function walkSafe(dir) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, ent.name);
+    const lst = fs.lstatSync(full);
+    if (lst.isSymbolicLink()) {
+      const targetReal = fs.realpathSync(full);
+      if (targetReal !== rootReal && !targetReal.startsWith(rootReal + path.sep)) {
+        throw new Error(`Symlink escapes release stage directory: ${full} -> ${targetReal}`);
+      }
+    } else if (lst.isDirectory()) {
+      walkSafe(full);
+    } else if (!lst.isFile()) {
+      throw new Error(`Unsupported special file in release stage: ${full}`);
+    }
+  }
+}
+walkSafe(rootReal);
+NODE
       if [[ "$(id -u)" -eq 0 ]]; then
-        chown -R root:root "${STAGE_TMP}"
+        chown -hR root:root "${STAGE_TMP}"
       fi
-      chmod -R u=rwX,go=rX "${STAGE_TMP}"
+      find "${STAGE_TMP}" -type d -exec chmod 0755 {} +
+      find "${STAGE_TMP}" -type f -perm /0111 -exec chmod 0755 {} +
+      find "${STAGE_TMP}" -type f ! -perm /0111 -exec chmod 0644 {} +
     fi
 
     mv "${STAGE_TMP}" "${RELEASE_DIR}"
@@ -847,20 +893,33 @@ const fs = require('node:fs');
 const [p, isWin] = process.argv.slice(2);
 const st = fs.lstatSync(p);
 if (!st.isFile() || st.isSymbolicLink()) process.exit(1);
-if (isWin !== '1' && ((st.mode & 0o077) !== 0)) {
-  console.error(JSON.stringify({ level: 'fatal', event: 'migrator_env_not_0600', mode: (st.mode & 0o777).toString(8) }));
+if (isWin !== '1' && ((st.mode & 0o007) !== 0 || (st.mode & 0o020) !== 0)) {
+  console.error(JSON.stringify({ level: 'fatal', event: 'migrator_env_unsafe_mode', mode: (st.mode & 0o777).toString(8) }));
   process.exit(1);
 }
 NODE
 
-  MIG_OUT="$(
-    set -a
-    # shellcheck disable=SC1090
-    source "${MIGRATOR_ENV}"
-    set +a
-    cd "${RELEASE_DIR}"
-    "${NODE_EXE}" scripts/run-migrations.cjs --app-role "${APP_DB_ROLE}"
-  )"
+  if [[ -n "${UNPRIV_MIGRATE_USER}" && "${IS_WINDOWS_BASH}" -eq 0 && "$(id -u)" -eq 0 ]]; then
+    MIG_OUT="$(
+      runuser -u "${UNPRIV_MIGRATE_USER}" -- bash -c '
+        set -euo pipefail
+        set -a
+        source "$1"
+        set +a
+        cd "$2"
+        exec "$3" scripts/run-migrations.cjs --app-role "$4"
+      ' _ "${MIGRATOR_ENV}" "${RELEASE_DIR}" "${NODE_EXE}" "${APP_DB_ROLE}"
+    )"
+  else
+    MIG_OUT="$(
+      set -a
+      # shellcheck disable=SC1090
+      source "${MIGRATOR_ENV}"
+      set +a
+      cd "${RELEASE_DIR}"
+      "${NODE_EXE}" scripts/run-migrations.cjs --app-role "${APP_DB_ROLE}"
+    )"
+  fi
   echo "${MIG_OUT}"
   MIGRATIONS_NEWLY_APPLIED="$("${NODE_EXE}" - "${MIG_OUT}" <<'NODE'
 const lines = String(process.argv[2] || '').trim().split(/\r?\n/);
@@ -1028,23 +1087,25 @@ activate_and_verify_release() {
   fi
 
   FAILED_PHASE="api_restart"
-  if ! ${SYSTEMCTL_CMD} restart truckly-staging-api.service; then
+  if ! ${SYSTEMCTL_CMD} restart "${API_SERVICE_UNIT}"; then
     VERIFICATION_DETAIL="systemctl_restart_api_failed"
     return 1
   fi
-  if ! ${SYSTEMCTL_CMD} is-active --quiet truckly-staging-api.service; then
+  if ! ${SYSTEMCTL_CMD} is-active --quiet "${API_SERVICE_UNIT}"; then
     VERIFICATION_DETAIL="api_inactive_immediately_after_restart"
     return 1
   fi
 
-  FAILED_PHASE="worker_restart"
-  if ! ${SYSTEMCTL_CMD} restart truckly-staging-worker.service; then
-    VERIFICATION_DETAIL="systemctl_restart_worker_failed"
-    return 1
-  fi
-  if ! ${SYSTEMCTL_CMD} is-active --quiet truckly-staging-worker.service; then
-    VERIFICATION_DETAIL="worker_inactive_immediately_after_restart"
-    return 1
+  if [[ -n "${WORKER_SERVICE_UNIT}" && "${WORKER_SERVICE_UNIT}" != "none" ]]; then
+    FAILED_PHASE="worker_restart"
+    if ! ${SYSTEMCTL_CMD} restart "${WORKER_SERVICE_UNIT}"; then
+      VERIFICATION_DETAIL="systemctl_restart_worker_failed"
+      return 1
+    fi
+    if ! ${SYSTEMCTL_CMD} is-active --quiet "${WORKER_SERVICE_UNIT}"; then
+      VERIFICATION_DETAIL="worker_inactive_immediately_after_restart"
+      return 1
+    fi
   fi
 
   FAILED_PHASE="verify_api_readiness"
@@ -1058,16 +1119,18 @@ activate_and_verify_release() {
   fi
 
   FAILED_PHASE="verify_api_process_identity"
-  if ! verify_service_running_and_release_cwd "truckly-staging-api.service" "${RELEASE_DIR_REAL}"; then
+  if ! verify_service_running_and_release_cwd "${API_SERVICE_UNIT}" "${RELEASE_DIR_REAL}"; then
     return 1
   fi
 
-  FAILED_PHASE="verify_worker_active_and_identity"
-  if [[ "${WORKER_SETTLE_SEC}" != "0" ]]; then
-    sleep "${WORKER_SETTLE_SEC}"
-  fi
-  if ! verify_service_running_and_release_cwd "truckly-staging-worker.service" "${RELEASE_DIR_REAL}"; then
-    return 1
+  if [[ -n "${WORKER_SERVICE_UNIT}" && "${WORKER_SERVICE_UNIT}" != "none" ]]; then
+    FAILED_PHASE="verify_worker_active_and_identity"
+    if [[ "${WORKER_SETTLE_SEC}" != "0" ]]; then
+      sleep "${WORKER_SETTLE_SEC}"
+    fi
+    if ! verify_service_running_and_release_cwd "${WORKER_SERVICE_UNIT}" "${RELEASE_DIR_REAL}"; then
+      return 1
+    fi
   fi
 
   FAILED_PHASE="verify_cotenant_health"
@@ -1171,27 +1234,31 @@ perform_verified_rollback() {
     rb_errors+=("restore_current_symlink_failed")
   fi
 
-  if ! ${SYSTEMCTL_CMD} restart truckly-staging-api.service; then
+  if ! ${SYSTEMCTL_CMD} restart "${API_SERVICE_UNIT}"; then
     rb_errors+=("rollback_api_restart_failed")
   fi
 
-  if ! ${SYSTEMCTL_CMD} restart truckly-staging-worker.service; then
-    rb_errors+=("rollback_worker_restart_failed")
+  if [[ -n "${WORKER_SERVICE_UNIT}" && "${WORKER_SERVICE_UNIT}" != "none" ]]; then
+    if ! ${SYSTEMCTL_CMD} restart "${WORKER_SERVICE_UNIT}"; then
+      rb_errors+=("rollback_worker_restart_failed")
+    fi
   fi
 
   if ! verify_health_endpoint_for_sha "${PREV_SHA}" "${HEALTH_URL}"; then
     rb_errors+=("rollback_api_health_failed:${VERIFICATION_DETAIL}")
   fi
 
-  if ! verify_service_running_and_release_cwd "truckly-staging-api.service" "${PREV_REAL}"; then
+  if ! verify_service_running_and_release_cwd "${API_SERVICE_UNIT}" "${PREV_REAL}"; then
     rb_errors+=("rollback_api_service_verify_failed:${VERIFICATION_DETAIL}")
   fi
 
-  if [[ "${WORKER_SETTLE_SEC}" != "0" ]]; then
-    sleep "${WORKER_SETTLE_SEC}"
-  fi
-  if ! verify_service_running_and_release_cwd "truckly-staging-worker.service" "${PREV_REAL}"; then
-    rb_errors+=("rollback_worker_service_verify_failed:${VERIFICATION_DETAIL}")
+  if [[ -n "${WORKER_SERVICE_UNIT}" && "${WORKER_SERVICE_UNIT}" != "none" ]]; then
+    if [[ "${WORKER_SETTLE_SEC}" != "0" ]]; then
+      sleep "${WORKER_SETTLE_SEC}"
+    fi
+    if ! verify_service_running_and_release_cwd "${WORKER_SERVICE_UNIT}" "${PREV_REAL}"; then
+      rb_errors+=("rollback_worker_service_verify_failed:${VERIFICATION_DETAIL}")
+    fi
   fi
 
   local rb_end_ms rb_duration_ms db_note

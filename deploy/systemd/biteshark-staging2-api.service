@@ -1,0 +1,46 @@
+[Unit]
+Description=BiteShark Isolated Secondary Testing HTTP & PostgreSQL API Server (biteshark-staging2-api)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=biteshark-stg2
+Group=biteshark-stg2
+WorkingDirectory=/srv/biteshark-staging2/current
+EnvironmentFile=/etc/biteshark-staging2/staging.env
+ExecStart=/opt/nodejs/node-v22-lts/bin/node --max-old-space-size=96 /srv/biteshark-staging2/current/server/index.js
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=12
+
+# Conservative resource bounds on shared 1 vCPU / 961 MiB VPS
+MemoryAccounting=true
+MemoryHigh=128M
+MemoryMax=160M
+CPUAccounting=true
+CPUQuota=45%
+TasksMax=48
+
+# Hardened service sandboxing & cross-environment mount isolation
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/srv/biteshark-staging2
+InaccessiblePaths=/srv/truckly-staging /etc/truckly-staging /var/backups
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=biteshark-staging2-api
+
+[Install]
+WantedBy=multi-user.target
