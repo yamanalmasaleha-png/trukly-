@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/code-registry.schema.json",
+  "title": "BiteShark Code Registry Snapshot Schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generator",
+    "provenance",
+    "scope",
+    "coverage_counts",
+    "parse_failures",
+    "package_metadata",
+    "external_browser_assets",
+    "js_modules",
+    "html_documents",
+    "css_stylesheets",
+    "backend_routes",
+    "feature_controls",
+    "diagnostics_contract",
+    "configuration_consumers",
+    "storage_inventory",
+    "database",
+    "binary_assets",
+    "drift_report",
+    "deterministic_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "biteshark.code-registry.v1" },
+    "generator": {
+      "type": "object",
+      "required": ["name", "version", "analysis_mode", "limitations_note"]
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["repository", "branch_or_ref", "commit_sha", "working_tree_clean", "dirty_file_count"]
+    },
+    "scope": {
+      "type": "object",
+      "required": ["included_file_count", "binary_asset_count", "excluded_item_count", "exclusion_rules", "excluded_paths"]
+    },
+    "coverage_counts": { "type": "object" },
+    "parse_failures": { "type": "array" },
+    "package_metadata": { "type": "object" },
+    "external_browser_assets": { "type": "array" },
+    "js_modules": { "type": "array" },
+    "html_documents": { "type": "array" },
+    "css_stylesheets": { "type": "array" },
+    "backend_routes": { "type": "array" },
+    "feature_controls": { "type": "object" },
+    "diagnostics_contract": { "type": "object" },
+    "configuration_consumers": { "type": "array" },
+    "storage_inventory": { "type": "array" },
+    "database": { "type": "object" },
+    "binary_assets": { "type": "array" },
+    "drift_report": {
+      "type": "object",
+      "required": ["active_count", "suppressed_count", "findings"]
+    },
+    "deterministic_digest_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

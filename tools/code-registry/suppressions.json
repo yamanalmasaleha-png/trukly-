@@ -1,0 +1,18 @@
+{
+  "schema_version": "biteshark.drift-suppressions.v1",
+  "description": "Scoped, reasoned suppressions for verified intentional patterns. Never use wildcard suppressions that conceal unresolved structural bugs.",
+  "suppressions": [
+    {
+      "id": "SUPP-GLOBAL-WRAP-OPEN-DETAIL",
+      "category": "LOAD_ORDER_GLOBAL_WRAPPER",
+      "target": "public/app.js#openDetail",
+      "reason": "Intentional post-render decorator chain: public/listing-highlights.js and public/smart.js wrap window.openDetail defined in public/app.js. Documented as a load-order invariant in FRONTEND-MAP.md."
+    },
+    {
+      "id": "SUPP-GLOBAL-WRAP-APPLY-FILTERS",
+      "category": "LOAD_ORDER_GLOBAL_WRAPPER",
+      "target": "public/app.js#applyFilters",
+      "reason": "Intentional post-render decorator chain: public/characters.js wraps applyFilters defined in public/app.js to refresh mascot state after filtering. Documented in FRONTEND-MAP.md."
+    }
+  ]
+}
