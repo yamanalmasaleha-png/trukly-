@@ -3,9 +3,9 @@
 > [!NOTE]
 > **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via `npm run registry:docs` (`node tools/code-registry/cli.mjs generate-docs`).
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
-> - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
+> - **Branch / Ref at Generation**: `feature/private-profiles-greatest-hits`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825`
+> - **Deterministic Source Digest**: `bb27b8fa3a3d0700bd504369abe553c176481e7cd9fc62b3b4224681fc0ddd2e`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 - **Active Findings**: **13**
@@ -47,7 +47,7 @@
 ### `DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range`
 - **Category**: `DOC_CODE_MISMATCH` | **Severity**: `medium` | **Confidence**: `high` (`parsed_docs_vs_migrations`)
 - **Affected Objects**: `README.md`, `migrations/`
-- **Evidence**: README.md states migrations run 001 through 026, whereas migrations/ currently contains 001 through 028.
+- **Evidence**: README.md states migrations run 001 through 026, whereas migrations/ currently contains 001 through 029.
 - **Potential Impact**: Operators or assistants reading top-level docs underestimate active schema tables (e.g., 022..026+).
 - **Suggested Verification**: Compare README.md against migrations/ directory.
 - **Proposed Remediation**: Refer to docs/engineering/MIGRATIONS.md or update range in README.md.
@@ -55,8 +55,8 @@
 
 ### `DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers`
 - **Category**: `DUPLICATE_HELPER_IMPLEMENTATION` | **Severity**: `low` | **Confidence**: `high` (`parsed_ast`)
-- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L724`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L114`
-- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L724, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L114.
+- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L725`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L126`
+- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L725, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L126.
 - **Potential Impact**: Inconsistent character escaping (e.g., omitting single-quote &#39; or null coercion) can introduce XSS or display bugs if a weaker variant is copied.
 - **Suggested Verification**: Inspect each escape helper to confirm all 5 characters (&, <, >, ", ') and nullish inputs are handled.
 - **Proposed Remediation**: Retain existing helpers to avoid churn; for new frontend modules, reuse a single canonical 5-entity escape helper.

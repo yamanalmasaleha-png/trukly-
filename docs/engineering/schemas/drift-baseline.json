@@ -14,8 +14,8 @@
     "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
     "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
   ],
-  "branch_at_generation": "integrate/customer-exploration-verified",
-  "deterministic_digest_sha256": "fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1",
+  "branch_at_generation": "feature/private-profiles-greatest-hits",
+  "deterministic_digest_sha256": "bb27b8fa3a3d0700bd504369abe553c176481e7cd9fc62b3b4224681fc0ddd2e",
   "high_confidence_blocking_categories": [
     "DUPLICATE_HTML_ID",
     "UNRESOLVED_INLINE_HANDLER",

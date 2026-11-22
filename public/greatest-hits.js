@@ -64,16 +64,16 @@
     if (!force && Array.isArray(ghState.collections)) return;
     ghState.loadingList = true;
     ghState.listError = null;
-    triggerRerender();
+    if (ghState.mode === 'list') triggerRerender();
     try {
       var res = await window.bitesharkProfile.listCollections();
       ghState.collections = res.collections || [];
       ghState.loadingList = false;
-      triggerRerender();
+      if (ghState.mode === 'list') triggerRerender();
     } catch (err) {
       ghState.loadingList = false;
       ghState.listError = err;
-      triggerRerender();
+      if (ghState.mode === 'list') triggerRerender();
     }
   }
 
@@ -147,10 +147,17 @@
     var list = ghState.collections || [];
     var atLimit = list.length >= 5;
 
+    if (ghState.collections === null && !ghState.listError) {
+      return (
+        '<section class="cp-panel">' +
+        '<h2>Greatest Hits collections</h2>' +
+        '<p class="cp-panel-lead" role="status">Loading your Greatest Hits collections…</p>' +
+        '</section>'
+      );
+    }
+
     var itemsHtml = '';
-    if (ghState.loadingList && !ghState.collections) {
-      itemsHtml = '<p class="cp-panel-lead" role="status">Loading your Greatest Hits collections…</p>';
-    } else if (ghState.listError) {
+    if (ghState.listError) {
       itemsHtml =
         '<div class="cp-status-msg is-error" role="alert">' +
         ghEsc(ghState.listError.message || 'Could not load collections.') +
@@ -622,9 +629,11 @@
           if (helpers && helpers.announcePolite) {
             helpers.announcePolite('Moved ' + moved.display_name + ' to position ' + idx + ' of ' + ghState.draftEntries.length);
           }
-          var targetFocus = document.querySelector('[data-gh-move-up="' + (idx - 1) + '"]') ||
-            document.querySelector('[data-gh-move-down="' + (idx - 1) + '"]');
-          if (targetFocus && !targetFocus.disabled) targetFocus.focus();
+          var targetFocus =
+            document.querySelector('[data-gh-move-up="' + (idx - 1) + '"]:not([disabled])') ||
+            document.querySelector('[data-gh-move-down="' + (idx - 1) + '"]:not([disabled])') ||
+            document.querySelector('[data-gh-remove-idx="' + (idx - 1) + '"]:not([disabled])');
+          if (targetFocus) targetFocus.focus();
         }
       };
     });
@@ -642,9 +651,11 @@
           if (helpers && helpers.announcePolite) {
             helpers.announcePolite('Moved ' + moved.display_name + ' to position ' + (idx + 2) + ' of ' + ghState.draftEntries.length);
           }
-          var targetFocus = document.querySelector('[data-gh-move-down="' + (idx + 1) + '"]') ||
-            document.querySelector('[data-gh-move-up="' + (idx + 1) + '"]');
-          if (targetFocus && !targetFocus.disabled) targetFocus.focus();
+          var targetFocus =
+            document.querySelector('[data-gh-move-down="' + (idx + 1) + '"]:not([disabled])') ||
+            document.querySelector('[data-gh-move-up="' + (idx + 1) + '"]:not([disabled])') ||
+            document.querySelector('[data-gh-remove-idx="' + (idx + 1) + '"]:not([disabled])');
+          if (targetFocus) targetFocus.focus();
         }
       };
     });
@@ -805,11 +816,9 @@
     if (typeof window.bitesharkRegisterCollectionsRenderer === 'function') {
       window.bitesharkRegisterCollectionsRenderer(renderGreatestHitsTabRoot);
     }
-    var prevReset = window.bitesharkResetProfileUiOnAuthChange;
-    window.bitesharkResetProfileUiOnAuthChange = function () {
-      resetGreatestHitsOnAuthChange();
-      if (typeof prevReset === 'function') prevReset();
-    };
+    if (typeof window.bitesharkRegisterProfileAuthResetListener === 'function') {
+      window.bitesharkRegisterProfileAuthResetListener(resetGreatestHitsOnAuthChange);
+    }
     window.bitesharkGreatestHitsHooks = {
       setSharingHooks: function (renderFn, bindFn) {
         ghState.sharingHookRenderer = renderFn;

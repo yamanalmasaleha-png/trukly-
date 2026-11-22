@@ -1,23 +1,23 @@
 {
-  "branch_at_generation": "integrate/customer-exploration-verified",
+  "branch_at_generation": "feature/private-profiles-greatest-hits",
   "coverage_counts": {
-    "browser_globals_and_assignments": 622,
-    "classes": 19,
+    "browser_globals_and_assignments": 630,
+    "classes": 21,
     "configuration_keys_observed": 64,
-    "css_files_scanned": 18,
+    "css_files_scanned": 20,
     "drift_findings_active": 13,
     "drift_findings_suppressed": 2,
-    "feature_controls": 21,
-    "functions_and_methods": 2528,
-    "html_element_ids": 488,
+    "feature_controls": 27,
+    "functions_and_methods": 2881,
+    "html_element_ids": 490,
     "html_files_scanned": 12,
-    "http_routes": 97,
-    "js_files_scanned": 117,
+    "http_routes": 122,
+    "js_files_scanned": 126,
     "js_parse_failures": 0,
-    "significant_constants": 584,
-    "sql_migrations": 28,
-    "sql_rls_policies": 55,
-    "sql_tables": 51,
+    "significant_constants": 624,
+    "sql_migrations": 29,
+    "sql_rls_policies": 73,
+    "sql_tables": 59,
     "storage_keys_observed": 19
   },
   "database_tables": [
@@ -141,11 +141,46 @@
       "table_name": "compliance_readiness_items"
     },
     {
+      "column_count": 13,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "customer_collection_entries"
+    },
+    {
+      "column_count": 21,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 4,
+      "rls_forced": true,
+      "table_name": "customer_collection_photo_attachments"
+    },
+    {
+      "column_count": 22,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 3,
+      "rls_forced": true,
+      "table_name": "customer_collection_shares"
+    },
+    {
+      "column_count": 16,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 3,
+      "rls_forced": true,
+      "table_name": "customer_collections"
+    },
+    {
       "column_count": 20,
       "created_in_migration": "027_customer_exploration_foundation.sql",
       "policy_count": 3,
       "rls_forced": true,
       "table_name": "customer_photos"
+    },
+    {
+      "column_count": 13,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "customer_profiles"
     },
     {
       "column_count": 7,
@@ -160,6 +195,27 @@
       "policy_count": 1,
       "rls_forced": true,
       "table_name": "customer_saved_trails"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "customer_share_moderation_events"
+    },
+    {
+      "column_count": 12,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "customer_share_reports"
+    },
+    {
+      "column_count": 6,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "customer_sharing_eligibility"
     },
     {
       "column_count": 15,
@@ -379,7 +435,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825",
+  "deterministic_digest_sha256": "bb27b8fa3a3d0700bd504369abe553c176481e7cd9fc62b3b4224681fc0ddd2e",
   "drift_summary": {
     "active_count": 13,
     "active_finding_ids": [
@@ -456,6 +512,22 @@
     {
       "default_audience": "all",
       "default_state": "enabled",
+      "depends_on": [],
+      "key": "customer_profile",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "customer_profile"
+      ],
+      "key": "customer_profile_editing",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
       "depends_on": [
         "local_guides_passport"
       ],
@@ -483,6 +555,13 @@
       "default_state": "enabled",
       "depends_on": [],
       "key": "flavor_lab_tools",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "greatest_hits_collections",
       "read_only": false
     },
     {
@@ -561,6 +640,22 @@
     },
     {
       "default_audience": "all",
+      "default_state": "hidden",
+      "depends_on": [],
+      "key": "public_profile_discovery",
+      "read_only": true
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "unlisted_collection_sharing"
+      ],
+      "key": "shared_collection_photos",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
       "default_state": "enabled",
       "depends_on": [
         "community_hub"
@@ -573,6 +668,15 @@
       "default_state": "enabled",
       "depends_on": [],
       "key": "suggested_trails",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "greatest_hits_collections"
+      ],
+      "key": "unlisted_collection_sharing",
       "read_only": false
     },
     {
@@ -971,6 +1075,8 @@
       "exported_symbols": [
         "PROPOSED_MIN_ACCOUNT_AGE",
         "AGE_POLICY_VERSION",
+        "SHARING_MIN_ADULT_AGE",
+        "SHARING_ELIGIBILITY_POLICY_VERSION",
         "AGE_BOUNDARY_TIMEZONE",
         "MIN_PLAUSIBLE_BIRTH_YEAR",
         "isGregorianLeapYear",
@@ -979,6 +1085,7 @@
         "parseAndValidateDobInput",
         "computeCompletedYearsOfAge",
         "evaluateMinimumAgeEligibility",
+        "evaluateAdultSharingEligibility",
         "AGE_ASSESSMENT_ALLOWLIST_SPEC",
         "isGovernanceRouteExemptFromAgeGate",
         "buildAgeAssessmentRequiredPayload"
@@ -986,7 +1093,7 @@
       "file": "lib/age-policy.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 8
+      "symbol_count": 9
     },
     {
       "exported_symbols": [
@@ -1080,6 +1187,74 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 58
+    },
+    {
+      "exported_symbols": [
+        "MAX_COLLECTIONS_PER_USER",
+        "MAX_ENTRIES_PER_COLLECTION",
+        "MAX_COLLECTION_TITLE_LENGTH",
+        "MAX_COLLECTION_INTRO_LENGTH",
+        "MAX_ENTRY_RECOMMENDATION_LENGTH",
+        "MAX_ACTIVE_SHARES_PER_COLLECTION",
+        "MAX_DISPLAY_NAME_LENGTH",
+        "MAX_BIO_LENGTH",
+        "MAX_FOOD_INTERESTS",
+        "ALLOWED_AVATAR_STYLES",
+        "SUPPORTED_SONOMA_TOWNS",
+        "SUPPORTED_FOOD_INTERESTS",
+        "FORBIDDEN_CLIENT_PROFILE_WRITE_FIELDS",
+        "ALLOWED_SHARE_REPORT_REASONS",
+        "CustomerProfileDomainError",
+        "generateOpaqueId",
+        "assertNoForbiddenClientWriteFields",
+        "sanitizePlainText",
+        "computeSafeInitials",
+        "validatePreferredTown",
+        "validateFoodInterests",
+        "validateAvatarStyle",
+        "setOwnerProfileRlsInTx",
+        "ensureOrLoadCustomerProfileRowInTx",
+        "loadCustomerSharingEligibilityInTx",
+        "buildPrivateOwnerProfileDto",
+        "buildPrivateOwnerCollectionDto",
+        "buildSharedCollectionPublicDto",
+        "buildAdminShareModerationDto",
+        "getPrivateOwnerProfile",
+        "exportCustomerProfileAndExplorationArchive",
+        "clearCustomerProfileAndCollectionsData",
+        "updatePrivateOwnerProfile",
+        "updateCustomerPreferences",
+        "computeCollectionContentDigest",
+        "loadCollectionHydratedInTx",
+        "listOwnerCollections",
+        "getOwnerCollectionDetail",
+        "createOwnerCollection",
+        "updateOwnerCollection",
+        "deleteOwnerCollection",
+        "generateShareTokenMaterial",
+        "hashRawShareToken",
+        "submitAdultSharingEligibility",
+        "previewOwnerSharedCollection",
+        "listOwnerShares",
+        "createCollectionShareLink",
+        "updateCollectionShareSettings",
+        "rotateCollectionShareLink",
+        "revokeCollectionShareLink",
+        "resolveLiveSharedCollectionByToken",
+        "renderSharedUnavailableHtmlPage",
+        "renderSharedCollectionHtmlPage",
+        "submitPublicSharedPageReport",
+        "listAdminSharedModerationQueue",
+        "applyAdminSharedModerationDecision",
+        "attachPhotoToCollectionEntry",
+        "removePhotoFromCollectionEntry",
+        "readSharedCollectionPhotoByToken",
+        "readAdminReportedSharedPhoto"
+      ],
+      "file": "lib/customer-profile.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 92
     },
     {
       "exported_symbols": [
@@ -1290,12 +1465,13 @@
         "deletePhotoFilesSafely",
         "readPhotoDerivativeSafely",
         "scanPhotoStorageFiles",
-        "unlinkConfinedPhotoArtifact"
+        "unlinkConfinedPhotoArtifact",
+        "createSharedPhotoDerivative"
       ],
       "file": "lib/photo-storage.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 14
+      "symbol_count": 15
     },
     {
       "exported_symbols": [
@@ -1437,7 +1613,7 @@
         "location.hash"
       ],
       "source_type": "script",
-      "symbol_count": 198
+      "symbol_count": 208
     },
     {
       "exported_symbols": [],
@@ -1843,6 +2019,19 @@
     },
     {
       "exported_symbols": [],
+      "file": "public/customer-profile.js",
+      "globals_assigned": [
+        "openCustomerProfile",
+        "bitesharkOpenCustomerProfile",
+        "bitesharkResetProfileUiOnAuthChange",
+        "bitesharkRegisterProfileAuthResetListener",
+        "bitesharkRegisterCollectionsRenderer"
+      ],
+      "source_type": "script",
+      "symbol_count": 53
+    },
+    {
+      "exported_symbols": [],
       "file": "public/diagnostics-client.js",
       "globals_assigned": [],
       "source_type": "script",
@@ -1857,6 +2046,22 @@
       ],
       "source_type": "script",
       "symbol_count": 56
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/greatest-hits-sharing.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 33
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/greatest-hits.js",
+      "globals_assigned": [
+        "bitesharkGreatestHitsHooks"
+      ],
+      "source_type": "script",
+      "symbol_count": 61
     },
     {
       "exported_symbols": [],
@@ -2049,6 +2254,16 @@
     },
     {
       "exported_symbols": [],
+      "file": "public/profile-client.js",
+      "globals_assigned": [
+        "bitesharkProfile",
+        "bitesharkProfile"
+      ],
+      "source_type": "script",
+      "symbol_count": 24
+    },
+    {
+      "exported_symbols": [],
       "file": "public/role-experience.js",
       "globals_assigned": [
         "fetch",
@@ -2070,7 +2285,14 @@
         "bitesharkWelcome"
       ],
       "source_type": "script",
-      "symbol_count": 186
+      "symbol_count": 187
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/shared-collection-page.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 7
     },
     {
       "exported_symbols": [],
@@ -2263,7 +2485,7 @@
       "file": "server/app.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 34
+      "symbol_count": 37
     },
     {
       "exported_symbols": [
@@ -2274,6 +2496,21 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 6
+    },
+    {
+      "exported_symbols": [
+        "CUSTOMER_PROFILE_PATHS",
+        "resolveCallerProfileFeatureFlags",
+        "recordProfileDiagnostic",
+        "handleCustomerProfileRoute",
+        "applyUnlistedSharedSecurityHeaders",
+        "handlePublicSharedPageRequest",
+        "handlePublicSharedPhotoRequest"
+      ],
+      "file": "server/customer-profile-routes.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 8
     },
     {
       "exported_symbols": [],
@@ -2344,6 +2581,20 @@
       "globals_assigned": [],
       "source_type": "script",
       "symbol_count": 16
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-profile-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 40
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-profile-sharing.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 19
     },
     {
       "exported_symbols": [],
@@ -2576,7 +2827,7 @@
         "GET"
       ],
       "path": "/api/account/context",
-      "test_count": 6
+      "test_count": 7
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2757,7 +3008,7 @@
         "POST"
       ],
       "path": "/api/admin/features",
-      "test_count": 6
+      "test_count": 8
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2769,7 +3020,7 @@
         "POST"
       ],
       "path": "/api/admin/features/update",
-      "test_count": 6
+      "test_count": 8
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2946,6 +3197,44 @@
       "caller_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/shared-moderation",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/shared-moderation/decision",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/shared-moderation/photo",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
       "handler_file": "server/admin-routes.js",
       "methods": [
         "GET"
@@ -3023,7 +3312,7 @@
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "test_count": 15
+      "test_count": 17
     },
     {
       "auth_requirement": "public",
@@ -3035,7 +3324,7 @@
         "POST"
       ],
       "path": "/api/auth/start",
-      "test_count": 17
+      "test_count": 18
     },
     {
       "auth_requirement": "public",
@@ -3047,7 +3336,7 @@
         "POST"
       ],
       "path": "/api/auth/verify",
-      "test_count": 17
+      "test_count": 18
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3197,7 +3486,7 @@
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "caller_count": 4,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/favorites/toggle.js",
@@ -3205,7 +3494,7 @@
         "POST"
       ],
       "path": "/api/favorites/toggle",
-      "test_count": 7
+      "test_count": 9
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3230,7 +3519,7 @@
         "GET"
       ],
       "path": "/api/healthz",
-      "test_count": 9
+      "test_count": 10
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3308,6 +3597,97 @@
     },
     {
       "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "shared_collection_photos",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/attach-photo",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/delete",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/detail",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/preview",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/remove-photo",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections/update",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
       "caller_count": 4,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
@@ -3317,7 +3697,7 @@
         "POST"
       ],
       "path": "/api/me/exploration",
-      "test_count": 1
+      "test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3326,7 +3706,8 @@
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
       "methods": [
-        "GET"
+        "GET",
+        "POST"
       ],
       "path": "/api/me/exploration/export",
       "test_count": 1
@@ -3355,7 +3736,7 @@
         "POST"
       ],
       "path": "/api/me/photos",
-      "test_count": 3
+      "test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3368,7 +3749,7 @@
         "POST"
       ],
       "path": "/api/me/photos/delete",
-      "test_count": 1
+      "test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3377,10 +3758,140 @@
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
       "methods": [
-        "GET"
+        "GET",
+        "POST"
       ],
       "path": "/api/me/photos/file",
       "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "customer_profile_editing",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/preferences",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "customer_profile",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/profile",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/profile/delete-data",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/profile/privacy",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/shares",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_18_plus_sharing_eligible",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/shares/create",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/shares/revoke",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_18_plus_sharing_eligible",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/shares/rotate",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_18_plus_sharing_eligible",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/shares/update-settings",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/sharing-eligibility",
+      "test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3393,7 +3904,7 @@
         "POST"
       ],
       "path": "/api/me/trails",
-      "test_count": 1
+      "test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3402,7 +3913,6 @@
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/me/trails/delete",
@@ -3419,7 +3929,7 @@
         "POST"
       ],
       "path": "/api/me/visits",
-      "test_count": 1
+      "test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3445,7 +3955,7 @@
         "POST"
       ],
       "path": "/api/notifications/settings",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3637,14 +4147,26 @@
       "test_count": 3
     },
     {
+      "auth_requirement": "public_or_session",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/shared/report",
+      "test_count": 1
+    },
+    {
       "auth_requirement": "public",
       "caller_count": 1,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "editorial_stories",
       "handler_file": "server/customer-exploration-routes.js",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/stories",
       "test_count": 1
@@ -3656,8 +4178,7 @@
       "feature_gate": "suggested_trails",
       "handler_file": "server/customer-exploration-routes.js",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/trails/suggest",
       "test_count": 1
@@ -3672,7 +4193,7 @@
         "GET"
       ],
       "path": "/api/trucks",
-      "test_count": 14
+      "test_count": 15
     },
     {
       "auth_requirement": "public",
@@ -3747,6 +4268,58 @@
       ],
       "path": "/api/vendor/staff-invitations",
       "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/app.js",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/profile",
+      "test_count": 10
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/app.js",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/robots.txt",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "public_unlisted_capability",
+      "caller_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/s/:token",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "public_unlisted_capability",
+      "caller_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "methods": [
+        "GET",
+        "HEAD"
+      ],
+      "path": "/s/:token/photo/:attachment",
+      "test_count": 0
     }
   ],
   "schema_version": "biteshark.code-registry.v1"

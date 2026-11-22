@@ -307,16 +307,25 @@ export function extractBackendRoutes({ fileContentsByPath, featureRouteRules = [
       { path: '/api/auth/age-assessment', methods: ['POST'], symbol: 'handleAuthAgeAssessment', auth: 'authenticated_pending_age', authz: 'self_session_only' },
       { path: '/api/auth/logout', methods: ['POST'], symbol: 'handleAuthLogout', auth: 'public_or_session', authz: 'csrf_origin_checked' },
       { path: '/api/auth/staging-mailbox', methods: ['POST'], symbol: 'handleStagingMailbox', auth: 'internal_mailbox_secret', authz: 'staging_loopback_operator_secret_only' },
-      { path: '/api/_staging_gate_probe', methods: ['GET', 'POST'], symbol: 'stagingRuntimeProbe', auth: 'internal_probe_token_and_top_admin', authz: 'staging_flag_plus_operator_token' }
+      { path: '/api/_staging_gate_probe', methods: ['GET', 'POST'], symbol: 'stagingRuntimeProbe', auth: 'internal_probe_token_and_top_admin', authz: 'staging_flag_plus_operator_token' },
+      { path: '/robots.txt', methods: ['GET', 'HEAD'], symbol: 'createStandaloneServer', auth: 'public', authz: 'public_robots_disallow_unlisted_shares', probe: "pathname === '/robots.txt'" },
+      { path: '/profile', methods: ['GET', 'HEAD'], symbol: 'createStandaloneServer', auth: 'authenticated_14_plus', authz: 'authenticated_self_owner_or_302_login', probe: "pathname === '/profile'" },
+      { path: '/s/:token', methods: ['GET', 'HEAD'], symbol: 'handlePublicSharedPageRequest', auth: 'public_unlisted_capability', authz: 'hashed_256bit_token_and_feature_gate', probe: "pathname.startsWith('/s/')" },
+      { path: '/s/:token/photo/:attachment', methods: ['GET', 'HEAD'], symbol: 'handlePublicSharedPhotoRequest', auth: 'public_unlisted_capability', authz: 'hashed_token_plus_consented_attachment_check', probe: '/photo/' }
     ];
     for (const br of builtInAppRoutes) {
-      const idx = appSrc.indexOf(br.path);
+      const idx = appSrc.indexOf(br.probe || br.path);
       if (idx !== -1 || br.path.startsWith('/api/auth/')) {
         const line = idx !== -1 ? appSrc.slice(0, idx).split('\n').length : 1;
         addRoute({
           path: br.path,
           methods: br.methods,
-          handler_file: br.path.startsWith('/api/auth/') ? 'lib/standalone-auth.js' : 'server/app.js',
+          handler_file:
+            br.path.startsWith('/api/auth/')
+              ? 'lib/standalone-auth.js'
+              : br.path.startsWith('/s/')
+                ? 'server/customer-profile-routes.js'
+                : 'server/app.js',
           handler_symbol: br.symbol,
           dispatcher: 'server/app.js',
           auth_requirement: br.auth,
@@ -327,8 +336,12 @@ export function extractBackendRoutes({ fileContentsByPath, featureRouteRules = [
     }
   }
 
-  // 3. `server/admin-routes.js` & optional `server/customer-exploration-routes.js`
-  for (const routerFile of ['server/admin-routes.js', 'server/customer-exploration-routes.js']) {
+  // 3. `server/admin-routes.js`, `server/customer-exploration-routes.js`, & `server/customer-profile-routes.js`
+  for (const routerFile of [
+    'server/admin-routes.js',
+    'server/customer-exploration-routes.js',
+    'server/customer-profile-routes.js'
+  ]) {
     const src = fileContentsByPath.get(routerFile);
     if (!src) continue;
     const lines = src.split('\n');
@@ -341,21 +354,29 @@ export function extractBackendRoutes({ fileContentsByPath, featureRouteRules = [
         for (const mm of windowSlice.matchAll(/\bmethod\s*===\s*['"]([A-Z]+)['"]/g)) {
           methods.push(mm[1]);
         }
-        for (const mm of windowSlice.matchAll(/\bmethod\s*!==\s*['"]([A-Z]+)['"]\s*\)\s*return\s+sendJson\(\s*405/g)) {
-          methods.push(mm[1]);
+        for (const mm of windowSlice.matchAll(/\bmethod\s*!==\s*['"]([A-Z]+)['"]\s*(?:&&\s*method\s*!==\s*['"]([A-Z]+)['"]\s*)?\)\s*\{?\s*return\s+sendJson\(\s*405/g)) {
+          if (mm[1]) methods.push(mm[1]);
+          if (mm[2]) methods.push(mm[2]);
         }
         const uniqueMethods = [...new Set(methods)].sort();
         const isPublicStoryOrTrail = routePath === '/api/stories' || routePath === '/api/trails/suggest';
         const isInviteValidate = routePath === '/api/invitations/validate';
+        const isPublicShareReport = routePath === '/api/shared/report';
         let authReq = 'authenticated_14_plus';
         let authzSum = 'role_or_owner_scoped';
         if (isPublicStoryOrTrail || isInviteValidate) {
           authReq = 'public';
           authzSum = 'public_read_feature_gated';
+        } else if (isPublicShareReport) {
+          authReq = 'public_or_session';
+          authzSum = 'rate_limited_nonsecret_share_id_report';
         } else if (routePath.startsWith('/api/admin/features')) {
           authzSum = uniqueMethods.includes('POST') ? 'top_admin_only_for_mutation_mod_read' : 'top_or_mod_read';
         } else if (routePath.startsWith('/api/admin/')) {
           authzSum = /requireTop|!ctx\.isTop/.test(windowSlice) ? 'top_admin_only' : 'top_or_mod_scoped';
+        } else if (routePath.startsWith('/api/me/shares/') && routePath !== '/api/me/shares/revoke') {
+          authReq = 'authenticated_18_plus_sharing_eligible';
+          authzSum = 'authenticated_self_owner_18_plus_rls';
         } else if (routePath.startsWith('/api/me/')) {
           authzSum = 'authenticated_self_owner_rls';
         }
@@ -367,7 +388,12 @@ export function extractBackendRoutes({ fileContentsByPath, featureRouteRules = [
           path: routePath,
           methods: uniqueMethods.length ? uniqueMethods : ['GET', 'POST'],
           handler_file: routerFile,
-          handler_symbol: routerFile === 'server/customer-exploration-routes.js' ? 'handleCustomerExplorationRoute' : 'handleAdminAndGovernanceRoutes',
+          handler_symbol:
+            routerFile === 'server/customer-exploration-routes.js'
+              ? 'handleCustomerExplorationRoute'
+              : routerFile === 'server/customer-profile-routes.js'
+                ? 'handleCustomerProfileRoute'
+                : 'handleAdminAndGovernanceRoutes',
           dispatcher: 'server/admin-routes.js',
           auth_requirement: authReq,
           authorization_summary: authzSum,

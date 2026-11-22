@@ -10,13 +10,13 @@
   'use strict';
 
   var shareId = (document.body && document.body.getAttribute('data-share-id')) || '';
-  var saveStatusEl = document.getElementById('spSaveStatus');
-  var openReportBtn = document.getElementById('spOpenReportBtn');
-  var reportPanel = document.getElementById('spReportPanel');
-  var cancelReportBtn = document.getElementById('spCancelReportBtn');
-  var reportForm = document.getElementById('spReportForm');
-  var reportAttachmentInput = document.getElementById('spReportAttachmentId');
-  var reportMsgEl = document.getElementById('spReportMsg');
+  var saveStatusEl = document.querySelector('[data-sp-el="save-status"]');
+  var openReportBtn = document.querySelector('[data-sp-el="open-report"]');
+  var reportPanel = document.querySelector('[data-sp-el="report-panel"]');
+  var cancelReportBtn = document.querySelector('[data-sp-el="cancel-report"]');
+  var reportForm = document.querySelector('[data-sp-el="report-form"]');
+  var reportAttachmentInput = document.querySelector('[data-sp-el="report-attachment-id"]');
+  var reportMsgEl = document.querySelector('[data-sp-el="report-msg"]');
 
   function showStatus(el, msg, isErr) {
     if (!el) return;
@@ -62,7 +62,7 @@
       reportAttachmentInput.value = attachmentId || '';
     }
     reportPanel.hidden = false;
-    var sel = document.getElementById('spReportReason');
+    var sel = document.querySelector('[data-sp-el="report-reason"]');
     if (sel) sel.focus();
   }
 
@@ -87,9 +87,9 @@
   if (reportForm) {
     reportForm.addEventListener('submit', async function (ev) {
       ev.preventDefault();
-      var submitBtn = document.getElementById('spSubmitReportBtn');
-      var reasonEl = document.getElementById('spReportReason');
-      var detailsEl = document.getElementById('spReportDetails');
+      var submitBtn = document.querySelector('[data-sp-el="submit-report"]');
+      var reasonEl = document.querySelector('[data-sp-el="report-reason"]');
+      var detailsEl = document.querySelector('[data-sp-el="report-details"]');
       if (submitBtn) submitBtn.disabled = true;
       try {
         var payload = {

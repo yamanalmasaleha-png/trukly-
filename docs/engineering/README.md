@@ -23,7 +23,7 @@ This handbook is the **single, code-grounded engineering reference** for BiteSha
 ### Architecture, Code Maps & Contracts
 - [System Architecture (`ARCHITECTURE.md`)](ARCHITECTURE.md) — Request lifecycle, process boundaries, security invariants, and Mermaid flow diagrams.
 - [Repository Map (`REPOSITORY-MAP.md`)](REPOSITORY-MAP.md) — Directory-by-directory ownership and release-tarball inclusion rules.
-- [Frontend Map (`FRONTEND-MAP.md`)](FRONTEND-MAP.md) — HTML entrypoints, 14-script load order, `window.*` globals, DOM/modal controllers, hash routes, storage, SW, and 16-stylesheet CSS cascade.
+- [Frontend Map (`FRONTEND-MAP.md`)](FRONTEND-MAP.md) — HTML entrypoints, 19-script load order, `window.*` globals, DOM/modal controllers, hash routes, storage, SW, and 17-stylesheet CSS cascade.
 - [Backend Map (`BACKEND-MAP.md`)](BACKEND-MAP.md) — `server/index.js`, `server/app.js` 10-stage pipeline, `server/routes.js` (30 domain handlers), `server/admin-routes.js`, `@biteshark/runtime-adapter`, and `lib/db-tx.js`.
 - [Data Model (`DATA-MODEL.md`)](DATA-MODEL.md) — Reconstructed & disposable-DB-verified PostgreSQL tables, `FORCE ROW LEVEL SECURITY` `app.*` GUCs, triggers, roles, and seed vs runtime data.
 - [API Contracts (`API-CONTRACTS.md`)](API-CONTRACTS.md) & [Shared API Envelopes (`contracts/shared-api-envelopes.md`)](contracts/shared-api-envelopes.md) — Route groups, request/response envelopes, headers, status/error codes, and idempotency rules.
@@ -65,6 +65,7 @@ This handbook is the **single, code-grounded engineering reference** for BiteSha
 15. [Suggested Trails](domains/suggested-trails.md)
 16. [Pickup Pagers & Web Push Notifications](domains/pager-and-notifications.md)
 17. [Legal Disclosures & Launch Readiness](domains/legal-and-readiness.md)
+18. [Customer Profile, Greatest Hits & Unlisted Sharing](domains/customer-profile-and-collections.md)
 
 ---
 

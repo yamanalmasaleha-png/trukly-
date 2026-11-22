@@ -84,14 +84,23 @@
     } catch (_e) {}
   }
 
+  var authResetListeners = [];
+
+  function registerProfileAuthResetListener(fn) {
+    if (typeof fn === 'function') authResetListeners.push(fn);
+  }
+
   function resetProfileUiState() {
+    authResetListeners.forEach(function (fn) {
+      try { fn(); } catch (_e) {}
+    });
     uiState.loading = false;
     uiState.data = null;
     uiState.loadError = null;
     uiState.statusBanner = null;
     var screen = document.getElementById('profileScreen');
     if (screen && screen.classList.contains('active')) {
-      renderProfileScreen();
+      loadAndRenderProfile({ force: true });
     }
   }
 
@@ -174,7 +183,7 @@
       statsHtml +=
         '<div class="cp-stat-card"><strong>Level ' + Number(ach.current_level.number) + ' · ' + cpEsc(ach.current_level.title) + '</strong>' +
         '<span>' + Number(ach.total_points) + ' exploration pts (non-redeemable)</span></div>';
-      var unlockedCount = (ach.badges || []).filter(function (b) { return b.unlocked; }).length;
+      var unlockedCount = (ach.badges || []).filter(function (b) { return Boolean(b.earned || b.unlocked); }).length;
       statsHtml +=
         '<div class="cp-stat-card"><strong>' + unlockedCount + ' / ' + (ach.badges || []).length + '</strong>' +
         '<span>Badges unlocked</span></div>';
@@ -183,8 +192,10 @@
         '<div class="cp-stat-card"><strong>Paused</strong><span>Levels &amp; badges display is currently hidden</span></div>';
     }
     if (wc) {
+      var wcProgOverview = wc.progress_stops !== undefined ? wc.progress_stops : wc.progress_count;
+      var wcTargOverview = wc.target_stops !== undefined ? wc.target_stops : wc.target_count;
       statsHtml +=
-        '<div class="cp-stat-card"><strong>' + Number(wc.progress_count) + ' / ' + Number(wc.target_count) + '</strong>' +
+        '<div class="cp-stat-card"><strong>' + Number(wcProgOverview || 0) + ' / ' + Number(wcTargOverview || 2) + '</strong>' +
         '<span>Weekly challenge (' + cpEsc(wc.title) + ')</span></div>';
     }
     statsHtml +=
@@ -417,11 +428,14 @@
         : 'Top exploration level reached';
       var badgesCards = (ach.badges || [])
         .map(function (b) {
+          var isEarned = Boolean(b.earned || b.unlocked);
+          var curVal = b.current !== undefined ? b.current : b.progress_current;
+          var targVal = b.target !== undefined ? b.target : b.progress_target;
           return (
-            '<div class="cp-badge-card' + (b.unlocked ? ' is-unlocked' : '') + '">' +
-            '<strong>' + (b.unlocked ? '🏅 ' : '○ ') + cpEsc(b.title) + '</strong>' +
-            '<span class="cp-list-item-meta">' + cpEsc(b.requirement || b.description || '') + '</span>' +
-            '<span class="cp-list-item-meta">' + Number(b.progress_current || 0) + ' / ' + Number(b.progress_target || 1) + (b.unlocked ? ' · Unlocked' : '') + '</span>' +
+            '<div class="cp-badge-card' + (isEarned ? ' is-unlocked' : '') + '">' +
+            '<strong>' + (isEarned ? (cpEsc(b.icon || '🏅') + ' ') : '○ ') + cpEsc(b.title) + '</strong>' +
+            '<span class="cp-list-item-meta">' + cpEsc(b.rule || b.requirement || b.description || '') + '</span>' +
+            '<span class="cp-list-item-meta">' + Number(curVal || 0) + ' / ' + Number(targVal || 1) + (isEarned ? ' · Unlocked' : '') + '</span>' +
             '</div>'
           );
         })
@@ -442,13 +456,15 @@
     if (prog.visits_feature_state === 'hidden' || prog.challenges_feature_state === 'hidden') {
       challengeHtml = '<div class="cp-note-box" role="status">Weekly challenges are currently disabled.</div>';
     } else if (wc) {
-      var pct = wc.target_count > 0 ? Math.min(100, Math.round((wc.progress_count / wc.target_count) * 100)) : 0;
+      var wcProg = Number(wc.progress_stops !== undefined ? wc.progress_stops : wc.progress_count || 0);
+      var wcTarg = Number(wc.target_stops !== undefined ? wc.target_stops : wc.target_count || 2);
+      var pct = wcTarg > 0 ? Math.min(100, Math.round((wcProg / wcTarg) * 100)) : 0;
       challengeHtml =
-        '<p class="cp-panel-lead"><strong>' + cpEsc(wc.title) + '</strong> — ' + cpEsc(wc.description || '') + ' (' + cpEsc(wc.week_start_local || '') + ' to ' + cpEsc(wc.week_end_local || '') + ')</p>' +
+        '<p class="cp-panel-lead"><strong>' + cpEsc(wc.title) + '</strong> — ' + cpEsc(wc.rule_summary || wc.description || '') + ' (' + cpEsc(wc.week_start_date || wc.week_start_local || '') + ' to ' + cpEsc(wc.week_end_date || wc.week_end_local || '') + ')</p>' +
         '<div class="cp-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Weekly challenge progress">' +
         '<div class="cp-progress-fill" style="width:' + pct + '%"></div>' +
         '</div>' +
-        '<p class="cp-help">' + Number(wc.progress_count || 0) + ' of ' + Number(wc.target_count || 2) + ' stops logged this week' + (wc.completed ? ' · Completed!' : '') + '</p>';
+        '<p class="cp-help">' + wcProg + ' of ' + wcTarg + ' stops logged this week' + (wc.completed ? ' · Completed!' : '') + '</p>';
     }
 
     var trailProgHtml = '';
@@ -1080,6 +1096,7 @@
     window.openCustomerProfile = openCustomerProfile;
     window.bitesharkOpenCustomerProfile = openCustomerProfile;
     window.bitesharkResetProfileUiOnAuthChange = resetProfileUiState;
+    window.bitesharkRegisterProfileAuthResetListener = registerProfileAuthResetListener;
     window.bitesharkRegisterCollectionsRenderer = registerCollectionsRenderer;
     window.addEventListener('hashchange', handleProfileRoutes);
     if (document.readyState === 'loading') {

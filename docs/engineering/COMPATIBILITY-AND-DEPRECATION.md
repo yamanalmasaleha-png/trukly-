@@ -18,10 +18,10 @@
 ## 2. Frozen & Protected Contracts (Do Not Break Casually)
 
 1. **`REGISTERED_DOMAIN_ROUTE_COUNT === 30` (`server/routes.js:99`)**:
-   - Even though 6 catalog/search routes in `api/` and `/api/owner/bookings` have zero callers in `public/`, `server/routes.js` throws at startup and `/api/healthz` fails tests if any of the 30 domain routes are deleted without an explicit architectural change. Add new governance/self-scoped routes in `server/admin-routes.js` or a dedicated sub-router (`server/customer-exploration-routes.js`).
+   - Even though 6 catalog/search routes in `api/` and `/api/owner/bookings` have zero callers in `public/`, `server/routes.js` throws at startup and `/api/healthz` fails tests if any of the 30 domain routes are deleted without an explicit architectural change. Add new governance/self-scoped routes in `server/admin-routes.js` or a dedicated sub-router (`server/customer-exploration-routes.js`, `server/customer-profile-routes.js`).
 2. **Dual-Prefix `BITESHARK_*` / `TRUCKLY_*` Aliases (`lib/env-compat.js`)**:
    - Existing VPS `staging.env` and `migrator.env` files rely on dual-prefix compatibility. Keep `readEnvCompat` support intact.
 3. **Browser Storage & Cookie Keys**:
    - `__Host-truckly_session`, `truckly_catalog_v2`, `truckly_favs`, `truckly_pager_subs_v1`, `biteshark_admin_viewpoint_v1`, and `biteshark_pending_invite_v1` must remain stable across deploys so active customer sessions and open tabs do not corrupt state.
-4. **Immutable Applied Migrations (`migrations/001`–`026`, plus `027` on `83181ba`)**:
+4. **Immutable Applied Migrations (`migrations/001`–`029`)**:
    - Never edit, reorder, or delete an existing `.sql` file in `migrations/`. Write a new additive migration instead.

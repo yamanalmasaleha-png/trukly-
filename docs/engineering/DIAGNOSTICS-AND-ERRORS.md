@@ -10,11 +10,11 @@ Centralized diagnostics are implemented in [diagnostics.js](../../lib/diagnostic
    - `ALLOWED_COMPONENTS`: `browser`, `api`, `worker`, `external_provider`.
    - `ALLOWED_SEVERITIES`: `info`, `warning`, `error`, `critical`.
    - `ALLOWED_OUTCOMES`: `failed`, `outcome_uncertain`, `partial_success`, `temporarily_unavailable`, `degraded`.
-   - `ALLOWED_FEATURE_KEYS`: 20 keys at `a4e9f53` (+5 exploration keys on `83181ba`).
+   - `ALLOWED_FEATURE_KEYS`: 20 keys at `a4e9f53` (+5 exploration keys on `83181ba`, +4 profile/sharing keys on `feature/private-profiles-greatest-hits`: `customer_profile`, `greatest_hits_collections`, `unlisted_sharing`, `shared_moderation`).
    - `TOP_ONLY_FEATURE_KEYS` (`mod_visible = false` — hidden from `Admin: Mod`): `auth_login`, `invitations`, `email_delivery`, `admin_portal`.
-   - `SAFE_CONTEXT_KEYS`: Scalar operational keys only (`http_status`, `phase`, `provider`, `delivery_mode`, `storage_kind`, `viewport_bucket`, `tile_host_id`, `attempt`, `queue_depth`, `is_offline`, `feature_state`, `synthetic_label`, plus `actor_id`, `vendor_id`, `item_count`, `mime_type` on `83181ba`).
-2. **Multi-Pass PII & Secret Scrubbing (`sanitizeDiagnosticText`)**:
-   - Strips control chars/newlines, emails, Bearer/API tokens (`re_`, `sk_`, `pk.`), URLs with query strings/tokens, cookie headers, 6-digit OTP patterns, UUIDs in paths, and GPS coordinates. Never stores request/response bodies.
+   - `SAFE_CONTEXT_KEYS`: Scalar operational keys only (`http_status`, `phase`, `provider`, `delivery_mode`, `storage_kind`, `viewport_bucket`, `tile_host_id`, `attempt`, `queue_depth`, `is_offline`, `feature_state`, `synthetic_label`, `actor_id`, `vendor_id`, `item_count`, `mime_type`, `collection_id`, `share_id`).
+2. **Multi-Pass PII & Secret Scrubbing (`sanitizeDiagnosticText` + `sanitizeLoggedRequestPath`)**:
+   - Strips control chars/newlines, emails, Bearer/API tokens (`re_`, `sk_`, `pk.`), URLs with query strings/tokens, `/s/<token>` and `/s/<token>/photo/<attachment>` capability URLs (`-> /s/:token` / `/s/:token/photo/:attachment`), cookie headers, 6-digit OTP patterns, UUIDs in paths, and GPS coordinates. Never stores request/response bodies, DOBs, private notes, recommendation text, or raw share tokens. Expected `404` invalid/expired/revoked `/s/<token>` hits and `403` eligibility denials do not create error incidents.
 3. **Untrusted Browser Reports (`POST /api/diagnostics/report`)**:
    - Capped at `4 KiB`, rate-limited per IP (`25` per `600s` default), skips session resolution/cookie refresh, and stamps `trust_level = 'browser_untrusted'`.
 

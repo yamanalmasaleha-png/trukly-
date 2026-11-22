@@ -138,6 +138,14 @@
       ],
       "evidence": "All persistent visits, private tasting notes, EXIF-stripped private photos, derived points/levels/badges, Monday-Sunday weekly challenge progress, and saved suggested trails are stored in PostgreSQL (migrations 027-028, FORCE ROW LEVEL SECURITY) and persistent private host storage (BITESHARK_PHOTO_STORAGE_DIR), with self-service JSON/photo export and deletion via #rxExplorationPrivacyModal.",
       "direction_for_new_code": "Consume /api/me/exploration*, /api/me/{visits,photos,trails}*, /api/stories, and /api/trails/suggest via window.bitesharkExploration; never write durable customer progress purely to localStorage or IndexedDB."
+    },
+    {
+      "responsibility": "customer_profile_collections_and_unlisted_sharing",
+      "status": "established",
+      "canonical_implementation": "lib/customer-profile.js + server/customer-profile-routes.js + public/profile-client.js#window.bitesharkProfile + public/customer-profile.js + public/greatest-hits.js + public/greatest-hits-sharing.js",
+      "competing_or_legacy": [],
+      "evidence": "Provides private account dashboard (/profile, #profileScreen), coarse Sonoma preferences, curated Greatest Hits collections (<= 5/user, <= 20 spots/collection), 18+ self-attested sharing eligibility (lib/age-policy.js#evaluateAdultSharingEligibility without DOB storage), 256-bit SHA-256 hashed unlisted share links (/s/<token>), consented EXIF-stripped sha_* WebP derivatives, signed-out abuse reporting (/api/shared/report), and scoped Mod/Top moderation (/api/admin/shared-moderation*) while delegating all scoring/visits/photos/trails/favorites/notifications to canonical services.",
+      "direction_for_new_code": "Use window.bitesharkProfile and lib/customer-profile.js allowlisted DTO builders (buildPrivateOwnerProfileDto, buildPrivateOwnerCollectionDto, buildSharedCollectionPublicDto, buildAdminShareModerationDto); never add social-network followers/DMs/feeds/search or duplicate exploration scoring."
     }
   ]
 }

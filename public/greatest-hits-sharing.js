@@ -640,10 +640,8 @@
       window.bitesharkGreatestHitsHooks.setSharingHooks(renderSharingSection, bindSharingSectionEvents);
       window.bitesharkGreatestHitsHooks.setPhotoSlotHook(renderEntryPhotoSlot);
     }
-    var prevReset = window.bitesharkResetProfileUiOnAuthChange;
-    window.bitesharkResetProfileUiOnAuthChange = function () {
-      resetSharingUiState();
-      if (typeof prevReset === 'function') prevReset();
-    };
+    if (typeof window.bitesharkRegisterProfileAuthResetListener === 'function') {
+      window.bitesharkRegisterProfileAuthResetListener(resetSharingUiState);
+    }
   }
 })();

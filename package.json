@@ -30,6 +30,8 @@
     "test:e2e:legal": "node tests/legal-readiness-browser.e2e.cjs",
     "test:platform": "node tests/vps-platform-contract.test.cjs",
     "test:email": "node tests/auth-email-delivery.integration.cjs",
+    "test:profile": "node tests/customer-profile-sharing.integration.cjs",
+    "test:e2e:profile": "node tests/customer-profile-browser.e2e.cjs",
     "registry:scan": "node tools/code-registry/cli.mjs scan",
     "registry:docs": "node tools/code-registry/cli.mjs generate-docs",
     "registry:validate": "node tools/code-registry/cli.mjs validate",

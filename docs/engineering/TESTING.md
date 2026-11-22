@@ -49,13 +49,14 @@ Require `DATABASE_URL` pointing to a disposable local PostgreSQL server with dat
 - `node tests/support-feedback.integration.cjs` — `BS-001001` tickets, SLA transitions, diagnostic link notifications.
 - `node tests/urgent-pilot-security.integration.cjs` — Last-Top `auth_users` trigger (`026`), column-bound triggers, session lock races.
 - `node tests/customer-exploration.integration.cjs` — `027`+`028` RLS & ownership, Pacific repeat/same-day/DST/Monday visits, post-save `visited_at >= trail.created_at` trail timing, EXIF rotation + GPS stripping + 12-photo cap + failed-unlink/orphan reconciliation, hidden-mode privacy export/download/delete, pending-age public allowlist, and redacted diagnostics.
+- `node tests/customer-profile-sharing.integration.cjs` (`npm run test:profile`) — `029` RLS & ownership across 8 tables, canonical exploration/favorites/notification reuse, coarse Sonoma town & dietary disclaimer validation, Greatest Hits limits/ordering/concurrency/catalog truthfulness, 18+ sharing eligibility without DOB persistence (including under-18 anti-coaching commit), 256-bit hashed `/s/<token>` links, preview parity, broadening confirmation, EXIF-stripped `sha_*` WebP derivatives & source-photo deletion cascade, signed-out abuse reporting, scoped `Mod`/`Top` suppression & anti-clone bypass, feature-control disablement, and zero raw-token logging.
 
 ---
 
 ## 4. Headless Chrome Browser E2E Suites (`tests/*browser.e2e.cjs`)
 
 Require disposable PostgreSQL + Chrome/Chromium (`CHROME_BIN` or standard system path):
-- `discovery-browser.e2e.cjs`, `discovery-cards-ux-browser.e2e.cjs`, `pager-notifications-browser.e2e.cjs`, `admin-portal-browser.e2e.cjs`, `legal-readiness-browser.e2e.cjs`, `feature-controls-browser.e2e.cjs`, `map-resilience-browser.e2e.cjs`, `invitation-workflow-browser.e2e.cjs`, `reliability-accessibility-browser.e2e.cjs`, `support-feedback-browser.e2e.cjs`, `welcome-experience-browser.e2e.cjs`, `urgent-pilot-security-browser.e2e.cjs` *(+ `customer-exploration-browser.e2e.cjs` on `83181ba`)*.
+- `discovery-browser.e2e.cjs`, `discovery-cards-ux-browser.e2e.cjs`, `pager-notifications-browser.e2e.cjs`, `admin-portal-browser.e2e.cjs`, `legal-readiness-browser.e2e.cjs`, `feature-controls-browser.e2e.cjs`, `map-resilience-browser.e2e.cjs`, `invitation-workflow-browser.e2e.cjs`, `reliability-accessibility-browser.e2e.cjs`, `support-feedback-browser.e2e.cjs`, `welcome-experience-browser.e2e.cjs`, `urgent-pilot-security-browser.e2e.cjs`, `customer-exploration-browser.e2e.cjs`, `customer-profile-browser.e2e.cjs` (`npm run test:e2e:profile`).
 
 ---
 

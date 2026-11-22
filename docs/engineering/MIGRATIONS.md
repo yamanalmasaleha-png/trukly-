@@ -2,7 +2,7 @@
 
 Migrations live in `migrations/NNN_<description>.sql` and are executed by [scripts/run-migrations.cjs](../../scripts/run-migrations.cjs).
 
-For the complete migration ledger (`001`–`028` on `working/biteshark-vps`; `001`–`026` on `staging2` branches prior to exploration merge), see [SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md).
+For the complete migration ledger (`001`–`029` on `feature/private-profiles-greatest-hits`; `001`–`028` on `working/biteshark-vps`; `001`–`026` on `staging2` branches prior to exploration merge), see [SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md).
 
 ---
 
@@ -24,6 +24,6 @@ For the complete migration ledger (`001`–`028` on `working/biteshark-vps`; `00
    - Every new user-, vendor-, or admin-scoped table must include `ALTER TABLE <table> ENABLE ROW LEVEL SECURITY; ALTER TABLE <table> FORCE ROW LEVEL SECURITY;` and explicit `CREATE POLICY` statements keyed to `current_setting('app.*', true)`.
 3. **Prevent Cross-Branch Number Collisions**:
    - Before choosing `NNN_`, inspect **both** staging branches (`git fetch origin` and check `migrations/` across `working/biteshark-vps`, `feature/customer-exploration-journal-trails`, `testing/yaman-staging2`, `antigravity/staging2-latest`).
-   - Note: **`027` (`027_customer_exploration_foundation.sql`) and `028` (`028_exploration_photo_reconciliation.sql`) are allocated on `working/biteshark-vps`** and applied on `staging.biteshark.live`! Any new migration must start at `029_` or coordinate numbering before merging (`npm run registry:validate` flags `MIGRATION_SEQUENCE_COLLISION` automatically).
+   - Note: **`027` (`027_customer_exploration_foundation.sql`), `028` (`028_exploration_photo_reconciliation.sql`), and `029` (`029_customer_profiles_collections_and_sharing.sql`)** are allocated (`027`–`028` on `working/biteshark-vps`; `029` on `feature/private-profiles-greatest-hits`). Any subsequent migration must start at `030_` or coordinate numbering before merging (`npm run registry:validate` flags `MIGRATION_SEQUENCE_COLLISION` automatically).
 4. **Update Test Assertions When Adding a Migration**:
-   - Note that several integration tests assert exact `newly_applied` counts on fresh test DBs (`28` on `working/biteshark-vps`). Run the full integration suite after adding a migration, and run `npm run registry:docs` to refresh [SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md).
+   - Note that several integration tests assert exact `newly_applied` counts on fresh test DBs (`29` on `feature/private-profiles-greatest-hits`, `28` on `working/biteshark-vps`). Run the full integration suite after adding a migration, and run `npm run registry:docs` to refresh [SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md).
