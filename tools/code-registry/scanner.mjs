@@ -82,7 +82,7 @@ export function scanRepositorySnapshot(
   for (const item of collected.includedFiles) {
     let text = '';
     try {
-      text = fs.readFileSync(item.absPath, 'utf8');
+      text = fs.readFileSync(item.absPath, 'utf8').replace(/\r\n/g, '\n');
     } catch {
       continue;
     }
