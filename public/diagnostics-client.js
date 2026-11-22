@@ -69,6 +69,7 @@
     s = s
       .replace(/\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]+/gi, '[REDACTED_AUTH]')
       .replace(/https?:\/\/[^\s"'<>]+/gi, '[REDACTED_URL]')
+      .replace(/\/s\/[A-Za-z0-9._~-]+/g, '/s/[REDACTED_TOKEN]')
       .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[REDACTED_EMAIL]')
       .replace(/\b(19\d{2}|20[0-2]\d)[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/g, '[REDACTED_DATE]')
       .replace(/[-+]?\b\d{1,3}\.\d{3,}\b/g, '[REDACTED_COORD]')
@@ -94,16 +95,16 @@
     if (q !== -1) p = p.slice(0, q);
     const h = p.indexOf('#');
     if (h !== -1) p = p.slice(0, h);
-    const parts = p
-      .split('/')
-      .filter(Boolean)
-      .slice(0, 7)
-      .map(function (seg) {
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg)) return ':uuid';
-        if (/^\d+$/.test(seg)) return ':id';
-        if (seg.length > 28 || /[^A-Za-z0-9._:-]/.test(seg)) return ':param';
-        return seg;
-      });
+    const rawParts = p.split('/').filter(Boolean).slice(0, 7);
+    const parts = rawParts.map(function (seg, idx) {
+      if (rawParts[0] === 's' && idx === 1) return ':token';
+      if (rawParts[0] === 's' && rawParts[2] === 'photo' && idx === 3) return ':attachment';
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(seg)) return ':uuid';
+      if (/^\d+$/.test(seg)) return ':id';
+      if (seg.length > 28 || /[^A-Za-z0-9._:-]/.test(seg)) return ':param';
+      if (seg.length >= 18 && /[0-9]/.test(seg) && /[A-Za-z]/.test(seg)) return ':param';
+      return seg;
+    });
     return '/' + parts.join('/');
   }
 

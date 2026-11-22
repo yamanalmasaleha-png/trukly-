@@ -23,7 +23,8 @@ import {
   generateCorrelationId,
   normalizeCorrelationId,
   recordDiagnosticEvent,
-  recordServerReleaseStartup
+  recordServerReleaseStartup,
+  sanitizeDiagnosticText
 } from '../lib/diagnostics.js';
 import { verifySameOriginMutation as verifyPagerSubscriptionCsrf } from '../lib/pager-notifications.js';
 import { runWithGovernanceContext } from '../lib/request-context.js';
@@ -94,6 +95,11 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/coffee-club.js',
   '/coffee-club.css',
   '/exploration-client.js',
+  '/profile-client.js',
+  '/customer-profile.js',
+  '/customer-profile.css',
+  '/shared-collection-page.js',
+  '/shared-collection-page.css',
   '/local-guides.js',
   '/local-guides.css',
   '/guide-passport.js',
@@ -118,6 +124,51 @@ function escapeHtml(raw) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function sanitizeLoggedRequestPath(pathname) {
+  const raw = String(pathname || '/');
+  if (raw === '/s' || raw.startsWith('/s/')) {
+    const segs = raw.split('/').filter(Boolean);
+    if (segs.length >= 4 && segs[2] === 'photo') {
+      return '/s/[REDACTED_TOKEN]/photo/:attachment';
+    }
+    return '/s/[REDACTED_TOKEN]';
+  }
+  return raw;
+}
+
+function renderProfileFeatureDisabledHtml() {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <meta name="referrer" content="no-referrer" />
+  <title>My BiteShark Unavailable · BiteShark</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f7f5ed; color: #243c31; margin: 0; padding: 32px 16px; }
+    main { max-width: 560px; margin: 40px auto; background: #fffdf7; border: 1px solid #d7ded3; border-radius: 18px; padding: 28px; }
+    h1 { margin: 0 0 12px; font-size: 1.45rem; }
+    p { line-height: 1.55; color: #4a5a50; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    a { display: inline-block; padding: 11px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; }
+    .primary { background: #234b3a; color: #fffdf7; }
+    .secondary { border: 1px solid #234b3a; color: #234b3a; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Private profile view is temporarily unavailable</h1>
+    <p>Your saved BiteShark data remains safe. Even while the profile dashboard is hidden, you can still export or delete your saved data, revoke any shared links, or contact support from the main app.</p>
+    <div class="actions">
+      <a class="primary" href="/">Return to BiteShark</a>
+      <a class="secondary" href="/#support">Help &amp; privacy support</a>
+    </div>
+  </main>
+</body>
+</html>`;
 }
 
 function renderAdminAccessDeniedHtml(userEmail, roleLabels = []) {
@@ -1160,6 +1211,101 @@ export function createStandaloneServer({
         return;
       }
 
+      // 4C. Dynamic Authenticated Customer Profile Entry (`/profile`, `/profile/`) & `/robots.txt`
+      if (pathname === '/robots.txt') {
+        if (method !== 'GET' && method !== 'HEAD') {
+          return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
+        }
+        const robotsBody = [
+          '# Search-engine crawl hint (not an access-control mechanism)',
+          'User-agent: *',
+          'Disallow: /s/',
+          'Disallow: /profile',
+          'Disallow: /admin',
+          'Disallow: /api/',
+          ''
+        ].join('\n');
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.setHeader('Content-Length', Buffer.byteLength(robotsBody, 'utf8'));
+        if (method === 'HEAD') {
+          res.end();
+          return;
+        }
+        res.end(robotsBody);
+        return;
+      }
+
+      if (pathname === '/profile' || pathname === '/profile/') {
+        applyPrivateNoStoreHeaders(res);
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        if (method !== 'GET' && method !== 'HEAD') {
+          return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
+        }
+
+        const sess = await resolveSessionFromRequest(dbAdapter, req);
+        if (sess.refreshedCookieHeader) {
+          appendSetCookie(res, sess.refreshedCookieHeader);
+        }
+        if (!sess.authenticated || !sess.user) {
+          res.statusCode = 302;
+          res.setHeader('Location', '/login.html?next=%2Fprofile');
+          res.end();
+          return;
+        }
+        if (sess.user.requires_age_assessment) {
+          res.statusCode = 302;
+          res.setHeader('Location', '/login.html?assess=1&next=%2Fprofile');
+          res.end();
+          return;
+        }
+
+        bindVerifiedRequestUser(req, sess.user);
+        const fcGate = await enforceHttpFeatureGate({
+          dbAdapter,
+          req,
+          auth,
+          pathname: '/api/me/profile',
+          method: 'GET',
+          requireTablePresent: true
+        });
+        if (!fcGate.allowed) {
+          const disabledHtml = renderProfileFeatureDisabledHtml();
+          res.statusCode = 403;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Content-Length', Buffer.byteLength(disabledHtml, 'utf8'));
+          if (method === 'HEAD') {
+            res.end();
+            return;
+          }
+          res.end(disabledHtml);
+          return;
+        }
+
+        const resolvedIndexHtml = resolveSafePublicFile(realPublicRoot, '/index.html');
+        if (!resolvedIndexHtml) {
+          return sendJsonResponse(res, 500, { error: 'Application assets are unavailable.' });
+        }
+        res.statusCode = 200;
+        res.setHeader('Content-Type', resolvedIndexHtml.mime);
+        res.setHeader('Content-Length', resolvedIndexHtml.size);
+        if (method === 'HEAD') {
+          res.end();
+          return;
+        }
+        const indexStream = fs.createReadStream(resolvedIndexHtml.filePath);
+        indexStream.on('error', () => {
+          if (!res.headersSent) {
+            sendJsonResponse(res, 500, { error: 'Profile asset read error.' });
+          } else {
+            res.destroy();
+          }
+        });
+        indexStream.pipe(res);
+        return;
+      }
+
       // 5. Restricted Static-File Serving (`public/` ONLY)
       const resolvedStatic = resolveSafePublicFile(realPublicRoot, pathname);
       if (!resolvedStatic) {
@@ -1226,9 +1372,9 @@ export function createStandaloneServer({
             level: 'error',
             event: 'unhandled_request_error',
             method,
-            path: pathname,
+            path: sanitizeLoggedRequestPath(pathname),
             code: err?.code || 'INTERNAL_ERROR',
-            message: String(err?.message || 'Unexpected error').slice(0, 200)
+            message: sanitizeDiagnosticText(err?.message || 'Unexpected error', 200, 'Unexpected error')
           })
         );
       }
