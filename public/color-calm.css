@@ -105,18 +105,304 @@ body{background:var(--cream);color:var(--ink)}
 .sheet-title{margin:5px 0 13px}
 .sheet-title h2{color:var(--trk-green)}
 .handwritten{color:var(--trk-rust)}
-.truck-cards{gap:14px}
-.truck-card{
-  background:var(--trk-paper);border:1px solid var(--trk-border);
-  box-shadow:none;border-radius:15px;
+.truck-cards,
+.favorite-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,410px),1fr));
+  gap:12px 14px;
+  align-items:stretch;
 }
-.truck-card:hover{border-color:#89A594;box-shadow:none}
-.truck-info h3{color:var(--trk-green)}
-.truck-photo{border-radius:10px}
-.heart{color:var(--trk-rust);border-color:var(--trk-border);background:var(--trk-paper)}
-.heart.saved{background:var(--trk-green);border-color:var(--trk-green);color:#FFFDF7}
-.open-tag{background:var(--trk-sage);color:var(--trk-green);border-color:var(--trk-border)}
-.detail-link,.street-file-links a,.street-file-links button{color:var(--trk-rust)}
+.truck-card{
+  position:relative;
+  display:grid;
+  grid-template-columns:100px minmax(0,1fr);
+  gap:14px;
+  align-items:stretch;
+  padding:12px 14px;
+  background:var(--trk-paper);
+  border:1px solid var(--trk-border);
+  border-radius:15px;
+  box-shadow:0 1px 3px rgba(32,55,43,0.04);
+  transition:border-color .16s ease,box-shadow .16s ease;
+}
+.truck-card:hover{
+  border-color:#89A594;
+  box-shadow:0 6px 18px rgba(32,55,43,0.07);
+}
+.truck-card.selected-card{
+  border-color:var(--trk-green);
+  outline:2px solid var(--trk-green);
+  outline-offset:-1px;
+}
+.truck-card > .truckly-spotlight{
+  display:none;
+}
+.truck-photo{
+  position:relative;
+  width:100px;
+  height:100px;
+  aspect-ratio:1 / 1;
+  align-self:start;
+  border-radius:12px;
+  overflow:hidden;
+  background:var(--trk-sage);
+  border:1px solid rgba(35,75,58,0.10);
+}
+.detail-hero{
+  position:relative;
+  height:210px;
+  border-radius:16px;
+  overflow:hidden;
+  background:var(--trk-sage);
+  border:1px solid var(--trk-border);
+}
+.truck-photo-fallback{
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(145deg,#EEF3EA 0%,#F5F1E4 100%);
+  background:linear-gradient(
+    145deg,
+    color-mix(in srgb,var(--thumb-tint,#D8E3D5) 26%,#F8F6EE) 0%,
+    color-mix(in srgb,var(--thumb-tint,#D8E3D5) 14%,#E7EFE5) 100%
+  );
+}
+.truck-photo-medallion{
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:rgba(255,253,247,0.90);
+  border:1px solid rgba(35,75,58,0.12);
+  box-shadow:0 2px 6px rgba(35,75,58,0.05);
+}
+.detail-hero .truck-photo-medallion{
+  width:84px;
+  height:84px;
+}
+.card-fallback-svg{
+  width:30px;
+  height:30px;
+  display:block;
+}
+.detail-hero .card-fallback-svg{
+  width:48px;
+  height:48px;
+}
+.truck-photo-img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:cover;
+  object-position:var(--media-focal-point,50% 50%);
+}
+.truck-info{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.truck-card-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 44px;
+  gap:8px;
+  align-items:start;
+}
+.truck-card-head-text{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.truck-info .truck-card-title{
+  font-family:'DM Sans',system-ui,-apple-system,sans-serif;
+  font-size:18px;
+  font-weight:700;
+  line-height:1.24;
+  letter-spacing:-0.015em;
+  color:var(--trk-green);
+  margin:0;
+  padding-right:0;
+  overflow-wrap:anywhere;
+}
+.truck-card-sub{
+  margin:0;
+  font-size:13.5px;
+  line-height:1.35;
+  font-weight:500;
+  color:var(--muted);
+  overflow-wrap:anywhere;
+}
+.truck-card-status-row{
+  margin:1px 0 0;
+  font-size:13.5px;
+  line-height:1.42;
+  color:var(--ink);
+  min-width:0;
+}
+.card-status-pill{
+  display:inline-flex;
+  align-items:center;
+  vertical-align:baseline;
+  padding:1px 7px;
+  margin-right:3px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:0.01em;
+  line-height:1.35;
+  border:1px solid var(--trk-border);
+  background:var(--trk-soft);
+  color:var(--muted);
+}
+.card-status-pill.is-open{
+  background:var(--trk-sage);
+  border-color:#ADC5B4;
+  color:#1B4A35;
+}
+.card-status-pill.is-est{
+  background:#F6EFE0;
+  border-color:#DFCEA6;
+  color:#6E4E12;
+}
+.card-status-pill.is-closed{
+  background:#F2F1EC;
+  border-color:#D7D9D2;
+  color:#58645D;
+}
+.card-status-pill.is-unknown{
+  background:#F7F5EE;
+  border-color:#DCE1D8;
+  color:#526359;
+}
+.truck-card-loc{
+  min-width:0;
+  color:#4A5B51;
+  overflow-wrap:anywhere;
+}
+.truck-card-loc b{
+  font-weight:600;
+  color:var(--ink);
+}
+.truck-card-loc.is-expired b{
+  color:#8F432D;
+}
+.truck-card-highlight{
+  margin:0;
+  font-size:13px;
+  line-height:1.36;
+  color:#3F5549;
+  overflow-wrap:anywhere;
+}
+.truck-card-highlight .highlight-kicker{
+  font-weight:600;
+  color:var(--muted);
+}
+.truck-card-foot{
+  margin-top:auto;
+  padding-top:1px;
+  display:flex;
+  align-items:center;
+}
+.heart{
+  position:static;
+  margin:-2px -2px 0 0;
+  justify-self:end;
+  width:44px;
+  height:44px;
+  padding:0;
+  display:inline-grid;
+  place-items:center;
+  border-radius:50%;
+  font-size:19px;
+  line-height:1;
+  color:var(--trk-rust);
+  border:1px solid var(--trk-border);
+  background:var(--trk-paper);
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.heart:hover{
+  border-color:#9EB4A6;
+  background:var(--trk-sage);
+}
+.heart.saved{
+  background:var(--trk-green);
+  border-color:var(--trk-green);
+  color:#FFFDF7;
+}
+.detail-link,
+.street-file-links a,
+.street-file-links button{
+  color:var(--trk-rust);
+}
+.truck-card .detail-link{
+  min-height:44px;
+  margin:-4px 0 -8px;
+  padding:8px 8px 8px 0;
+  font-size:14px;
+  font-weight:700;
+  line-height:1.25;
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  text-decoration:underline;
+  text-decoration-color:rgba(169,84,63,0.34);
+  text-underline-offset:3px;
+}
+.truck-card .detail-link:hover{
+  color:var(--trk-green);
+  text-decoration-color:currentColor;
+}
+#detailContent .truckly-spotlight{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:14px 0 8px;
+  padding:12px 14px;
+  border:1px solid var(--trk-border);
+  border-radius:12px;
+  background:#FBF7EC;
+  color:var(--trk-green);
+  text-align:left;
+}
+#detailContent .truckly-spotlight-icon{
+  font-size:22px;
+  line-height:1.35;
+  flex:none;
+}
+#detailContent .truckly-spotlight-body{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+  min-width:0;
+}
+#detailContent .truckly-spotlight-body small{
+  font-size:10.5px;
+  letter-spacing:.06em;
+  font-weight:700;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+#detailContent .truckly-spotlight-body strong{
+  font-size:14px;
+  line-height:1.35;
+}
+#detailContent .truckly-spotlight-explainer{
+  font-size:13px;
+  line-height:1.5;
+  color:#435B4A;
+}
+#detailContent .truckly-spotlight a{
+  font-size:13px;
+  font-weight:600;
+  color:var(--trk-green);
+  text-decoration:underline;
+  text-underline-offset:2px;
+}
 .mode-switch{background:var(--trk-green);border-color:var(--trk-green);box-shadow:none}
 .mode-switch button.active{background:var(--trk-sage);color:var(--trk-green)}
 /* Keep all extra editorial activities, but put them below the useful food results. */
@@ -237,11 +523,42 @@ body{background:var(--cream);color:var(--ink)}
   .sheet-title small{font-size:9px}
   .handwritten{display:none}
   .flavor-guide{display:none}
-  .truck-cards{gap:11px}
-  .truck-card{border-radius:13px;padding:11px;gap:10px}
-  .truck-info h3{font-size:17px;line-height:1.25;min-height:0}
-  .truck-info .meta,.truck-info .distance{font-size:12px;line-height:1.4}
-  .truck-info .detail-link{font-size:12px;min-height:38px}
+  .truck-cards,
+  .favorite-grid{gap:12px}
+  .truck-card{
+    grid-template-columns:88px minmax(0,1fr);
+    border-radius:14px;
+    padding:12px;
+    gap:12px;
+  }
+  .truck-photo{
+    width:88px;
+    height:88px;
+    border-radius:11px;
+  }
+  .truck-photo-medallion{
+    width:48px;
+    height:48px;
+  }
+  .card-fallback-svg{
+    width:27px;
+    height:27px;
+  }
+  .truck-info .truck-card-title{
+    font-size:17.5px;
+    line-height:1.24;
+    padding-right:0;
+  }
+  .truck-card-sub{
+    font-size:13.5px;
+  }
+  .truck-card-status-row{
+    font-size:13.5px;
+  }
+  .truck-card .detail-link{
+    font-size:14px;
+    min-height:44px;
+  }
   .discover-extras{margin:20px 0}
   .discover-extras>summary{padding:12px 13px;min-height:58px;gap:9px}
   .discover-extras-label strong{font-size:16px}
@@ -261,6 +578,8 @@ body{background:var(--cream);color:var(--ink)}
   .community-entry h3{font-size:13px}
   .community-entry button{font-size:10px;min-width:94px}
   .intro-copy h1{font-size:25px}
+  .truck-card{grid-template-columns:80px minmax(0,1fr);gap:10px;padding:11px}
+  .truck-photo{width:80px;height:80px}
 }
 /* v77: one-word terracotta accents, not another decorative banner. */
 :root{--brand-pop:#A9543F}

@@ -1041,16 +1041,241 @@ function pinStatusBadge(t) {
   return t.listing_type === 'Fixed truck / venue' ? 'HOURS' : 'CHECK';
 }
 
+function cardStatusInfo(t) {
+  if (t && t.verified && t.open === true) {
+    return { label: '● OPEN', tone: 'open' };
+  }
+  if (t && t.is_confirmed_service && t.open === true) {
+    return {
+      label: t.schedule_source === 'owner_schedule' ? '● SCHEDULED' : '● LIVE TODAY',
+      tone: 'open'
+    };
+  }
+  if (t && (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today')) {
+    return { label: '○ CLOSED TODAY', tone: 'closed' };
+  }
+  if (t && t.open === true) {
+    return { label: '◐ EST. OPEN', tone: 'est' };
+  }
+  return {
+    label: t && t.id === 'ross' ? 'Check lineup' : 'Check hours',
+    tone: 'unknown'
+  };
+}
+
 function cardOpenBadge(t) {
-  if (t.verified && t.open === true) return '● OPEN';
-  if (t.is_confirmed_service && t.open === true) {
-    return t.schedule_source === 'owner_schedule' ? '● SCHEDULED' : '● LIVE TODAY';
+  return cardStatusInfo(t).label;
+}
+
+function normalizeFocalPoint(raw) {
+  if (!raw) return '50% 50%';
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (/^\d{1,3}(?:\.\d+)?%\s+\d{1,3}(?:\.\d+)?%$/.test(trimmed)) {
+      return trimmed;
+    }
+    return '50% 50%';
   }
-  if (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today') {
-    return '○ CLOSED TODAY';
+  if (typeof raw === 'object') {
+    const x = Number(raw.x);
+    const y = Number(raw.y);
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      const cx = Math.max(0, Math.min(100, x));
+      const cy = Math.max(0, Math.min(100, y));
+      return `${cx}% ${cy}%`;
+    }
   }
-  if (t.open === true) return '◐ EST. OPEN';
-  return t.id === 'ross' ? 'CHECK LINEUP' : 'CHECK HOURS';
+  return '50% 50%';
+}
+
+/**
+ * Approved vendor image boundary:
+ *   - Uses existing catalog fields `photo` + `photo_rights_verified` (only renders `<img>` when
+ *     `photo_rights_verified === true` and URL is a safe relative `/...` or `https://...` asset,
+ *     never generic Unsplash stock photography).
+ *   - Supports optional `photo_focal_point` (`"50% 35%"` or `{ x, y }`) so future approved
+ *     vendor-managed photos and crop focal points drop in without changing card markup or CSS.
+ */
+function resolveApprovedVendorImage(t) {
+  if (!t || t.photo_rights_verified !== true || typeof t.photo !== 'string') {
+    return null;
+  }
+  const src = t.photo.trim();
+  if (!src || /images\.unsplash\.com/i.test(src)) {
+    return null;
+  }
+  if (!(/^\/(?!\/)[^\s"'<>]*$/.test(src) || /^https:\/\/[^\s"'<>]+$/i.test(src))) {
+    return null;
+  }
+  const businessName = cleanDisplayText(t.name) || 'Local food vendor';
+  return {
+    src,
+    alt: cleanDisplayText(t.photo_alt) || `${businessName} listing photo`,
+    focalPoint: normalizeFocalPoint(t.photo_focal_point)
+  };
+}
+
+function safeThumbTint(rawColor) {
+  const s = typeof rawColor === 'string' ? rawColor.trim() : '';
+  return /^#[0-9a-fA-F]{3,8}$/.test(s) ? s : '#D8E3D5';
+}
+
+function cleanDisplayText(val) {
+  if (val === null || val === undefined) return '';
+  const s = String(val).replace(/\s+/g, ' ').trim();
+  if (!s || s.toLowerCase() === 'undefined' || s.toLowerCase() === 'null') return '';
+  return s;
+}
+
+function pickCardIllustrationKey(t) {
+  const kind = String((t && (t.listing_kind || t.kind)) || '').toLowerCase();
+  const cuisine = String((t && t.cuisine) || '').toLowerCase();
+  const name = String((t && t.name) || '').toLowerCase();
+  if (kind.includes('farm') || cuisine.includes('farm')) return 'farm';
+  if (kind.includes('cafe') || kind.includes('coffee') || cuisine.includes('coffee') || name.includes('coffee') || name.includes('boba')) return 'coffee';
+  if (kind === 'venue' || name.includes('food park') || name.includes('the block')) return 'venue';
+  if (kind.includes('market') || cuisine.includes('market')) return 'market';
+  if (cuisine.includes('mexican') || name.includes('taco') || name.includes('mole')) return 'taco';
+  if (cuisine.includes('sweet') || name.includes('ice') || name.includes('fru-ta')) return 'sweet';
+  if (cuisine.includes('hot dog') || name.includes('dog') || name.includes('sausage')) return 'hotdog';
+  if (cuisine.includes('burger') || name.includes('grill') || name.includes('sandwich')) return 'burger';
+  if (kind.includes('popup') || (t && t.popup === true)) return 'popup';
+  return 'bowl';
+}
+
+function renderRestrainedCardIllustration(t) {
+  const key = pickCardIllustrationKey(t);
+  const shapes = {
+    taco: '<path d="M9 33c0-15 29-19 30-1H9Z" fill="#EAD096"/><path d="M12 27c3-6 9-9 15-7 5-3 10 1 11 7" fill="#B9CF9E"/><circle cx="19" cy="28" r="1.4" fill="#A9543F"/><circle cx="28" cy="27" r="1.4" fill="#A9543F"/>',
+    burger: '<path d="M11 21c0-8 26-8 26 0H11Z" fill="#E6C585"/><path d="M10 25h28M11 29h26" stroke-width="2.6"/><path d="M11 32h26c0 5-26 5-26 0Z" fill="#E6C585"/><path d="M13 23l5 2 6-2 6 2 5-2" fill="none" stroke="#5A8768"/>',
+    hotdog: '<path d="M11 31 28 14c5-3 9 1 6 6L17 37c-5 3-9-1-6-6Z" fill="#E9CA8E"/><path d="M14 31 29 16c3-1 4 1 3 3L17 34c-3 1-4-1-3-3Z" fill="#C66E52"/><path d="m17 29 3-4 4-1 2-4 4-1" fill="none" stroke="#F5DF97"/>',
+    coffee: '<path d="M13 19h18v10c0 6-4 9-9 9s-9-3-9-9V19Z" fill="#F2E2BE"/><path d="M31 21h3c4 0 4 7 0 7h-3" fill="none"/><path d="M19 14c-2-2 0-4 0-6M25 14c-2-2 0-4 0-6M11 39h22" fill="none"/>',
+    sweet: '<path d="m18 26 6 13 6-13" fill="#E1B884"/><path d="M15 25c-4-5 1-10 5-9 1-6 10-6 11 0 5 0 7 5 3 9H15Z" fill="#EFC8D2"/><circle cx="24" cy="11" r="2.2" fill="#A9543F"/>',
+    farm: '<path d="M29 17c4 4 2 10-3 14L14 38l7-12c4-5 5-11 8-9Z" fill="#E29A69"/><path d="M28 16c0-5 4-7 7-6-1 3-3 6-7 6Zm2 2c4-2 7-1 8 2-3 1-6 0-8-2Z" fill="#ADC798"/>',
+    market: '<path d="m11 23 3 14h20l3-14H11Z" fill="#E9CF94"/><path d="m16 23 6-10m10 10-6-10M18 27v6m6-6v6m6-6v6" fill="none"/><path d="M13 23c2-4 7-4 9 0 3-4 8-4 10 0" fill="#B8CEA2"/>',
+    venue: '<path d="M9 22 24 11l15 11v15H9V22Z" fill="#EFE0BA"/><path d="m9 22 7-5 8 5 8-5 7 5" fill="#C9D8C5"/><path d="M20 37V27h8v10" fill="#FFFDF7"/>',
+    popup: '<path d="M10 23h21v11H10V23Zm21 3h5l4 5v3h-9v-8Z" fill="#DCE6D7"/><path d="M9 23h23l-2-5H11l-2 5Z" fill="#E9C987"/><circle cx="16" cy="35" r="3" fill="#FFFDF7"/><circle cx="33" cy="35" r="3" fill="#FFFDF7"/>',
+    bowl: '<path d="M10 24h28c-1 9-6 13-14 13S11 33 10 24Z" fill="#E7BEA8"/><path d="M14 21c3-5 7-5 10 0 3-5 7-5 10 0" fill="#C2D4AD"/><path d="M16 39h16M20 14v-3m8 3v-4" fill="none"/>'
+  };
+  return (
+    '<svg class="card-fallback-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">' +
+    '<g stroke="#234B3A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    (shapes[key] || shapes.bowl) +
+    '</g></svg>'
+  );
+}
+
+function handleListingImageError(imgEl) {
+  if (!imgEl) return;
+  imgEl.onerror = null;
+  imgEl.hidden = true;
+  try {
+    imgEl.removeAttribute('src');
+  } catch {}
+  const slot = typeof imgEl.closest === 'function' ? imgEl.closest('.truck-photo, .detail-hero') : imgEl.parentElement;
+  if (slot && slot.classList) {
+    slot.classList.remove('has-photo');
+    slot.classList.add('icon-photo');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.handleListingImageError = handleListingImageError;
+}
+
+function renderListingMediaSlot(t, { variant = 'card', index = 0 } = {}) {
+  const approved = resolveApprovedVendorImage(t);
+  const tint = safeThumbTint(t && t.color);
+  const focal = approved ? approved.focalPoint : '50% 50%';
+  const baseClass = variant === 'detail' ? 'detail-hero' : 'truck-photo';
+  const stateClass = approved ? 'has-photo' : 'icon-photo';
+  const fallbackMarkup =
+    `<span class="truck-photo-fallback" aria-hidden="true">` +
+    `<span class="truck-photo-medallion">${renderRestrainedCardIllustration(t)}</span>` +
+    `</span>`;
+  if (!approved) {
+    return `<div class="${baseClass} ${stateClass}" style="--thumb-tint:${esc(tint)};--media-focal-point:${esc(focal)}">${fallbackMarkup}</div>`;
+  }
+  const loadAttr = variant === 'detail' || index < 6 ? 'eager' : 'lazy';
+  const sizeAttrs = variant === 'detail' ? 'width="532" height="220"' : 'width="104" height="104"';
+  return (
+    `<div class="${baseClass} ${stateClass}" style="--thumb-tint:${esc(tint)};--media-focal-point:${esc(focal)}">` +
+    fallbackMarkup +
+    `<img class="truck-photo-img" src="${esc(approved.src)}" alt="${esc(approved.alt)}" ${sizeAttrs} loading="${loadAttr}" decoding="async" onerror="handleListingImageError(this)">` +
+    `</div>`
+  );
+}
+
+function cardCategoryTownLine(t) {
+  const cuisine = cleanDisplayText(t && (t.cuisine || t.kind)) || 'Local food';
+  const kindRaw = cleanDisplayText(t && t.listing_kind).toLowerCase();
+  let formatHint = '';
+  if (kindRaw === 'venue' && !/park|market|venue/i.test(cuisine)) {
+    formatHint = 'Food venue';
+  } else if (kindRaw === 'market_stall' && !/market/i.test(cuisine)) {
+    formatHint = 'Market vendor';
+  } else if (t && t.popup === true && !/pop-?up/i.test(cuisine)) {
+    formatHint = 'Pop-up';
+  }
+  const city = cleanDisplayText(t && t.city) || 'Sonoma County';
+  const parts = [];
+  for (const part of [cuisine, formatHint, city]) {
+    if (!part) continue;
+    if (!parts.some(existing => existing.toLowerCase() === part.toLowerCase())) {
+      parts.push(part);
+    }
+  }
+  return parts.join(' · ');
+}
+
+function cardHighlightLine(t) {
+  const hlApi =
+    (typeof window !== 'undefined' && window.bitesharkListingHighlights) ||
+    (typeof globalThis !== 'undefined' && globalThis.bitesharkListingHighlights) ||
+    null;
+  const pick = hlApi && typeof hlApi.getPick === 'function' ? hlApi.getPick(t) : null;
+  if (!pick || !pick.title) return '';
+  const heading = cleanDisplayText(pick.heading);
+  const title = cleanDisplayText(pick.title);
+  if (!title) return '';
+  return `<p class="truck-card-highlight">${heading ? `<span class="highlight-kicker">${esc(heading)}:</span> ` : ''}${esc(title)}</p>`;
+}
+
+function captureActiveCardControlFocus(containerId) {
+  if (typeof document === 'undefined') return null;
+  const container = document.getElementById(containerId);
+  const active = document.activeElement;
+  if (!container || !active || active === document.body || typeof container.contains !== 'function' || !container.contains(active)) {
+    return null;
+  }
+  const card = typeof active.closest === 'function' ? active.closest('.truck-card') : null;
+  const truckId = card && card.dataset ? card.dataset.truckId : null;
+  if (!truckId) return null;
+  const controlRole = active.classList && active.classList.contains('heart') ? 'heart' : 'detail';
+  return { containerId, truckId, controlRole };
+}
+
+function restoreActiveCardControlFocus(snapshot) {
+  if (!snapshot || typeof document === 'undefined') return;
+  const container = document.getElementById(snapshot.containerId);
+  if (!container || typeof container.querySelectorAll !== 'function') return;
+  const cards = container.querySelectorAll('.truck-card');
+  for (let i = 0; i < cards.length; i += 1) {
+    const c = cards[i];
+    if (c && c.dataset && c.dataset.truckId === snapshot.truckId) {
+      const target = c.querySelector(snapshot.controlRole === 'heart' ? '.heart' : '.detail-link');
+      if (target && typeof target.focus === 'function') {
+        try {
+          target.focus({ preventScroll: true });
+        } catch {
+          try {
+            target.focus();
+          } catch {}
+        }
+      }
+      break;
+    }
+  }
 }
 
 function detailStatusPrefix(t) {
@@ -1130,11 +1355,13 @@ function applyFilters() {
     }
   }
 
+  const focusSnap = captureActiveCardControlFocus('truckCards');
   document.getElementById('truckCards').innerHTML = show.length
-    ? show.map(cardHTML).join('')
+    ? show.map((t, i) => cardHTML(t, i)).join('')
     : (openOnly
       ? '<div class="empty">No places have published open hours right now. Turn off Open now to browse all spots and confirm their schedules.</div>'
       : '<div class="empty">No spots match those filters. Try widening your search or setting radius to 30 mi.</div>');
+  restoreActiveCardControlFocus(focusSnap);
 }
 
 function resetFilters() {
@@ -1179,41 +1406,104 @@ function resetFilters() {
   applyFilters();
 }
 
-function openTruck(id) {
-  document.getElementById('discoverScreen').classList.contains('list-mode') ? openDetail(id) : selectTruck(id);
+function openTruck(id, triggerEl) {
+  const discover = document.getElementById('discoverScreen');
+  if (!discover || !discover.classList.contains('active') || discover.classList.contains('list-mode')) {
+    openDetail(id, triggerEl);
+  } else {
+    selectTruck(id);
+  }
 }
 
-function extraCard(t) {
+function handleCardSurfaceClick(event, id) {
+  if (event && event.target && typeof event.target.closest === 'function') {
+    if (event.target.closest('button, a, input, select, textarea')) {
+      return;
+    }
+  }
+  const cardEl = event && event.currentTarget ? event.currentTarget : null;
+  const detailBtn = cardEl && typeof cardEl.querySelector === 'function' ? cardEl.querySelector('.detail-link') : null;
+  openTruck(id, detailBtn);
+}
+
+function cardHTML(t, index = 0) {
+  if (!t) return '';
+  const status = cardStatusInfo(t);
   const isSaved = favs.has(t.id);
   const isSelected = t.id === selectedTruck;
   const safeId = esc(t.id);
-  const tagLabel = t.is_confirmed_service && t.open === true
-    ? `● LIVE · ${t.kind || 'Local'}`
-    : (t.schedule_status === 'unavailable_today' || t.schedule_status === 'owner_paused_today' ? '○ CLOSED TODAY' : (t.kind || 'Local'));
-  return `<article class="truck-card${isSelected ? ' selected-card' : ''}" onclick="openDetail('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji">${esc(t.emoji)}</span><span class="open-tag">${esc(tagLabel)}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta">${esc(t.cuisine)} · ${esc(t.city)}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Hours &amp; details ↗</button></div></article>`;
+  const businessName = cleanDisplayText(t.name) || 'Local food spot';
+  const categoryTown = cardCategoryTownLine(t);
+  const distText = cleanDisplayText(distanceLabel(t, 'card')) || 'Location to confirm';
+  const locText = cleanDisplayText(t.location);
+  const locExpiredClass = t.location_expired ? ' is-expired' : '';
+  const highlightHtml = cardHighlightLine(t);
+  const favLabel = isSaved
+    ? `Remove ${businessName} from saved places`
+    : `Save ${businessName} to saved places`;
+  const detailLabel = `View details and hours for ${businessName}`;
+
+  return (
+    `<article class="truck-card${isSelected ? ' selected-card' : ''}" data-truck-id="${safeId}" onclick="handleCardSurfaceClick(event, '${safeId}')">` +
+    renderListingMediaSlot(t, { variant: 'card', index }) +
+    `<div class="truck-info">` +
+    `<div class="truck-card-top">` +
+    `<div class="truck-card-head-text">` +
+    `<h3 class="truck-card-title">${esc(businessName)}</h3>` +
+    `<p class="truck-card-sub">${esc(categoryTown)}</p>` +
+    `</div>` +
+    `<button type="button" class="heart${isSaved ? ' saved' : ''}" data-fav-id="${safeId}" aria-label="${esc(favLabel)}" aria-pressed="${isSaved}" onclick="toggleFav('${safeId}')"><span aria-hidden="true">${isSaved ? '♥' : '♡'}</span></button>` +
+    `</div>` +
+    `<p class="truck-card-status-row">` +
+    `<span class="card-status-pill is-${status.tone}">${esc(status.label)}</span> ` +
+    `<span class="truck-card-loc${locExpiredClass}"><span aria-hidden="true">⌖</span> <b>${esc(distText)}</b>${locText ? ' · ' + esc(locText) : ''}</span>` +
+    `</p>` +
+    highlightHtml +
+    `<div class="truck-card-foot">` +
+    `<button type="button" class="detail-link" aria-label="${esc(detailLabel)}" onclick="openDetail('${safeId}', this)">View details &amp; hours <span aria-hidden="true">→</span></button>` +
+    `</div>` +
+    `</div>` +
+    `</article>`
+  );
 }
 
-function extraDetail(t) {
+function extraCard(t) {
+  return cardHTML(t, 0);
+}
+
+function resolveDetailRestoreTrigger(id, explicitTrigger) {
+  if (explicitTrigger && typeof explicitTrigger.focus === 'function') {
+    return explicitTrigger;
+  }
+  if (typeof document === 'undefined') return null;
+  const active = document.activeElement;
+  if (active && active !== document.body && typeof active.focus === 'function') {
+    return active;
+  }
+  if (typeof document.querySelectorAll === 'function') {
+    const cards = document.querySelectorAll('.truck-card');
+    for (let i = 0; i < cards.length; i += 1) {
+      const c = cards[i];
+      if (c && c.dataset && c.dataset.truckId === id) {
+        return c.querySelector('.detail-link') || null;
+      }
+    }
+  }
+  return null;
+}
+
+function extraDetail(t, triggerEl) {
   const safeId = esc(t.id);
   const storyHref = esc(t.storySource || t.source || '');
   const statusPrefix = detailStatusPrefix(t);
   const metaDisclaimer = t.is_confirmed_service
     ? `Status reported directly by authorized vendor staff (${esc(distanceLabel(t, 'detail'))}).`
     : `Source checked ${esc(t.checked || 'recently')}. Hours and pop-up locations can change. ${esc(distanceLabel(t, 'detail'))}.`;
-  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close details">×</button><div class="detail-hero icon-photo" style="background:${esc(t.color)}"><span class="photo-emoji" aria-hidden="true">${esc(t.emoji)}</span></div><div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2 id="detailDialogTitle">${esc(t.name)}</h2><p>${esc(t.blurb)}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
-  openAppModal('detailModal', { onClose: closeModal });
+  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close details">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
+  openAppModal('detailModal', { onClose: closeModal, triggerEl });
   if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
     window.bitesharkFeatures.syncDom();
   }
-}
-
-function cardHTML(t) {
-  if (t.extra) return extraCard(t);
-  const openTag = cardOpenBadge(t);
-  const isSaved = favs.has(t.id);
-  const isSelected = t.id === selectedTruck;
-  const safeId = esc(t.id);
-  return `<article class="truck-card${isSelected ? ' selected-card' : ''}" onclick="openTruck('${safeId}')"><button class="heart ${isSaved ? 'saved' : ''}" aria-label="${isSaved ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${isSaved}" onclick="event.stopPropagation();toggleFav('${safeId}')">${isSaved ? '♥' : '♡'}</button><div class="truck-photo ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}<span class="open-tag">${openTag}</span></div><div class="truck-info"><h3>${esc(t.name)}</h3><div class="meta"><span class="rating">${t.verified && t.rating ? `★ ${esc(t.rating)}` : 'Menu & info'}</span> ${t.verified && t.reviews ? `(${esc(t.reviews)}) · ` : ''}${esc(t.cuisine)}${t.price ? ' · ' + esc(t.price) : ''}</div><div class="meta city-meta">${esc(t.city || 'Sonoma County')} · ${esc(t.listing_type || t.availability || '')}</div><div class="distance">⌖ <b>${esc(distanceLabel(t, 'card'))}</b> · ${esc(t.location)}</div><button class="detail-link" onclick="event.stopPropagation();openDetail('${safeId}')">Get the lowdown →</button></div></article>`;
 }
 
 function selectTruck(id) {
@@ -1224,12 +1514,16 @@ function selectTruck(id) {
     map.flyTo([+t.lat + offset, +t.lng], 15, isReducedMotion() ? { animate: false, duration: 0 } : { duration: 0.55 });
   }
   applyFilters();
-  document.querySelectorAll('.truck-card').forEach(c => c.classList.toggle('selected-card', c.getAttribute('onclick')?.includes(`'${id}'`)));
+  document.querySelectorAll('.truck-card').forEach(c => {
+    const match = (c.dataset && c.dataset.truckId === id) || Boolean(c.getAttribute('onclick')?.includes(`'${id}'`));
+    c.classList.toggle('selected-card', match);
+  });
 }
 
-function openDetail(id) {
+function openDetail(id, triggerEl) {
   const t = trucks.find(x => x.id === id);
   if (!t) return;
+  const resolvedTrigger = resolveDetailRestoreTrigger(id, triggerEl);
   const welcomeEl = document.getElementById('welcomeScreen');
   const vendorIntroEl = document.getElementById('vendorIntroScreen');
   if ((welcomeEl && welcomeEl.classList?.contains('active')) || (vendorIntroEl && vendorIntroEl.classList?.contains('active'))) {
@@ -1237,13 +1531,17 @@ function openDetail(id) {
   }
   selectedTruck = id;
   if (t.extra) {
-    extraDetail(t);
+    extraDetail(t, resolvedTrigger);
     return;
   }
   const statusPrefix = detailStatusPrefix(t);
   const safeId = esc(t.id);
-  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" aria-label="Close details" onclick="closeModal()">×</button><div class="detail-hero ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji" aria-hidden="true">${esc(t.emoji)}</span>`}</div><div class="detail-body"><small>${statusPrefix}${esc(t.cuisine).toUpperCase()}</small><h2 id="detailDialogTitle">${esc(t.emoji)} ${esc(t.name)}</h2><p>${esc(t.blurb)}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${t.price ? `<span>${esc(t.price)}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(t.location)}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot" aria-hidden="true">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(t.listing_type || t.availability || 'Mobile vendor')} · ${esc(t.city || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button><button type="button" class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button></div>`;
-  openAppModal('detailModal', { onClose: closeModal });
+  const canBookListing = t.event_bookable !== false && t.accepting_bookings !== false;
+  const bookingBtnHtml = canBookListing
+    ? `<button type="button" class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button>`
+    : '';
+  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" aria-label="Close details" onclick="closeModal()">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc(cleanDisplayText(t.cuisine)).toUpperCase()}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${cleanDisplayText(t.price) ? `<span>${esc(cleanDisplayText(t.price))}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot" aria-hidden="true">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(cleanDisplayText(t.listing_type || t.availability) || 'Mobile vendor')} · ${esc(cleanDisplayText(t.city) || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button>${bookingBtnHtml}</div>`;
+  openAppModal('detailModal', { onClose: closeModal, triggerEl: resolvedTrigger });
   if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
     window.bitesharkFeatures.syncDom();
   }
@@ -1673,10 +1971,12 @@ async function toggleFavRetry(id, desiredSaved) {
 function renderFavorites() {
   const el = document.getElementById('favoriteGrid');
   if (!el) return;
+  const focusSnap = captureActiveCardControlFocus('favoriteGrid');
   const saved = trucks.filter(t => favs.has(t.id));
   el.innerHTML = saved.length
-    ? saved.map(t => t.extra ? extraCard(t) : `<article class="favorite-item"><div class="truck-photo ${t.photo ? '' : 'icon-photo'}" style="${t.photo ? `background-image:url('${esc(t.photo)}')` : `background:${esc(t.color)}`}">${t.photo ? '' : `<span class="photo-emoji">${esc(t.emoji)}</span>`}</div><div><small>${esc(t.cuisine).toUpperCase()}</small><h3>${esc(t.name)}</h3><p class="meta">${t.verified && t.rating ? `★ ${esc(t.rating)} · ` : ''}${esc(distanceLabel(t, 'fav'))}</p><button class="detail-link" onclick="openDetail('${esc(t.id)}')">See where they are →</button></div></article>`).join('')
+    ? saved.map((t, i) => cardHTML(t, i)).join('')
     : '<div class="empty">Tap a heart on the map or list to save your first favorite.</div>';
+  restoreActiveCardControlFocus(focusSnap);
 }
 
 function renderNotificationUI() {

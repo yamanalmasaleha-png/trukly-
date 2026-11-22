@@ -128,7 +128,6 @@
 #guidePassport .passport-privacy{max-width:850px;line-height:1.6;margin:4px 0 26px}
 /* Improve discover card breathing room and horizontal filter spacing. */
 .discovery-toolbar .filters{gap:10px}
-.truck-cards{gap:20px}
 .list-mode .truck-sheet{scrollbar-gutter:stable}
 .neighborhood-intro{gap:32px}
 #guidesScreen .guide-card-actions{gap:12px}
@@ -173,8 +172,6 @@
   .neighborhood-ribbon{margin-bottom:26px}
   .explore-kinds{gap:12px;margin:14px 0 22px}
   .explore-kinds button{padding:15px;gap:8px}
-  .truck-cards{gap:16px}
-  .truck-card{padding:14px;gap:14px}
   .page-screen{padding-left:18px;padding-right:18px}
   #guidesScreen .guides-hero{
     display:block;

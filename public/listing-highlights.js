@@ -1,6 +1,9 @@
-/* Truckly listing photo + menu spotlights — review-only patch.
- * Based on v77 catalog audit; apply to live v77 ONLY after rebase and QA.
- * No externally hosted photo is claimed to depict a named business.
+/* BiteShark listing menu highlights & photo-rights provenance.
+ *
+ * Keeps sourced menu/venue notes and data-quality disclosures available in the
+ * listing detail modal while exposing concise, optional 1-line card highlights
+ * ONLY for listings with a researched pick (never rendering a disconnected
+ * spotlight box or "Dish and photo research pending" banner on discovery cards).
  */
 (function () {
   "use strict";
@@ -23,63 +26,84 @@
     "lucha": {heading:"Previously documented dish",title:"Mushroom Tacos",note:"Documented at Mitote in earlier reporting; confirm the present-day menu before visiting.",source:"https://www.sonomamag.com/mitote-food-park-soft-opens-at-new-location/"},
     "coffee-crooks": {heading:"Signature drink",title:"Crème Brûlée Latte",note:"The menu also lists Mexican mocha and café con miele; none is confirmed as the top seller.",source:"https://shadyraveninc.com/menu"}
   });
+
   function esc(value) {
-    return String(value == null ? "" : value).replace(/[&<>"']/g,function(ch){
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];
     });
   }
+
   function removeGenericStockPhoto(t) {
     if (!t) return;
     if (t.verification_status !== "business_confirmed") t.verified = false;
     if (t.photo_rights_verified !== true) t.photo = null;
     if (typeof t.photo === "string" && /^https:\/\/images\.unsplash\.com\//i.test(t.photo)) {
-      t.photo = null; // generic stock ≠ a business's actual dish or venue
+      t.photo = null; // generic stock != a business's actual dish or venue
     }
   }
-  function getPick(t) { return t && PICKS[t.id] || null; }
-  function noteMarkup(t, forDetail) {
+
+  function getPick(t) {
+    return (t && PICKS[t.id]) || null;
+  }
+
+  function detailSpotlightMarkup(t) {
     if (!t) return "";
-    var pick=getPick(t);
-    var category=esc(t.kind || t.cuisine || "Local food");
-    var represent=esc(pick && pick.icon || t.emoji || "🍽️");
-    var heading=pick ? pick.heading : "Dish and photo research pending";
-    var label=pick ? pick.title : category + " to explore";
-    var sub=pick ? pick.note : "Illustrative icon only. We have not confirmed this vendor's best dish or permission to display a vendor-specific food photo.";
-    var source=forDetail && pick && pick.source ? '<a href="'+esc(pick.source)+'" target="_blank" rel="noopener noreferrer">Check published source ↗</a>' : "";
-    return '<section class="truckly-spotlight" aria-label="Restaurant spotlight">'+
-      '<span class="truckly-spotlight-icon" aria-hidden="true">'+represent+'</span>'+
-      '<span class="truckly-spotlight-body"><small>'+esc(heading)+'</small><strong>'+esc(label)+'</strong>'+
-      (forDetail ? '<span class="truckly-spotlight-explainer">'+esc(sub)+'</span>'+source : '')+
-      '</span></section>';
+    var pick = getPick(t);
+    var category = esc(t.kind || t.cuisine || "Local food");
+    var represent = esc((pick && pick.icon) || t.emoji || "🍽️");
+    var heading = pick ? pick.heading : "Dish and photo research pending";
+    var label = pick ? pick.title : category + " to explore";
+    var sub = pick
+      ? pick.note
+      : "Illustrative icon only. We have not confirmed this vendor's best dish or permission to display a vendor-specific food photo.";
+    var source =
+      pick && pick.source
+        ? '<a href="' + esc(pick.source) + '" target="_blank" rel="noopener noreferrer">Check published source ↗</a>'
+        : "";
+    return (
+      '<section class="truckly-spotlight" aria-label="Listing research and photo provenance">' +
+      '<span class="truckly-spotlight-icon" aria-hidden="true">' + represent + "</span>" +
+      '<span class="truckly-spotlight-body"><small>' + esc(heading) + "</small><strong>" + esc(label) + "</strong>" +
+      '<span class="truckly-spotlight-explainer">' + esc(sub) + "</span>" + source +
+      "</span></section>"
+    );
   }
-  function addToCard(html,t) {
-    if (typeof html !== "string" || !html.includes("</article>")) return html;
-    return html.replace(/<\/article>\s*$/i,noteMarkup(t,false)+"</article>");
+
+  var api = Object.freeze({
+    getPick: getPick,
+    sanitizeListingMedia: removeGenericStockPhoto,
+    renderDetailSpotlight: detailSpotlightMarkup
+  });
+
+  if (typeof window !== "undefined") {
+    window.bitesharkListingHighlights = api;
   }
-  if (typeof trucks !== "undefined" && Array.isArray(trucks)) trucks.forEach(removeGenericStockPhoto);
-  if (typeof cardHTML === "function") {
-    var baseCardHTML=cardHTML;
-    cardHTML=function(t){removeGenericStockPhoto(t);if(t && t.extra)return baseCardHTML(t);return addToCard(baseCardHTML(t),t);};
+  if (typeof globalThis !== "undefined") {
+    globalThis.bitesharkListingHighlights = api;
   }
-  if (typeof extraCard === "function") {
-    var baseExtraCard=extraCard;
-    extraCard=function(t){removeGenericStockPhoto(t); return addToCard(baseExtraCard(t),t);};
+
+  if (typeof trucks !== "undefined" && Array.isArray(trucks)) {
+    trucks.forEach(removeGenericStockPhoto);
   }
+
   if (typeof openDetail === "function") {
-    var baseOpenDetail=openDetail;
-    openDetail=function(id){
-      var t=typeof trucks !== "undefined" && Array.isArray(trucks) ? trucks.find(function(x){return x.id===id;}) : null;
+    var baseOpenDetail = openDetail;
+    openDetail = function (id, triggerEl) {
+      var t =
+        typeof trucks !== "undefined" && Array.isArray(trucks)
+          ? trucks.find(function (x) { return x.id === id; })
+          : null;
       removeGenericStockPhoto(t);
-      var result=baseOpenDetail(id);
-      var body=document.querySelector("#detailContent .detail-body");
-      if(body && t && !body.querySelector(".truckly-spotlight"))body.insertAdjacentHTML("beforeend",noteMarkup(t,true));
+      var result = baseOpenDetail(id, triggerEl);
+      var body = document.querySelector("#detailContent .detail-body");
+      if (body && t && !body.querySelector(".truckly-spotlight")) {
+        body.insertAdjacentHTML("beforeend", detailSpotlightMarkup(t));
+      }
       return result;
     };
   }
-  if (!document.getElementById("truckly-spotlight-style")) {
-    var css=document.createElement("style");
-    css.id="truckly-spotlight-style";
-    css.textContent=".truck-card{overflow:hidden;transition:box-shadow .18s ease,transform .18s ease}.truck-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(27,51,36,.10)}.truck-photo.icon-photo,.detail-hero.icon-photo{position:relative;isolation:isolate;background-image:radial-gradient(circle at 25% 15%,rgba(255,255,255,.83) 0 8%,transparent 32%),radial-gradient(circle at 75% 85%,rgba(38,71,54,.22) 0 5%,transparent 48%),linear-gradient(130deg,#f1ca86 0%,#efd8ae 53%,#d1dfb8 100%) !important}.truck-photo.icon-photo:before,.detail-hero.icon-photo:before{content:' ';position:absolute;inset:12%;border:2px dashed rgba(37,74,51,.15);border-radius:30px;transform:rotate(-12deg);z-index:-1}.truck-photo.icon-photo .photo-emoji,.detail-hero.icon-photo .photo-emoji{display:block;font-size:clamp(54px,9vw,110px);text-shadow:0 9px 1px rgba(26,49,29,.11);transform:rotate(-7deg);filter:drop-shadow(0 8px 9px rgba(47,49,38,.15))}.truckly-spotlight{display:flex;align-items:flex-start;gap:10px;margin:12px 0 4px;padding:11px 12px;border:1px solid rgba(32,77,56,.15);border-radius:12px;background:#fbf6e9;color:#214b3b;text-align:left}.truckly-spotlight-icon{font-size:23px;line-height:1.35;flex:none}.truckly-spotlight-body{display:flex;flex-direction:column;gap:3px;min-width:0}.truckly-spotlight-body small{font-size:10px;letter-spacing:.06em;font-weight:700;text-transform:uppercase;color:#68745a}.truckly-spotlight-body strong{font-size:13px;line-height:1.3}.truckly-spotlight-explainer{font-size:12px;line-height:1.5;color:#435b4a}.truckly-spotlight a{font-size:12px;color:#1c664e;text-decoration:underline;text-underline-offset:2px}";
-    document.head.appendChild(css);
+
+  if (typeof applyFilters === "function" && typeof document !== "undefined" && document.getElementById("truckCards")) {
+    applyFilters();
   }
 })();

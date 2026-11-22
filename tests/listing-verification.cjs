@@ -315,7 +315,8 @@ function makeEl(id,extra={}){
   assert.equal(elements.openHoursNote.hidden,false,'unverified hours disclaimer shown when Open Now matches unverified listing');
   assert.equal(elements.mapEmpty.hidden,true,'map empty hidden when 1 listing is open');
   assert(elements.truckCards.innerHTML.includes('◐ EST. OPEN'),'unverified open truck labeled EST. OPEN, not confirmed OPEN');
-  assert(elements.truckCards.innerHTML.includes('truckly-spotlight'),'listing-highlights wrapped cardHTML before render');
+  assert(elements.truckCards.innerHTML.includes('Bionico fruit bowl'),'sourced menu highlight rendered concisely inside card text column');
+  assert(!elements.truckCards.innerHTML.includes('truckly-spotlight') && !elements.truckCards.innerHTML.includes('Dish and photo research pending'),'disconnected spotlight box and research-pending banner omitted from discovery cards');
 
   // When 0 trucks are open, Map mode displays visible empty banner
   vm.runInContext('trucks.forEach(t => { t.open = false; }); applyFilters();',sandbox);
