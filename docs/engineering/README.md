@@ -35,6 +35,7 @@ This handbook is the **single, code-grounded engineering reference** for BiteSha
 - [Configuration (`CONFIGURATION.md`)](CONFIGURATION.md) & [Configuration Keys Contract (`contracts/configuration-keys.json`)](contracts/configuration-keys.json) — Complete `BITESHARK_*` / `TRUCKLY_*` matrix (names, defaults, fail-closed rules, secret classes — zero secret values).
 - [Storage & Files (`STORAGE-AND-FILES.md`)](STORAGE-AND-FILES.md) — Browser storage, DB `BYTEA` evidence, customer photo storage (`83181ba`), persistent VPS paths, and encrypted backups.
 - [Dependencies & Licenses (`DEPENDENCIES-AND-LICENSES.md`)](DEPENDENCIES-AND-LICENSES.md) — Direct/transitive npm packages, Leaflet/Google Fonts/OSM CDN provenance, vendored `acorn`, first-party icons, and historical archives.
+- [BiteShark staging2 style guide](STYLE-GUIDE.md) — Palette, typography, component patterns, product voice and mobile review.
 - [UI & Content Guide (`UI-AND-CONTENT-GUIDE.md`)](UI-AND-CONTENT-GUIDE.md) — Cream/forest-green visual identity, `.truck-card` compact card architecture, cascade traps, and truthful copy rules.
 - [Accessibility (`ACCESSIBILITY.md`)](ACCESSIBILITY.md) — Skip links, `openModalDialog` focus traps, touch targets, reduced motion, and known modal bypasses.
 - [Testing (`TESTING.md`)](TESTING.md) — Unit, embedded-PostgreSQL integration, headless Chrome E2E, installer, and registry test suites.
