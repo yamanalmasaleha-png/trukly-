@@ -1,0 +1,13 @@
+# Miniature truck map markers
+
+Development branch: `antigravity/staging2-latest`. Local changes only; no deployment.
+
+The final design follows the requested revision to colorful minimalist food trucks. Cuisine-specific vector trucks float directly on the map, with short actual vendor names beneath, including on clusters. A cluster shows its selected vendor or the vendor nearest its center, with a “+N” badge for other members. Details and cluster member lists retain full vendor names. Existing approved photography remains in listing/detail media through `resolveApprovedVendorImage`; truck illustrations never claim to show an actual vendor vehicle or product.
+
+Markers use an 84 × 82 px touch footprint, including labels, and scale 1.15 when selected. Open, closed, and unknown schedules have explicit words and symbols. Unverified published hours remain “Est. open,” never confirmed open. Count badges identify clusters; selecting one opens a scrollable vendor chooser with at least 44 px buttons and a zoom control. This also handles vendors sharing coordinates at maximum zoom. Enter and Space activate markers, and focus survives an unchanged layout.
+
+Clustering operates in projected container pixels, recalculating on movement, zoom, resize, or filters. Each merge checks the resulting centroid again; reserved footprints include selected scaling and an 8 px gutter. Selected vendors anchor their cluster at their actual coordinate. No catalog cap or artificial coordinate jitter is used. At the initial town-level zoom, distant vendors remain reachable by panning or List view. List/detail rendering remains separate from map movements.
+
+Design plugin: Canva generated a bold flat food-truck direction, including clear pizza, taco, and burger symbols. [Open generated image](https://www.canva.com/M/MAHbnTz2dYk?utm_source=OC-AaBlKrqBJJNF&utm_campaign=agent_connector_create_image_asset_opened). The app adapts that direction into nine self-contained SVG variants in `public/map-cards.js`, avoiding raster blur at small sizes. Every variant uses a large distinct cuisine roof symbol. The older 3D raster atlas is replaced by these lightweight vectors.
+
+Validation: `node tests/map-cards.test.cjs`, `node tests/map-resilience.test.cjs`, `node tests/listing-verification.cjs`, browser-script syntax checks, and local live-map visual review. The database-backed map resilience browser suite additionally needs PostgreSQL and headless Chrome infrastructure; its Leaflet fixture now supports projection, element access, and multi-event subscriptions used by the real map.

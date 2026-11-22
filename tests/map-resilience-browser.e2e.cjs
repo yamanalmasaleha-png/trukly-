@@ -272,6 +272,10 @@ const LEAFLET_FIXTURE_JS = `
 
   function Evented() { this._handlers = {}; }
   Evented.prototype.on = function (type, fn) {
+    if (type.indexOf(' ') >= 0) {
+      type.split(/\\s+/).forEach(function (name) { this.on(name, fn); }, this);
+      return this;
+    }
     (this._handlers[type] = this._handlers[type] || []).push(fn);
     return this;
   };
@@ -345,6 +349,7 @@ const LEAFLET_FIXTURE_JS = `
     this._map = null;
   }
   Marker.prototype = Object.create(Evented.prototype);
+  Marker.prototype.getElement = function () { return this._el; };
   Marker.prototype.setLatLng = function (latlng) {
     this._latlng = latlng;
     if (this._map) this._map._positionMarker(this);
@@ -390,6 +395,22 @@ const LEAFLET_FIXTURE_JS = `
     return this;
   };
   MapInstance.prototype.getZoom = function () { return this._zoom; };
+  MapInstance.prototype.getMaxZoom = function () { return this.options.maxZoom || 19; };
+  MapInstance.prototype.getSize = function () {
+    var rect = this._el.getBoundingClientRect();
+    return { x: Math.max(320, rect.width || 800), y: Math.max(320, rect.height || 520) };
+  };
+  MapInstance.prototype.latLngToContainerPoint = function (latlng) {
+    var size = this.getSize();
+    return latLngToPixelOffset(latlng[0], latlng[1], this._center[0], this._center[1], this._zoom, size.x, size.y);
+  };
+  MapInstance.prototype.containerPointToLatLng = function (point) {
+    var size = this.getSize(), scale = 256 * Math.pow(2, this._zoom);
+    var center = latLngToPixelOffset(0, 0, this._center[0], this._center[1], this._zoom, size.x, size.y);
+    var x = point[0] - center.x + scale / 2;
+    var y = point[1] - center.y + scale / 2;
+    return [Math.atan(Math.sinh(Math.PI * (1 - 2 * y / scale))) * 180 / Math.PI, x / scale * 360 - 180];
+  };
   MapInstance.prototype.setMinZoom = function (z) { this.options.minZoom = z; };
   MapInstance.prototype.setMaxZoom = function (z) { this.options.maxZoom = z; };
   MapInstance.prototype.whenReady = function (fn) { setTimeout(fn, 0); return this; };

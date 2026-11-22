@@ -859,7 +859,7 @@ function bindMapResizeAndZoomListeners() {
     });
   }
   if (typeof map.on === 'function') {
-    map.on('zoomend', () => applyFilters());
+    map.on('zoomend moveend resize', () => renderMapCards(filtered()));
   }
   const mapWrap = typeof document.querySelector === 'function' ? document.querySelector('.map-wrap') : null;
   if (mapWrap && typeof ResizeObserver !== 'undefined') {
@@ -918,7 +918,7 @@ function ensureMapInitialized({ forceRetry = false } = {}) {
         attributionControl: true,
         minZoom: cfg.min_zoom,
         maxZoom: cfg.max_zoom
-      }).setView([38.43, -122.70], 11);
+      }).setView([38.43, -122.70], 13);
       if (L.control && typeof L.control.zoom === 'function') {
         L.control.zoom({ position: 'bottomright' }).addTo(map);
       }
@@ -1303,39 +1303,95 @@ function detailHoursNote(t) {
   return `Published/estimated · ${t.hours}`;
 }
 
+function openMapCluster(group, latlng) {
+  // A bounded, scrollable member chooser also works at maximum zoom and for
+  // vendors sharing exactly the same location. Names here are never shortened.
+  const content = document.createElement('div');
+  content.className = 'food-cluster-menu';
+  content.setAttribute('role', 'dialog');
+  content.setAttribute('aria-label', 'Choose a nearby vendor');
+  const intro = document.createElement('p');
+  intro.textContent = `${group.members.length} places nearby · choose a vendor`;
+  content.appendChild(intro);
+  const zoom = document.createElement('button');
+  zoom.type = 'button';
+  zoom.textContent = 'Zoom in to explore';
+  zoom.disabled = map.getZoom() >= map.getMaxZoom();
+  zoom.addEventListener('click', () => {
+    map.closePopup();
+    map.setView(latlng, Math.min(map.getMaxZoom(), map.getZoom() + 2), { animate: !isReducedMotion() });
+  });
+  content.appendChild(zoom);
+  group.members.forEach(({ vendor }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = `${vendor.name} · ${BiteSharkMapCards.status(vendor).label}`;
+    button.addEventListener('click', () => {
+      map.closePopup();
+      selectTruck(vendor.id);
+      openDetail(vendor.id);
+    });
+    content.appendChild(button);
+  });
+  L.popup({ maxWidth: 270, className: 'food-cluster-popup' }).setLatLng(latlng).setContent(content).openOn(map);
+  content.querySelector('button:not(:disabled)')?.focus({ preventScroll: true });
+}
+
+function renderMapCards(show) {
+  const api = globalThis.BiteSharkMapCards;
+  if (!map || typeof L === 'undefined' || !api) return;
+  const focusKey = document.activeElement?.dataset?.mapKey;
+  Object.values(markers).forEach(m => map.removeLayer(m));
+  markers = {};
+  const size = map.getSize();
+  const points = show.filter(hasCoords).map(vendor => ({ vendor, ...map.latLngToContainerPoint([vendor.lat, vendor.lng]) }))
+    .filter(p => p.x >= -api.WIDTH && p.y >= -api.HEIGHT && p.x <= size.x + api.WIDTH && p.y <= size.y + api.HEIGHT);
+  const groups = api.layout(points, selectedTruck);
+  groups.forEach(group => {
+    const selected = group.members.find(p => p.vendor.id === selectedTruck);
+    const t = api.representative(group, selectedTruck).vendor;
+    const clustered = group.members.length > 1;
+    const state = api.status(t);
+    const name = api.shortName(t.name);
+    const label = clustered ? `${t.name}${selected ? ', selected' : ''} and ${group.members.length - 1} more vendors nearby. Illustrated cuisine trucks. Choose a vendor.` : `${t.name}. ${state.label}${selected ? '. Selected' : ''}. Illustrated cuisine truck, not the vendor's actual vehicle. View details.`;
+    const html = `<div class="food-map-card is-${state.state}${selected ? ' is-selected' : ''}${clustered ? ' food-map-cluster' : ''}">` +
+      `<span class="food-map-art" title="Illustrated cuisine truck · not the vendor's actual vehicle">${api.truckIcon(t)}</span>` +
+      `<span class="food-map-copy"><span class="food-map-name">${esc(name)}</span><span class="food-map-status">${esc(state.label)}</span></span>` +
+      (clustered ? `<span class="food-map-cluster-count" aria-hidden="true">+${group.members.length - 1}</span>` : '') + `</div>`;
+    const latlng = map.containerPointToLatLng([group.x, group.y]);
+    const key = group.members.map(p => p.vendor.id).sort().join('|');
+    const marker = L.marker(latlng, {
+      icon: L.divIcon({ className: 'food-map-icon', html, iconSize: [api.WIDTH, api.HEIGHT], iconAnchor: [api.WIDTH / 2, api.HEIGHT / 2] }),
+      keyboard: true, title: label, alt: label, riseOnHover: true, zIndexOffset: selected ? 1000 : 0
+    }).addTo(map).on('click', () => {
+      if (clustered) openMapCluster(group, latlng);
+      else { selectTruck(t.id); openDetail(t.id); }
+    });
+    const element = marker.getElement();
+    if (element) {
+      element.setAttribute('role', 'button');
+      element.setAttribute('aria-label', label);
+      element.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      if (clustered) element.setAttribute('aria-haspopup', 'dialog');
+      element.dataset.mapKey = key;
+      // Leaflet handles Enter; add Space for button-equivalent keyboard access.
+      element.addEventListener('keydown', event => {
+        if (event.key === ' ') { event.preventDefault(); event.stopPropagation(); marker.fire('click'); }
+      });
+      if (focusKey === key) element.focus({ preventScroll: true });
+    }
+    markers[key] = marker;
+  });
+  const isListMode = document.getElementById('discoverScreen').classList.contains('list-mode');
+  const represented = groups.reduce((count, g) => count + g.members.length, 0);
+  const count = document.getElementById('nearbyCount');
+  count.textContent = `${show.length} ${show.length === 1 ? 'place' : 'places'}${isListMode ? ' to explore' : ` · ${represented} on map`}`;
+}
+
 function applyFilters() {
   const show = filtered();
-  const zoomLevel = map && typeof map.getZoom === 'function' ? map.getZoom() : 11;
-  const pinLimit = zoomLevel >= 14 ? 18 : (activeCuisine === 'All' ? 10 : 14);
-  const pinList = show
-    .filter(hasCoords)
-    .sort((a, b) => (b.id === selectedTruck) - (a.id === selectedTruck) || (Number(b.open === true) - Number(a.open === true)) || ((a.distance ?? 999) - (b.distance ?? 999)))
-    .slice(0, pinLimit);
-
-  if (map && typeof L !== 'undefined') {
-    Object.values(markers).forEach(m => map.removeLayer(m));
-    markers = {};
-
-    pinList.forEach(t => {
-      const badge = pinStatusBadge(t);
-      const icon = L.divIcon({
-        className: '',
-        html: `<div class="truck-pin ${t.id === selectedTruck ? 'selected' : ''}" style="--pin:${esc(t.color)}"><span>${esc(t.emoji)}</span><b>${badge}</b></div>`,
-        iconSize: [58, 58],
-        iconAnchor: [24, 48]
-      });
-      const m = L.marker([t.lat, t.lng], { icon })
-        .addTo(map)
-        .on('click', () => {
-          selectTruck(t.id);
-          openDetail(t.id);
-        });
-      markers[t.id] = m;
-    });
-  }
-
-  const isListMode = document.getElementById('discoverScreen').classList.contains('list-mode');
-  document.getElementById('nearbyCount').textContent = `${show.length} ${show.length === 1 ? 'place' : 'places'}${isListMode ? ' to explore' : ' · ' + pinList.length + ' on map'}`;
+  renderMapCards(show);
+  if (!map) document.getElementById('nearbyCount').textContent = `${show.length} ${show.length === 1 ? 'place' : 'places'} to explore`;
 
   const hoursNote = document.getElementById('openHoursNote');
   if (hoursNote) {
