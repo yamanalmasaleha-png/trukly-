@@ -61,6 +61,8 @@ jobs:
         run: node tests/pager-demo.test.cjs
       - name: Map provider allowlist, HTTPS & fail-safe config unit suite
         run: node tests/map-resilience.test.cjs
+      - name: Miniature truck marker states and collision-free clustering
+        run: node tests/map-cards.test.cjs
       - name: Staging2 scoped helper validation, path isolation & log redaction unit suite
         run: node tests/staging2-ctl-security.test.cjs
 

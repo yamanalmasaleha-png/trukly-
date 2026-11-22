@@ -80,6 +80,8 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/role-experience.js',
   '/diagnostics-client.js',
   '/app.js',
+  '/map-cards.js',
+  '/map-cards.css',
   '/pager.js',
   '/community.js',
   '/local-guides.js',

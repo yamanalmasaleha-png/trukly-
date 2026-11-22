@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `testing/yaman-staging2`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109`
+> - **Deterministic Source Digest**: `378950b7dbad98949958dcaa0e20744916bb3733bea165a0d69c63869f072933`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## HTML Document: [public/admin.html](../../../public/admin.html)
@@ -34,18 +34,18 @@
 
 | Element ID | Tag | Default Active | Classes | Line |
 |---|---|---|---|---:|
-| `#discoverScreen` | `<main>` | Yes | `screen active list-mode` | L48 |
-| `#communityScreen` | `<main>` | No | `screen page-screen` | L115 |
-| `#guidesScreen` | `<main>` | No | `screen page-screen` | L200 |
-| `#smartScreen` | `<main>` | No | `screen page-screen` | L212 |
-| `#pagerScreen` | `<main>` | No | `screen page-screen` | L214 |
-| `#favoritesScreen` | `<main>` | No | `screen page-screen` | L246 |
-| `#bookingsScreen` | `<main>` | No | `screen page-screen` | L256 |
-| `#ownerScreen` | `<main>` | No | `screen page-screen owner-page` | L262 |
-| `#welcomeScreen` | `<main>` | No | `screen page-screen welcome-screen` | L283 |
-| `#vendorIntroScreen` | `<main>` | No | `screen page-screen vendor-intro-screen` | L323 |
+| `#discoverScreen` | `<main>` | Yes | `screen active list-mode` | L49 |
+| `#communityScreen` | `<main>` | No | `screen page-screen` | L117 |
+| `#guidesScreen` | `<main>` | No | `screen page-screen` | L202 |
+| `#smartScreen` | `<main>` | No | `screen page-screen` | L214 |
+| `#pagerScreen` | `<main>` | No | `screen page-screen` | L216 |
+| `#favoritesScreen` | `<main>` | No | `screen page-screen` | L248 |
+| `#bookingsScreen` | `<main>` | No | `screen page-screen` | L258 |
+| `#ownerScreen` | `<main>` | No | `screen page-screen owner-page` | L264 |
+| `#welcomeScreen` | `<main>` | No | `screen page-screen welcome-screen` | L285 |
+| `#vendorIntroScreen` | `<main>` | No | `screen page-screen vendor-intro-screen` | L325 |
 
-### Stylesheet Load Order (16)
+### Stylesheet Load Order (17)
 
 1. `https://unpkg.com/leaflet@1.9.4/dist/leaflet.css` *(external CDN)* (L7)
 2. `/theme.css` (L8)
@@ -63,156 +63,158 @@
 14. `/mobile-scroll-fix.css` (L20)
 15. `/color-calm.css` (L21)
 16. `/role-experience.css` (L22)
+17. `/map-cards.css` (L23)
 
-### Script Load Order (14)
+### Script Load Order (15)
 
-1. `https://unpkg.com/leaflet@1.9.4/dist/leaflet.js` *(external CDN)* (L405)
-2. `/diagnostics-client.js` (L406)
-3. `/auth-client.js` (L407)
-4. `/role-experience.js` (L408)
-5. `/app.js` (L409)
-6. `/listing-highlights.js` (L410)
-7. `/pager.js` (L411)
-8. `/smart.js` (L412)
-9. `/characters.js` (L413)
-10. `/coffee-club.js` (L414)
-11. `/local-guides.js` (L415)
-12. `/guide-passport.js` (L416)
-13. `/community.js` (L417)
-14. `/street-whispers.js` (L418)
+1. `https://unpkg.com/leaflet@1.9.4/dist/leaflet.js` *(external CDN)* (L407)
+2. `/diagnostics-client.js` (L408)
+3. `/auth-client.js` (L409)
+4. `/role-experience.js` (L410)
+5. `/map-cards.js` (L411)
+6. `/app.js` (L412)
+7. `/listing-highlights.js` (L413)
+8. `/pager.js` (L414)
+9. `/smart.js` (L415)
+10. `/characters.js` (L416)
+11. `/coffee-club.js` (L417)
+12. `/local-guides.js` (L418)
+13. `/guide-passport.js` (L419)
+14. `/community.js` (L420)
+15. `/street-whispers.js` (L421)
 
 ### Inline Event Handlers (128)
 
 | Line | Tag / ID | Attribute | Expression | Called Functions |
 |---:|---|---|---|---|
-| L27 | `<button>` | `onclick` | `showScreen('owner')` | `showScreen` |
-| L28 | `<button#locationPillBtn>` | `onclick` | `openAreaPicker()` | `openAreaPicker` |
-| L30 | `<button>` | `onclick` | `openLocalGuides()` | `openLocalGuides` |
-| L31 | `<button>` | `onclick` | `openPager()` | `openPager` |
-| L32 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
-| L38 | `<button>` | `onclick` | `showScreen('favorites');this.closest('details').open=false` | `showScreen`, `this.closest` |
-| L39 | `<button>` | `onclick` | `showScreen('bookings');this.closest('details').open=false` | `showScreen`, `this.closest` |
-| L40 | `<button>` | `onclick` | `this.closest('details').open=false;openCommunity()` | `openCommunity`, `this.closest` |
-| L42 | `<button#authSignOutBtn>` | `onclick` | `signOutUser();this.closest('details').open=false` | `signOutUser`, `this.closest` |
-| L58 | `<button#mapFallbackListBtn>` | `onclick` | `continueInListFromMapFallback()` | `continueInListFromMapFallback` |
-| L59 | `<button#mapFallbackRetryBtn>` | `onclick` | `retryInteractiveMap()` | `retryInteractiveMap` |
-| L64 | `<button#mapMode>` | `onclick` | `setMode('map')` | `setMode` |
-| L64 | `<button#listMode>` | `onclick` | `setMode('list')` | `setMode` |
-| L66 | `<input#searchInput>` | `oninput` | `applyFilters()` | `applyFilters` |
-| L66 | `<button#searchLocateBtn>` | `onclick` | `locateMe()` | `locateMe` |
-| L70 | `<button#openNow>` | `onclick` | `toggleOpen()` | `toggleOpen` |
-| L70 | `<button#distanceFilterBtn>` | `onclick` | `openDistance()` | `openDistance` |
-| L70 | `<button#refreshCatalogBtn>` | `onclick` | `refreshDiscoveryCatalog({fresh:true,announce:true})` | `refreshDiscoveryCatalog` |
-| L79 | `<button>` | `onclick` | `surpriseMe()` | `surpriseMe` |
-| L82 | `<button>` | `onclick` | `openCommunity()` | `openCommunity` |
-| L84 | `<button>` | `onclick` | `chooseKind('All')` | `chooseKind` |
-| L85 | `<button>` | `onclick` | `chooseKind('Pop-ups')` | `chooseKind` |
-| L86 | `<button>` | `onclick` | `chooseKind('Markets')` | `chooseKind` |
-| L87 | `<button>` | `onclick` | `chooseKind('Food Trucks')` | `chooseKind` |
-| L88 | `<button>` | `onclick` | `chooseKind('Coffee')` | `chooseKind` |
-| L89 | `<button>` | `onclick` | `chooseKind('Farm Stands')` | `chooseKind` |
-| L99 | `<button>` | `onclick` | `chooseKind('Farm Stands')` | `chooseKind` |
-| L100 | `<button>` | `onclick` | `chooseKind('All');chooseCuisine('Sweets');setMode('list');document.getElementById('resultsHeading').scrollIntoView({block:'start',behavior:'smooth'})` | `chooseCuisine`, `chooseKind`, `document.getElementById`, `setMode` |
-| L101 | `<button>` | `onclick` | `chooseKind('Coffee')` | `chooseKind` |
+| L28 | `<button>` | `onclick` | `showScreen('owner')` | `showScreen` |
+| L29 | `<button#locationPillBtn>` | `onclick` | `openAreaPicker()` | `openAreaPicker` |
+| L31 | `<button>` | `onclick` | `openLocalGuides()` | `openLocalGuides` |
+| L32 | `<button>` | `onclick` | `openPager()` | `openPager` |
+| L33 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
+| L39 | `<button>` | `onclick` | `showScreen('favorites');this.closest('details').open=false` | `showScreen`, `this.closest` |
+| L40 | `<button>` | `onclick` | `showScreen('bookings');this.closest('details').open=false` | `showScreen`, `this.closest` |
+| L41 | `<button>` | `onclick` | `this.closest('details').open=false;openCommunity()` | `openCommunity`, `this.closest` |
+| L43 | `<button#authSignOutBtn>` | `onclick` | `signOutUser();this.closest('details').open=false` | `signOutUser`, `this.closest` |
+| L59 | `<button#mapFallbackListBtn>` | `onclick` | `continueInListFromMapFallback()` | `continueInListFromMapFallback` |
+| L60 | `<button#mapFallbackRetryBtn>` | `onclick` | `retryInteractiveMap()` | `retryInteractiveMap` |
+| L65 | `<button#mapMode>` | `onclick` | `setMode('map')` | `setMode` |
+| L65 | `<button#listMode>` | `onclick` | `setMode('list')` | `setMode` |
+| L67 | `<input#searchInput>` | `oninput` | `applyFilters()` | `applyFilters` |
+| L67 | `<button#searchLocateBtn>` | `onclick` | `locateMe()` | `locateMe` |
+| L71 | `<button#openNow>` | `onclick` | `toggleOpen()` | `toggleOpen` |
+| L71 | `<button#distanceFilterBtn>` | `onclick` | `openDistance()` | `openDistance` |
+| L71 | `<button#refreshCatalogBtn>` | `onclick` | `refreshDiscoveryCatalog({fresh:true,announce:true})` | `refreshDiscoveryCatalog` |
+| L81 | `<button>` | `onclick` | `surpriseMe()` | `surpriseMe` |
+| L84 | `<button>` | `onclick` | `openCommunity()` | `openCommunity` |
+| L86 | `<button>` | `onclick` | `chooseKind('All')` | `chooseKind` |
+| L87 | `<button>` | `onclick` | `chooseKind('Pop-ups')` | `chooseKind` |
+| L88 | `<button>` | `onclick` | `chooseKind('Markets')` | `chooseKind` |
+| L89 | `<button>` | `onclick` | `chooseKind('Food Trucks')` | `chooseKind` |
+| L90 | `<button>` | `onclick` | `chooseKind('Coffee')` | `chooseKind` |
+| L91 | `<button>` | `onclick` | `chooseKind('Farm Stands')` | `chooseKind` |
+| L101 | `<button>` | `onclick` | `chooseKind('Farm Stands')` | `chooseKind` |
+| L102 | `<button>` | `onclick` | `chooseKind('All');chooseCuisine('Sweets');setMode('list');document.getElementById('resultsHeading').scrollIntoView({block:'start',behavior:'smooth'})` | `chooseCuisine`, `chooseKind`, `document.getElementById`, `setMode` |
 | L103 | `<button>` | `onclick` | `chooseKind('Coffee')` | `chooseKind` |
-| L103 | `<button>` | `onclick` | `openDetail('coffee-crooks')` | `openDetail` |
-| L103 | `<button>` | `onclick` | `openDetail('coffee-retrograde')` | `openDetail` |
+| L105 | `<button>` | `onclick` | `chooseKind('Coffee')` | `chooseKind` |
 | L105 | `<button>` | `onclick` | `openDetail('coffee-crooks')` | `openDetail` |
-| L106 | `<button>` | `onclick` | `openDetail('coffee-avid-petaluma')` | `openDetail` |
-| L107 | `<button>` | `onclick` | `openDetail('farm-oakhill')` | `openDetail` |
-| L109 | `<button>` | `onclick` | `openSmart('finder')` | `openSmart` |
-| L109 | `<button>` | `onclick` | `openSmart('trail')` | `openSmart` |
-| L119 | `<button>` | `onclick` | `communityStartPost('review')` | `communityStartPost` |
-| L120 | `<button>` | `onclick` | `communityToggleMy()` | `communityToggleMy` |
-| L128 | `<button>` | `onclick` | `communityStartPost('review')` | `communityStartPost` |
-| L129 | `<button>` | `onclick` | `communityStartPost('tip')` | `communityStartPost` |
-| L130 | `<button>` | `onclick` | `communityStartPost('question')` | `communityStartPost` |
-| L134 | `<button>` | `onclick` | `communityStartPost('tip','A hidden gem worth finding')` | `communityStartPost` |
-| L135 | `<button>` | `onclick` | `communityStartPost('review','My favorite bite here')` | `communityStartPost` |
-| L136 | `<button>` | `onclick` | `communityStartPost('tip','A great budget-friendly order')` | `communityStartPost` |
-| L137 | `<button>` | `onclick` | `communityStartPost('tip','My local coffee tip')` | `communityStartPost` |
-| L138 | `<button>` | `onclick` | `communityStartPost('tip','Weekend market finds')` | `communityStartPost` |
-| L139 | `<button>` | `onclick` | `communityStartPost('question','What should I try at this spot?')` | `communityStartPost` |
-| L153 | `<button>` | `onclick` | `streetMysteryPick()` | `streetMysteryPick` |
-| L154 | `<button>` | `onclick` | `streetNextMission()` | `streetNextMission` |
-| L157 | `<button>` | `onclick` | `streetOpenWhisper()` | `streetOpenWhisper` |
-| L162 | `<button>` | `onclick` | `communityClosePost()` | `communityClosePost` |
-| L164 | `<form#communityPostForm>` | `onsubmit` | `communitySubmitPost(event)` | `communitySubmitPost` |
-| L166 | `<select#communityKind>` | `onchange` | `communityKindChange()` | `communityKindChange` |
-| L181 | `<button>` | `onclick` | `communitySetFilter('all')` | `communitySetFilter` |
-| L182 | `<button>` | `onclick` | `communitySetFilter('review')` | `communitySetFilter` |
-| L183 | `<button>` | `onclick` | `communitySetFilter('tip')` | `communitySetFilter` |
-| L184 | `<button>` | `onclick` | `communitySetFilter('question')` | `communitySetFilter` |
-| L185 | `<button>` | `onclick` | `communitySetFilter('whisper')` | `communitySetFilter` |
-| L186 | `<select#communityTownFilter>` | `onchange` | `communityState.town=this.value;communityRender()` | `communityRender` |
-| L187 | `<select#communitySort>` | `onchange` | `communityState.sort=this.value;communityRender()` | `communityRender` |
-| L188 | `<input#communitySearch>` | `oninput` | `communityState.search=this.value.toLowerCase().trim();communityRender()` | `communityRender`, `this.value.toLowerCase` |
-| L193 | `<button>` | `onclick` | `openLocalGuides('passport')` | `openLocalGuides` |
-| L194 | `<button>` | `onclick` | `openLocalGuides('stories')` | `openLocalGuides` |
-| L195 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
-| L202 | `<button>` | `onclick` | `showGuidesTab('passport')` | `showGuidesTab` |
-| L202 | `<button>` | `onclick` | `showGuidesTab('stories')` | `showGuidesTab` |
-| L202 | `<button>` | `onclick` | `showGuidesTab('photos')` | `showGuidesTab` |
-| L203 | `<button>` | `onclick` | `openCommunity()` | `openCommunity` |
-| L207 | `<form>` | `onsubmit` | `saveDishPhoto(event)` | `saveDishPhoto` |
-| L212 | `<button>` | `onclick` | `openSmart('finder')` | `openSmart` |
-| L212 | `<button>` | `onclick` | `openSmart('trail')` | `openSmart` |
-| L212 | `<button>` | `onclick` | `openSmart('marketing')` | `openSmart` |
-| L223 | `<button>` | `onclick` | `startPagerDemo()` | `startPagerDemo` |
-| L230 | `<form>` | `onsubmit` | `joinPager(event)` | `joinPager` |
-| L249 | `<input#nearbyAlertToggle>` | `onchange` | `saveNotificationSettings()` | `saveNotificationSettings` |
-| L250 | `<select#nearbyAlertRadius>` | `onchange` | `saveNotificationSettings()` | `saveNotificationSettings` |
-| L264 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
-| L266 | `<select#ownerTruckSelect>` | `onchange` | `selectOwnerTruck(this.value)` | `selectOwnerTruck` |
-| L272 | `<button>` | `onclick` | `openSmart('marketing')` | `openSmart` |
-| L273 | `<button>` | `onclick` | `openPager();startPagerDemo()` | `openPager`, `startPagerDemo` |
-| L273 | `<button>` | `onclick` | `loadKitchen()` | `loadKitchen` |
-| L273 | `<form#pagerCreateForm>` | `onsubmit` | `createPager(event)` | `createPager` |
-| L273 | `<button>` | `onclick` | `loadKitchen()` | `loadKitchen` |
-| L274 | `<button>` | `onclick` | `communityOpenModeration()` | `communityOpenModeration` |
-| L275 | `<button#ownerUpdateLocationBtn>` | `onclick` | `updateOwnerLocation()` | `updateOwnerLocation` |
-| L276 | `<input#ownerScheduleDate>` | `onchange` | `syncOwnerScheduleDay()` | `syncOwnerScheduleDay` |
-| L276 | `<input#ownerIsOpen>` | `onchange` | `toggleOwnerOpenStatus()` | `toggleOwnerOpenStatus` |
-| L276 | `<button#ownerSaveScheduleBtn>` | `onclick` | `saveOwnerSchedule()` | `saveOwnerSchedule` |
-| L277 | `<input>` | `onchange` | `previewOwnerPhotos(event)` | `previewOwnerPhotos` |
-| L278 | `<button#ownerEditProfileBtn>` | `onclick` | `openOwnerProfileModal()` | `openOwnerProfileModal` |
-| L278 | `<button>` | `onclick` | `shareOwnerLocation()` | `shareOwnerLocation` |
-| L278 | `<button>` | `onclick` | `openBooking(ownerTruckId)` | `openBooking` |
-| L279 | `<button>` | `onclick` | `setOwnerRequestFilter('pending')` | `setOwnerRequestFilter` |
-| L279 | `<button>` | `onclick` | `setOwnerRequestFilter('accepted')` | `setOwnerRequestFilter` |
-| L279 | `<button>` | `onclick` | `setOwnerRequestFilter('all')` | `setOwnerRequestFilter` |
-| L368 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
-| L369 | `<button>` | `onclick` | `showScreen('favorites')` | `showScreen` |
-| L370 | `<button>` | `onclick` | `openBooking()` | `openBooking` |
-| L371 | `<button>` | `onclick` | `openLocalGuides('passport')` | `openLocalGuides` |
-| L372 | `<button>` | `onclick` | `showScreen('bookings')` | `showScreen` |
-| L373 | `<button>` | `onclick` | `surpriseMe()` | `surpriseMe` |
-| L377 | `<div#detailModal>` | `onclick` | `if(event.target===this)closeModal()` | `closeModal` |
-| L378 | `<div#bookingModal>` | `onclick` | `if(event.target===this)closeBooking()` | `closeBooking` |
-| L378 | `<form>` | `onsubmit` | `submitBooking(event)` | `submitBooking` |
-| L379 | `<button>` | `onclick` | `closeBooking()` | `closeBooking` |
-| L382 | `<select#bookingTruck>` | `onchange` | `onBookingTruckChange()` | `onBookingTruckChange` |
-| L383 | `<fieldset>` | `onchange` | `validateBookingChoice()` | `validateBookingChoice` |
-| L388 | `<input#eventDate>` | `onchange` | `checkBookingAvailability()` | `checkBookingAvailability` |
-| L388 | `<input#guestCount>` | `oninput` | `validateBookingChoice()` | `validateBookingChoice` |
-| L393 | `<div#ownerProfileModal>` | `onclick` | `if(event.target===this)closeOwnerProfileModal()` | `closeOwnerProfileModal` |
-| L393 | `<form>` | `onsubmit` | `saveOwnerProfile(event)` | `saveOwnerProfile` |
-| L394 | `<button>` | `onclick` | `closeOwnerProfileModal()` | `closeOwnerProfileModal` |
-| L402 | `<div#distanceModal>` | `onclick` | `if(event.target===this)closeDistanceModal()` | `closeDistanceModal` |
-| L402 | `<button>` | `onclick` | `closeDistanceModal()` | `closeDistanceModal` |
-| L402 | `<input#distanceRange>` | `oninput` | `setDistance(this.value)` | `setDistance` |
-| L402 | `<button>` | `onclick` | `closeDistanceModal();applyFilters()` | `applyFilters`, `closeDistanceModal` |
-| L403 | `<div#areaModal>` | `onclick` | `if(event.target===this)closeAreaModal()` | `closeAreaModal` |
-| L403 | `<button>` | `onclick` | `closeAreaModal()` | `closeAreaModal` |
-| L403 | `<button#areaUseLocationBtn>` | `onclick` | `closeAreaModal();locateMe()` | `closeAreaModal`, `locateMe` |
-| L403 | `<button#areaAllSonomaBtn>` | `onclick` | `selectManualArea('')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Santa Rosa')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Petaluma')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Rohnert Park')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Cotati')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Sonoma')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Sebastopol')` | `selectManualArea` |
-| L403 | `<button>` | `onclick` | `selectManualArea('Healdsburg')` | `selectManualArea` |
+| L105 | `<button>` | `onclick` | `openDetail('coffee-retrograde')` | `openDetail` |
+| L107 | `<button>` | `onclick` | `openDetail('coffee-crooks')` | `openDetail` |
+| L108 | `<button>` | `onclick` | `openDetail('coffee-avid-petaluma')` | `openDetail` |
+| L109 | `<button>` | `onclick` | `openDetail('farm-oakhill')` | `openDetail` |
+| L111 | `<button>` | `onclick` | `openSmart('finder')` | `openSmart` |
+| L111 | `<button>` | `onclick` | `openSmart('trail')` | `openSmart` |
+| L121 | `<button>` | `onclick` | `communityStartPost('review')` | `communityStartPost` |
+| L122 | `<button>` | `onclick` | `communityToggleMy()` | `communityToggleMy` |
+| L130 | `<button>` | `onclick` | `communityStartPost('review')` | `communityStartPost` |
+| L131 | `<button>` | `onclick` | `communityStartPost('tip')` | `communityStartPost` |
+| L132 | `<button>` | `onclick` | `communityStartPost('question')` | `communityStartPost` |
+| L136 | `<button>` | `onclick` | `communityStartPost('tip','A hidden gem worth finding')` | `communityStartPost` |
+| L137 | `<button>` | `onclick` | `communityStartPost('review','My favorite bite here')` | `communityStartPost` |
+| L138 | `<button>` | `onclick` | `communityStartPost('tip','A great budget-friendly order')` | `communityStartPost` |
+| L139 | `<button>` | `onclick` | `communityStartPost('tip','My local coffee tip')` | `communityStartPost` |
+| L140 | `<button>` | `onclick` | `communityStartPost('tip','Weekend market finds')` | `communityStartPost` |
+| L141 | `<button>` | `onclick` | `communityStartPost('question','What should I try at this spot?')` | `communityStartPost` |
+| L155 | `<button>` | `onclick` | `streetMysteryPick()` | `streetMysteryPick` |
+| L156 | `<button>` | `onclick` | `streetNextMission()` | `streetNextMission` |
+| L159 | `<button>` | `onclick` | `streetOpenWhisper()` | `streetOpenWhisper` |
+| L164 | `<button>` | `onclick` | `communityClosePost()` | `communityClosePost` |
+| L166 | `<form#communityPostForm>` | `onsubmit` | `communitySubmitPost(event)` | `communitySubmitPost` |
+| L168 | `<select#communityKind>` | `onchange` | `communityKindChange()` | `communityKindChange` |
+| L183 | `<button>` | `onclick` | `communitySetFilter('all')` | `communitySetFilter` |
+| L184 | `<button>` | `onclick` | `communitySetFilter('review')` | `communitySetFilter` |
+| L185 | `<button>` | `onclick` | `communitySetFilter('tip')` | `communitySetFilter` |
+| L186 | `<button>` | `onclick` | `communitySetFilter('question')` | `communitySetFilter` |
+| L187 | `<button>` | `onclick` | `communitySetFilter('whisper')` | `communitySetFilter` |
+| L188 | `<select#communityTownFilter>` | `onchange` | `communityState.town=this.value;communityRender()` | `communityRender` |
+| L189 | `<select#communitySort>` | `onchange` | `communityState.sort=this.value;communityRender()` | `communityRender` |
+| L190 | `<input#communitySearch>` | `oninput` | `communityState.search=this.value.toLowerCase().trim();communityRender()` | `communityRender`, `this.value.toLowerCase` |
+| L195 | `<button>` | `onclick` | `openLocalGuides('passport')` | `openLocalGuides` |
+| L196 | `<button>` | `onclick` | `openLocalGuides('stories')` | `openLocalGuides` |
+| L197 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
+| L204 | `<button>` | `onclick` | `showGuidesTab('passport')` | `showGuidesTab` |
+| L204 | `<button>` | `onclick` | `showGuidesTab('stories')` | `showGuidesTab` |
+| L204 | `<button>` | `onclick` | `showGuidesTab('photos')` | `showGuidesTab` |
+| L205 | `<button>` | `onclick` | `openCommunity()` | `openCommunity` |
+| L209 | `<form>` | `onsubmit` | `saveDishPhoto(event)` | `saveDishPhoto` |
+| L214 | `<button>` | `onclick` | `openSmart('finder')` | `openSmart` |
+| L214 | `<button>` | `onclick` | `openSmart('trail')` | `openSmart` |
+| L214 | `<button>` | `onclick` | `openSmart('marketing')` | `openSmart` |
+| L225 | `<button>` | `onclick` | `startPagerDemo()` | `startPagerDemo` |
+| L232 | `<form>` | `onsubmit` | `joinPager(event)` | `joinPager` |
+| L251 | `<input#nearbyAlertToggle>` | `onchange` | `saveNotificationSettings()` | `saveNotificationSettings` |
+| L252 | `<select#nearbyAlertRadius>` | `onchange` | `saveNotificationSettings()` | `saveNotificationSettings` |
+| L266 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
+| L268 | `<select#ownerTruckSelect>` | `onchange` | `selectOwnerTruck(this.value)` | `selectOwnerTruck` |
+| L274 | `<button>` | `onclick` | `openSmart('marketing')` | `openSmart` |
+| L275 | `<button>` | `onclick` | `openPager();startPagerDemo()` | `openPager`, `startPagerDemo` |
+| L275 | `<button>` | `onclick` | `loadKitchen()` | `loadKitchen` |
+| L275 | `<form#pagerCreateForm>` | `onsubmit` | `createPager(event)` | `createPager` |
+| L275 | `<button>` | `onclick` | `loadKitchen()` | `loadKitchen` |
+| L276 | `<button>` | `onclick` | `communityOpenModeration()` | `communityOpenModeration` |
+| L277 | `<button#ownerUpdateLocationBtn>` | `onclick` | `updateOwnerLocation()` | `updateOwnerLocation` |
+| L278 | `<input#ownerScheduleDate>` | `onchange` | `syncOwnerScheduleDay()` | `syncOwnerScheduleDay` |
+| L278 | `<input#ownerIsOpen>` | `onchange` | `toggleOwnerOpenStatus()` | `toggleOwnerOpenStatus` |
+| L278 | `<button#ownerSaveScheduleBtn>` | `onclick` | `saveOwnerSchedule()` | `saveOwnerSchedule` |
+| L279 | `<input>` | `onchange` | `previewOwnerPhotos(event)` | `previewOwnerPhotos` |
+| L280 | `<button#ownerEditProfileBtn>` | `onclick` | `openOwnerProfileModal()` | `openOwnerProfileModal` |
+| L280 | `<button>` | `onclick` | `shareOwnerLocation()` | `shareOwnerLocation` |
+| L280 | `<button>` | `onclick` | `openBooking(ownerTruckId)` | `openBooking` |
+| L281 | `<button>` | `onclick` | `setOwnerRequestFilter('pending')` | `setOwnerRequestFilter` |
+| L281 | `<button>` | `onclick` | `setOwnerRequestFilter('accepted')` | `setOwnerRequestFilter` |
+| L281 | `<button>` | `onclick` | `setOwnerRequestFilter('all')` | `setOwnerRequestFilter` |
+| L370 | `<button>` | `onclick` | `showScreen('discover')` | `showScreen` |
+| L371 | `<button>` | `onclick` | `showScreen('favorites')` | `showScreen` |
+| L372 | `<button>` | `onclick` | `openBooking()` | `openBooking` |
+| L373 | `<button>` | `onclick` | `openLocalGuides('passport')` | `openLocalGuides` |
+| L374 | `<button>` | `onclick` | `showScreen('bookings')` | `showScreen` |
+| L375 | `<button>` | `onclick` | `surpriseMe()` | `surpriseMe` |
+| L379 | `<div#detailModal>` | `onclick` | `if(event.target===this)closeModal()` | `closeModal` |
+| L380 | `<div#bookingModal>` | `onclick` | `if(event.target===this)closeBooking()` | `closeBooking` |
+| L380 | `<form>` | `onsubmit` | `submitBooking(event)` | `submitBooking` |
+| L381 | `<button>` | `onclick` | `closeBooking()` | `closeBooking` |
+| L384 | `<select#bookingTruck>` | `onchange` | `onBookingTruckChange()` | `onBookingTruckChange` |
+| L385 | `<fieldset>` | `onchange` | `validateBookingChoice()` | `validateBookingChoice` |
+| L390 | `<input#eventDate>` | `onchange` | `checkBookingAvailability()` | `checkBookingAvailability` |
+| L390 | `<input#guestCount>` | `oninput` | `validateBookingChoice()` | `validateBookingChoice` |
+| L395 | `<div#ownerProfileModal>` | `onclick` | `if(event.target===this)closeOwnerProfileModal()` | `closeOwnerProfileModal` |
+| L395 | `<form>` | `onsubmit` | `saveOwnerProfile(event)` | `saveOwnerProfile` |
+| L396 | `<button>` | `onclick` | `closeOwnerProfileModal()` | `closeOwnerProfileModal` |
+| L404 | `<div#distanceModal>` | `onclick` | `if(event.target===this)closeDistanceModal()` | `closeDistanceModal` |
+| L404 | `<button>` | `onclick` | `closeDistanceModal()` | `closeDistanceModal` |
+| L404 | `<input#distanceRange>` | `oninput` | `setDistance(this.value)` | `setDistance` |
+| L404 | `<button>` | `onclick` | `closeDistanceModal();applyFilters()` | `applyFilters`, `closeDistanceModal` |
+| L405 | `<div#areaModal>` | `onclick` | `if(event.target===this)closeAreaModal()` | `closeAreaModal` |
+| L405 | `<button>` | `onclick` | `closeAreaModal()` | `closeAreaModal` |
+| L405 | `<button#areaUseLocationBtn>` | `onclick` | `closeAreaModal();locateMe()` | `closeAreaModal`, `locateMe` |
+| L405 | `<button#areaAllSonomaBtn>` | `onclick` | `selectManualArea('')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Santa Rosa')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Petaluma')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Rohnert Park')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Cotati')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Sonoma')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Sebastopol')` | `selectManualArea` |
+| L405 | `<button>` | `onclick` | `selectManualArea('Healdsburg')` | `selectManualArea` |
 
 ### Static `data-*` Attributes (14)
 
@@ -220,7 +222,7 @@
 
 ### Static HTML Element IDs (192)
 
-`#app` (L25), `#locationPillBtn` (L28), `#locationLabel` (L28), `#profileMenu` (L33), `#profileAvatar` (L34), `#profileHeading` (L36), `#profileSub` (L37), `#authSignInLink` (L41), `#authSignOutBtn` (L42), `#discoverScreen` (L48), `#map` (L50), `#mapFallback` (L51), `#mapFallbackStatus` (L53), `#mapFallbackTitle` (L55), `#mapFallbackCopy` (L56), `#mapFallbackListBtn` (L58), `#mapFallbackRetryBtn` (L59), `#mapFallbackHint` (L61), `#mapMode` (L64), `#listMode` (L64), `#searchInput` (L66), `#searchLocateBtn` (L66), `#filters` (L67), `#extraFilters` (L70), `#openNow` (L70), `#distanceFilterBtn` (L70), `#distanceText` (L70), `#refreshCatalogBtn` (L70), `#nearbyCount` (L71), `#coarseAreaBanner` (L72), `#openHoursNote` (L73), `#catalogOfflineNote` (L74), `#mapEmpty` (L76), `#truckSheet` (L77), `#neighborhoodHeading` (L79), `#characterHeroSlogan` (L80), `#resultsHeading` (L92), `#flavorGuide` (L93), `#flavorGuideText` (L93), `#truckCards` (L94), `#discoverExtras` (L95), `#coffeeHeading` (L103), `#streetHeading` (L104), `#smartInvite` (L109), `#communityScreen` (L115), `#communitySuccess` (L123), `#streetSectionTitle` (L145), `#streetQuiz` (L149), `#streetMysteryResult` (L153), `#streetMissionResult` (L154), `#streetFiles` (L158), `#communityCompose` (L161), `#communityPostForm` (L164), `#communityKind` (L166), `#communityNickname` (L167), `#communityPlace` (L169), `#communityRatingRow` (L170), `#communityRating` (L170), `#communityTitle` (L171), `#communityBody` (L172), `#communitySubmit` (L174), `#communityActionMessage` (L174), `#communityMyPosts` (L177), `#communityCount` (L179), `#communityTownFilter` (L186), `#communitySort` (L187), `#communitySearch` (L188), `#communityFeed` (L190), `#guidesScreen` (L200), `#guidePassportSection` (L204), `#guidePassport` (L204), `#guideStories` (L205), `#guideStoryGrid` (L205), `#guidePhotoSection` (L206), `#dishPhotoVendor` (L207), `#dishPhotoCaption` (L207), `#dishPhotoFile` (L207), `#dishPhotoSave` (L207), `#dishPhotoMessage` (L208), `#dishPhotoGrid` (L208), `#smartScreen` (L212), `#smartBody` (L212), `#smartMessage` (L212), `#pagerScreen` (L214), `#pagerRealEntry` (L227), `#pagerCode` (L230), `#pagerMessage` (L233), `#pagerLiveStatus` (L234), `#pagerDisplay` (L236), `#favoritesScreen` (L246), `#nearbyAlertToggle` (L249), `#nearbyAlertMeta` (L249), `#nearbyAlertRadius` (L250), `#favoritesFeedback` (L252), `#favoriteGrid` (L253), `#bookingsScreen` (L256), `#bookingsFeedback` (L258), `#bookingList` (L259), `#ownerScreen` (L262), `#ownerLogo` (L265), `#ownerTitle` (L265), `#ownerSubtitle` (L265), `#ownerTruckSelect` (L266), `#ownerStatusPill` (L266), `#ownerModeBanner` (L268), `#ownerFeedback` (L269), `#statTotalRequests` (L270), `#statPendingRequests` (L270), `#statAcceptedRequests` (L270), `#kitchenPanel` (L273), `#pagerCreateForm` (L273), `#pagerVendor` (L273), `#pagerTicket` (L273), `#pagerCreateButton` (L273), `#kitchenMessage` (L273), `#kitchenQueue` (L273), `#ownerModerationCard` (L274), `#communityModeration` (L274), `#ownerPinEmoji` (L275), `#ownerLocation` (L275), `#ownerLat` (L275), `#ownerLng` (L275), `#ownerLocationTtl` (L275), `#ownerUpdateLocationBtn` (L275), `#ownerLocationMsg` (L275), `#ownerScheduleDate` (L276), `#ownerScheduleWeekday` (L276), `#ownerOpensAt` (L276), `#ownerClosesAt` (L276), `#ownerIsOpen` (L276), `#ownerSaveScheduleBtn` (L276), `#ownerScheduleMsg` (L276), `#ownerScheduleList` (L276), `#ownerPhotoGrid` (L277), `#ownerPhotoMsg` (L277), `#ownerEditProfileBtn` (L278), `#ownerEditProfileSub` (L278), `#ownerRequestCount` (L279), `#ownerRequests` (L279), `#welcomeScreen` (L283), `#welcomeHeading` (L287), `#welcomeCustomerBtn` (L290), `#welcomeVendorBtn` (L298), `#welcomeRememberChoice` (L308), `#welcomeJustBrowseBtn` (L315), `#welcomeSignInLink` (L316), `#welcomeFeedbackMsg` (L318), `#vendorIntroScreen` (L323), `#viBackToBrowseBtn` (L326), `#viRememberedBadge` (L327), `#viForgetPrefBtn` (L329), `#vendorIntroHeading` (L334), `#viCapabilitiesList` (L336), `#viOnboardingPausedNotice` (L345), `#viListingPickerWrap` (L346), `#viListingSearch` (L349), `#viListingSelect` (L350), `#viClaimBusinessBtn` (L356), `#viAddBusinessBtn` (L357), `#viManageSignInLink` (L360), `#viJustExploreBtn` (L361), `#detailModal` (L377), `#detailContent` (L377), `#bookingModal` (L378), `#bookingModalTitle` (L379), `#bookingTruckLabel` (L379), `#bookingAuthNotice` (L381), `#bookingTruck` (L382), `#eventType` (L387), `#eventDate` (L388), `#guestCount` (L388), `#eventLocation` (L389), `#eventNote` (L389), `#bookingError` (L390), `#bookingSubmitBtn` (L391), `#ownerProfileModal` (L393), `#ownerProfileModalTitle` (L394), `#ownerProfileName` (L395), `#ownerProfileCuisine` (L396), `#ownerProfileBio` (L397), `#ownerAcceptingBookings` (L398), `#ownerProfileError` (L399), `#ownerProfileSaveBtn` (L400), `#distanceModal` (L402), `#distanceModalTitle` (L402), `#distanceRange` (L402), `#rangeValue` (L402), `#areaModal` (L403), `#areaModalTitle` (L403), `#areaUseLocationBtn` (L403), `#areaAllSonomaBtn` (L403), `#toast` (L404)
+`#app` (L26), `#locationPillBtn` (L29), `#locationLabel` (L29), `#profileMenu` (L34), `#profileAvatar` (L35), `#profileHeading` (L37), `#profileSub` (L38), `#authSignInLink` (L42), `#authSignOutBtn` (L43), `#discoverScreen` (L49), `#map` (L51), `#mapFallback` (L52), `#mapFallbackStatus` (L54), `#mapFallbackTitle` (L56), `#mapFallbackCopy` (L57), `#mapFallbackListBtn` (L59), `#mapFallbackRetryBtn` (L60), `#mapFallbackHint` (L62), `#mapMode` (L65), `#listMode` (L65), `#searchInput` (L67), `#searchLocateBtn` (L67), `#filters` (L68), `#extraFilters` (L71), `#openNow` (L71), `#distanceFilterBtn` (L71), `#distanceText` (L71), `#refreshCatalogBtn` (L71), `#nearbyCount` (L72), `#coarseAreaBanner` (L74), `#openHoursNote` (L75), `#catalogOfflineNote` (L76), `#mapEmpty` (L78), `#truckSheet` (L79), `#neighborhoodHeading` (L81), `#characterHeroSlogan` (L82), `#resultsHeading` (L94), `#flavorGuide` (L95), `#flavorGuideText` (L95), `#truckCards` (L96), `#discoverExtras` (L97), `#coffeeHeading` (L105), `#streetHeading` (L106), `#smartInvite` (L111), `#communityScreen` (L117), `#communitySuccess` (L125), `#streetSectionTitle` (L147), `#streetQuiz` (L151), `#streetMysteryResult` (L155), `#streetMissionResult` (L156), `#streetFiles` (L160), `#communityCompose` (L163), `#communityPostForm` (L166), `#communityKind` (L168), `#communityNickname` (L169), `#communityPlace` (L171), `#communityRatingRow` (L172), `#communityRating` (L172), `#communityTitle` (L173), `#communityBody` (L174), `#communitySubmit` (L176), `#communityActionMessage` (L176), `#communityMyPosts` (L179), `#communityCount` (L181), `#communityTownFilter` (L188), `#communitySort` (L189), `#communitySearch` (L190), `#communityFeed` (L192), `#guidesScreen` (L202), `#guidePassportSection` (L206), `#guidePassport` (L206), `#guideStories` (L207), `#guideStoryGrid` (L207), `#guidePhotoSection` (L208), `#dishPhotoVendor` (L209), `#dishPhotoCaption` (L209), `#dishPhotoFile` (L209), `#dishPhotoSave` (L209), `#dishPhotoMessage` (L210), `#dishPhotoGrid` (L210), `#smartScreen` (L214), `#smartBody` (L214), `#smartMessage` (L214), `#pagerScreen` (L216), `#pagerRealEntry` (L229), `#pagerCode` (L232), `#pagerMessage` (L235), `#pagerLiveStatus` (L236), `#pagerDisplay` (L238), `#favoritesScreen` (L248), `#nearbyAlertToggle` (L251), `#nearbyAlertMeta` (L251), `#nearbyAlertRadius` (L252), `#favoritesFeedback` (L254), `#favoriteGrid` (L255), `#bookingsScreen` (L258), `#bookingsFeedback` (L260), `#bookingList` (L261), `#ownerScreen` (L264), `#ownerLogo` (L267), `#ownerTitle` (L267), `#ownerSubtitle` (L267), `#ownerTruckSelect` (L268), `#ownerStatusPill` (L268), `#ownerModeBanner` (L270), `#ownerFeedback` (L271), `#statTotalRequests` (L272), `#statPendingRequests` (L272), `#statAcceptedRequests` (L272), `#kitchenPanel` (L275), `#pagerCreateForm` (L275), `#pagerVendor` (L275), `#pagerTicket` (L275), `#pagerCreateButton` (L275), `#kitchenMessage` (L275), `#kitchenQueue` (L275), `#ownerModerationCard` (L276), `#communityModeration` (L276), `#ownerPinEmoji` (L277), `#ownerLocation` (L277), `#ownerLat` (L277), `#ownerLng` (L277), `#ownerLocationTtl` (L277), `#ownerUpdateLocationBtn` (L277), `#ownerLocationMsg` (L277), `#ownerScheduleDate` (L278), `#ownerScheduleWeekday` (L278), `#ownerOpensAt` (L278), `#ownerClosesAt` (L278), `#ownerIsOpen` (L278), `#ownerSaveScheduleBtn` (L278), `#ownerScheduleMsg` (L278), `#ownerScheduleList` (L278), `#ownerPhotoGrid` (L279), `#ownerPhotoMsg` (L279), `#ownerEditProfileBtn` (L280), `#ownerEditProfileSub` (L280), `#ownerRequestCount` (L281), `#ownerRequests` (L281), `#welcomeScreen` (L285), `#welcomeHeading` (L289), `#welcomeCustomerBtn` (L292), `#welcomeVendorBtn` (L300), `#welcomeRememberChoice` (L310), `#welcomeJustBrowseBtn` (L317), `#welcomeSignInLink` (L318), `#welcomeFeedbackMsg` (L320), `#vendorIntroScreen` (L325), `#viBackToBrowseBtn` (L328), `#viRememberedBadge` (L329), `#viForgetPrefBtn` (L331), `#vendorIntroHeading` (L336), `#viCapabilitiesList` (L338), `#viOnboardingPausedNotice` (L347), `#viListingPickerWrap` (L348), `#viListingSearch` (L351), `#viListingSelect` (L352), `#viClaimBusinessBtn` (L358), `#viAddBusinessBtn` (L359), `#viManageSignInLink` (L362), `#viJustExploreBtn` (L363), `#detailModal` (L379), `#detailContent` (L379), `#bookingModal` (L380), `#bookingModalTitle` (L381), `#bookingTruckLabel` (L381), `#bookingAuthNotice` (L383), `#bookingTruck` (L384), `#eventType` (L389), `#eventDate` (L390), `#guestCount` (L390), `#eventLocation` (L391), `#eventNote` (L391), `#bookingError` (L392), `#bookingSubmitBtn` (L393), `#ownerProfileModal` (L395), `#ownerProfileModalTitle` (L396), `#ownerProfileName` (L397), `#ownerProfileCuisine` (L398), `#ownerProfileBio` (L399), `#ownerAcceptingBookings` (L400), `#ownerProfileError` (L401), `#ownerProfileSaveBtn` (L402), `#distanceModal` (L404), `#distanceModalTitle` (L404), `#distanceRange` (L404), `#rangeValue` (L404), `#areaModal` (L405), `#areaModalTitle` (L405), `#areaUseLocationBtn` (L405), `#areaAllSonomaBtn` (L405), `#toast` (L406)
 
 ## HTML Document: [public/login.html](../../../public/login.html)
 
@@ -326,22 +328,22 @@
 | `cookie` | `truckly_debug_role` | `write` | `scripts/dev-workbench/debug-admin.js:L123` |
 | `IndexedDB` | `truckly-dish-notebook-v1` | `open` | `public/local-guides.js:L39` |
 | `localStorage` | `<constant_or_var>` | `getItem, removeItem, setItem` | `public/app.js:L108`, `public/app.js:L128`, `scripts/dev-workbench/debug-admin.js:L13`, `scripts/dev-workbench/debug-admin.js:L21` |
-| `localStorage` | `truckly_bookings` | `removeItem` | `public/app.js:L1707`, `public/app.js:L1775`, `public/auth-client.js:L24` |
+| `localStorage` | `truckly_bookings` | `removeItem` | `public/app.js:L1763`, `public/app.js:L1831`, `public/auth-client.js:L24` |
 | `localStorage` | `truckly_catalog` | `removeItem` | `public/app.js:L423` |
 | `localStorage` | `truckly_catalog_v2` | `safeJSON, setItem` | `public/app.js:L424`, `public/app.js:L980` |
-| `localStorage` | `truckly_favs` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1655`, `public/app.js:L1661`, `public/app.js:L1704`, `public/app.js:L1776` |
-| `localStorage` | `truckly_favs_scope` | `getItem, removeItem, safeStorageSet` | `public/app.js:L1632`, `public/app.js:L1656`, `public/app.js:L1662`, `public/app.js:L1702` |
+| `localStorage` | `truckly_favs` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1711`, `public/app.js:L1717`, `public/app.js:L1760`, `public/app.js:L1832` |
+| `localStorage` | `truckly_favs_scope` | `getItem, removeItem, safeStorageSet` | `public/app.js:L1688`, `public/app.js:L1712`, `public/app.js:L1718`, `public/app.js:L1758` |
 | `localStorage` | `truckly_guide_passport_v1` | `getItem, setItem` | `public/guide-passport.js:L10`, `public/guide-passport.js:L5` |
-| `localStorage` | `truckly_notify` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1778`, `public/app.js:L2028`, `public/app.js:L2050`, `public/app.js:L2084` |
-| `localStorage` | `truckly_owner_profile` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1780`, `public/app.js:L2870`, `public/app.js:L3650`, `public/auth-client.js:L29` |
-| `localStorage` | `truckly_owner_schedule` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1781`, `public/app.js:L2878`, `public/app.js:L3546`, `public/auth-client.js:L30` |
-| `localStorage` | `truckly_owner_truck_id` | `getItem, removeItem, setItem` | `public/app.js:L1779`, `public/app.js:L2863`, `public/app.js:L3048`, `public/auth-client.js:L28` |
+| `localStorage` | `truckly_notify` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1834`, `public/app.js:L2084`, `public/app.js:L2106`, `public/app.js:L2140` |
+| `localStorage` | `truckly_owner_profile` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1836`, `public/app.js:L2926`, `public/app.js:L3706`, `public/auth-client.js:L29` |
+| `localStorage` | `truckly_owner_schedule` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1837`, `public/app.js:L2934`, `public/app.js:L3602`, `public/auth-client.js:L30` |
+| `localStorage` | `truckly_owner_truck_id` | `getItem, removeItem, setItem` | `public/app.js:L1835`, `public/app.js:L2919`, `public/app.js:L3104`, `public/auth-client.js:L28` |
 | `localStorage` | `truckly_pager_subs_v1` | `getItem, setItem` | `public/pager.js:L21`, `public/pager.js:L42` |
 | `sessionStorage` | `biteshark_admin_viewpoint_v1` | `getItem, removeItem, setItem` | `public/admin.js:L318`, `public/admin.js:L319`, `public/auth-client.js:L23`, `public/role-experience.js:L1041` |
 | `sessionStorage` | `biteshark_pending_invite_v1` | `getItem, removeItem, setItem` | `public/admin.js:L4769`, `public/role-experience.js:L100`, `public/role-experience.js:L92`, `public/role-experience.js:L96` |
 | `sessionStorage` | `bs_support_draft_v1` | `getItem, removeItem, setItem` | `public/admin.js:L4768`, `public/auth-client.js:L22`, `public/role-experience.js:L106`, `public/role-experience.js:L109` |
 
-## CSS Stylesheets, Custom Properties & Responsive Breakpoints (18)
+## CSS Stylesheets, Custom Properties & Responsive Breakpoints (19)
 
 | Stylesheet | Custom Properties Defined | Media Queries | `!important` Declarations |
 |---|---:|---:|---:|
@@ -353,6 +355,7 @@
 | [public/guide-passport.css](../../../public/guide-passport.css) | 2 | 3 | 0 |
 | [public/layout-polish.css](../../../public/layout-polish.css) | 5 | 3 | 0 |
 | [public/local-guides.css](../../../public/local-guides.css) | 4 | 3 | 0 |
+| [public/map-cards.css](../../../public/map-cards.css) | 0 | 1 | 0 |
 | [public/mobile-scroll-fix.css](../../../public/mobile-scroll-fix.css) | 2 | 5 | 17 |
 | [public/neighborhood.css](../../../public/neighborhood.css) | 18 | 3 | 0 |
 | [public/pager-experience.css](../../../public/pager-experience.css) | 0 | 2 | 1 |

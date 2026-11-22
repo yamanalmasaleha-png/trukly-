@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/mobile-scroll-fix.css">
   <link rel="stylesheet" href="/color-calm.css">
   <link rel="stylesheet" href="/role-experience.css">
+  <link rel="stylesheet" href="/map-cards.css">
 </head>
 <body>
 <div id="app">
@@ -69,6 +70,7 @@
         </div>
         <details class="extra-filters" id="extraFilters"><summary aria-label="More discovery filters">☷ <span>Filters</span></summary><div class="map-actions"><button type="button" class="map-chip" id="openNow" aria-pressed="false" onclick="toggleOpen()">Open now</button><button type="button" class="map-chip" id="distanceFilterBtn" onclick="openDistance()"><span id="distanceText">30 mi</span> radius</button><button class="map-chip" id="refreshCatalogBtn" type="button" onclick="refreshDiscoveryCatalog({fresh:true,announce:true})">↻ Refresh</button></div></details>
         <div class="nearby-count" id="nearbyCount" role="status" aria-live="polite">Loading places…</div>
+        <p class="map-art-note">Trucks are cuisine illustrations, not actual vendor vehicles.</p>
         <div id="coarseAreaBanner" class="hours-note coarse-area-banner" role="region" aria-label="Area notice" hidden></div>
         <div id="openHoursNote" class="hours-note" role="status" hidden>Showing places within published or vendor-reported hours — confirm unverified schedules before visiting.</div>
         <div id="catalogOfflineNote" class="hours-note" role="status" hidden>Live catalog temporarily unavailable — showing saved or offline Sonoma County directory snapshot.</div>
@@ -406,6 +408,7 @@
 <script src="/diagnostics-client.js"></script>
 <script src="/auth-client.js"></script>
 <script src="/role-experience.js"></script>
+<script src="/map-cards.js"></script>
 <script src="/app.js"></script>
 <script src="/listing-highlights.js"></script>
 <script src="/pager.js"></script>

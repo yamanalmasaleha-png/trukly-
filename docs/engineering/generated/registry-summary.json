@@ -1,20 +1,20 @@
 {
   "branch_at_generation": "testing/yaman-staging2",
   "coverage_counts": {
-    "browser_globals_and_assignments": 580,
+    "browser_globals_and_assignments": 582,
     "classes": 16,
     "configuration_keys_observed": 62,
-    "css_files_scanned": 18,
+    "css_files_scanned": 19,
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 14,
-    "functions_and_methods": 2251,
+    "functions_and_methods": 2265,
     "html_element_ids": 477,
     "html_files_scanned": 12,
     "http_routes": 85,
-    "js_files_scanned": 110,
+    "js_files_scanned": 112,
     "js_parse_failures": 0,
-    "significant_constants": 533,
+    "significant_constants": 543,
     "sql_migrations": 26,
     "sql_rls_policies": 49,
     "sql_tables": 47,
@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109",
+  "deterministic_digest_sha256": "378950b7dbad98949958dcaa0e20744916bb3733bea165a0d69c63869f072933",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -1392,8 +1392,10 @@
         "restoreActiveCardControlFocus",
         "detailStatusPrefix",
         "detailHoursNote",
-        "applyFilters",
+        "openMapCluster",
+        "renderMapCards",
         "markers",
+        "applyFilters",
         "resetFilters",
         "activeCuisine",
         "activeKind",
@@ -1599,7 +1601,7 @@
         "trucklyReady"
       ],
       "source_type": "script",
-      "symbol_count": 181
+      "symbol_count": 185
     },
     {
       "exported_symbols": [],
@@ -1734,6 +1736,13 @@
       ],
       "source_type": "script",
       "symbol_count": 20
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/map-cards.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 7
     },
     {
       "exported_symbols": [],
@@ -2179,6 +2188,13 @@
       ],
       "source_type": "script",
       "symbol_count": 118
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/map-cards.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 3
     },
     {
       "exported_symbols": [],

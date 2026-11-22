@@ -28,7 +28,7 @@ At baseline `a4e9f53`, `public/index.html` loads **14 synchronous scripts** at t
 > [!WARNING]
 > **Branch-Specific Script Additions**:
 > - `feature/customer-exploration-journal-trails` (`83181ba`) inserts `/exploration-client.js` (`window.bitesharkExploration`) **between `/auth-client.js` and `/role-experience.js`**.
-> - `antigravity/staging2-latest` (`a2f0135`) inserts `/map-cards.js` (`window.BiteSharkMapCards`) **immediately before `/app.js`**.
+> - `testing/yaman-staging2` integrates the map markers from `antigravity/staging2-latest` (`a2f0135`) and inserts `/map-cards.js` (`window.BiteSharkMapCards`) **immediately before `/app.js`**.
 > - Reordering scripts breaks `openDetail`/`applyFilters` decorator chains and `INITIAL_ARRIVAL_HASH` capture!
 
 ### B. Other HTML Entrypoints
