@@ -1499,7 +1499,7 @@ function extraDetail(t, triggerEl) {
   const metaDisclaimer = t.is_confirmed_service
     ? `Status reported directly by authorized vendor staff (${esc(distanceLabel(t, 'detail'))}).`
     : `Source checked ${esc(t.checked || 'recently')}. Hours and pop-up locations can change. ${esc(distanceLabel(t, 'detail'))}.`;
-  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close details">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
+  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" onclick="closeModal()" aria-label="Close details">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc((t.kind || t.cuisine || 'Local').toUpperCase())}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p>${t.special ? `<aside class="special-note"><small>WHAT MAKES IT SPECIAL</small><p>${esc(t.special)}</p><a href="${storyHref}" target="_blank" rel="noopener noreferrer">Read the business’s own story ↗</a></aside>` : ''}<div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><p class="meta">${metaDisclaimer}</p><div class="detail-exploration-actions"><button type="button" class="secondary" data-detail-log-visit="${safeId}" onclick="if(typeof openVisitJournalForBusiness==='function')openVisitJournalForBusiness('${safeId}')">✓ Log a visit</button><button type="button" class="secondary" data-detail-save-photo="${safeId}" onclick="if(typeof openPhotoNotebook==='function')openPhotoNotebook('${safeId}')">📷 Save private photo</button></div>${t.source ? `<a class="primary source-button" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published ${t.popup ? 'pop-up calendar' : 'hours & information'} ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.popup && t.location_source === 'unknown' ? t.name + ' Sonoma County' : t.location)}">Find ${t.popup ? 'this truck' : 'this place'} on Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button></div>`;
   openAppModal('detailModal', { onClose: closeModal, triggerEl });
   if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
     window.bitesharkFeatures.syncDom();
@@ -1540,7 +1540,7 @@ function openDetail(id, triggerEl) {
   const bookingBtnHtml = canBookListing
     ? `<button type="button" class="primary" onclick="closeModal();openBooking('${safeId}')">Request this truck for an event →</button>`
     : '';
-  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" aria-label="Close details" onclick="closeModal()">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc(cleanDisplayText(t.cuisine)).toUpperCase()}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${cleanDisplayText(t.price) ? `<span>${esc(cleanDisplayText(t.price))}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot" aria-hidden="true">✓</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(cleanDisplayText(t.listing_type || t.availability) || 'Mobile vendor')} · ${esc(cleanDisplayText(t.city) || 'Sonoma County')} · Pacific time</small></div></div><a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button>${bookingBtnHtml}</div>`;
+  document.getElementById('detailContent').innerHTML = `<button type="button" class="modal-close" aria-label="Close details" onclick="closeModal()">×</button>${renderListingMediaSlot(t, { variant: 'detail' })}<div class="detail-body"><small>${statusPrefix}${esc(cleanDisplayText(t.cuisine)).toUpperCase()}</small><h2 id="detailDialogTitle">${esc(cleanDisplayText(t.name))}</h2><p>${esc(cleanDisplayText(t.blurb))}</p><div class="detail-tags"><span>${t.verified && t.rating ? `★ ${esc(t.rating)} (${esc(t.reviews)})` : 'Check the menu'}</span>${cleanDisplayText(t.price) ? `<span>${esc(cleanDisplayText(t.price))}</span>` : ''}<span>${esc(distanceLabel(t, 'detail'))}</span></div><div class="detail-location"><b>⌖ ${esc(cleanDisplayText(t.location))}</b><small>${esc(detailHoursNote(t))}</small></div><div class="truth-card"><span class="verified-dot" aria-hidden="true">${t.verified ? '✓' : '◐'}</span><div><b>${t.verified ? 'Source-verified listing' : 'Details pending verification'}</b><small>${esc(cleanDisplayText(t.listing_type || t.availability) || 'Mobile vendor')} · ${esc(cleanDisplayText(t.city) || 'Sonoma County')} · Pacific time</small></div></div><div class="detail-exploration-actions"><button type="button" class="secondary" data-detail-log-visit="${safeId}" onclick="if(typeof openVisitJournalForBusiness==='function')openVisitJournalForBusiness('${safeId}')">✓ Log a visit</button><button type="button" class="secondary" data-detail-save-photo="${safeId}" onclick="if(typeof openPhotoNotebook==='function')openPhotoNotebook('${safeId}')">📷 Save private photo</button></div>${t.source ? `<a class="map-link" target="_blank" rel="noopener noreferrer" href="${esc(t.source)}">View published hours & menu source ↗</a>` : ''}<a class="map-link" target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}">Open location in Google Maps ↗</a><button class="detail-link" type="button" onclick="if(typeof communityReviewPlace==='function')communityReviewPlace('${safeId}')">✎ Write a local review →</button>${bookingBtnHtml}</div>`;
   openAppModal('detailModal', { onClose: closeModal, triggerEl: resolvedTrigger });
   if (typeof window !== 'undefined' && window.bitesharkFeatures && typeof window.bitesharkFeatures.syncDom === 'function') {
     window.bitesharkFeatures.syncDom();
@@ -1663,6 +1663,12 @@ async function syncAuthAndUserData() {
     }
     await Promise.all([loadUserBookings(epochAtStart), loadNotificationSettings(epochAtStart)]);
     if (epochAtStart !== appAuthEpoch) return;
+    if (window.bitesharkExploration) {
+      const expChanged = window.bitesharkExploration.syncActiveUserScope(currentUser);
+      if (expChanged && typeof window.bitesharkResetExplorationUiOnAuthChange === 'function') {
+        window.bitesharkResetExplorationUiOnAuthChange();
+      }
+    }
     updateAuthUI();
     applyFilters();
     renderFavorites();
@@ -1673,6 +1679,9 @@ async function syncAuthAndUserData() {
   if (favRes.status === 403 && (favRes.outcome === 'age_assessment_required' || favRes.data?.requires_age_assessment)) {
     isSignedIn = Boolean(detectedSessionUser || currentUser);
     accountSyncState = 'local_only';
+    if (window.bitesharkExploration) {
+      window.bitesharkExploration.syncActiveUserScope(isSignedIn ? currentUser : null);
+    }
     updateAuthUI();
     renderNotificationUI();
     return;
@@ -1681,6 +1690,9 @@ async function syncAuthAndUserData() {
   if (favRes.status !== 401 && (detectedSessionUser || isSignedIn)) {
     isSignedIn = true;
     accountSyncState = 'degraded';
+    if (window.bitesharkExploration) {
+      window.bitesharkExploration.syncActiveUserScope(currentUser);
+    }
     updateAuthUI();
     renderNotificationUI();
     renderSectionFeedback('favoritesFeedback', {
@@ -1695,9 +1707,16 @@ async function syncAuthAndUserData() {
   }
 
   isSignedIn = false;
+  currentUser = null;
   accountSyncState = 'local_only';
   notifySyncState = 'local_only';
   bookings = [];
+  if (window.bitesharkExploration) {
+    const expChanged = window.bitesharkExploration.syncActiveUserScope(null);
+    if (expChanged && typeof window.bitesharkResetExplorationUiOnAuthChange === 'function') {
+      window.bitesharkResetExplorationUiOnAuthChange();
+    }
+  }
   try {
     if (localStorage.getItem(FAVS_SCOPE_STORAGE_KEY) === 'account') {
       favs.clear();
@@ -1795,6 +1814,13 @@ function applyConfirmedClientSignOutCleanup(opts = {}) {
   renderFavorites();
   renderNotificationUI();
   renderBookings();
+
+  if (window.bitesharkExploration) {
+    window.bitesharkExploration.syncActiveUserScope(null);
+  }
+  if (typeof window !== 'undefined' && typeof window.bitesharkResetExplorationUiOnAuthChange === 'function') {
+    window.bitesharkResetExplorationUiOnAuthChange();
+  }
 
   if (typeof window !== 'undefined' && typeof window.bitesharkOnSignedOut === 'function') {
     window.bitesharkOnSignedOut({
@@ -3713,6 +3739,7 @@ function surpriseMe() {
   const choices = matches.length > 1 ? matches.filter(t => t.id !== lastSurpriseId) : matches;
   const pick = choices[Math.floor(Math.random() * choices.length)];
   lastSurpriseId = pick.id;
+  ensureDiscoverScreenActive();
   openDetail(pick.id);
 }
 

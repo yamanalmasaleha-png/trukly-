@@ -193,7 +193,7 @@ async function main() {
 
     const migRes = await runMigrationsCli(migratorUrl, appRole);
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":26'), `Expected 26 migrations: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":27'), `Expected 27 migrations: ${migRes.stdout}`);
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });

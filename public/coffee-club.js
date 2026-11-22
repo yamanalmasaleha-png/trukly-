@@ -26,12 +26,12 @@ function paintFlavorIcons(){
  document.querySelectorAll('.explore-kinds [data-kind]').forEach(b=>{const span=b.querySelector('span');if(span)span.innerHTML=flavorDoodle(kinds[b.dataset.kind])});
  const cuisines={All:['bowl','All'],Mexican:['taco','Mexican'],Burgers:['burger','Smash burgers'],'Hot Dogs':['hotdog','Hot dogs'],Global:['bowl','Global'],Sweets:['sweet','Sweets'],Markets:['basket','Market vendors'],Coffee:['coffee','Coffee']};
  document.querySelectorAll('.filters [data-cuisine]').forEach(b=>{const d=cuisines[b.dataset.cuisine];if(d)b.innerHTML='<span class="filter-doodle">'+flavorDoodle(d[0])+'</span><span>'+d[1]+'</span>'});
- const nav={discover:'pin',favorites:'heart',bookings:'calendar'};
+ const nav={discover:'pin',favorites:'heart',guides:'spark',bookings:'calendar'};
  document.querySelectorAll('.bottom-nav button').forEach(b=>{const span=b.querySelector('span');if(span)span.innerHTML=flavorDoodle(nav[b.dataset.screen]||(b.classList.contains('surprise-nav')?'dice':'party'))});
  const buttons=[['.local-surprise span:first-child','dice'],['.pager-launch span:first-child','bowl']];
  for(const [selector,name]of buttons){const el=document.querySelector(selector);if(el)el.innerHTML=flavorDoodle(name)}
- const tabNames={finder:['spark','Flavor finder'],trail:['trail','Food trail'],marketing:['party','Marketing kit']};
- document.querySelectorAll('[data-smart-tab]').forEach(b=>{const d=tabNames[b.dataset.smartTab];b.innerHTML='<span class="inline-doodle">'+flavorDoodle(d[0])+'</span>'+d[1]});
- document.querySelectorAll('.smart-invite-actions button').forEach((b,i)=>b.innerHTML='<span class="inline-doodle">'+flavorDoodle(i?'trail':'spark')+'</span>'+(i?'Build a food trail':'Find my flavor'));
+ const tabNames={finder:['spark','Flavor finder'],trail:['trail','Suggested trails']};
+ document.querySelectorAll('[data-smart-tab]').forEach(b=>{const d=tabNames[b.dataset.smartTab];if(d)b.innerHTML='<span class="inline-doodle">'+flavorDoodle(d[0])+'</span>'+d[1]});
+ document.querySelectorAll('.smart-invite-actions button').forEach((b,i)=>b.innerHTML='<span class="inline-doodle">'+flavorDoodle(i?'trail':'spark')+'</span>'+(i?'Suggested trails':'Find my flavor'));
 }
 paintFlavorIcons();

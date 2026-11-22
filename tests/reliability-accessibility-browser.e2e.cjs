@@ -695,6 +695,12 @@ class CdpClient {
               headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': 'corr_fedcba9876543210' }
             });
           }
+          if (window.__faultMode === 'photos_503' && u.includes('/api/me/photos')) {
+            return new Response(JSON.stringify({ error: 'Private photo storage temporarily unavailable', code: 'PHOTO_STORAGE_UNAVAILABLE', correlation_id: 'corr_photo503abcdef12' }), {
+              status: 503,
+              headers: { 'Content-Type': 'application/json', 'X-Correlation-Id': 'corr_photo503abcdef12' }
+            });
+          }
           return window.__origFetch(url, init);
         };
       })()`
@@ -790,15 +796,11 @@ class CdpClient {
     );
     assert.equal(dbBookingCount.rows[0].c, 1, 'Exactly 1 booking row created after timeout reconciliation');
 
-    // A5. IndexedDB Failure on Dish Photo Notebook (`local-guides.js`) + Recovery
+    // A5. Account-Backed Private Photos Storage Failure (`local-guides.js` -> `/api/me/photos`) + Retry Recovery
     await cdp.eval(
       custTab.sessionId,
       `(() => {
-        window.__origIdbOpen = IDBFactory.prototype.open;
-        IDBFactory.prototype.open = function () {
-          throw new Error('Simulated storage restriction');
-        };
-        dishDbPromise = null;
+        window.__faultMode = 'photos_503';
         openLocalGuides('photos');
       })()`
     );
@@ -806,16 +808,16 @@ class CdpClient {
       () =>
         cdp.eval(
           custTab.sessionId,
-          `document.getElementById('dishPhotoGrid').textContent.includes('Local photo storage is unavailable')`
+          `document.getElementById('dishPhotoGrid').textContent.includes('Private photos could not be loaded') && document.getElementById('dishPhotoGrid').textContent.includes('corr_photo503abcdef12')`
         ),
-      { label: 'IndexedDB unavailable card rendered' }
+      { label: 'Private photos 503 failure card rendered with correlation reference' }
     );
-    // Restore IndexedDB and click Retry -> recovers cleanly because `dishDbPromise` was NOT permanently poisoned!
+    // Clear fault and click Retry -> recovers cleanly without reload!
     await cdp.eval(
       custTab.sessionId,
       `(() => {
-        IDBFactory.prototype.open = window.__origIdbOpen;
-        document.querySelector('#dishPhotoGrid button').click();
+        window.__faultMode = null;
+        document.getElementById('retryLoadPhotosBtn').click();
       })()`
     );
     await waitForCondition(
@@ -824,7 +826,7 @@ class CdpClient {
           custTab.sessionId,
           `document.getElementById('dishPhotoGrid').textContent.includes('No photos saved yet')`
         ),
-      { label: 'IndexedDB recovered after retry' }
+      { label: 'Private photos recovered after retry' }
     );
 
     // A6. Onboarding Evidence Upload Partial Failure Preserves Single Draft ID & Safe Form Data!
