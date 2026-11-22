@@ -37,7 +37,8 @@ This handbook provides **code-grounded engineering documentation and static anal
 - [Configuration (`CONFIGURATION.md`)](CONFIGURATION.md) & [Configuration Keys Contract (`contracts/configuration-keys.json`)](contracts/configuration-keys.json) — `BITESHARK_*` / `TRUCKLY_*` variable names, defaults, fail-closed rules, and secret classes (zero secret values).
 - [Storage & Files (`STORAGE-AND-FILES.md`)](STORAGE-AND-FILES.md) — Browser storage, DB `BYTEA` evidence, private customer photo derivatives, persistent VPS paths, and encrypted backups.
 - [Dependencies & Licenses (`DEPENDENCIES-AND-LICENSES.md`)](DEPENDENCIES-AND-LICENSES.md) — Direct npm packages, CDN assets, vendored `acorn@8.14.1`, and historical archives.
-- [UI & Content Guide (`UI-AND-CONTENT-GUIDE.md`)](UI-AND-CONTENT-GUIDE.md) — Visual identity, `.truck-card` compact card rules, cascade traps, and truthful copy rules.
+- [UI & Content Guide (`UI-AND-CONTENT-GUIDE.md`)](UI-AND-CONTENT-GUIDE.md) — Current observed visual conventions, `.truck-card` compact card rules, cascade traps, and mandatory truthful copy rules.
+- **[Unfilled Design Style Guide & Decision Questionnaire (`style-guide/README.md`)](style-guide/README.md)**, **[Completion Reminder (`style-guide/COMPLETION-REMINDER.md`)](style-guide/COMPLETION-REMINDER.md)** & **[UI Element Inventory (`style-guide/ui-element-inventory.md`)](style-guide/ui-element-inventory.md)** — Intentionally blank structured design questionnaire (`style-guide/decisions.json`) separating observed UI elements from unanswered team decisions.
 - [Accessibility (`ACCESSIBILITY.md`)](ACCESSIBILITY.md) — Skip links, `openModalDialog` focus traps, touch targets, and reduced motion.
 - [Testing (`TESTING.md`)](TESTING.md) — Unit, disposable-PostgreSQL integration, headless Chrome E2E, installer, and registry suites + execution reporting standards.
 - [Migrations (`MIGRATIONS.md`)](MIGRATIONS.md) — `scripts/run-migrations.cjs` checksum enforcement, role grants/revokes, and cross-branch numbering rules.
@@ -96,3 +97,4 @@ This handbook provides **code-grounded engineering documentation and static anal
 - [Change-Impact Schema](schemas/change-impact.schema.json)
 - [Drift Baseline Debt Ledger](schemas/drift-baseline.json) & [Schema](schemas/drift-baseline.schema.json)
 - [Suppressions Schema](schemas/drift-suppressions.schema.json) & [Shared Contracts Schema](schemas/shared-contracts.schema.json)
+- [Style Guide Decisions Schema](schemas/style-guide-decisions.schema.json)

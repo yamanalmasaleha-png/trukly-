@@ -3,20 +3,20 @@
     "browser_globals_and_assignments": 658,
     "classes": 19,
     "configuration_keys_observed": 64,
-    "confirmed_call_edges": 6894,
+    "confirmed_call_edges": 7016,
     "css_files_scanned": 18,
     "drift_findings_active": 11,
     "drift_findings_suppressed": 2,
     "feature_controls": 21,
-    "functions_and_methods": 2662,
+    "functions_and_methods": 2698,
     "html_element_ids": 488,
     "html_files_scanned": 12,
     "http_routes": 97,
     "inferred_call_edges": 33,
-    "js_files_scanned": 128,
+    "js_files_scanned": 131,
     "js_parse_failures": 0,
     "shared_contracts": 12,
-    "significant_constants": 648,
+    "significant_constants": 663,
     "sql_migrations": 28,
     "sql_rls_policies": 51,
     "sql_tables": 51,
@@ -534,7 +534,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba",
+  "deterministic_digest_sha256": "f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313",
   "drift_summary": {
     "active_count": 11,
     "active_finding_ids": [
@@ -760,7 +760,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "1039a8794c49225c117d64c98a8b2a3760e2229739aecc6a736fe15beb8c1aeb",
+  "included_files_manifest_sha256": "6dec8db4ffdb7cded3b6ec1075bc52bc401065e37eb5023e2bc15160818c042f",
   "modules": [
     {
       "exported_symbols": [
@@ -2694,6 +2694,13 @@
     },
     {
       "exported_symbols": [],
+      "file": "tests/style-guide.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 4
+    },
+    {
+      "exported_symbols": [],
       "file": "tests/support-feedback-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
@@ -2887,6 +2894,37 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 15
+    },
+    {
+      "exported_symbols": [],
+      "file": "tools/style-guide/cli.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "STYLE_GUIDE_GENERATOR_VERSION",
+        "STYLE_GUIDE_SCHEMA_REL_PATH",
+        "STYLE_GUIDE_DECISIONS_REL_PATH",
+        "STYLE_GUIDE_DIR_REL_PATH",
+        "normalizePlaceholderCandidate",
+        "isPlaceholderString",
+        "containsPlaceholderOrBlankLeaf",
+        "anchorSlug",
+        "formatDecisionValueCell",
+        "formatExpectedAnswerSummary",
+        "validateStyleGuideData",
+        "computeCompletionStats",
+        "renderStyleGuideMarkdownFiles",
+        "loadStyleGuideDecisions",
+        "generateStyleGuideDocs",
+        "validateStyleGuideWorkspace"
+      ],
+      "file": "tools/style-guide/lib.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 29
     }
   ],
   "parse_failures": [],
@@ -5067,5 +5105,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba"
+  "source_analysis_digest_sha256": "f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313"
 }

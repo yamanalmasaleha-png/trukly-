@@ -34,6 +34,11 @@ import {
   compareRegistrySnapshots,
   formatImpactReportMarkdown
 } from './compare-impact.mjs';
+import {
+  STYLE_GUIDE_DECISIONS_REL_PATH,
+  generateStyleGuideDocs,
+  validateStyleGuideWorkspace
+} from '../style-guide/lib.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -982,6 +987,12 @@ async function main() {
   }
 
   if (command === 'generate-docs') {
+    const sgPath = path.join(repoRoot, STYLE_GUIDE_DECISIONS_REL_PATH);
+    let styleGuideFiles = [];
+    if (fs.existsSync(sgPath)) {
+      const sgRes = generateStyleGuideDocs(repoRoot);
+      styleGuideFiles = sgRes.files_written;
+    }
     const snap = scanRepositorySnapshot(repoRoot, { includeTimestamp: false });
     if (snap.parse_failures.length > 0) {
       console.error('[code-registry] Refusing to generate docs due to syntax parse failures:', snap.parse_failures);
@@ -996,7 +1007,7 @@ async function main() {
           branch: snap.provenance.branch_or_ref,
           commit_sha: snap.provenance.commit_sha,
           source_analysis_digest_sha256: snap.source_analysis_digest_sha256,
-          files_written: written,
+          files_written: [...styleGuideFiles, ...written],
           coverage_counts: snap.coverage_counts
         },
         null,
@@ -1162,6 +1173,14 @@ async function main() {
 
     // 4. Referential integrity of maintained contracts & route overrides (`Sections 7 & 12`)
     failures.push(...validateContractsReferentialIntegrity(snap1, repoRoot));
+
+    // 4b. Design Style Guide structural validity, answer/status/reference rules & reminder freshness (`Section 20`)
+    if (fs.existsSync(path.join(repoRoot, STYLE_GUIDE_DECISIONS_REL_PATH))) {
+      const sgValidation = validateStyleGuideWorkspace(repoRoot);
+      for (const f of sgValidation.failures) {
+        failures.push(`Style guide error: ${f}`);
+      }
+    }
 
     // 5. Generated summary & Markdown freshness check (`Section 6`)
     const summaryPath = path.join(repoRoot, 'docs', 'engineering', 'generated', 'registry-summary.json');
