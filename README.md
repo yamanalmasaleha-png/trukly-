@@ -4,14 +4,29 @@ BiteShark provides Sonoma County food discovery, vendor operations, event inquir
 
 **VPS hosting is the only supported deployment.** There is no supported Hatchable build or deployment workflow. The integration branch is `working/biteshark-vps`; branch consolidation is separate work.
 
+## Engineering handbook & shared code registry
+
+Start here before changing routes, database schema, browser globals, CSS cascades, feature controls, or configuration:
+
+- **[Shared Engineering Handbook (`docs/engineering/README.md`)](docs/engineering/README.md)** — Code-grounded index of symbols, HTTP contracts, PostgreSQL tables/RLS, frontend screens/cascades, 17 domain maps, canonical components, and known drift across active branches.
+- **[Standing Agent & Developer Rules (`AGENTS.md`)](AGENTS.md)** & **[Assistant Instructions (`docs/engineering/ASSISTANT-INSTRUCTIONS.md`)](docs/engineering/ASSISTANT-INSTRUCTIONS.md)**.
+- **Code Registry CLI** (offline AST/HTML/CSS/SQL inventory, drift check & ref comparison):
+  ```bash
+  npm run registry:locate -- <symbol|route|table|flag|config>
+  npm run registry:docs
+  npm run registry:validate
+  npm run registry:compare -- --base origin/working/biteshark-vps --head HEAD
+  npm run test:registry
+  ```
+
 ## Runtime and domains
 
 - Node.js 22, PostgreSQL 16+, Nginx TLS, and systemd API/worker/backup services.
-- Staging: https://staging.biteshark.live on `172.233.140.74`.
+- Primary staging: https://staging.biteshark.live (`127.0.0.1:4100`, [VPS operations](docs/VPS_OPERATIONS.md)) and isolated secondary staging: https://staging2.biteshark.live (`127.0.0.1:4102`, [Staging2 operator guide](docs/STAGING2_YAMAN_OPERATOR_GUIDE.md)) on `172.233.140.74`.
 - https://biteshark.live remains a holding page until production launch is separately approved.
 - `server/index.js` starts the application; `server/app.js` handles authentication, administration and static assets; `server/routes.js` explicitly registers domain handlers in `api/`.
 - `@biteshark/runtime-adapter` is a repository-owned package in `packages/runtime-adapter`, backed by PostgreSQL and server-verified sessions. It does not call a hosted SDK.
-- Apply additive migrations `001`–`021` using the separate migrator role. Never edit applied migrations.
+- Apply additive migrations `001`–`026`+ (see [MIGRATIONS.md](docs/engineering/MIGRATIONS.md) for exact branch sequence) using the separate migrator role. Never edit applied migrations.
 
 ## Development and verification
 

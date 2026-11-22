@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/change-impact.schema.json",
+  "title": "BiteShark Ref Comparison & Change-Impact Schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generator",
+    "comparison",
+    "compatibility_assessment",
+    "summary_counts",
+    "symbols",
+    "apis",
+    "database",
+    "feature_controls",
+    "configuration",
+    "relevant_tests",
+    "documentation_requiring_review"
+  ],
+  "properties": {
+    "schema_version": { "const": "biteshark.change-impact.v1" },
+    "generator": { "type": "object", "required": ["name", "version"] },
+    "comparison": {
+      "type": "object",
+      "required": ["mode", "base_ref", "base_sha", "head_ref", "head_sha"]
+    },
+    "compatibility_assessment": {
+      "type": "object",
+      "required": ["classification", "breaking_evidence", "potentially_breaking_evidence", "behavioral_caveat"],
+      "properties": {
+        "classification": {
+          "enum": ["compatible", "potentially_breaking", "breaking", "unresolved"]
+        }
+      }
+    },
+    "summary_counts": { "type": "object" },
+    "symbols": { "type": "object" },
+    "apis": { "type": "object" },
+    "database": { "type": "object" },
+    "feature_controls": { "type": "object" },
+    "configuration": { "type": "object" },
+    "relevant_tests": { "type": "array" },
+    "documentation_requiring_review": { "type": "array" }
+  }
+}

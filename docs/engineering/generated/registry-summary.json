@@ -1,0 +1,3355 @@
+{
+  "branch_at_generation": "working/biteshark-vps",
+  "coverage_counts": {
+    "browser_globals_and_assignments": 580,
+    "classes": 16,
+    "configuration_keys_observed": 62,
+    "css_files_scanned": 18,
+    "drift_findings_active": 12,
+    "drift_findings_suppressed": 2,
+    "feature_controls": 14,
+    "functions_and_methods": 2251,
+    "html_element_ids": 477,
+    "html_files_scanned": 12,
+    "http_routes": 85,
+    "js_files_scanned": 110,
+    "js_parse_failures": 0,
+    "significant_constants": 533,
+    "sql_migrations": 26,
+    "sql_rls_policies": 49,
+    "sql_tables": 47,
+    "storage_keys_observed": 19
+  },
+  "database_tables": [
+    {
+      "column_count": 13,
+      "created_in_migration": "023_invitation_delivery_and_lifecycle.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "account_invitation_events"
+    },
+    {
+      "column_count": 36,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "account_invitations"
+    },
+    {
+      "column_count": 5,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "admin_bootstrap_grants"
+    },
+    {
+      "column_count": 8,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "admin_notification_outbox"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "audit_logs"
+    },
+    {
+      "column_count": 11,
+      "created_in_migration": "021_auth_diagnostics_and_email_readiness.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_delivery_telemetry"
+    },
+    {
+      "column_count": 13,
+      "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_otp_challenges"
+    },
+    {
+      "column_count": 3,
+      "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_rate_limits"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_sessions"
+    },
+    {
+      "column_count": 7,
+      "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_staging_mailbox"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "auth_users"
+    },
+    {
+      "column_count": 18,
+      "created_in_migration": "001_create_bookings.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "bookings"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "community_moderation_history"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "community_reports"
+    },
+    {
+      "column_count": 23,
+      "created_in_migration": "009_create_community_reviews.sql",
+      "policy_count": 5,
+      "rls_forced": true,
+      "table_name": "community_reviews"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "019_age_eligibility_and_compliance_readiness.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "compliance_readiness_history"
+    },
+    {
+      "column_count": 29,
+      "created_in_migration": "019_age_eligibility_and_compliance_readiness.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "compliance_readiness_items"
+    },
+    {
+      "column_count": 24,
+      "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "diagnostic_event_samples"
+    },
+    {
+      "column_count": 35,
+      "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "diagnostic_incident_groups"
+    },
+    {
+      "column_count": 15,
+      "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "diagnostic_incident_notes"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "diagnostic_releases"
+    },
+    {
+      "column_count": 3,
+      "created_in_migration": "003_create_favorites.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "favorites"
+    },
+    {
+      "column_count": 12,
+      "created_in_migration": "022_feature_controls.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "feature_control_history"
+    },
+    {
+      "column_count": 8,
+      "created_in_migration": "022_feature_controls.sql",
+      "policy_count": 3,
+      "rls_forced": true,
+      "table_name": "feature_controls"
+    },
+    {
+      "column_count": 4,
+      "created_in_migration": "004_create_notification_settings.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "notification_settings"
+    },
+    {
+      "column_count": 6,
+      "created_in_migration": "005_create_owner_profiles.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "owner_profiles"
+    },
+    {
+      "column_count": 8,
+      "created_in_migration": "006_create_owner_schedule.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "owner_schedule"
+    },
+    {
+      "column_count": 21,
+      "created_in_migration": "015_pager_notifications_outbox.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "pager_notification_deliveries"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "015_pager_notifications_outbox.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "pager_notification_events"
+    },
+    {
+      "column_count": 15,
+      "created_in_migration": "015_pager_notifications_outbox.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "pager_notification_subscriptions"
+    },
+    {
+      "column_count": 3,
+      "created_in_migration": "015_pager_notifications_outbox.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "pager_rate_limits"
+    },
+    {
+      "column_count": 13,
+      "created_in_migration": "008_pickup_pagers.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "pickup_pagers"
+    },
+    {
+      "column_count": 4,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "platform_role_revocations"
+    },
+    {
+      "column_count": 6,
+      "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "platform_roles"
+    },
+    {
+      "column_count": 3,
+      "created_in_migration": "scripts/run-migrations.cjs",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "schema_migrations"
+    },
+    {
+      "column_count": 17,
+      "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "support_issue_diagnostic_links"
+    },
+    {
+      "column_count": 10,
+      "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "policy_count": 3,
+      "rls_forced": true,
+      "table_name": "support_issue_events"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 5,
+      "rls_forced": true,
+      "table_name": "support_issue_notes"
+    },
+    {
+      "column_count": 14,
+      "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "support_issue_notifications"
+    },
+    {
+      "column_count": 47,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 2,
+      "rls_forced": true,
+      "table_name": "support_issues"
+    },
+    {
+      "column_count": 12,
+      "created_in_migration": "002_create_truck_settings.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "truck_settings"
+    },
+    {
+      "column_count": 13,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "vendor_application_evidence"
+    },
+    {
+      "column_count": 33,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "vendor_applications"
+    },
+    {
+      "column_count": 5,
+      "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "vendor_memberships"
+    },
+    {
+      "column_count": 9,
+      "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "vendor_status_history"
+    },
+    {
+      "column_count": 50,
+      "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "policy_count": 0,
+      "rls_forced": false,
+      "table_name": "vendors"
+    },
+    {
+      "column_count": 7,
+      "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "policy_count": 1,
+      "rls_forced": true,
+      "table_name": "worker_runtime_heartbeats"
+    }
+  ],
+  "deterministic_digest_sha256": "c9bab6b5651ec1f6f328d144f7b4b00db41bffd8353808fa07224f75f7eae109",
+  "drift_summary": {
+    "active_count": 12,
+    "active_finding_ids": [
+      "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
+      "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
+      "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
+      "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
+      "DRIFT:MISSING_DOM_TARGET:public/role-experience.js#rxViewpointBanner",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/owner/bookings",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/schedule/today",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
+      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
+    ],
+    "suppressed_count": 2
+  },
+  "exclusion_rules": [
+    {
+      "pattern": ".git/**",
+      "reason": "Git internal object database and local reflogs.",
+      "rule_id": "EXCL_GIT_INTERNAL"
+    },
+    {
+      "pattern": "**/node_modules/**",
+      "reason": "Installed third-party npm packages (tracked separately via package.json/package-lock.json).",
+      "rule_id": "EXCL_NODE_MODULES"
+    },
+    {
+      "pattern": "**/.env*, **/*.pem, **/*.key, **/*.passphrase, **/id_ed25519*, **/id_rsa*",
+      "reason": "Security boundary: never ingest environment files, private keys, or credential material.",
+      "rule_id": "EXCL_SECRET_AND_ENV_FILES"
+    },
+    {
+      "pattern": "docs/archive/**, truckly-v63.zip, truckly-data.sql.gz",
+      "reason": "Historical pre-VPS snapshots retained in Git for provenance only; excluded from active runtime.",
+      "rule_id": "EXCL_HISTORICAL_ARCHIVES"
+    },
+    {
+      "pattern": "tools/code-registry/vendor/**",
+      "reason": "Vendored third-party parser library (acorn@8.14.1, MIT); documented in DEPENDENCIES-AND-LICENSES.md.",
+      "rule_id": "EXCL_VENDORED_TOOLING"
+    },
+    {
+      "pattern": "docs/engineering/generated/**, docs/engineering/schemas/drift-baseline.json",
+      "reason": "Machine-generated outputs of this registry tool (excluded from self-ingestion to guarantee idempotence).",
+      "rule_id": "EXCL_GENERATED_REGISTRY_OUTPUTS"
+    },
+    {
+      "pattern": "**/*.png, **/*.jpg, **/*.jpeg, **/*.webp, **/*.ico, **/*.woff2, **/*.gz, **/*.zip, **/*.gpg",
+      "reason": "Binary media/archives; cataloged by path/size/SHA-256 metadata without text AST parsing.",
+      "rule_id": "EXCL_BINARY_MEDIA"
+    }
+  ],
+  "feature_controls": [
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "community_hub",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "community_hub"
+      ],
+      "key": "community_submissions",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "event_inquiries",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "flavor_lab_tools",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "interactive_map",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "local_guides_passport",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "nearby_alert_preferences",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "owner_menu_photo_upload",
+      "read_only": true
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "pager_push_delivery",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "pager_push_delivery"
+      ],
+      "key": "pager_push_subscriptions",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "hidden",
+      "depends_on": [],
+      "key": "passkey_webauthn",
+      "read_only": true
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "pickup_pager_creation",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "pickup_pager_demo",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "vendor_onboarding",
+      "read_only": false
+    }
+  ],
+  "generator": {
+    "analysis_mode": "static_ast_html_css_sql_offline",
+    "limitations_note": "Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.",
+    "name": "biteshark-code-registry",
+    "version": "1.0.0"
+  },
+  "modules": [
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "formatBookingResponse",
+        "default"
+      ],
+      "file": "api/bookings/create.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 6
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/bookings/list.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/catalog/cities.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/catalog/cuisines.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/catalog/featured.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/community/list.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/community/mine.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/community/moderate.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/community/post.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/favorites/list.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/favorites/toggle.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/notifications/settings.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/bookings.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/location.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/profile.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/requests.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/schedule.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/owner/stats.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/staff.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/status.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/subscriptions.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/telemetry.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/update.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/pager/worker.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 4
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/schedule/today.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/trucks.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/trucks/[id].js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/trucks/availability.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/trucks/nearby.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "api/trucks/search.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "INVITATION_TTL_MS",
+        "MAX_EVIDENCE_BYTES",
+        "MAX_EVIDENCE_PER_APPLICATION",
+        "MAX_MOD_TEMP_RESTRICTION_HOURS",
+        "INVITATION_ROLE_LABELS",
+        "sha256Hex",
+        "generateOpaqueToken",
+        "normalizeEmailStrict",
+        "normalizeOptionalIdempotencyKey",
+        "parseBoundedPagination",
+        "sanitizeFilename",
+        "verifyEvidenceBufferAndMime",
+        "validateOptionalHttpUrl",
+        "validateProposedSlug",
+        "computeIssueSlaDueAt",
+        "recordTestSafeNotificationInTx",
+        "consumeGovernanceRateLimit",
+        "INVITATION_DELIVERY_LABELS",
+        "recordInvitationEventInTx",
+        "formatInvitationRowForAdmin"
+      ],
+      "file": "lib/admin-governance.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 15
+    },
+    {
+      "exported_symbols": [
+        "PROPOSED_MIN_ACCOUNT_AGE",
+        "AGE_POLICY_VERSION",
+        "AGE_BOUNDARY_TIMEZONE",
+        "MIN_PLAUSIBLE_BIRTH_YEAR",
+        "isGregorianLeapYear",
+        "daysInGregorianMonth",
+        "resolvePacificCalendarDateParts",
+        "parseAndValidateDobInput",
+        "computeCompletedYearsOfAge",
+        "evaluateMinimumAgeEligibility",
+        "AGE_ASSESSMENT_ALLOWLIST_SPEC",
+        "isGovernanceRouteExemptFromAgeGate",
+        "buildAgeAssessmentRequiredPayload"
+      ],
+      "file": "lib/age-policy.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 8
+    },
+    {
+      "exported_symbols": [
+        "UUID_RE",
+        "ROLE_LABELS",
+        "normalizeAdminLevel",
+        "isTempRestrictionActive",
+        "evaluateEffectiveVendorRestrictions",
+        "applyPrivateNoStoreHeaders",
+        "VALID_WRITE_PAUSE_SCOPES",
+        "inspectWritePauseConfig",
+        "isWritePaused",
+        "resolveIdentity",
+        "loadAccessContext",
+        "authorizeVendorTarget",
+        "reverifyVendorMembershipInTx",
+        "reverifyModeratorInTx",
+        "reverifyPlatformAdminInTx",
+        "authorizeVendorScope",
+        "redactPagerTargetId",
+        "recordAuditLog"
+      ],
+      "file": "lib/authz.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 20
+    },
+    {
+      "exported_symbols": [
+        "BOOKING_PACKAGES",
+        "CANONICAL_VENDORS",
+        "VENDORS_BY_ID",
+        "getCanonicalVendor"
+      ],
+      "file": "lib/catalog.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [
+        "TRUSTED_CLIENT_IP_SYMBOL",
+        "normalizeIpAddress",
+        "isLoopbackIp",
+        "resolveTrustedClientIp",
+        "stampTrustedClientIp"
+      ],
+      "file": "lib/client-ip.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [
+        "MAX_BOOKING_DAYS_AHEAD",
+        "isValidCalendarDate",
+        "normalizeCalendarDate",
+        "getPacificToday",
+        "validateFuturePacificDate",
+        "isValidTimeValue"
+      ],
+      "file": "lib/dates.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 7
+    },
+    {
+      "exported_symbols": [
+        "SessionEligibilityError",
+        "clearTxVerificationState",
+        "respondIfSessionEligibilityError",
+        "withTransaction"
+      ],
+      "file": "lib/db-tx.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 7
+    },
+    {
+      "exported_symbols": [
+        "CLIENT_BUNDLE_VERSION",
+        "REPOSITORY_COMMIT_BASE_URL",
+        "ALLOWED_COMPONENTS",
+        "ALLOWED_SEVERITIES",
+        "ALLOWED_OUTCOMES",
+        "ALLOWED_TRIAGE_STATUSES",
+        "ALLOWED_FEATURE_KEYS",
+        "TOP_ONLY_FEATURE_KEYS",
+        "__setDiagnosticsFaultInjectionForTests",
+        "getDiagnosticsRetentionPolicy",
+        "generateCorrelationId",
+        "normalizeCorrelationId",
+        "normalizeReleaseSha",
+        "sanitizeDiagnosticText",
+        "sanitizeRouteTemplate",
+        "sanitizeIdentifierCode",
+        "sanitizeOperationName",
+        "sanitizeSafeContext",
+        "inferFeatureFromRoute",
+        "buildDefaultUserImpact",
+        "buildDefaultNextSteps",
+        "computeIncidentFingerprint",
+        "recordServerReleaseStartup",
+        "recordWorkerHeartbeat",
+        "recordDiagnosticEvent",
+        "reportDomainRouteFailure",
+        "computeReleaseRelationship",
+        "cleanupExpiredDiagnostics"
+      ],
+      "file": "lib/diagnostics.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 30
+    },
+    {
+      "exported_symbols": [
+        "isVendorPubliclyDiscoverable",
+        "CATALOG_SECTIONS",
+        "MEASURED_LOCATION_ACCURACIES",
+        "FORBIDDEN_SELF_ELEVATION_FIELDS",
+        "findForbiddenSelfElevationField",
+        "validateCoordinates",
+        "milesBetween",
+        "shiftCalendarDate",
+        "weekdayForCalendarDate",
+        "getPacificClock",
+        "parseTimeMinutes",
+        "evaluateSchedulePrecedence",
+        "evaluateVendorDiscoveryRow",
+        "computeEvaluatedCatalogVersion",
+        "buildDiscoveryEtag",
+        "loadDiscoveryCatalog",
+        "computeSectionCounts",
+        "applyDiscoveryCacheHeaders",
+        "foldSearchText"
+      ],
+      "file": "lib/discovery.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 27
+    },
+    {
+      "exported_symbols": [
+        "EnvAliasConflictError",
+        "SECURITY_CRITICAL_ENV_SUFFIXES",
+        "readEnvCompat",
+        "findSecurityEnvConflicts",
+        "assertNoSecurityEnvConflicts"
+      ],
+      "file": "lib/env-compat.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 4
+    },
+    {
+      "exported_symbols": [
+        "VALID_FEATURE_STATES",
+        "VALID_FEATURE_AUDIENCES",
+        "PROTECTED_ESSENTIAL_CAPABILITIES",
+        "FEATURE_CONTROLS_REGISTRY",
+        "FEATURE_CONTROLS_BY_KEY",
+        "assertCycleFreeFeatureRegistry",
+        "ROUTE_FEATURE_ENFORCEMENT_RULES",
+        "setSimulatedFeatureConfigFailureForTests",
+        "inspectEnvironmentFeatureOverrides",
+        "loadPersistedFeatureControls",
+        "isCallerEligibleForStaffBeta",
+        "evaluateFeatureControlsSnapshot",
+        "buildPublicFeatureControlsPayload",
+        "buildAdminFeatureControlsPayload",
+        "requiresInterruptConfirmation",
+        "updateFeatureControlInTx",
+        "matchRouteFeatureRule",
+        "enforceHttpFeatureGate",
+        "isPagerPushSubscriptionFeatureEnabled",
+        "isPagerPushDeliveryFeatureAllowed",
+        "checkPagerPushDeliveryInTx"
+      ],
+      "file": "lib/feature-controls.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 24
+    },
+    {
+      "exported_symbols": [
+        "ALLOWLISTED_MAP_PROVIDERS",
+        "resolveMapRuntimeConfig"
+      ],
+      "file": "lib/map-config.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [
+        "MAX_ACTIVE_SUBSCRIPTIONS_PER_PAGER",
+        "MAX_CATCHUP_DELIVERIES_PER_EVENT",
+        "READY_FLAP_COOLDOWN_MS",
+        "WORKER_LEASE_SECONDS",
+        "DEFAULT_WORKER_CONCURRENCY",
+        "DEFAULT_PROVIDER_TIMEOUT_MS",
+        "DEFAULT_WORKER_EXECUTION_BUDGET_MS",
+        "RETRY_BACKOFF_SECONDS",
+        "RETENTION_HOURS",
+        "setFakePushProviderForTests",
+        "sha256Hex",
+        "enablePagerInternalContext",
+        "isProductionEnvironment",
+        "parseFailClosedBooleanFlag",
+        "isSubscriptionsDisabled",
+        "isNotificationDeliveryDisabled",
+        "getPushProviderConfig",
+        "inspectNotificationRuntimeConfig",
+        "validateSubscriptionPayload",
+        "verifySameOriginMutation",
+        "extractClientRateKey",
+        "consumePagerRateLimit",
+        "redactProviderError",
+        "handlePagerTransitionNotificationsInTx",
+        "enqueueReadyCatchupInTx",
+        "purgeExpiredNotificationRecords",
+        "runNotificationWorkerBatch",
+        "UUID_RE",
+        "toBase64Url"
+      ],
+      "file": "lib/pager-notifications.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 35
+    },
+    {
+      "exported_symbols": [
+        "runWithGovernanceContext",
+        "getActiveGovernanceContext"
+      ],
+      "file": "lib/request-context.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [
+        "SESSION_COOKIE_NAME",
+        "AGE_GATE_COOKIE_NAME",
+        "DEFAULT_AGE_GATE_COOLDOWN_SECONDS",
+        "AUTH_RATE_LIMIT_RETENTION_MS",
+        "AUTH_TELEMETRY_RETENTION_MS",
+        "DEFAULT_OTP_TTL_SECONDS",
+        "DEFAULT_OTP_MAX_ATTEMPTS",
+        "DEFAULT_SESSION_TTL_SECONDS",
+        "MAX_SESSION_LIFETIME_SECONDS",
+        "MAX_ACTIVE_SESSIONS_PER_USER",
+        "setCustomAuthEmailSenderForTests",
+        "setCustomDnsResolverForTests",
+        "parseConfiguredSenderAddress",
+        "getAuthSecret",
+        "inspectAuthDeliveryConfig",
+        "getPublicAuthDeliveryModeSummary",
+        "hasConfiguredStagingAllowlist",
+        "isEmailAllowedInStagingMailbox",
+        "normalizeEmail",
+        "buildSessionCookieHeader",
+        "buildClearedSessionCookieHeader",
+        "buildAgeGateCooldownCookieHeader",
+        "hasAgeGateCooldownCookie",
+        "extractRawSessionToken",
+        "verifySameOriginMutationRequest",
+        "consumeAuthRateLimit",
+        "createAuthCorrelationId",
+        "sanitizeDiagnosticCodeSafe",
+        "buildVerificationEmailPlainText",
+        "STAGING_INVITATION_REQUIRED_MESSAGE",
+        "resolveTrustedInvitationOrigin",
+        "evaluateStagingRecipientEligibilityInTx",
+        "evaluateStagingRecipientEligibility",
+        "buildInvitationEmailPlainText",
+        "dispatchInvitationEmail",
+        "dispatchSupportNotificationEmail",
+        "startEmailOtpChallenge",
+        "verifyEmailOtpChallenge",
+        "resolveSessionFromRequest",
+        "submitExistingAccountAgeAssessment",
+        "revokeSessionFromRequest",
+        "readProtectedStagingMailboxCode",
+        "cleanupExpiredAuthRecords",
+        "inspectSenderDomainDns",
+        "inspectAdminEmailReadiness"
+      ],
+      "file": "lib/standalone-auth.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 72
+    },
+    {
+      "exported_symbols": [
+        "VENDOR_SUPPORT_CATEGORIES",
+        "CATEGORY_LABELS",
+        "VALID_DB_CATEGORIES",
+        "CATEGORY_ALIASES",
+        "REPORTER_URGENCY_LABELS",
+        "VALID_REPORTER_URGENCIES",
+        "STAFF_PRIORITY_LABELS",
+        "VALID_STAFF_PRIORITIES",
+        "SUPPORT_STATUS_LABELS",
+        "VALID_SUPPORT_STATUSES",
+        "normalizeSupportStatusInput",
+        "normalizeSupportCategoryInput",
+        "resolveInitialUrgencyAndPriority",
+        "buildAutoSubjectFromDescription",
+        "sanitizeCoarseDeviceContext",
+        "sanitizeSupportContextFields",
+        "formatPublicTeamAuthorLabel",
+        "validateStaffStatusTransition",
+        "evaluateAssignmentMutation",
+        "serializeSupportTicketForReporter",
+        "autoSuggestDiagnosticLinksInTx"
+      ],
+      "file": "lib/support-tickets.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 14
+    },
+    {
+      "exported_symbols": [
+        "toBase64Url",
+        "fromBase64Url",
+        "generateVapidKeys",
+        "validateVapidKeyPair",
+        "createVapidHeaders",
+        "verifyVapidJwt",
+        "validateSubscriberKeys",
+        "encryptWebPushPayload",
+        "decryptWebPushPayload"
+      ],
+      "file": "lib/webpush-crypto.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 9
+    },
+    {
+      "exported_symbols": [
+        "configureStandaloneAdapter",
+        "bindVerifiedRequestUser",
+        "runWithRequestContext",
+        "getActiveRequestContext",
+        "db",
+        "auth"
+      ],
+      "file": "packages/runtime-adapter/index.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 10
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/admin.js",
+      "globals_assigned": [
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.href",
+        "location.hash"
+      ],
+      "source_type": "script",
+      "symbol_count": 198
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/app.js",
+      "globals_assigned": [
+        "API",
+        "OFFLINE_FALLBACK_TRUCKS",
+        "trucks",
+        "catalogVersion",
+        "CATALOG_CACHE_KEY",
+        "CATALOG_CACHE_MAX_AGE_MS",
+        "MEASURED_ACCURACIES",
+        "cuisineSections",
+        "activeKind",
+        "kindMatches",
+        "ensureDiscoverScreenActive",
+        "chooseKind",
+        "activeKind",
+        "activeCuisine",
+        "chooseCuisine",
+        "activeCuisine",
+        "activeKind",
+        "PACKAGES",
+        "HUBS",
+        "safeJSON",
+        "bsDiag",
+        "isReducedMotion",
+        "safeStorageSet",
+        "appFetchJson",
+        "renderSectionFeedback",
+        "setInlineStatus",
+        "openAppModal",
+        "closeAppModal",
+        "esc",
+        "map",
+        "markers",
+        "userMarker",
+        "userCoords",
+        "activeCuisine",
+        "openOnly",
+        "maxDistance",
+        "selectedTruck",
+        "manualAreaTown",
+        "manualAreaOverridden",
+        "isSignedIn",
+        "currentUser",
+        "appAuthEpoch",
+        "FAVS_SCOPE_STORAGE_KEY",
+        "favs",
+        "bookings",
+        "bookingDraftKey",
+        "bookingDraftSignature",
+        "notifyPrefs",
+        "formatUTCDateISO",
+        "addDaysISO",
+        "toCalendarDateISO",
+        "defaultEventDate",
+        "parseEventDate",
+        "milesBetween",
+        "hasCoords",
+        "hasMeasuredCoords",
+        "recomputeDistances",
+        "distanceLabel",
+        "sanitizeCatalogItem",
+        "setCatalogOfflineNotice",
+        "refreshDiscoveryCatalog",
+        "trucks",
+        "catalogVersion",
+        "selectedTruck",
+        "CLIENT_ALLOWLISTED_TILE_HOSTS",
+        "DEFAULT_BROWSER_MAP_CONFIG",
+        "activeTileLayer",
+        "activeMapTileTemplate",
+        "mapLifecycleBound",
+        "activeTileTimers",
+        "mapRuntimeState",
+        "clearActiveTileTimers",
+        "teardownActiveTileLayer",
+        "activeTileLayer",
+        "activeMapTileTemplate",
+        "isLocalLoopbackPage",
+        "validateClientMapConfig",
+        "isInteractiveMapDisabledByControl",
+        "getValidatedBrowserMapConfig",
+        "showMapFallbackUI",
+        "hideMapFallbackUI",
+        "shouldTriggerMapTileOutage",
+        "enterMapTileOutage",
+        "syncUserMarkerOnMap",
+        "userMarker",
+        "attachApprovedTileLayer",
+        "activeTileLayer",
+        "activeMapTileTemplate",
+        "bindMapResizeAndZoomListeners",
+        "mapLifecycleBound",
+        "ensureMapInitialized",
+        "map",
+        "map",
+        "map",
+        "bitesharkSyncInteractiveMapControl",
+        "init",
+        "trucks",
+        "catalogVersion",
+        "selectedTruck",
+        "foldText",
+        "filtered",
+        "pinStatusBadge",
+        "cardStatusInfo",
+        "cardOpenBadge",
+        "normalizeFocalPoint",
+        "resolveApprovedVendorImage",
+        "safeThumbTint",
+        "cleanDisplayText",
+        "pickCardIllustrationKey",
+        "renderRestrainedCardIllustration",
+        "handleListingImageError",
+        "handleListingImageError",
+        "renderListingMediaSlot",
+        "cardCategoryTownLine",
+        "cardHighlightLine",
+        "captureActiveCardControlFocus",
+        "restoreActiveCardControlFocus",
+        "detailStatusPrefix",
+        "detailHoursNote",
+        "applyFilters",
+        "markers",
+        "resetFilters",
+        "activeCuisine",
+        "activeKind",
+        "openOnly",
+        "maxDistance",
+        "manualAreaTown",
+        "openTruck",
+        "handleCardSurfaceClick",
+        "cardHTML",
+        "extraCard",
+        "resolveDetailRestoreTrigger",
+        "extraDetail",
+        "selectTruck",
+        "selectedTruck",
+        "openDetail",
+        "selectedTruck",
+        "closeModal",
+        "initialsFromUser",
+        "accountSyncState",
+        "notifySyncState",
+        "updateAuthUI",
+        "syncAuthAndUserData",
+        "currentUser",
+        "currentUser",
+        "isSignedIn",
+        "accountSyncState",
+        "accountSyncState",
+        "isSignedIn",
+        "accountSyncState",
+        "isSignedIn",
+        "accountSyncState",
+        "isSignedIn",
+        "accountSyncState",
+        "notifySyncState",
+        "bookings",
+        "renderSignOutFailureNotice",
+        "applyConfirmedClientSignOutCleanup",
+        "appAuthEpoch",
+        "isSignedIn",
+        "currentUser",
+        "accountSyncState",
+        "notifySyncState",
+        "bookings",
+        "bookingsLoadState",
+        "bookingsLoadCorr",
+        "notifyPrefs",
+        "isOwnerAdmin",
+        "ownerAccess",
+        "ownerTruckId",
+        "ownerProfile",
+        "ownerSchedule",
+        "ownerLastKnownLocationHours",
+        "bitesharkApplyAppSignOutCleanup",
+        "signOutUser",
+        "toggleFav",
+        "accountSyncState",
+        "accountSyncState",
+        "isSignedIn",
+        "accountSyncState",
+        "toggleFavRetry",
+        "accountSyncState",
+        "renderFavorites",
+        "renderNotificationUI",
+        "loadNotificationSettings",
+        "notifyPrefs",
+        "notifySyncState",
+        "notifySyncState",
+        "saveNotificationSettings",
+        "notifyPrefs",
+        "notifySyncState",
+        "notifySyncState",
+        "notifyPrefs",
+        "notifySyncState",
+        "isSignedIn",
+        "accountSyncState",
+        "notifySyncState",
+        "notifySyncState",
+        "toggleOpen",
+        "openOnly",
+        "openDistance",
+        "closeDistanceModal",
+        "setDistance",
+        "maxDistance",
+        "openAreaPicker",
+        "closeAreaModal",
+        "selectManualArea",
+        "manualAreaTown",
+        "manualAreaOverridden",
+        "userCoords",
+        "userMarker",
+        "bitesharkHasManualOrPreciseLocation",
+        "bitesharkSelectManualArea",
+        "bitesharkOpenAreaPicker",
+        "setMode",
+        "mode",
+        "continueInListFromMapFallback",
+        "retryInteractiveMap",
+        "showScreen",
+        "locateMe",
+        "manualAreaOverridden",
+        "userCoords",
+        "manualAreaTown",
+        "manualAreaTown",
+        "userCoords",
+        "userMarker",
+        "setBookingFieldInvalid",
+        "setBookingError",
+        "validateBookingChoice",
+        "bookingDateBlocked",
+        "bookingsLoadState",
+        "bookingsLoadCorr",
+        "makeIdempotencyKey",
+        "populateBookingTruckSelect",
+        "onBookingTruckChange",
+        "checkBookingAvailability",
+        "bookingDateBlocked",
+        "bookingDateBlocked",
+        "bookingDateBlocked",
+        "openBooking",
+        "bookingDateBlocked",
+        "closeBooking",
+        "bookingDateBlocked",
+        "submitBooking",
+        "bookingDraftKey",
+        "bookingDraftSignature",
+        "isSignedIn",
+        "bookingDraftKey",
+        "bookingDraftSignature",
+        "bookingDraftKey",
+        "bookingDraftSignature",
+        "bookings",
+        "bookingsLoadState",
+        "loadUserBookings",
+        "bookingsLoadState",
+        "isSignedIn",
+        "accountSyncState",
+        "bookings",
+        "bookingsLoadState",
+        "bookingsLoadState",
+        "bookingsLoadCorr",
+        "bookings",
+        "bookingsLoadState",
+        "bookingsLoadCorr",
+        "formatBookingStatus",
+        "renderBookings",
+        "isOwnerAdmin",
+        "ownerAccess",
+        "ownerTruckId",
+        "ownerRequestFilter",
+        "ownerProfile",
+        "ownerSchedule",
+        "previewOwnerRows",
+        "getActiveVendorRole",
+        "futureDateISO",
+        "todayPacificISO",
+        "getPreviewOwnerRows",
+        "previewOwnerRows",
+        "populateOwnerTruckSelect",
+        "ownerTruckId",
+        "syncOwnerPermissionsUI",
+        "renderOwnerHeader",
+        "renderOwnerStats",
+        "syncOwnerScheduleDay",
+        "renderOwnerScheduleList",
+        "selectOwnerTruck",
+        "ownerTruckId",
+        "ownerDashboardUnavailable",
+        "ownerLastKnownLocationHours",
+        "loadOwnerDashboard",
+        "ownerDashboardUnavailable",
+        "isOwnerAdmin",
+        "ownerAccess",
+        "ownerAccess",
+        "ownerProfile",
+        "ownerLastKnownLocationHours",
+        "ownerSchedule",
+        "ownerDashboardUnavailable",
+        "isOwnerAdmin",
+        "ownerAccess",
+        "ownerProfile",
+        "setOwnerRequestFilter",
+        "ownerRequestFilter",
+        "loadOwnerRequests",
+        "handleRequest",
+        "updateOwnerLocation",
+        "toggleOwnerOpenStatus",
+        "saveOwnerSchedule",
+        "ownerSchedule",
+        "ownerSchedule",
+        "openOwnerProfileModal",
+        "closeOwnerProfileModal",
+        "saveOwnerProfile",
+        "ownerProfile",
+        "ownerProfile",
+        "shareOwnerLocation",
+        "previewOwnerPhotos",
+        "lastSurpriseId",
+        "surpriseMe",
+        "lastSurpriseId",
+        "toast",
+        "toastTimer",
+        "bitesharkReady",
+        "trucklyReady"
+      ],
+      "source_type": "script",
+      "symbol_count": 181
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/auth-client.js",
+      "globals_assigned": [
+        "bitesharkAuth",
+        "trucklyAuth",
+        "biteshark"
+      ],
+      "source_type": "script",
+      "symbol_count": 13
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/characters.js",
+      "globals_assigned": [
+        "truckCharacter",
+        "flavorLines",
+        "updateFlavorCharacters",
+        "applyFiltersWithCharacters",
+        "applyFilters"
+      ],
+      "source_type": "script",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/coffee-club.js",
+      "globals_assigned": [
+        "flavorDoodle",
+        "paintFlavorIcons"
+      ],
+      "source_type": "script",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/community.js",
+      "globals_assigned": [
+        "communityState",
+        "communityDraftKey",
+        "communityDraftSig",
+        "communityDiag",
+        "communityEscape",
+        "communityDate",
+        "communityGetPlaces",
+        "openCommunity",
+        "communityLoad",
+        "communitySetFilter",
+        "communityRender",
+        "communityViewPlace",
+        "communityStartPost",
+        "communityClosePost",
+        "communityKindChange",
+        "communitySubmitPost",
+        "communityDraftKey",
+        "communityDraftSig",
+        "communityDraftKey",
+        "communityDraftSig",
+        "communityDraftKey",
+        "communityDraftSig",
+        "communityLoadMy",
+        "communityToggleMy",
+        "communityReviewPlace",
+        "communityOpenModeration",
+        "communityModerate"
+      ],
+      "source_type": "script",
+      "symbol_count": 21
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/diagnostics-client.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 29
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/guide-passport.js",
+      "globals_assigned": [
+        "guidePassportStorageKey",
+        "guideVisitsRead",
+        "guideVisitsWrite",
+        "guidePlaces",
+        "guidePlace",
+        "guidePassportHtmlEscape",
+        "guideWeekStart",
+        "renderGuidePassport",
+        "guideLogVisit",
+        "guideUndoVisit"
+      ],
+      "source_type": "script",
+      "symbol_count": 12
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/listing-highlights.js",
+      "globals_assigned": [
+        "bitesharkListingHighlights",
+        "bitesharkListingHighlights",
+        "openDetail"
+      ],
+      "source_type": "script",
+      "symbol_count": 6
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/local-guides.js",
+      "globals_assigned": [
+        "localGuideNotes",
+        "dishDbPromise",
+        "dishPhotoUrls",
+        "dishPhotoRenderVersion",
+        "guidesEscape",
+        "openLocalGuides",
+        "showGuidesTab",
+        "openPhotoNotebook",
+        "dishDb",
+        "dishDbPromise",
+        "dishDbPromise",
+        "dishDbPromise",
+        "dishDbPromise",
+        "dishDbPromise",
+        "dishDbPromise",
+        "dishRead",
+        "dishWrite",
+        "saveDishPhoto",
+        "renderDishPhotos",
+        "dishPhotoUrls",
+        "removeDishPhoto"
+      ],
+      "source_type": "script",
+      "symbol_count": 20
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/pager.js",
+      "globals_assigned": [
+        "pagerToken",
+        "pagerDemo",
+        "pagerStatus",
+        "pagerSound",
+        "pagerAudio",
+        "pagerBusy",
+        "kitchenRequestKey",
+        "kitchenRequestSig",
+        "pagerPushServer",
+        "pagerPushBusy",
+        "pagerPushError",
+        "pagerCurrentRendered",
+        "PAGER_SUBS_STORAGE_KEY",
+        "pagerStates",
+        "pagerEscape",
+        "readStoredPagerSubs",
+        "writeStoredPagerSubs",
+        "getLocalPagerSub",
+        "saveLocalPagerSub",
+        "removeLocalPagerSub",
+        "resolveTokenBySubscriptionRef",
+        "scrubPagerHashFromUrl",
+        "urlBase64ToUint8Array",
+        "isIosNeedsHomeScreen",
+        "hasBrowserPushSupport",
+        "buildPagerPushSectionHtml",
+        "openPager",
+        "pagerCodeFrom",
+        "joinPager",
+        "pagerDemoAuto",
+        "pagerToken",
+        "pagerDemo",
+        "pagerStatus",
+        "pagerPushError",
+        "pagerDemoTimer",
+        "pagerDemoAuto",
+        "lastPagerRenderSignature",
+        "pagerDemoStages",
+        "pagerDiag",
+        "pagerClearDemoTimer",
+        "pagerDemoTimer",
+        "pagerScheduleDemo",
+        "pagerDemoTimer",
+        "pagerDemoTimer",
+        "renderPager",
+        "pagerStatus",
+        "pagerCurrentRendered",
+        "lastPagerRenderSignature",
+        "subscribePagerPush",
+        "pagerPushError",
+        "pagerPushBusy",
+        "pagerPushBusy",
+        "pagerPushError",
+        "pagerPushError",
+        "pagerPushBusy",
+        "unsubscribePagerPush",
+        "pagerPushBusy",
+        "pagerPushError",
+        "pagerPushError",
+        "pagerPushError",
+        "pagerPushBusy",
+        "refreshPager",
+        "pagerBusy",
+        "pagerPushServer",
+        "pagerBusy",
+        "enablePagerSound",
+        "pagerSound",
+        "pagerAudio",
+        "pagerSound",
+        "ringPager",
+        "startPagerDemo",
+        "pagerDemo",
+        "pagerDemoAuto",
+        "pagerToken",
+        "pagerStatus",
+        "lastPagerRenderSignature",
+        "pagerPushError",
+        "pagerAdvanceDemo",
+        "pagerToggleAutoplay",
+        "pagerDemoAuto",
+        "pagerLeaveDemo",
+        "pagerDemo",
+        "pagerDemoAuto",
+        "pagerStatus",
+        "pagerToken",
+        "pagerCurrentRendered",
+        "demoPagerStep",
+        "currentKitchenVendorId",
+        "kitchenFetch",
+        "kitchenError",
+        "pagerLink",
+        "renderKitchen",
+        "loadKitchen",
+        "createPager",
+        "kitchenRequestKey",
+        "kitchenRequestSig",
+        "kitchenRequestKey",
+        "kitchenRequestSig",
+        "updatePagerStatus",
+        "copyPagerLink",
+        "pagerDemo",
+        "pagerDemoAuto",
+        "pagerToken",
+        "loadPagerHash"
+      ],
+      "source_type": "script",
+      "symbol_count": 43
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/role-experience.js",
+      "globals_assigned": [
+        "fetch",
+        "location.href",
+        "location.href",
+        "bitesharkOnSignedOut",
+        "location.href",
+        "bitesharkOpenSupport",
+        "bitesharkSyncOwnerVendorContext",
+        "bitesharkOpenCommunityReport",
+        "location.href",
+        "location.hash",
+        "location.href",
+        "bitesharkFeatures",
+        "location.href",
+        "bitesharkMarkDiscoveryInteraction",
+        "bitesharkOnScreenChange",
+        "bitesharkWelcome"
+      ],
+      "source_type": "script",
+      "symbol_count": 170
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/smart.js",
+      "globals_assigned": [
+        "smartTrailIds",
+        "smartMode",
+        "smartEscape",
+        "spotUrl",
+        "cityOptions",
+        "smartStatus",
+        "openSmart",
+        "smartMode",
+        "inSmartTown",
+        "matchesCraving",
+        "smartCard",
+        "findFlavor",
+        "buildFoodTrail",
+        "smartTrailIds",
+        "renderTrail",
+        "shareText",
+        "shareSpot",
+        "shareFoodTrail",
+        "renderPromo",
+        "copyPromo",
+        "downloadPromo",
+        "originalBiteSharkDetail",
+        "openDetail",
+        "openSmartHash",
+        "smartTrailIds"
+      ],
+      "source_type": "script",
+      "symbol_count": 20
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/street-whispers.js",
+      "globals_assigned": [
+        "streetFiles",
+        "streetMissions",
+        "streetQuizIndex",
+        "streetMissionIndex",
+        "streetCurrentPick",
+        "streetRandomIndex",
+        "streetNextClue",
+        "streetQuizIndex",
+        "streetEscape",
+        "streetAnswerClue",
+        "streetRenderFiles",
+        "streetOpenPlace",
+        "streetMysteryPick",
+        "streetCurrentPick",
+        "streetNextMission",
+        "streetMissionIndex",
+        "streetActMission",
+        "streetOpenWhisper",
+        "streetInit"
+      ],
+      "source_type": "script",
+      "symbol_count": 12
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/sw.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/bootstrap-top-admin.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 6
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/build-linux-release-tarball.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/dev-server.cjs",
+      "globals_assigned": [
+        "__BITESHARK_RUNTIME__"
+      ],
+      "source_type": "script",
+      "symbol_count": 24
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/dev-workbench/debug-admin.js",
+      "globals_assigned": [
+        "__BITESHARK__",
+        "__BITESHARK__.user",
+        "__trucklyFetchWrapped",
+        "fetch",
+        "trucklyDebug"
+      ],
+      "source_type": "module",
+      "symbol_count": 32
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/manage-feature-controls.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/operator-read-my-otp.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/run-migrations.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [],
+      "file": "scripts/run-pager-worker.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 10
+    },
+    {
+      "exported_symbols": [
+        "module.exports"
+      ],
+      "file": "scripts/seed-sql-reader.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "access",
+        "methods",
+        "default"
+      ],
+      "file": "scripts/staging-runtime-probe.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [
+        "EVIDENCE_UPLOAD_MAX_JSON_BYTES",
+        "isGovernanceApiPath",
+        "handleGovernanceApiRequest"
+      ],
+      "file": "server/admin-routes.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 81
+    },
+    {
+      "exported_symbols": [
+        "DEFAULT_MAX_JSON_BYTES",
+        "AUTH_MAX_JSON_BYTES",
+        "DIAGNOSTICS_REPORT_MAX_JSON_BYTES",
+        "createStandaloneServer"
+      ],
+      "file": "server/app.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 34
+    },
+    {
+      "exported_symbols": [],
+      "file": "server/index.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 8
+    },
+    {
+      "exported_symbols": [
+        "STATIC_API_ROUTES",
+        "DYNAMIC_TRUCK_BY_ID_ROUTE",
+        "REGISTERED_DOMAIN_ROUTE_COUNT",
+        "matchDomainApiRoute"
+      ],
+      "file": "server/routes.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 2
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/admin-governance.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 14
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/admin-portal-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 34
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/auth-email-delivery.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 24
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/backend-hardening.integration.cjs",
+      "globals_assigned": [
+        "__BITESHARK_RUNTIME__"
+      ],
+      "source_type": "script",
+      "symbol_count": 36
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/code-registry.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 10
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/diagnostics-and-reliability.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 23
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/discovery-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 25
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/discovery-cards-ux-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 22
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/feature-controls-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 36
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/feature-controls.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 18
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/install-staging-release.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 19
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/invitation-workflow-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 35
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/invitation-workflow.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 25
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/legal-readiness-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 31
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/legal-readiness.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 18
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/listing-verification.cjs",
+      "globals_assigned": [
+        "__BITESHARK_RUNTIME__"
+      ],
+      "source_type": "script",
+      "symbol_count": 118
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/map-resilience-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 42
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/map-resilience.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 1
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/p1-unified-discovery.integration.cjs",
+      "globals_assigned": [
+        "__BITESHARK_TEST_RUNTIME__"
+      ],
+      "source_type": "script",
+      "symbol_count": 20
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/pager-demo.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 12
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/pager-notifications-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 27
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/pager-notifications.integration.cjs",
+      "globals_assigned": [
+        "__BITESHARK_NOTIF_TEST_RUNTIME__"
+      ],
+      "source_type": "script",
+      "symbol_count": 36
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/reliability-accessibility-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 48
+    },
+    {
+      "exported_symbols": [
+        "module.exports"
+      ],
+      "file": "tests/staging-http-gates.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 18
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/staging2-ctl-security.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/standalone-runtime-auth.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 24
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/support-feedback-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 40
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/support-feedback.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 23
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/urgent-pilot-security-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 34
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/urgent-pilot-security.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 64
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/vps-platform-contract.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/vps-staging-gates.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 14
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/welcome-experience-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 45
+    }
+  ],
+  "parse_failures": [],
+  "repository": "https://github.com/yamanalmasaleha-png/trukly-",
+  "routes": [
+    {
+      "auth_requirement": "internal_probe_token_and_top_admin",
+      "caller_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/app.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/_staging_gate_probe",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/account/context",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/accounts",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/accounts/role",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/accounts/status",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/applications",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/applications/decision",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/audit",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 9,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/diagnostics",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/diagnostics/cleanup",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/diagnostics/detail",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/diagnostics/note",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/diagnostics/notify-tickets",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/diagnostics/synthetic-test",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/diagnostics/triage",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/email-readiness",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/features",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/features/update",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/invitations",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/invitations/create",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/invitations/decision",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/invitations/resend",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/invitations/resend",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 5,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/issues",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/issues/diagnostics",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/issues/update",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/moderation",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/moderation/decision",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/overview",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/readiness",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/readiness/note",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/readiness/update",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/vendor-preview",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 5,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/vendors",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/vendors/update",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_pending_age",
+      "caller_count": 1,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/auth/age-assessment",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "public_or_session",
+      "caller_count": 3,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/auth/logout",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "public_or_session",
+      "caller_count": 1,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/auth/session",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "internal_mailbox_secret",
+      "caller_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/auth/staging-mailbox",
+      "test_count": 13
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/auth/start",
+      "test_count": 16
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "lib/standalone-auth.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/auth/verify",
+      "test_count": 16
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "event_inquiries",
+      "handler_file": "api/bookings/create.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/bookings/create",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/bookings/list.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/bookings/list",
+      "test_count": 7
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/catalog/cities.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/catalog/cities",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/catalog/cuisines.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/catalog/cuisines",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/catalog/featured.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/catalog/featured",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "community_hub",
+      "handler_file": "api/community/list.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/community/list",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/community/mine.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/community/mine",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/community/moderate.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/community/moderate",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "community_submissions",
+      "handler_file": "api/community/post.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/community/post",
+      "test_count": 7
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "community_hub",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/community/report",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/diagnostics/report",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/favorites/list.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/favorites/list",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/favorites/toggle.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/favorites/toggle",
+      "test_count": 7
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/features",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/app.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/healthz",
+      "test_count": 8
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/invitations/accept",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/invitations/inspect",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 10,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/issues",
+      "test_count": 8
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/issues/read",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/issues/reopen",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/issues/reply",
+      "test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "nearby_alert_preferences",
+      "handler_file": "api/notifications/settings.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/notifications/settings",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "vendor_onboarding",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/onboarding/applications",
+      "test_count": 5
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "vendor_onboarding",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/onboarding/evidence",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/bookings.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/owner/bookings",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/location.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/owner/location",
+      "test_count": 8
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/profile.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/owner/profile",
+      "test_count": 7
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/requests.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/owner/requests",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/schedule.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/owner/schedule",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/owner/stats.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/owner/stats",
+      "test_count": 6
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "pickup_pager_creation",
+      "handler_file": "api/pager/staff.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/pager/staff",
+      "test_count": 9
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/pager/status.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/pager/status",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "pager_push_subscriptions",
+      "handler_file": "api/pager/subscriptions.js",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "path": "/api/pager/subscriptions",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/pager/telemetry.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/pager/telemetry",
+      "test_count": 4
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/pager/update.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/pager/update",
+      "test_count": 7
+    },
+    {
+      "auth_requirement": "internal_worker_secret",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/pager/worker.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/pager/worker",
+      "test_count": 8
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/schedule/today.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/schedule/today",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 2,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/trucks.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/trucks",
+      "test_count": 14
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/trucks/[id].js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/trucks/:id",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": "event_inquiries",
+      "handler_file": "api/trucks/availability.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/trucks/availability",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 1,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/trucks/nearby.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/trucks/nearby",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "public",
+      "caller_count": 0,
+      "dispatcher": "server/routes.js",
+      "feature_gate": null,
+      "handler_file": "api/trucks/search.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/trucks/search",
+      "test_count": 3
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "path": "/api/vendor/members",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 1,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/vendor/staff-invitations",
+      "test_count": 3
+    }
+  ],
+  "schema_version": "biteshark.code-registry.v1"
+}
