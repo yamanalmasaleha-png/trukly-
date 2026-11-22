@@ -15,6 +15,7 @@ on:
       - fix/**
       - chore/**
       - antigravity/**
+      - integrate/**
 
 permissions:
   contents: read
