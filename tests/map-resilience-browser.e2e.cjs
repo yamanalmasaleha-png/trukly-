@@ -975,7 +975,7 @@ function rectsOverlap(a, b) {
           `(() => {
             const imgs = [...document.querySelectorAll('#map img.leaflet-tile')];
             if (imgs.length < 4 || !imgs.every(i => i.complete && i.naturalWidth === 256)) return null;
-            const pins = document.querySelectorAll('#map .truck-pin');
+            const pins = document.querySelectorAll('#map .food-map-card');
             const attr = document.querySelector('#map .leaflet-control-attribution');
             const modeSw = document.querySelector('#discoverScreen .mode-switch');
             const nav = document.querySelector('.bottom-nav');
@@ -985,6 +985,8 @@ function rectsOverlap(a, b) {
             return {
               tileCount: imgs.length,
               pinCount: pins.length,
+              markerLabels: [...pins].map(p => p.closest('.leaflet-marker-icon').getAttribute('aria-label')),
+              illustratedCount: [...pins].filter(p => p.querySelector('svg')).length,
               imgReferrerPolicies: imgs.map(i => i.referrerPolicy),
               fallbackHidden: fb ? fb.hidden : true,
               attributionText: attr.textContent.trim(),
@@ -997,11 +999,13 @@ function rectsOverlap(a, b) {
         );
         return s;
       },
-      { label: 'Healthy 256x256 map tiles & Sonoma pins rendered' }
+      { label: 'Healthy 256x256 map tiles & illustrated Sonoma markers rendered' }
     );
 
     assert(normalMapState.tileCount >= 4);
-    assert(normalMapState.pinCount >= 8);
+    assert(normalMapState.pinCount > 0, 'The visible viewport renders cuisine markers or clusters');
+    assert.equal(normalMapState.illustratedCount, normalMapState.pinCount, 'Every marker contains a cuisine vector');
+    assert(normalMapState.markerLabels.every(label => label && label.includes('Illustrated cuisine truck')), 'Markers retain descriptive accessible names');
     assert.equal(normalMapState.fallbackHidden, true);
     assert(normalMapState.imgReferrerPolicies.every(p => p === 'origin'), 'Every tile <img> must use referrerPolicy=origin');
     assert(normalMapState.attributionText.includes('OpenStreetMap'), 'Attribution must include OpenStreetMap');

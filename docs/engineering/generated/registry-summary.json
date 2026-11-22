@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "aade3704411efc41466837f0f3f31781a562947bf5d356c474f5a5b7feb28703",
+  "deterministic_digest_sha256": "634d83478237a2a6232e379cc99109a35ad0abfd2c623d0dd9293837c547fb11",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
