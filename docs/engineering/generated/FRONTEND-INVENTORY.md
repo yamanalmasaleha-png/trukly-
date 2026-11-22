@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1`
+> - **Deterministic Source Digest**: `0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## HTML Document: [public/admin.html](../../../public/admin.html)
