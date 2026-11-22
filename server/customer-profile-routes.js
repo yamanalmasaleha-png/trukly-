@@ -19,6 +19,11 @@ import {
   getPrivateOwnerProfile,
   updatePrivateOwnerProfile,
   updateCustomerPreferences,
+  listOwnerCollections,
+  getOwnerCollectionDetail,
+  createOwnerCollection,
+  updateOwnerCollection,
+  deleteOwnerCollection,
   exportCustomerProfileAndExplorationArchive,
   clearCustomerProfileAndCollectionsData
 } from '../lib/customer-profile.js';
@@ -262,6 +267,88 @@ export async function handleCustomerProfileRoute({
         includeExplorationData: Boolean(body.include_exploration_data)
       });
       return sendJson(200, result);
+    }
+
+    // 4. Greatest Hits Collections List (`GET /api/me/collections`) & Create (`POST /api/me/collections`)
+    if (pathname === '/api/me/collections') {
+      if (method !== 'GET' && method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET, POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      if (method === 'GET') {
+        const listOut = await listOwnerCollections(dbAdapter, { userId: verifiedUser.id });
+        return sendJson(200, listOut);
+      }
+      const created = await createOwnerCollection(dbAdapter, {
+        userId: verifiedUser.id,
+        body
+      });
+      return sendJson(created.idempotent_replay ? 200 : 201, created);
+    }
+
+    // 5. Greatest Hits Collection Detail (`GET /api/me/collections/detail?id=col_...`)
+    if (pathname === '/api/me/collections/detail') {
+      if (method !== 'GET') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const detail = await getOwnerCollectionDetail(dbAdapter, {
+        userId: verifiedUser.id,
+        collectionId: query.id
+      });
+      return sendJson(200, detail);
+    }
+
+    // 6. Greatest Hits Collection Update (`POST /api/me/collections/update`)
+    if (pathname === '/api/me/collections/update') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const updated = await updateOwnerCollection(dbAdapter, {
+        userId: verifiedUser.id,
+        body
+      });
+      return sendJson(200, updated);
+    }
+
+    // 7. Greatest Hits Collection Delete (`POST /api/me/collections/delete` — always available to owner!)
+    if (pathname === '/api/me/collections/delete') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      assertNoForbiddenClientWriteFields(body);
+      const deleted = await deleteOwnerCollection(dbAdapter, {
+        userId: verifiedUser.id,
+        collectionId: body.collection_id,
+        storageRoot: resolvePhotoStorageRoot()
+      });
+      return sendJson(200, deleted);
     }
 
     return sendJson(404, { ok: false, error: 'Profile endpoint not found.', code: 'NOT_FOUND' });

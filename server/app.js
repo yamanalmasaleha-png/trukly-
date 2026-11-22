@@ -97,6 +97,7 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/exploration-client.js',
   '/profile-client.js',
   '/customer-profile.js',
+  '/greatest-hits.js',
   '/customer-profile.css',
   '/shared-collection-page.js',
   '/shared-collection-page.css',
