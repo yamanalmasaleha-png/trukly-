@@ -17,6 +17,8 @@ import {
   CustomerProfileDomainError,
   assertNoForbiddenClientWriteFields,
   getPrivateOwnerProfile,
+  updatePrivateOwnerProfile,
+  updateCustomerPreferences,
   exportCustomerProfileAndExplorationArchive,
   clearCustomerProfileAndCollectionsData
 } from '../lib/customer-profile.js';
@@ -173,17 +175,53 @@ export async function handleCustomerProfileRoute({
   rawRes
 }) {
   try {
-    // 1. Private Owner Profile Read (`GET /api/me/profile`)
-    if (pathname === '/api/me/profile' && method === 'GET') {
+    // 1. Private Owner Profile Read (`GET /api/me/profile`) & Update (`POST /api/me/profile`)
+    if (pathname === '/api/me/profile') {
+      if (method !== 'GET' && method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET, POST' }
+        );
+      }
       if (!verifiedUser?.id) {
         return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
       }
       const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, verifiedUser);
-      const dto = await getPrivateOwnerProfile(dbAdapter, {
+      if (method === 'GET') {
+        const dto = await getPrivateOwnerProfile(dbAdapter, {
+          userId: verifiedUser.id,
+          featureStates
+        });
+        return sendJson(200, dto);
+      }
+      const updated = await updatePrivateOwnerProfile(dbAdapter, {
         userId: verifiedUser.id,
+        body,
         featureStates
       });
-      return sendJson(200, dto);
+      return sendJson(200, updated);
+    }
+
+    // 1B. Account-Backed Customer Preferences (`POST /api/me/preferences`)
+    if (pathname === '/api/me/preferences') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, verifiedUser);
+      const updated = await updateCustomerPreferences(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        featureStates
+      });
+      return sendJson(200, updated);
     }
 
     // 2. Self-Service Privacy, Export & Share Overview (`GET /api/me/profile/privacy` — always available!)

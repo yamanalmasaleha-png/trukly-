@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="/mobile-scroll-fix.css">
   <link rel="stylesheet" href="/color-calm.css">
   <link rel="stylesheet" href="/role-experience.css">
+  <link rel="stylesheet" href="/customer-profile.css">
 </head>
 <body>
 <div id="app">
@@ -413,6 +414,10 @@
     </section>
   </main>
 
+  <main id="profileScreen" class="screen page-screen" aria-label="My BiteShark private profile">
+    <div id="customerProfileRoot"></div>
+  </main>
+
   <nav class="bottom-nav" aria-label="Main navigation">
     <button class="active" data-screen="discover" onclick="showScreen('discover')"><span aria-hidden="true">🧭</span><small>Discover</small></button>
     <button data-screen="favorites" onclick="showScreen('favorites')"><span aria-hidden="true">💛</span><small>Saved</small></button>
@@ -455,6 +460,7 @@
 <script src="/diagnostics-client.js"></script>
 <script src="/auth-client.js"></script>
 <script src="/exploration-client.js"></script>
+<script src="/profile-client.js"></script>
 <script src="/role-experience.js"></script>
 <script src="/app.js"></script>
 <script src="/listing-highlights.js"></script>
@@ -466,4 +472,5 @@
 <script src="/guide-passport.js"></script>
 <script src="/community.js"></script>
 <script src="/street-whispers.js"></script>
+<script src="/customer-profile.js"></script>
 </body></html>
