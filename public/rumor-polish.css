@@ -1,0 +1,47 @@
+/* Original Truckly: slightly brighter retro accents without changing approved brand green. */
+.rumor-home{position:relative;background:linear-gradient(115deg,#fff3d1 0%,#fce4d7 55%,#e3f0e8 100%)!important;border:1px solid #dfcda9!important;box-shadow:0 7px 22px rgba(54,76,49,.09)}
+.rumor-home h3{color:#214b3b!important;line-height:1.2}
+.rumor-home .rumor-label{display:block;color:#8e513c;letter-spacing:.08em;font-size:10px;font-weight:900;margin-bottom:5px}
+.rumor-home button{min-height:44px!important;background:#214b3b!important;color:#fffaf0!important;border-radius:12px!important;font-weight:850}
+.street-section{background:linear-gradient(130deg,#fff1cf,#ffeadb 60%,#e7f2e5)!important}
+.street-intro h2{font-size:clamp(29px,4.4vw,43px)!important;letter-spacing:-.035em}
+.street-stamp{background:#eaddfb!important;border-color:#965f8a!important;color:#774a76!important;transform:rotate(5deg)!important}
+.rumor-playbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:15px 16px;margin:0 0 14px;border-radius:17px;background:#fffefa;border:1px solid #d6d4c3;box-shadow:0 5px 18px rgba(47,62,48,.06)}
+.rumor-playbar-copy{display:flex;flex-direction:column;gap:3px}
+.rumor-playbar-copy small{color:#875e37;font-size:10px;letter-spacing:.09em;font-weight:900}
+.rumor-playbar-copy strong{font-size:15px;color:#23513f}
+.rumor-playbar-copy span{font-size:12px;color:#647569;font-weight:750}
+.rumor-play-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.rumor-play-actions button{border:0;border-radius:12px;background:#234b3d;color:#fffdf4;min-height:44px;padding:10px 13px;font-size:12px;font-weight:850}
+.rumor-play-actions button:nth-child(2){background:#e8d6f8;color:#563b6c}
+.rumor-play-actions button:nth-child(3){background:#f8d49b;color:#5b3d1f}
+.street-game{box-shadow:0 5px 15px rgba(33,75,59,.05)}
+.street-mystery{background:#dbf0e4!important}
+.street-mission{background:#fbe0a9!important}
+.street-answers button{min-height:48px!important;border-radius:12px!important;transition:transform .14s,background .14s}
+.street-answers button:not(:disabled):active{transform:scale(.99)}
+.street-answers button:disabled{opacity:1!important}
+.street-answers button.correct{background:#ccebd4!important;color:#1d583d!important}
+.street-file:nth-child(4n+2){background:#f3e6fb!important}
+.street-file:nth-child(4n+3){background:#ffe3d3!important}
+.street-file:nth-child(4n+4){background:#e4f5e7!important}
+.rumor-arrival{animation:rumorArrive .5s ease}
+@keyframes rumorArrive{from{box-shadow:0 0 0 0 #e8bf65aa}to{box-shadow:0 0 0 16px transparent}}
+.pager-choice-nav{max-width:980px;margin:14px auto 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:6px;background:#eaf0e8;border:1px solid #d6e1d4;border-radius:17px}
+.pager-choice-nav button{display:flex;align-items:center;justify-content:center;gap:5px;flex-direction:column;min-height:64px;border:2px solid transparent;border-radius:13px;padding:9px 12px;background:transparent;color:#486352;font-size:15px;font-weight:900;cursor:pointer}
+.pager-choice-nav button small{font-size:11px;font-weight:650;color:#6b7d6f}
+.pager-choice-nav button.is-active{border-color:#214b3b;background:#fffdf6;color:#214b3b;box-shadow:0 3px 12px rgba(19,63,44,.09)}
+.pager-choice-nav button.is-active small{color:#4b6952}
+#pagerScreen .pager-example-hero{background:linear-gradient(132deg,#ffebba 0%,#ffdfd2 48%,#e3eee0 100%)!important}
+#pagerScreen .pager-mini-steps span:nth-child(1){background:#f9dcbb}
+#pagerScreen .pager-mini-steps span:nth-child(2){background:#e6d6f4}
+#pagerScreen .pager-mini-steps span:nth-child(3){background:#d8efd9}
+#pagerScreen .pager-real-entry[open]{background:#f2edff}
+#pagerScreen .pager-real-entry summary{font-weight:900}
+#pagerScreen.pager-real-selected .pager-real-entry{box-shadow:inset 4px 0 0 #8567ad}
+#pagerScreen .pager-try-button{border-radius:14px}
+#pagerScreen .food-pager.pager-stage-ready{background:#cbebce!important}
+#pagerScreen button:focus-visible,.street-section button:focus-visible,.rumor-home button:focus-visible{outline:3px solid #bd7249;outline-offset:3px}
+@media(max-width:750px){.rumor-playbar{flex-direction:column;align-items:stretch}.rumor-play-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.rumor-play-actions button{padding:9px 5px;font-size:11px}.pager-choice-nav{margin:7px 0 13px}.pager-choice-nav button{font-size:13px;min-height:68px}}
+@media(max-width:365px){.rumor-play-actions{grid-template-columns:1fr}.pager-choice-nav button small{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.rumor-arrival,.street-answers button{animation:none!important;transition:none!important}}

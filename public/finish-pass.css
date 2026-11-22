@@ -1,0 +1,121 @@
+/* Consistent surfaces, clearer hierarchy, and one task at a time. */
+.truck-card-actions{display:flex;align-items:center;flex-wrap:wrap;gap:2px 14px;margin-top:2px}
+.truck-card-actions .where-button{white-space:nowrap}
+#detailContent .where-highlight{padding:16px;border:1px solid #BACAAD;background:#EDF2E2;border-radius:12px}
+.where-label{display:block;font-size:10px;font-weight:700;letter-spacing:.08em;color:#3C603D;margin-bottom:9px}
+#detailContent .where-note{font-size:12px;line-height:1.5;color:#5D6B55;margin:10px 0 0}
+@media(max-width:359px){.truck-card-actions{gap:0 9px}}
+#discoverScreen #extraFilters .filters{flex-wrap:wrap;overflow:visible;min-height:0;max-height:none}
+:root{--ui-border:#D8DED2;--ui-paper:#FFFDF7;--ui-space:20px}
+button,input,select,textarea{font-family:'DM Sans',sans-serif}
+.primary,.secondary{font-size:13px;font-weight:600;border-radius:11px;box-shadow:none}
+:where(input,select,textarea){line-height:1.5}
+.page-head{margin-bottom:22px;gap:16px}
+.page-head small{font-size:10px;letter-spacing:.09em}
+.page-head h1{margin:8px 0 10px}
+.page-head p{margin:0;max-width:520px}
+.page-head .big-icon{font-size:28px;line-height:1.2}
+.topbar .header-actions button{box-shadow:none}
+.topbar .profile-menu .avatar{border:1px solid var(--ui-border)}
+.topbar .pager-launch[aria-current=page],.home-button[aria-current=page]{outline:2px solid #426A50;outline-offset:2px}
+.art-nameplate.art-grill{--art-type:#543E2B}
+.truck-card .heart{display:grid;place-items:center;padding:0;line-height:1}
+.truck-card .heart:focus-visible{outline-offset:1px}
+#detailContent{max-width:620px;margin-inline:auto;border-radius:18px;padding:18px}
+#detailContent .detail-hero,#detailContent .detail-hero.art-poster{height:148px!important;min-height:148px!important;border-radius:12px!important;overflow:hidden}
+#detailContent .detail-body{padding:22px 6px 8px}
+#detailContent .detail-body>h2{font-size:25px;line-height:1.2;margin:7px 0 12px;letter-spacing:-.02em}
+#detailContent .detail-body>p{font-size:14px;line-height:1.6;margin:0 0 16px}
+#detailContent .art-notice{font-size:10px!important;line-height:1.5;margin-top:7px!important}
+#detailContent .modal-close{width:34px;height:34px;min-height:34px;font-size:22px;padding:0;display:grid;place-items:center;background:#FFFDF7;border:1px solid var(--ui-border);box-shadow:0 2px 8px #243C3112}
+.vendor-spotlight{padding:16px;margin:20px 0;background:#F7F3E5;border-radius:14px}
+.flavor-heading{gap:10px;margin-bottom:14px}
+.flavor-heading h3{font-size:19px;line-height:1.2}
+.vendor-flavor-seal{width:27px;height:27px;flex-basis:27px;font-size:18px;border-radius:8px}
+.signature-bite,.vendor-difference{border-radius:11px;padding:14px}
+.signature-bite{background:#F6E6C9;border-color:#E6D4AE}
+.vendor-difference{background:#E8EDDD;border-color:#D0DAC1}
+.signature-bite h4{font-size:21px;line-height:1.2}
+.vendor-spotlight p{font-size:13px;line-height:1.6}
+.detail-location{font-size:13px;line-height:1.5}
+.detail-tags{gap:7px;flex-wrap:wrap}
+.detail-tags span{font-size:12px}
+#guidesScreen .guides-hero{padding:24px!important;min-height:0;border:1px solid var(--ui-border);border-radius:18px!important;box-shadow:none;gap:20px;margin-bottom:20px}
+#guidesScreen .guides-hero h1{font-size:30px!important;line-height:1.15!important;margin:9px 0 10px}
+#guidesScreen .guides-hero p{font-size:13px!important;line-height:1.6;margin:0}
+#guidesScreen .guides-sticker{box-shadow:none;outline:0;border:1px solid #D7C690;transform:none;border-radius:14px;padding:16px}
+#guidesScreen .guides-tabs{gap:8px;margin:0 0 20px}
+#guidesScreen .guides-tabs button{min-height:42px;font-size:13px;font-weight:600;border-radius:11px;padding:10px 14px}
+#guidesScreen .community-entry{margin:0 0 20px;padding:14px 16px;border-radius:12px}
+#guidesScreen .community-entry h3{font-size:15px;line-height:1.3}
+#guidesScreen .community-entry p{font-size:12px;line-height:1.5}
+#guidePassport .passport-hero{padding:22px;background:var(--ui-paper);border-radius:16px;box-shadow:none}
+#guidePassport .passport-hero h2{font-size:24px;line-height:1.2;margin:9px 0}
+#guidePassport .passport-hero p{font-size:13px;line-height:1.6;margin:0 0 14px}
+#guidePassport .passport-level{font-size:13px;margin-top:14px}
+#guidePassport .passport-stats b{font-size:22px}
+#guidePassport .passport-panel{border-radius:15px;padding:20px}
+#guidePassport .passport-title h3{font-size:22px}
+.guide-story{border-radius:15px;box-shadow:none}
+.guide-story-copy{padding:20px}
+.guide-story h2{font-size:24px;line-height:1.22}
+.guide-story p{font-size:13px;line-height:1.65}
+.guide-photo-form,.guide-photo-intro{border-radius:15px;padding:20px}
+.guide-photo-intro h2{font-size:25px;line-height:1.2}
+#pagerScreen .pager-choice-nav{padding:4px;gap:6px;border-radius:13px;margin:0 auto 22px}
+#pagerScreen .pager-choice-nav button{min-height:54px;font-size:13px;font-weight:600;border-radius:10px}
+#pagerScreen .pager-choice-nav button small{font-size:11px;font-weight:400}
+#pagerScreen .pager-layout{align-items:start;gap:20px}
+#pagerScreen.pager-view-demo .pager-real-entry{display:none}
+#pagerScreen.pager-view-real .pager-example-hero{display:none}
+#pagerScreen .pager-layout:has(.pager-idle){grid-template-columns:minmax(0,640px);justify-content:center}
+#pagerScreen .pager-idle{display:none}
+#pagerScreen .pager-join{border-radius:16px;box-shadow:none}
+#pagerScreen .pager-example-hero{padding:22px;background:#F5E8D1!important}
+#pagerScreen .pager-example-hero h2{font-size:25px;line-height:1.2}
+#pagerScreen .pager-example-hero>p{font-size:13px;line-height:1.6}
+#pagerScreen .pager-demo-meal{padding:11px 13px;border-radius:11px;gap:10px}
+#pagerScreen .pager-demo-meal>span{font-size:25px}
+#pagerScreen .pager-demo-meal strong{font-size:13px;font-weight:600}
+#pagerScreen .pager-demo-meal small{font-size:11px}
+#pagerScreen .pager-demo-disclaimer{font-size:11px;margin-bottom:0}
+#pagerScreen .pager-mini-steps{display:none}
+#pagerScreen .food-pager{border:1px solid #C9D4BC;border-radius:16px;box-shadow:none;min-height:0;scroll-margin-top:calc(var(--header) + 16px);padding:22px}
+#pagerScreen .pager-demo-active h2{font-size:23px}
+#pagerScreen .food-pager>p{font-size:13px;line-height:1.6}
+#pagerScreen .pager-demo-workbench{border-style:solid;border-color:#D5DAC6;border-radius:12px}
+#pagerScreen .pager-next-step{font-size:13px;min-height:44px;border-radius:10px;padding:10px 12px;box-shadow:none}
+#pagerScreen .pager-next-step:hover{transform:none;box-shadow:none}
+#pagerScreen .pager-workbench-label>span{font-size:20px;width:32px;height:32px;border-radius:9px}
+#pagerScreen .pager-demo-utility button,#pagerScreen .pager-sound{font-size:12px;font-weight:600}
+#pagerScreen .pager-real-entry{padding:20px;border:0}
+#pagerScreen .pager-real-entry summary{font-size:14px}
+#pagerScreen .pager-real-entry input{font-size:16px}
+#pagerScreen .pager-roadmap-dot{width:34px;height:34px;font-size:17px;border-width:1px}
+#pagerScreen .pager-roadmap .current .pager-roadmap-dot{box-shadow:0 0 0 3px #fff9;transform:none}
+#communityScreen .community-post,#communityScreen .community-compose{border-radius:15px;box-shadow:none}
+#communityScreen .community-post h3{font-size:18px;line-height:1.3}
+#communityScreen .community-shortcuts>button{border-radius:13px}
+@media(max-width:749px){
+ .page-screen{padding-top:calc(var(--header) + 20px)}
+ .page-head .big-icon{display:none}
+ #detailContent{padding:14px;width:100%;max-height:calc(100dvh - 24px)}
+ #detailContent .detail-hero,#detailContent .detail-hero.art-poster{height:120px!important;min-height:120px!important}
+ #detailContent .detail-body{padding:18px 3px 6px}
+ #detailContent .detail-body>h2{font-size:23px}
+ #detailContent .detail-hero .art-monogram{font-size:43px!important}
+ #detailContent .detail-hero .art-topline,#detailContent .detail-hero .art-bottomline{display:none}
+ #detailContent .detail-hero .art-nameplate{gap:6px;padding:12px!important}
+ #guidesScreen .guides-hero{padding:20px!important}
+ #guidesScreen .guides-hero h1{font-size:27px!important}
+ #guidePassport .passport-hero{padding:18px}
+ #guidePassport .passport-hero h2{font-size:22px}
+ #guidePassport .passport-stats{gap:8px;margin-top:8px}
+ #guidePassport .passport-stats div{border-radius:10px;padding:10px 6px}
+ #guidesScreen .guides-tabs button{flex:1;min-width:0;font-size:12px;padding:10px 8px}
+ #pagerScreen .pager-example-hero{padding:18px}
+ #pagerScreen .pager-choice-nav{margin-bottom:18px}
+ #pagerScreen .food-pager{padding:18px}
+ #pagerScreen .pager-number-options button{font-size:17px}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}

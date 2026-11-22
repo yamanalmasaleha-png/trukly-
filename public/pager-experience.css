@@ -1,0 +1,87 @@
+/* Pager Play — scoped customer demo polish, November 2026 */
+.pager-sample-numbers{padding:15px;background:#fffaf0cc;border:1px solid #D6CEAC;border-radius:14px;margin:14px 0}
+.pager-sample-numbers>span{display:block;font-size:13px;font-weight:600;margin-bottom:10px}
+.pager-number-options{display:flex;gap:9px}
+.pager-number-options button{flex:1;min-height:44px;background:#fffdf6;border:1px solid #BCC9B5;border-radius:10px;color:#214B3B;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.pager-number-options button:hover{background:#DDE9CE}
+.pager-sample-numbers label{font-size:12px;font-weight:500;margin:14px 0 7px}
+.pager-number-entry{display:flex;gap:8px}
+.pager-number-entry input{width:74px;min-width:0;min-height:44px;margin:0;text-align:center;font-size:16px}
+.pager-number-entry button{flex:1;min-height:44px;padding:9px 12px;border:0;border-radius:10px;background:#214B3B;color:#fffdf6;font-size:13px;font-weight:600}
+.pager-sample-numbers>small{display:block;font-size:11px;color:#5B6B54;margin-top:10px;line-height:1.5}
+#pagerDemoNumberMessage{font-size:12px;color:#963D2C;margin:7px 0 0}
+#pagerDemoNumberMessage:empty{display:none}
+.pager-wait-break{margin:18px auto;padding:16px;max-width:390px;background:#FFFCF0;border:1px solid #C9CCAB;border-radius:16px;text-align:center}
+.pager-clock-label{display:block;font-size:10px;font-weight:600;letter-spacing:.1em;color:#547047}
+.pager-countdown{font:600 38px/1.15 'DM Sans',sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.03em;margin:7px 0;color:#214B3B}
+.pager-wait-break small{display:block;font-size:11px;color:#61715B;line-height:1.5}
+#pagerWaitJoke{font-size:13px;line-height:1.5;min-height:40px;margin:12px 0 0;color:#695035}
+#pagerScreen .pager-demo-active .pager-food{font-size:44px;margin:12px 0 5px;filter:none}
+#pagerScreen .pager-demo-active h2{font-size:25px}
+.pager-wait-break+.pager-roadmap{margin-top:18px}
+@media(max-width:749px){.pager-countdown{font-size:34px}.pager-wait-break{padding:14px}.pager-example-hero h2{font-size:25px}}
+#pagerScreen .page-head{margin-bottom:8px}
+#pagerScreen .page-head h1{letter-spacing:-.035em}
+.pager-layout{gap:22px;align-items:stretch;margin-top:20px}
+.pager-join{padding:0;overflow:hidden;border-radius:24px;background:#fffaf0;box-shadow:0 8px 28px rgba(27,65,46,.06)}
+.pager-example-hero{padding:24px;background:linear-gradient(145deg,#f9e9b8 0%,#f8edd0 55%,#e5eddb 100%);color:#214b3b}
+.pager-demo-eyebrow{font-size:11px;font-weight:900;letter-spacing:.13em;color:#315540}
+.pager-example-hero h2{font-size:clamp(28px,4vw,37px);letter-spacing:-.035em;line-height:1.1;margin:12px 0 8px}
+.pager-example-hero>p{line-height:1.5;margin:8px 0 16px}
+.pager-demo-meal{display:flex;gap:13px;align-items:center;padding:12px 14px;border-radius:16px;background:#fffdf5d9;border:1px solid #214b3b23;margin-bottom:16px}
+.pager-demo-meal>span{font-size:36px}
+.pager-demo-meal strong,.pager-demo-meal small{display:block}
+.pager-demo-meal small{font-size:12px;color:#57715d;margin-top:2px}
+.pager-try-button,.pager-next-step{display:flex;justify-content:space-between;align-items:center;gap:15px;width:100%;min-height:56px;border:2px solid #173c2a;border-radius:15px;background:#214b3b;color:#fff9e9;padding:13px 17px;font-size:16px;font-weight:850;cursor:pointer;box-shadow:0 5px 0 #173b2c3b;transition:transform .15s,box-shadow .15s,background .15s}
+.pager-try-button:hover,.pager-next-step:hover{background:#315f46;transform:translateY(-2px);box-shadow:0 7px 0 #173b2c30}
+.pager-try-button:active,.pager-next-step:active{transform:translateY(2px);box-shadow:0 2px 0 #173b2c30}
+.pager-example-hero .pager-demo-disclaimer{font-size:12px;line-height:1.5;color:#58705a;margin:12px 0}
+.pager-mini-steps{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-size:11px;font-weight:800}
+.pager-mini-steps span{background:#fff8e8;border:1px solid #aebfac80;border-radius:999px;padding:7px 9px}
+.pager-real-entry{border-top:1px solid #214b3b1e;padding:15px 24px;color:#214b3b}
+.pager-real-entry summary{list-style:none;cursor:pointer;font-size:14px;font-weight:850;min-height:44px;display:flex;align-items:center;justify-content:space-between}
+.pager-real-entry summary::-webkit-details-marker{display:none}
+.pager-real-entry summary::after{content:'⌄';font-size:21px}
+.pager-real-entry[open] summary::after{content:'⌃'}
+.pager-real-entry>p{font-size:13px;line-height:1.5;margin:8px 0 12px}
+.pager-real-entry form{display:grid;gap:12px}
+.pager-real-entry label{display:grid;gap:6px;font-weight:700;font-size:13px}
+.pager-real-entry input{min-height:48px;max-width:100%;border-radius:11px}
+.pager-join>#pagerMessage{margin:0;padding:0 24px;color:#5b6549;font-size:13px}
+.pager-join>#pagerMessage:not(:empty){padding:12px 24px 17px}
+.food-pager{position:relative;overflow:hidden;min-height:420px;padding:25px;border-radius:24px;background:#f4d38a;box-shadow:0 9px 28px #31514214}
+.food-pager .pager-stamp{display:inline-block;background:#fff7dcac;border-radius:999px;padding:7px 12px;font-size:10px;letter-spacing:.09em}
+.food-pager .pager-food{margin:15px 0 7px;font-size:clamp(72px,10vw,98px);filter:drop-shadow(0 12px 10px #25493424)}
+.food-pager h2{font-size:clamp(25px,4vw,33px);line-height:1.12;letter-spacing:-.03em;margin:10px 0}
+.food-pager>p{margin:9px auto 14px;max-width:360px;line-height:1.5}
+.food-pager.pager-demo-active{border-color:#214b3b}
+.food-pager.pager-stage-almost{background:#f6df9b}
+.food-pager.pager-stage-ready{background:#cce5b7;border-color:#1e6f45}
+.food-pager.pager-stage-collected{background:#e1edda;border-color:#426c53}
+.pager-demo-ticket{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:14px}
+.pager-demo-ticket span{font-size:10px;letter-spacing:.1em;font-weight:900;color:#4e674c}
+.pager-demo-ticket b{font-size:15px}
+.pager-roadmap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;list-style:none;padding:0;margin:17px auto 15px;max-width:470px}
+.pager-roadmap li{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:11px;font-weight:800;color:#4a5b4b}
+.pager-roadmap-dot{display:grid;place-items:center;width:44px;height:44px;border:2px solid #214b3b2a;border-radius:50%;background:#fff9eab2;font-size:21px;opacity:.5;transition:all .25s ease}
+.pager-roadmap .complete .pager-roadmap-dot{border-color:#265a3f;background:#265a3f;color:#fff;opacity:1}
+.pager-roadmap .current .pager-roadmap-dot{border-color:#214b3b;background:#fff9e4;opacity:1;box-shadow:0 0 0 5px #ffffff80;transform:scale(1.07)}
+.pager-roadmap .waiting{opacity:.56}
+.pager-demo-workbench{border:1px dashed #31533e8c;background:#fffaf0c7;border-radius:17px;padding:13px;margin-top:20px;text-align:left}
+.pager-workbench-label{display:flex;gap:10px;align-items:center;margin-bottom:13px}
+.pager-workbench-label>span{display:grid;place-items:center;background:#f6d89b;border-radius:12px;font-size:24px;width:45px;height:45px;flex-shrink:0}
+.pager-workbench-label strong,.pager-workbench-label small{display:block}
+.pager-workbench-label strong{font-size:14px}
+.pager-workbench-label small{font-size:12px;line-height:1.35;color:#57705a;margin-top:3px}
+.pager-demo-utility{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:11px}
+.pager-demo-utility button{border:1px solid #214b3b52;border-radius:12px;min-height:42px;padding:9px 12px;background:#fffdf7;color:#214b3b;font-weight:750}
+.pager-demo-utility button:hover{background:#dfead9}
+.pager-sound{background:#fff9ec;min-height:44px;margin-top:3px}
+.pager-live-note{line-height:1.45}
+.pager-celebrate{font-size:19px;letter-spacing:.2em;margin-top:8px;animation:pager-pop .45s ease-out 2}
+.pager-idle-note{font-weight:700;font-size:12px;color:#4c6649}
+.pager-owner-demo{display:flex;flex-wrap:wrap;gap:9px;margin:12px 0 14px}
+.pager-owner-demo button{min-height:44px}
+@keyframes pager-pop{0%{transform:translateY(12px);opacity:.3}70%{transform:translateY(-3px);opacity:1}100%{transform:translateY(0)}}
+@media(max-width:749px){.pager-layout{margin-top:10px;gap:14px}.pager-example-hero{padding:19px}.pager-real-entry{padding:10px 19px}.pager-layout .food-pager{order:-1;min-height:320px;padding:18px}.pager-layout .food-pager.pager-idle{order:1}.food-pager .pager-food{font-size:70px}.pager-roadmap-dot{width:39px;height:39px}.pager-roadmap li{font-size:10px}.pager-mini-steps{justify-content:flex-start}.pager-example-hero h2{font-size:28px}}
+@media(prefers-reduced-motion:reduce){.pager-celebrate,.pager-try-button,.pager-next-step,.pager-roadmap-dot{animation:none;transition:none}}

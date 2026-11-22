@@ -1,0 +1,96 @@
+/* A little more market-day color, retaining Truckly's cream and forest base. */
+/* Icon proportions and alignment. Decorative illustrations keep their own sizing. */
+.filters .filter-doodle{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
+.filters .filter-doodle svg.flavor-doodle{display:block;width:18px;height:18px;max-height:18px}
+.filters .chip{align-items:center;gap:7px;line-height:1.25}
+.header-actions .pager-launch,.header-actions .guides-launch,.header-actions .home-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;line-height:1.25}
+.header-actions .pager-launch>span:first-child,.header-actions .guides-launch>span:first-child{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
+.header-actions .pager-launch .flavor-doodle,.header-actions .guides-launch .flavor-doodle,.header-actions .home-button svg{display:block;width:18px;height:18px;max-height:18px;flex:0 0 18px}
+.local-surprise{display:inline-flex;align-items:center;justify-content:center}
+.local-surprise>span:first-child,.inline-doodle{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:0 0 18px}
+.local-surprise .flavor-doodle,.inline-doodle .flavor-doodle{width:18px;height:18px;max-height:18px}
+.inline-doodle{margin-right:7px;vertical-align:middle}
+.bottom-nav button{gap:4px;min-height:56px;line-height:1}
+.bottom-nav button>span,.bottom-nav .book-nav>span{display:flex;align-items:center;justify-content:center;width:30px;height:30px;min-height:30px;flex:0 0 30px;border-radius:9px;line-height:1;box-shadow:none}
+.bottom-nav button>span .flavor-doodle{display:block;width:20px;height:20px;max-height:20px}
+.bottom-nav small{display:block;font-size:11px;line-height:14px;margin:0;text-align:center}
+.explore-kinds button>span,.explore-kinds button:first-child>span{display:flex;align-items:center;justify-content:center;flex:0 0 24px;width:24px;height:24px}
+.explore-kinds button>span>.flavor-doodle{display:block;width:24px;height:24px;max-height:24px}
+.explore-kinds button>span>.truck-character{width:28px;height:24px;max-width:28px;max-height:24px}
+.explore-kinds button{gap:7px;min-height:98px!important;padding:14px!important}
+.explore-kinds b{font-size:16px;line-height:1.25}
+.explore-kinds small{font-size:12px;line-height:1.4}
+.paper-kicker{align-items:center;gap:8px;line-height:1.4}
+.paper-kicker>span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;flex:0 0 22px}
+.paper-kicker .flavor-doodle{width:22px;height:22px;max-height:22px}
+.coffee-mini-grid button>span:first-child{display:flex;align-items:center;justify-content:center;width:26px;height:26px;flex:none}
+.coffee-mini-grid button>span:first-child .flavor-doodle{width:26px;height:26px;max-height:26px}
+.street-paper-head>span:first-child{width:30px;height:30px;flex:0 0 30px}
+.street-paper-head>span:first-child .flavor-doodle{width:30px;height:30px;max-height:30px}
+@media(max-width:749px){
+ .filters .filter-doodle,.filters .filter-doodle svg.flavor-doodle{width:16px;height:16px;max-height:16px;flex-basis:16px}
+ .explore-kinds button,.explore-kinds button:first-child{min-height:42px!important;padding:9px 12px!important;align-items:center;gap:7px}
+ .explore-kinds button>span,.explore-kinds button:first-child>span{width:18px;height:18px;flex:0 0 18px}
+ .explore-kinds button>span>.flavor-doodle{width:18px;height:18px;max-height:18px}
+ .explore-kinds button>span>.truck-character{width:22px;height:18px;max-width:22px;max-height:18px}
+ .explore-kinds b{font-size:13px;line-height:18px}
+}
+:root{--coral:#B34C35;--mustard:#E8B74C;--mint:#B5D7B6}
+.brand-mark{background:#B34C35!important;border-color:#B34C35!important}
+.topbar .guides-launch{background:#E5EDCD!important;border-color:#C4D298!important}
+.topbar .pager-launch{background:#FBE4C8!important;border-color:#E9C49D!important}
+.intro-copy h1 em,.brand-pop{color:#B34C35!important}
+.neighborhood-ribbon{background:#F9ECC6;border-radius:9px;padding:8px 12px}
+.explore-kinds button:nth-child(2){background:#FBE5D7!important}
+.explore-kinds button:nth-child(3){background:#F8EDC9!important}
+.explore-kinds button:nth-child(4){background:#DFEBD7!important}
+.explore-kinds button:nth-child(5){background:#EDDFC9!important}
+.explore-kinds button:nth-child(6){background:#DDEBD4!important}
+.explore-kinds button.active{border-color:#29513C!important;outline:2px solid #29513C!important}
+.art-taco{background:#F5D6B8!important}
+.art-grill{background:#F1D5BA!important}
+.art-coffee{background:#E5D8BD!important}
+.art-sweet{background:#F0D6DF!important}
+.art-market{background:#DEE7BE!important}
+.art-global{background:#D4E5DE!important}
+.truck-card{border-bottom:3px solid #DBBA79!important}
+.bottom-nav button[data-screen="favorites"]>span{background:#F7E8B4!important}
+.bottom-nav .book-nav>span{background:#F4D5C4!important}
+.bottom-nav .guide-nav>span{background:#DBE8C3!important}
+.bottom-nav button[data-screen="bookings"]>span{background:#D9E9E3!important}
+.bottom-nav .surprise-nav>span{background:#EDDBE7!important}
+#guidesScreen .guides-hero{background:#DDE9C9!important}
+.guides-sticker{background:#F7DE96!important}
+.crew-pal{background:#FBE5D7!important}
+.crew-farm{background:#E2EBCF!important}
+.crew-sweet{background:#F2DFE5!important}
+.crew-coffee,.coffee-corner{background:#F3E3CB!important}
+.vendor-spotlight{margin:22px 0;padding:20px;border:1px solid #D7D8BB;border-radius:20px;background:#F6F1DD;color:#243C31}
+.flavor-heading{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.vendor-flavor-seal{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:1px solid #CBB377;border-radius:10px;background:#EBC35E;color:#28503B;font-size:21px;line-height:1}
+.flavor-heading small{font-size:10px;font-weight:800;letter-spacing:.13em;color:#815432}
+.flavor-heading h3{font:600 25px/1.1 'Fredoka',sans-serif;margin:4px 0 0;letter-spacing:-.02em}
+.signature-bite,.vendor-difference{padding:16px 17px;border-radius:14px}
+.signature-bite{background:#F7DBAF;border:1px solid #E3BC86}
+.vendor-difference{margin-top:10px;background:#DFE9CE;border:1px solid #C2D0AC}
+.flavor-eyebrow{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;display:block;color:#68452A}
+.vendor-difference .flavor-eyebrow{color:#305037}
+.signature-bite h4{font:600 25px/1.15 'Fredoka',sans-serif;margin:8px 0;color:#54351F}
+.vendor-spotlight p{font-size:14px;line-height:1.6;margin:8px 0 0}
+.flavor-sources{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px}
+.flavor-sources a{font-size:12px;font-weight:700;color:#91432F;text-underline-offset:3px}
+.vendor-spotlight .flavor-fineprint{font-size:11px;color:#5F6858;margin-top:12px;line-height:1.5}
+#detailContent{scroll-behavior:auto}
+#detailContent .detail-body{overflow-wrap:anywhere}
+#detailContent .detail-hero{height:170px;min-height:170px}
+#detailContent .detail-hero .art-nameplate{padding:12px;gap:3px}
+#detailContent .detail-hero .art-monogram{font-size:55px!important}
+#detailContent .detail-hero .art-topline,#detailContent .detail-hero .art-bottomline{font-size:8px}
+#detailContent .detail-hero .art-vendor-name{font-size:13px}
+@media(max-width:749px){
+ .vendor-spotlight{padding:14px;margin:18px 0;border-radius:16px}
+ .flavor-heading h3{font-size:23px}
+ .signature-bite,.vendor-difference{padding:14px}
+ .signature-bite h4{font-size:23px}
+ #detailContent .detail-hero{height:135px;min-height:135px}
+}

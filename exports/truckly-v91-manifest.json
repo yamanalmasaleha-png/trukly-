@@ -1,0 +1,496 @@
+{
+  "app": "Original Truckly",
+  "project_id": "proj_MEO518rmLLl0",
+  "source_url": "https://truckly.hatchable.site/",
+  "deployment_version": 91,
+  "deployed_at": "2026-11-22T01:54:12+00:00",
+  "branch": "clone",
+  "database_contents_exported": false,
+  "files": [
+    {
+      "path": "public/index.html",
+      "sha256": "a04d37e0e234b9aa3fa7930bc78529b7bffd4a5922d700483e1f7a30f2bfc235",
+      "size": 45131
+    },
+    {
+      "path": "public/theme.css",
+      "sha256": "1b550749da986c2b9318d3ae042286c03aef979ed66de51bcd068ef260134742",
+      "size": 21936
+    },
+    {
+      "path": "public/logo.svg",
+      "sha256": "83288fa1e13ff3e21f5c642db32d8c879b2167daa2585ac55bf0b39e958e6621",
+      "size": 215
+    },
+    {
+      "path": "hatchable.toml",
+      "sha256": "abcf08bc9bc353f3a8b9ef55f26ffefc62c1cfb36511991fd4dfb63560432293",
+      "size": 365
+    },
+    {
+      "path": "public/app.js",
+      "sha256": "3b937143b3e0ffc43e7b639a0a69fc336d7f06ab359b936b1e3e2679d0aa6bab",
+      "size": 25143
+    },
+    {
+      "path": "public/login.html",
+      "sha256": "6f94ae26273b930a17f5a3181e5f20d9d6b4fe3de7c786ea659b24191181670b",
+      "size": 3312
+    },
+    {
+      "path": "migrations/001_create_bookings.sql",
+      "sha256": "504752fb30ed492f2ddf368c9564d808478c98ea5b8e45284e3100624e0e2d54",
+      "size": 368
+    },
+    {
+      "path": "migrations/002_create_truck_settings.sql",
+      "sha256": "82774792c7494d89bb54ba512146bfb70d4246b2cc367d4e71299cdfadfe9dfc",
+      "size": 210
+    },
+    {
+      "path": "api/bookings/create.js",
+      "sha256": "ffb81ea53c6112a52c95a449caa986c2f1468b08b8228b3913b7c91295ddfefd",
+      "size": 1417
+    },
+    {
+      "path": "api/owner/requests.js",
+      "sha256": "471e066f0291bb5b04417b878741ff85d7b1672ab4046dce113e04d9b9375660",
+      "size": 744
+    },
+    {
+      "path": "api/owner/location.js",
+      "sha256": "47d1327ff91714434fa90ee753d39d6a92476549a5272ccc3b69c5911217d7e4",
+      "size": 717
+    },
+    {
+      "path": "api/trucks.js",
+      "sha256": "d7cb83c391766fe90c52b323e349100a91a927a66dcc02eab72b7f9f94466905",
+      "size": 204
+    },
+    {
+      "path": "migrations/003_create_favorites.sql",
+      "sha256": "acbad7e0c9fb01b73f812e7a2dbfb30e0f16f5c3b3dc8f57e1d6fec28d48c36a",
+      "size": 164
+    },
+    {
+      "path": "migrations/004_create_notification_settings.sql",
+      "sha256": "d6fefeda33ebe4d587695b7e975aae5892dd6816c924dece5ae68e67cdb10e13",
+      "size": 247
+    },
+    {
+      "path": "migrations/005_create_owner_profiles.sql",
+      "sha256": "8350916237fbb81fb79fc95e6b4165b6b437e979b8fbe933585dafaa0166458f",
+      "size": 226
+    },
+    {
+      "path": "migrations/006_create_owner_schedule.sql",
+      "sha256": "f9c5b84e2c530aa997195ccd086ed16cdd92b51909be4a70a0b705e840eef93d",
+      "size": 262
+    },
+    {
+      "path": "api/catalog/cuisines.js",
+      "sha256": "a7753021afc5337102974f958778f1a1fc1dd777a5593cdceeef7284a07daa92",
+      "size": 403
+    },
+    {
+      "path": "api/catalog/cities.js",
+      "sha256": "834ac1ec0db84cd2d782e0b30250013ee07da8657a1cbbf9ed08722e3b008f89",
+      "size": 309
+    },
+    {
+      "path": "api/catalog/featured.js",
+      "sha256": "82743e7999401a24e49f82d6cb584198d782b74478cb81a233930a185e48f9ca",
+      "size": 384
+    },
+    {
+      "path": "api/schedule/today.js",
+      "sha256": "cb4b4b0dcb76544236bb4fb96e1388f9a42f212107597e5b9cdcc84a0b8a6647",
+      "size": 1072
+    },
+    {
+      "path": "api/trucks/search.js",
+      "sha256": "5f09e95a343622914b605729b5701564491c5640147e3dc33f5c8b142821fc92",
+      "size": 524
+    },
+    {
+      "path": "api/trucks/nearby.js",
+      "sha256": "83531aa3af26cbd05ffdfc0283384b22061ca1b7f1d4a085ca11785e05d19b36",
+      "size": 817
+    },
+    {
+      "path": "api/trucks/[id].js",
+      "sha256": "d4113582921c92ea0a7d20430dac2325cfc9f0efce9ab09143bda17057e1ec74",
+      "size": 385
+    },
+    {
+      "path": "api/trucks/availability.js",
+      "sha256": "02434d905efff81eda8bf25c705d0e0f78648b29e870d5eae5e54caf1b0b8cd3",
+      "size": 577
+    },
+    {
+      "path": "api/favorites/list.js",
+      "sha256": "2c4942848b81b61aa32a22acef66d71242bd21bfe20304101e435d7f2b794d6f",
+      "size": 282
+    },
+    {
+      "path": "api/favorites/toggle.js",
+      "sha256": "38ad74d0c6b1028bbedfe9a695eaa6cb117eea660c060a32153cce88dac8fc5f",
+      "size": 612
+    },
+    {
+      "path": "api/notifications/settings.js",
+      "sha256": "3b0848d92a73e89c9b5c316e933f78cf53b899662d5921cb857114df220b9f11",
+      "size": 801
+    },
+    {
+      "path": "api/bookings/list.js",
+      "sha256": "8dddff19b620d7cf3325d5200c0a9ae2a23de4f1b97ea0d3a077416591f8be0c",
+      "size": 458
+    },
+    {
+      "path": "api/owner/stats.js",
+      "sha256": "eb6a900dff85dbbd7c0233f78f6d4fdbdd40de305dc74c7bf1ff9791b058e57b",
+      "size": 343
+    },
+    {
+      "path": "api/owner/schedule.js",
+      "sha256": "ff0780ece4c0e9f341550ee819ec8019a1fc26f6bd1133f7dc459120f167d20e",
+      "size": 870
+    },
+    {
+      "path": "api/owner/profile.js",
+      "sha256": "08e3adaebf20391d1582d67491e40db32614179adf1007eaac3a03e256c6472d",
+      "size": 901
+    },
+    {
+      "path": "api/owner/bookings.js",
+      "sha256": "348e80c10cb590fb8b6f221c9bcf2ac6a32304a67b2b2a56791925ba648e07ec",
+      "size": 377
+    },
+    {
+      "path": "public/build.json",
+      "sha256": "71d35a1b19c9fa4b2ab68bbafe7faa0b0464302b4fbad45859bbcb248b901fab",
+      "size": 119
+    },
+    {
+      "path": "migrations/007_add_booking_packages.sql",
+      "sha256": "21ecf6a0e604efc896d6751658e0caa2f026fec31f46e88bff49d207a9bff33f",
+      "size": 153
+    },
+    {
+      "path": "public/assets/mitote.jpg",
+      "sha256": "ba7ea7a9df2b1f00f5528f36ba2520a83dc7fb9dc93f807458f52c23b4c86804",
+      "size": 199081
+    },
+    {
+      "path": "public/neighborhood.css",
+      "sha256": "62b49726d171763377a9260611d0983a0ac205ad44fad86c83ae14a357657fda",
+      "size": 7600
+    },
+    {
+      "path": "migrations/008_pickup_pagers.sql",
+      "sha256": "01a0b143eb52cd1e34f6c98c2052a1ae23b86696ac11af8c22a0a0f20ae1fcee",
+      "size": 541
+    },
+    {
+      "path": "api/pager/staff.js",
+      "sha256": "edf46e9febae6104e03660f0cb6f19af4873f17ef83157dc592b5c1f982d099f",
+      "size": 1068
+    },
+    {
+      "path": "api/pager/update.js",
+      "sha256": "412e1008f412563708cbc6cbc89e7ea847f5dd81495ee7125d965bd583b74354",
+      "size": 810
+    },
+    {
+      "path": "api/pager/status.js",
+      "sha256": "02e1997419ae6c64a4dda48acff8a65a5bdbd6875c70ba5ac447a9b36ca9bde4",
+      "size": 662
+    },
+    {
+      "path": "public/pager.css",
+      "sha256": "c3ec744bc852a9f91f61319127c2b90125432093205f6439f38b46fd8ffe65c2",
+      "size": 2772
+    },
+    {
+      "path": "public/pager.js",
+      "sha256": "2fd2ac3e5c0c8e3343046ff3aa8c523b2d64712588f2a865a16c191f443109ef",
+      "size": 15926
+    },
+    {
+      "path": "public/smart.css",
+      "sha256": "7f0be53c624489dc0c34785e7716046fff064fa28a5694856561effa88d72644",
+      "size": 2681
+    },
+    {
+      "path": "public/smart.js",
+      "sha256": "9d6dc3a88f492e77857022993e2d16fde4e6e3b2336607ccc1c9c575866288f6",
+      "size": 10521
+    },
+    {
+      "path": "public/characters.js",
+      "sha256": "74b3f51f9c9e6b04832f944b6538451291c2e67f8317b59625320198cdf9caff",
+      "size": 5327
+    },
+    {
+      "path": "public/characters.css",
+      "sha256": "ad0ebc1b933214c56dd811ed0426fd00138aad1cd5f5de754ea6c250b75e29ed",
+      "size": 3527
+    },
+    {
+      "path": "public/coffee-club.js",
+      "sha256": "6ff799d8ea784cc17d8aeaf9ba57a576518afcb7046535866a1482333ae2862c",
+      "size": 5200
+    },
+    {
+      "path": "public/coffee-club.css",
+      "sha256": "f9939ccb5a66772d7e6908f404a53c3659dbf297ef3ebc1370ca7e750a4ba614",
+      "size": 4640
+    },
+    {
+      "path": "public/assets/retrograde-roasting.jpg",
+      "sha256": "7b362a8026bb9346077b94372d7ef26c636dac3e670b009d7d8268b6f320c98f",
+      "size": 221868
+    },
+    {
+      "path": "public/assets/oak-hill-guide.jpg",
+      "sha256": "3773cbf0e3f6cd80fdd083f51e928c92233258ed2826db20efa405f7540923f7",
+      "size": 796996
+    },
+    {
+      "path": "public/local-guides.js",
+      "sha256": "ed9200fc6cfa6fbeb989581baf9a5cd15ab17073d5f997b2a2210689665ddce1",
+      "size": 9000
+    },
+    {
+      "path": "public/local-guides.css",
+      "sha256": "c6956fc62604a1f3b79ab7e6b7ead5d63a41e1eb50c6bcdaa33df1086a9f9a22",
+      "size": 6385
+    },
+    {
+      "path": "public/guide-passport.js",
+      "sha256": "d25cbecc20701e50d2d982240a0031624a837a1366f804fd150361eb03e40482",
+      "size": 8295
+    },
+    {
+      "path": "public/guide-passport.css",
+      "sha256": "c513c9b7eb529e8212b6d7e2fb0dafe952855478da80c815d4f9c2b6be50e933",
+      "size": 4737
+    },
+    {
+      "path": "public/layout-polish.css",
+      "sha256": "d18b7d675d8dca405cddbbe5645aa6915a83e6da64831a02eb6b8b66b73f873d",
+      "size": 8013
+    },
+    {
+      "path": "migrations/009_create_community_reviews.sql",
+      "sha256": "a6034867813ee06b0d915ff65ba704ae5b2d0558690e91d1a13bce4d3f800df7",
+      "size": 1010
+    },
+    {
+      "path": "api/community/list.js",
+      "sha256": "edb07fb260d37ba26a746cf6acb439668c55406271757e79da2c9e3050ad6434",
+      "size": 446
+    },
+    {
+      "path": "api/community/post.js",
+      "sha256": "ddb9014586d07519887947ce7e0a721197ee76cad425b4a9534a2e39295b4f78",
+      "size": 1948
+    },
+    {
+      "path": "api/community/mine.js",
+      "sha256": "b5dfd29417b28de59cd9e6155cc9fc97317947b5e5aaf2dc0b779d23eaba1be8",
+      "size": 459
+    },
+    {
+      "path": "api/community/moderate.js",
+      "sha256": "cb0232fd32910735cacb00037243bbef59d83522138f9cce8696dfbb6e5aad31",
+      "size": 945
+    },
+    {
+      "path": "public/community.js",
+      "sha256": "daa5742dcc7a58ea9b033f47bd0061c7cc2f50fab660fce847878655e2ebbbdb",
+      "size": 12260
+    },
+    {
+      "path": "public/community.css",
+      "sha256": "292d678241cc42c043cddba9fbf9fbeee3113f0435f0239929e1b6043691ac41",
+      "size": 8115
+    },
+    {
+      "path": "migrations/010_allow_community_whispers.sql",
+      "sha256": "e46651dd7e251c1ac4b5739a71c8a712df68c80dfcd081c9d19f9ea9a731cd62",
+      "size": 283
+    },
+    {
+      "path": "public/street-whispers.js",
+      "sha256": "72012b8702f515009cb6ec9b747e304b3605f42a55ecde7dd040c6bb8614ca18",
+      "size": 7813
+    },
+    {
+      "path": "public/street-whispers.css",
+      "sha256": "e8ca235a1422831854ca830b3012100d53a6a8de606a6e1d7af0e733b1aae73c",
+      "size": 5771
+    },
+    {
+      "path": "public/mobile-scroll-fix.css",
+      "sha256": "2482636964fcbcde72c26d66b83d943d45d1ef058eec0a01a6d04ab8190bb04d",
+      "size": 7297
+    },
+    {
+      "path": "public/color-calm.css",
+      "sha256": "eb9a26dda0373b89b64e3bb75338ba086f49323916be43d468d9da60a59af48a",
+      "size": 14672
+    },
+    {
+      "path": "public/pager-experience.css",
+      "sha256": "263d1750dc42ad20f73baab6d59af750e225ad4a2691272d8f20200d871008b8",
+      "size": 8570
+    },
+    {
+      "path": "public/rumor-polish.js",
+      "sha256": "de0801a04293dc888e11b8f08d9ca9d7776ef64dc87f289d0c6a3494bf4f5052",
+      "size": 4949
+    },
+    {
+      "path": "public/rumor-polish.css",
+      "sha256": "964a1a57f1b844bca8e2be9cc08636769b44007d5896fc08a168581d8b49169a",
+      "size": 4692
+    },
+    {
+      "path": "public/studio-finish.css",
+      "sha256": "0ba06d9416a142e0b550ad03ffbf5d6183a75c3104848a0fa448b7a411df285a",
+      "size": 15986
+    },
+    {
+      "path": "public/vendor-flavor.js",
+      "sha256": "e02d10c1512915a96c73061e50c5f5c83be6c854a9e20ef387c790cfc0d86d8e",
+      "size": 7443
+    },
+    {
+      "path": "public/flavor-pop.css",
+      "sha256": "acbfc1aa9914131f872ec28cf4fba62ec505ac964ba0d4aa6d33aa6d689e933c",
+      "size": 7509
+    },
+    {
+      "path": "public/browse-polish.css",
+      "sha256": "1d1a9d62e2b9de983f065344d5836f5a2f18d778281303ea3d324eab7c4faffa",
+      "size": 6637
+    },
+    {
+      "path": "public/finish-pass.css",
+      "sha256": "0f538d58fd7b7a5abb7d8aa0d8178fab1da96d805a390745347b90ff12150cbd",
+      "size": 8592
+    },
+    {
+      "path": "public/ui-polish.js",
+      "sha256": "fcd9d7685b818c7e2806aaae3c6a608bd79be27226a1be7266ac45850ae4d214",
+      "size": 3437
+    },
+    {
+      "path": "public/club-preview.js",
+      "sha256": "5dada6c048ba38532eb39512d359683c89d5bc484e708642ce879a112019b413",
+      "size": 2141
+    },
+    {
+      "path": "public/club-preview.css",
+      "sha256": "3ad5b9e7e7a668f363b9e9ea805c1677129659b5e30bbb8e8ab7b32434ecea1b",
+      "size": 5315
+    },
+    {
+      "path": "public/local-truck-expansion.js",
+      "sha256": "5a7031695f0ef6bddc7018e162848830f375569715aa5c69a62606533ef062e2",
+      "size": 4562
+    },
+    {
+      "path": "public/vendor/leaflet.js",
+      "sha256": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a",
+      "size": 147552
+    },
+    {
+      "path": "lib/vendor-catalog.js",
+      "sha256": "a9d3964b8b365aba4f9be81c39fa4041a57fa24e1beef7bb31b5638654fc29b1",
+      "size": 83701
+    },
+    {
+      "path": "public/catalog.json",
+      "sha256": "22e016fc00cd4a5cb4fc74cd1069229cd41e1082514a4b9c90538c4132697861",
+      "size": 66818
+    },
+    {
+      "path": "public/vendor/leaflet.css",
+      "sha256": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6",
+      "size": 14806
+    },
+    {
+      "path": "public/market-discovery.css",
+      "sha256": "c5ae179ffed810fc2db2a0cf1ec6810741b281a8ad64984158c39ce809f10f16",
+      "size": 3703
+    },
+    {
+      "path": "public/market-discovery.js",
+      "sha256": "7d968e4db4f43490567a76705f9f6637d314fefe19f96893e03d97a9cef9300a",
+      "size": 3227
+    },
+    {
+      "path": "migrations/011_customer_passport.sql",
+      "sha256": "b4ae3e5a284daa27111c2af21384e9019f16955a028e91cdc2f3326af7efbffd",
+      "size": 495
+    },
+    {
+      "path": "api/account/overview.js",
+      "sha256": "a392d2e09d7cdb7650ceddd611226b60f3a762f4f63092880fe98b34171c4a06",
+      "size": 1201
+    },
+    {
+      "path": "api/account/visits.js",
+      "sha256": "7f917112f0497a9573d823a8b657fa3e83a4e7f03d0c85948b700e5a721e3b15",
+      "size": 849
+    },
+    {
+      "path": "api/account/favorite.js",
+      "sha256": "3e922976caf1ec688976ebf212edb7af3a34d3fb12e6f5e045d6a608dc969071",
+      "size": 637
+    },
+    {
+      "path": "public/my-truckly.js",
+      "sha256": "4f487d4113ad5c1f3d40538fd2ec58184305ee4850b0bb700f18ab1b1922d9bb",
+      "size": 16945
+    },
+    {
+      "path": "public/the-secret.js",
+      "sha256": "85ab60d4d6ba548fe25fae058b416960b751f28e7c617cb8f2a21e202d253c6f",
+      "size": 5173
+    },
+    {
+      "path": "public/truckly-club.css",
+      "sha256": "f120c5eeb21aa6c6c3cc90bda2f1d7098ed4878af44b124fca6b74c5bfac6471",
+      "size": 18215
+    },
+    {
+      "path": "public/assets/los-flippin-food.jpeg",
+      "sha256": "f52faf5496731ada5bcb80da03ecca64668918d042654265000501d8882a72ff",
+      "size": 2077346
+    },
+    {
+      "path": "public/vendor-detail.js",
+      "sha256": "511e6841369350801748e976205bc1240401a8768db4d05f4da7246d19eccf4c",
+      "size": 4962
+    },
+    {
+      "path": "public/truck-art.js",
+      "sha256": "1fdc3be222743a36442fff211f6bcbd26c608336d6de1decc863e73fc7c784db",
+      "size": 3618
+    },
+    {
+      "path": "public/login.js",
+      "sha256": "76b6845505d280f95a4ecc4113e2a2e991e1f7f7b10ad91061feccff63770800",
+      "size": 3554
+    },
+    {
+      "path": "migrations/012_link_existing_customer_bookings.sql",
+      "sha256": "07cc6d478d0cbfdc7e85691bab4ea8dac970c01f6bea1ac6ce97ec1e9afba434",
+      "size": 110
+    }
+  ]
+}

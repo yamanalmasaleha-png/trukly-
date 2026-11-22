@@ -1,0 +1,1 @@
+UPDATE bookings b SET user_id=u.id FROM users u WHERE b.user_id IS NULL AND lower(b.requester)=lower(u.email);

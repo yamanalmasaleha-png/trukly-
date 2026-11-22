@@ -1,0 +1,183 @@
+/* Truckly Studio Finish / Original project — understated Northern California editorial system.
+   Accessible spacing, real-photo preservation, source-honest custom nameplates, mobile polish. */
+:root {
+  --st-ink:#173e30; --st-forest:#244b3a; --st-paper:#f8f6ef;
+  --st-rust:#ac624c; --st-honey:#efd5a2; --st-lilac:#e8e0f0;
+  --st-line:#d9ded5; --st-small:clamp(12px,1vw,13px);
+}
+html{scroll-behavior:smooth}
+body{font-synthesis:none;-webkit-font-smoothing:antialiased}
+#discoverScreen .list-mode{background:var(--st-paper)}
+.topbar{border-bottom:1px solid #d1d9cd!important;box-shadow:0 3px 18px #203b2911!important}
+.topbar .brand{font-weight:850;letter-spacing:-.065em}
+.topbar button{transition:background .18s,border-color .18s}
+.discovery-toolbar{border-color:#d9dfd6!important;gap:12px 18px!important}
+.discovery-toolbar .search{border-radius:16px!important;border-color:#cad6cb!important;background:#fffdf8!important;box-shadow:0 4px 18px #304d2f0b!important}
+.discovery-toolbar .search input{letter-spacing:-.01em}
+.discovery-toolbar .search:focus-within{outline:2px solid #73947e;outline-offset:1px}
+.discovery-toolbar .filters{gap:10px!important;scrollbar-width:none}
+.discovery-toolbar .filters button{white-space:nowrap;border-radius:999px!important;min-height:41px;font-weight:750}
+.extra-filters summary{border-radius:12px!important}
+.list-mode .truck-sheet{background:#f8f6ef!important;scrollbar-color:#b4c7b6 transparent}
+.neighborhood-intro{gap:clamp(20px,5vw,62px)!important;margin-top:clamp(8px,2vw,22px)!important;margin-bottom:clamp(26px,4vw,48px)!important;align-items:center}
+.intro-copy{min-width:0}
+.edition-label{font-size:10px!important;letter-spacing:.16em!important;color:#9e5c45!important;font-weight:850!important}
+.intro-copy h1{font-size:clamp(43px,5vw,67px)!important;font-weight:850;line-height:1.02!important;letter-spacing:-.055em!important;max-width:680px;color:#214b3b}
+.intro-copy h1 .brand-pop{color:#b56e51}
+.intro-copy p{max-width:560px!important;color:#55685d!important;font-size:clamp(14px,1.4vw,17px)!important;line-height:1.68!important;margin:20px 0 16px!important}
+.brand-manifesto{display:flex;align-items:center;flex-wrap:wrap;gap:9px 11px;margin:18px 0 25px;color:#214b3b;font-size:clamp(9px,1.1vw,11px);font-weight:900;letter-spacing:.095em}
+.brand-manifesto i{color:#b66b4f;font-style:normal;font-size:14px}
+.local-surprise{min-height:51px!important;padding:12px 19px!important;border-radius:14px!important;box-shadow:0 5px 0 #15392722!important;gap:11px!important;font-weight:850!important}
+.character-hero{transform:scale(.96);transform-origin:center right}
+.rumor-home{margin:28px 0 32px!important;padding:clamp(17px,2.8vw,26px)!important;border-radius:21px!important;gap:24px!important;box-shadow:0 5px 20px #3647280a!important}
+.rumor-home h3{font-size:clamp(19px,2.2vw,24px)!important;line-height:1.22!important;margin:8px 0!important;letter-spacing:-.025em}
+.rumor-home p{display:block!important;font-size:13px!important;line-height:1.6!important;max-width:650px;color:#506153!important}
+.rumor-home button{padding:13px 18px!important;min-width:175px;min-height:46px!important;font-size:13px!important;white-space:normal}
+.explore-kinds{margin:15px 0 28px!important;gap:13px!important}
+.explore-kinds button{border-radius:16px!important;min-height:111px!important;box-shadow:0 3px 11px #304b3210!important;transition:transform .16s,box-shadow .16s}
+.explore-kinds button:hover{transform:translateY(-2px);box-shadow:0 7px 17px #304b3219!important}
+.explore-kinds b{letter-spacing:-.025em}
+.directory-note{max-width:710px;line-height:1.6!important;margin-bottom:26px!important;color:#6e786f!important}
+.sheet-title{margin:20px 0 20px!important;align-items:end}
+.sheet-title h2{font-size:clamp(27px,3vw,34px)!important;line-height:1.12}
+.sheet-title small{font-size:10px!important;letter-spacing:.15em!important}
+.truck-cards{gap:17px!important;align-items:stretch}
+.truck-card{grid-template-columns:138px minmax(0,1fr)!important;gap:17px!important;min-height:169px;align-items:center!important;border-radius:19px!important;padding:14px!important;box-shadow:0 3px 17px #1f392a0b!important;overflow:hidden;transition:transform .15s,border-color .15s,box-shadow .15s}
+.truck-card:hover{transform:translateY(-2px);border-color:#90a897!important;box-shadow:0 11px 25px #1f392a16!important}
+.truck-info h3{font-size:clamp(17px,1.5vw,21px)!important;line-height:1.17!important;letter-spacing:-.035em;margin:0 0 10px!important;padding-right:37px}
+.truck-info .meta{font-size:12px!important;line-height:1.5!important;margin:4px 0!important}
+.truck-info .distance{font-size:12px!important;line-height:1.46!important;margin:8px 0!important;color:#536c60!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.truck-info .detail-link{font-size:12px!important;min-height:40px!important;padding:7px 0!important;color:#a15a42!important}
+.truck-photo{height:140px!important;width:138px!important;border-radius:14px!important;background-position:center!important;background-size:cover!important;overflow:hidden}
+.truck-photo.has-real-photo{background-color:#dde5d6!important}
+.heart{right:12px!important;top:12px!important;width:38px!important;height:38px!important;border-radius:50%!important;box-shadow:0 3px 10px #1e42261a}
+.open-tag{position:absolute;bottom:6px;left:6px;right:6px;border:0!important;background:rgba(255,253,246,.96)!important;color:#275740!important;padding:5px 3px!important;font-size:9px!important;font-weight:900!important;letter-spacing:.03em!important;box-shadow:0 2px 5px #24332716;z-index:2}
+.truck-card .open-tag{pointer-events:none}
+.art-poster{display:block!important;background:#e9e7dc!important;isolation:isolate}
+.art-nameplate{--art-bg:#e9d8bd;--art-type:#203f32;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;padding:12px 9px 30px;gap:5px;overflow:hidden;text-align:center;background:var(--art-bg);color:var(--art-type);isolation:isolate}
+.art-nameplate::before{content:'';position:absolute;inset:8px;border:1px solid currentColor;opacity:.22;pointer-events:none;z-index:-1}
+.art-nameplate::after{content:'';position:absolute;right:-31px;top:-33px;width:91px;height:91px;border:17px solid currentColor;opacity:.07;border-radius:50%;z-index:-1}
+.art-nameplate.art-taco{--art-bg:#edd9c8;--art-type:#7d3b2c}
+.art-nameplate.art-grill{--art-bg:#2e3e36;--art-type:#fff4db}
+.art-nameplate.art-coffee{--art-bg:#e2d7c7;--art-type:#604537}
+.art-nameplate.art-sweet{--art-bg:#f4dbe1;--art-type:#7a3f60}
+.art-nameplate.art-market{--art-bg:#e3e8ce;--art-type:#36583c}
+.art-nameplate.art-global{--art-bg:#e4e0ed;--art-type:#51496e}
+.art-topline{font-size:7px;line-height:1.4;letter-spacing:.11em;font-weight:850;white-space:nowrap;opacity:.72}
+.art-monogram{font:900 clamp(35px,4.5vw,61px)/.9 Georgia,serif;letter-spacing:-.12em;text-shadow:1px 1px 0 #fff2;padding-right:.11em}
+.art-vendor-name{font-size:10px;line-height:1.18;text-transform:uppercase;font-weight:950;letter-spacing:-.015em;max-width:100%;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.art-bottomline{font-size:7px;line-height:1.2;text-transform:uppercase;letter-spacing:.06em;opacity:.76;max-width:100%}
+.detail-hero.art-poster{width:100%!important;height:240px!important;border-radius:19px!important}
+.art-detail .art-nameplate{gap:11px;padding:24px 24px 22px}
+.art-detail .art-topline{font-size:10px;letter-spacing:.15em}
+.art-detail .art-monogram{font-size:94px}
+.art-detail .art-vendor-name{font-size:17px;letter-spacing:.03em}
+.art-detail .art-bottomline{font-size:10px}
+.art-notice{font-size:11px!important;letter-spacing:.01em;color:#73776c!important;margin:8px 0 0!important}
+.favorite-item .art-poster{flex:none}
+.favorite-item .art-nameplate{padding-bottom:18px}
+.favorite-item .art-monogram{font-size:43px}
+.favorite-item .art-topline,.favorite-item .art-bottomline{display:none}
+.favorite-item .art-vendor-name{font-size:9px}
+.truck-pin{border:2px solid #fffdf5!important;background:#fffdf5!important;box-shadow:0 4px 13px #1a2c2299!important;min-width:79px!important;min-height:42px!important;border-radius:13px!important;padding:4px 7px!important}
+.truck-pin .pin-initials{width:29px!important;height:29px!important;flex:none;background:#e4eadb!important;color:#234b39!important;font-size:11px!important;letter-spacing:-.04em;font-family:Georgia,serif;font-weight:950!important;line-height:1!important;border-radius:9px!important}
+.truck-pin b{font-size:9px!important;letter-spacing:.01em;color:#214b3b!important}
+.truck-pin.selected{border-color:#b76c50!important;box-shadow:0 4px 15px #1a2c2299,0 0 0 3px #fffdf588!important}
+#map .leaflet-control-zoom a{border-radius:8px}
+#favoritesScreen .favorite-grid{gap:16px}
+.favorite-item{border-radius:19px!important;align-items:center}
+.favorite-item h3{font-size:19px!important;line-height:1.2!important}
+.page-head h1{letter-spacing:-.045em}
+.page-head p{line-height:1.55}
+#communityScreen .community-shortcuts{gap:15px}
+#communityScreen .street-section{margin-top:24px}
+#guidesScreen .guides-hero{border-radius:24px}
+.owner-request-note{padding:18px;border-radius:12px;background:#f1f5eb;color:#54705b;font-size:13px;line-height:1.55}
+.owner-card,.booking-item{box-shadow:0 4px 18px #233e2e0c;border:1px solid #d9e2d6}
+.status-pill{background:#eceee7!important;color:#53685b!important}
+.primary:disabled,.pager-next-step:disabled{opacity:.6;cursor:not-allowed}
+@media(max-width:1050px) and (min-width:750px){
+ .truck-card{grid-template-columns:112px minmax(0,1fr)!important;gap:13px!important;padding:11px!important}
+ .truck-photo{width:112px!important;height:137px!important}
+ .art-topline,.art-bottomline{font-size:6px}
+ .art-monogram{font-size:49px}
+ .art-vendor-name{font-size:9px}
+}
+@media(max-width:749px){
+ .discovery-toolbar{gap:9px!important;padding:10px 12px!important}
+ .discovery-toolbar .search{height:46px!important;min-height:46px!important}
+ .discovery-toolbar .round-btn{min-height:46px!important;height:46px!important;width:46px!important}
+ .discovery-toolbar .chip{min-height:37px!important;padding:8px 13px!important;font-size:12px!important}
+ .list-mode .truck-sheet{padding:20px 15px 84px!important}
+ .neighborhood-intro{margin:3px 0 22px!important;gap:0!important}
+ .intro-copy h1{font-size:clamp(35px,10vw,45px)!important;line-height:1.04!important;letter-spacing:-.047em!important}
+ .intro-copy p{font-size:14px!important;line-height:1.55!important;margin:12px 0 12px!important;max-width:440px!important}
+ .brand-manifesto{font-size:9px;gap:7px;margin:15px 0 17px}
+ .brand-manifesto i{font-size:11px}
+ .local-surprise{min-height:45px!important;padding:10px 14px!important;font-size:12px!important;box-shadow:none!important}
+ .rumor-home{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:8px!important;padding:17px!important;margin:21px 0 25px!important}
+ .rumor-home p{display:block!important;line-height:1.47!important;margin:3px 0!important;font-size:12px!important}
+ .rumor-home h3{font-size:18px!important;margin:5px 0!important}
+ .rumor-home button{min-height:43px!important;width:100%!important;padding:10px 14px!important;font-size:12px!important}
+ .explore-kinds{margin:9px 0 20px!important;gap:8px!important}
+ .explore-kinds button,.explore-kinds button:first-child{min-height:43px!important;padding:8px 12px!important;box-shadow:none!important;border-radius:11px!important}
+ .directory-note{font-size:11px!important;margin:8px 0 17px!important}
+ .sheet-title{margin:13px 0 13px!important}
+ .sheet-title h2{font-size:24px!important}
+ .truck-cards{grid-template-columns:1fr!important;gap:12px!important}
+ .truck-card{grid-template-columns:111px minmax(0,1fr)!important;gap:13px!important;min-height:146px!important;padding:10px!important;border-radius:16px!important}
+ .truck-photo{width:111px!important;height:125px!important;border-radius:12px!important}
+ .truck-info h3{font-size:17px!important;line-height:1.2!important;margin-bottom:6px!important;padding-right:28px!important;min-height:0!important}
+ .truck-info .meta{font-size:11px!important;line-height:1.45!important}
+ .truck-info .distance{font-size:11px!important;margin:5px 0!important;line-height:1.38!important}
+ .truck-info .detail-link{min-height:32px!important;font-size:11px!important;padding:4px 0!important}
+ .heart{height:32px!important;width:32px!important;right:9px!important;top:9px!important;font-size:18px!important}
+ .open-tag{font-size:8px!important;bottom:4px!important;left:4px!important;right:4px!important;padding:5px 2px!important}
+ .art-nameplate{padding:8px 5px 25px;gap:3px}
+ .art-nameplate::before{inset:5px}
+ .art-topline{font-size:5.5px}
+ .art-monogram{font-size:44px!important}
+ .art-vendor-name{font-size:8px}
+ .art-bottomline{font-size:6px}
+ .art-detail .art-nameplate{padding:23px!important;gap:9px}
+ .art-detail .art-monogram{font-size:94px!important}
+ .art-detail .art-topline{font-size:9px}
+ .art-detail .art-vendor-name{font-size:15px}
+ .art-detail .art-bottomline{font-size:9px}
+ .favorite-item .truck-photo{width:98px!important;height:105px!important}
+ .favorite-item .art-monogram{font-size:45px!important}
+ .page-screen{padding-inline:16px!important}
+ .page-head h1{font-size:clamp(29px,8vw,34px)!important}
+ .owner-stats{gap:8px}
+ .owner-stats>div{padding:12px 10px}
+ .owner-stats span{font-size:11px}
+ .booking-item{border-radius:15px!important}
+}
+@media(max-width:359px){
+ .list-mode .truck-sheet{padding-inline:10px!important}
+ .truck-card{grid-template-columns:90px minmax(0,1fr)!important;gap:8px!important;padding:7px!important}
+ .truck-photo{width:90px!important;height:112px!important}
+ .art-monogram{font-size:34px!important}
+ .art-topline,.art-bottomline{display:none}
+ .art-vendor-name{font-size:7px}
+ .truck-info h3{font-size:15px!important}
+ .brand-manifesto{gap:5px;font-size:8px}
+ .intro-copy h1{font-size:33px!important}
+}
+/* Fixed Map/List: inline in toolbar, no floating overlap with editorial content. */
+#discoverScreen .discovery-toolbar{grid-template-columns:auto minmax(0,1fr) auto!important;column-gap:9px!important}
+#discoverScreen .discovery-toolbar .search-row,#discoverScreen .discovery-toolbar .filters{grid-column:1/-1!important}
+#discoverScreen .discovery-toolbar .extra-filters{grid-column:1!important;grid-row:3!important;align-self:center!important}
+#discoverScreen .discovery-toolbar .nearby-count{grid-column:3!important;grid-row:3!important;max-width:130px!important;justify-self:end!important;align-self:center!important}
+#discoverScreen .discovery-toolbar .mode-switch,
+#discoverScreen.list-mode .discovery-toolbar .mode-switch{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;top:auto!important;transform:none!important;grid-column:2!important;grid-row:3!important;display:inline-flex!important;justify-self:center!important;align-self:center!important;order:0!important;z-index:0!important;margin:0!important;padding:4px!important;border:1px solid #214b3b!important;border-radius:12px!important;box-shadow:none!important;background:#214b3b!important;gap:4px!important;min-width:0!important}
+#discoverScreen .discovery-toolbar .mode-switch button{min-width:58px!important;min-height:35px!important;padding:6px 10px!important;border-radius:9px!important;font-size:12px!important}
+#discoverScreen .discovery-toolbar .mode-switch button.active{background:#fffdf7!important;color:#214b3b!important}
+@media(max-width:379px){
+ #discoverScreen .discovery-toolbar .mode-switch,
+ #discoverScreen.list-mode .discovery-toolbar .mode-switch{grid-column:1/-1!important;grid-row:4!important;justify-self:center!important;margin:3px 0 0!important}
+ #discoverScreen .discovery-toolbar .nearby-count{grid-column:2/-1!important;grid-row:3!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .truck-card,.explore-kinds button,.local-surprise{transition:none!important;transform:none!important}
+}

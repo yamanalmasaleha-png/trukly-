@@ -1,1 +1,3 @@
-export const access="public";export const methods=["GET"];export default async function(req,res){res.json({cuisines:[{id:"Mexican",label:"Mexican",emoji:"🌮",minimum:5},{id:"Burgers",label:"Smash burgers",emoji:"🍔",minimum:5},{id:"Hot Dogs",label:"Hot dogs",emoji:"🌭",minimum:5},{id:"Global",label:"Global flavors",emoji:"🥟",minimum:5},{id:"Sweets",label:"Sweets",emoji:"🍦",minimum:5}]})}
+import {vendors,catalogMeta} from "../../lib/vendor-catalog.js";
+export const access="public";export const methods=["GET"];
+export default async function(req,res){const labels=["Mexican","Burgers","Hot Dogs","Global","Sweets","Coffee","Markets"];res.json({cuisines:labels.map(label=>({id:label,label,count:vendors.filter(t=>(t.tags||[]).includes(label)).length})),catalog_version:catalogMeta.version});}
