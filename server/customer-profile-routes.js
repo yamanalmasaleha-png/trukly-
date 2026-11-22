@@ -39,6 +39,10 @@ import {
   submitPublicSharedPageReport,
   listAdminSharedModerationQueue,
   applyAdminSharedModerationDecision,
+  attachPhotoToCollectionEntry,
+  removePhotoFromCollectionEntry,
+  readSharedCollectionPhotoByToken,
+  readAdminReportedSharedPhoto,
   exportCustomerProfileAndExplorationArchive,
   clearCustomerProfileAndCollectionsData
 } from '../lib/customer-profile.js';
@@ -581,6 +585,82 @@ export async function handleCustomerProfileRoute({
       return sendJson(200, out);
     }
 
+    // 18. Attach Consented Shared Photo Derivative (`POST /api/me/collections/attach-photo`)
+    if (pathname === '/api/me/collections/attach-photo') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const out = await attachPhotoToCollectionEntry(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        storageRoot: resolvePhotoStorageRoot()
+      });
+      return sendJson(200, out);
+    }
+
+    // 19. Remove Shared Photo Attachment (`POST /api/me/collections/remove-photo` — always available!)
+    if (pathname === '/api/me/collections/remove-photo') {
+      if (method !== 'POST') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'POST' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const out = await removePhotoFromCollectionEntry(dbAdapter, {
+        userId: verifiedUser.id,
+        body,
+        storageRoot: resolvePhotoStorageRoot()
+      });
+      return sendJson(200, out);
+    }
+
+    // 20. Scoped Moderator Shared Photo View (`GET /api/admin/shared-moderation/photo?attachment_id=sha_...`)
+    if (pathname === '/api/admin/shared-moderation/photo') {
+      if (method !== 'GET') {
+        return sendJson(
+          405,
+          { ok: false, error: 'Method not allowed.', code: 'METHOD_NOT_ALLOWED' },
+          { Allow: 'GET' }
+        );
+      }
+      if (!verifiedUser?.id) {
+        return sendJson(401, { ok: false, error: 'Sign in is required.', code: 'AUTH_REQUIRED' });
+      }
+      const accessCtx = await loadAccessContext(req, auth, dbAdapter);
+      if (!accessCtx.isModAdmin) {
+        return sendJson(403, {
+          ok: false,
+          error: 'Moderator or platform administrator access is required.',
+          code: 'MODERATOR_REQUIRED'
+        });
+      }
+      const img = await readAdminReportedSharedPhoto(dbAdapter, {
+        accessCtx,
+        attachmentId: query.attachment_id,
+        storageRoot: resolvePhotoStorageRoot()
+      });
+      rawRes.statusCode = 200;
+      rawRes.setHeader('Content-Type', img.mimeType);
+      rawRes.setHeader('Cache-Control', 'private, no-store, max-age=0');
+      rawRes.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      rawRes.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+      rawRes.setHeader('X-Content-Type-Options', 'nosniff');
+      rawRes.setHeader('Content-Length', img.bytes.length);
+      rawRes.end(img.bytes);
+      return;
+    }
+
     return sendJson(404, { ok: false, error: 'Profile endpoint not found.', code: 'NOT_FOUND' });
   } catch (err) {
     const status = err instanceof CustomerProfileDomainError ? err.status : 500;
@@ -693,5 +773,69 @@ export async function handlePublicSharedPageRequest({
       return;
     }
     res.end(htmlErr);
+  }
+}
+
+export async function handlePublicSharedPhotoRequest({
+  rawToken,
+  attachmentId,
+  method,
+  req,
+  res,
+  dbAdapter
+}) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  req.__bsRouteTemplate = '/s/:token/photo/:attachment';
+
+  if (method !== 'GET' && method !== 'HEAD') {
+    res.statusCode = 405;
+    res.setHeader('Allow', 'GET, HEAD');
+    res.end();
+    return;
+  }
+
+  try {
+    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, null);
+    const resolved = await readSharedCollectionPhotoByToken(dbAdapter, {
+      rawToken,
+      attachmentId,
+      systemFeatureStates: featureStates,
+      storageRoot: resolvePhotoStorageRoot()
+    });
+    if (!resolved.available) {
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.end('Not found');
+      return;
+    }
+    res.statusCode = 200;
+    res.setHeader('Content-Type', resolved.mimeType);
+    res.setHeader('Content-Length', resolved.bytes.length);
+    if (method === 'HEAD') {
+      res.end();
+      return;
+    }
+    res.end(resolved.bytes);
+  } catch (err) {
+    await recordProfileDiagnostic(dbAdapter, req, {
+      featureKey: 'unlisted_sharing',
+      operationName: 'serve_shared_collection_photo',
+      routeTemplate: '/s/:token/photo/:attachment',
+      httpMethod: method,
+      httpStatus: 500,
+      severity: 'error',
+      errorCode: err?.code || 'SHARED_PHOTO_SERVE_ERROR',
+      message: 'Unexpected error serving shared collection photo derivative.',
+      retryable: true
+    });
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.end('Internal error');
   }
 }

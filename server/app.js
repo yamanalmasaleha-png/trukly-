@@ -47,7 +47,10 @@ import {
   isGovernanceApiPath,
   handleGovernanceApiRequest
 } from './admin-routes.js';
-import { handlePublicSharedPageRequest } from './customer-profile-routes.js';
+import {
+  handlePublicSharedPageRequest,
+  handlePublicSharedPhotoRequest
+} from './customer-profile-routes.js';
 import { MAX_PHOTO_JSON_BODY_BYTES } from '../lib/photo-storage.js';
 import * as stagingGateProbe from '../scripts/staging-runtime-probe.js';
 
@@ -1309,10 +1312,20 @@ export function createStandaloneServer({
         return;
       }
 
-      // 4D. Unlisted Shared Greatest Hits Route (`/s/<opaque-token>`)
+      // 4D. Unlisted Shared Greatest Hits Route (`/s/<opaque-token>` & `/s/<opaque-token>/photo/<attachment>`)
       if (pathname === '/s' || pathname.startsWith('/s/')) {
         const segs = pathname.split('/').filter(Boolean);
-        // Only `/s/<token>` here (Commit 6 adds `/s/<token>/photo/<attachment>`)
+        if (segs.length === 4 && segs[0] === 's' && segs[2] === 'photo') {
+          await handlePublicSharedPhotoRequest({
+            rawToken: decodeURIComponent(segs[1]),
+            attachmentId: decodeURIComponent(segs[3]),
+            method,
+            req,
+            res,
+            dbAdapter
+          });
+          return;
+        }
         if (segs.length === 2 && segs[0] === 's') {
           let viewerAuthenticated = false;
           if (req.headers?.cookie) {

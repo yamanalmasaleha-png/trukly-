@@ -23,6 +23,10 @@
     previewLoading: false,
     latestIssuedShareUrl: null,
     latestIssuedCollectionId: null,
+    openPhotoPickerVendorId: null,
+    ownerPhotosCache: null,
+    selectedPhotoIdByVendor: {},
+    photoConsentByVendor: {},
     msg: null
   };
 
@@ -40,7 +44,87 @@
     shState.previewLoading = false;
     shState.latestIssuedShareUrl = null;
     shState.latestIssuedCollectionId = null;
+    shState.openPhotoPickerVendorId = null;
+    shState.ownerPhotosCache = null;
+    shState.selectedPhotoIdByVendor = {};
+    shState.photoConsentByVendor = {};
     shState.msg = null;
+  }
+
+  function renderEntryPhotoSlot(ent, idx, col, profileData, ctx) {
+    var ghEsc = ctx.ghEsc;
+    var fs = (profileData && profileData.feature_states) || {};
+    var shPhotosFeat = fs.shared_collection_photos || { state: 'hidden' };
+    var att = ent.photo_attachment || null;
+
+    if (att) {
+      var supNote =
+        att.moderation_status === 'suppressed'
+          ? '<span class="cp-private-tag" style="background:#FFF1EF;color:#8A2417">Suppressed by moderation</span>'
+          : '<span class="cp-private-tag">Consented shared copy</span>';
+      return (
+        '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--trk-border,#D7DED3);display:flex;flex-wrap:wrap;align-items:center;gap:12px">' +
+        '<img src="' + ghEsc(att.owner_thumb_url) + '" alt="Attached dish photo" style="width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--trk-border,#D7DED3)">' +
+        '<div style="flex:1 1 180px"><strong>Attached dish photo</strong> ' + supNote +
+        '<span class="cp-list-item-meta">Private photo caption is never copied. Deleting the private photo removes this shared copy immediately.</span></div>' +
+        '<button type="button" class="cp-inline-btn is-danger" data-gh-remove-photo-att="' + ghEsc(att.attachment_id) + '">Remove photo</button>' +
+        '</div>'
+      );
+    }
+
+    if (shPhotosFeat.state !== 'enabled') {
+      return '';
+    }
+
+    if (shState.openPhotoPickerVendorId !== ent.vendor_id) {
+      return (
+        '<div style="margin-top:8px">' +
+        '<button type="button" class="cp-inline-btn" data-gh-open-photo-picker="' + ghEsc(ent.vendor_id) + '">📷 Attach a consented photo from my Dish Photos…</button>' +
+        '</div>'
+      );
+    }
+
+    var photos = shState.ownerPhotosCache || [];
+    var selPhotoId = shState.selectedPhotoIdByVendor[ent.vendor_id] || '';
+    var consented = Boolean(shState.photoConsentByVendor[ent.vendor_id]);
+
+    if (shState.ownerPhotosCache === null) {
+      return '<div class="cp-note-box" role="status">Loading your private Dish Photos…</div>';
+    }
+    if (photos.length === 0) {
+      return (
+        '<div class="cp-note-box">You have no private photos saved in Dish Photos yet. ' +
+        '<button type="button" class="cp-inline-btn" data-gh-close-photo-picker="1">Close</button></div>'
+      );
+    }
+
+    return (
+      '<div class="cp-note-box" style="margin-top:10px">' +
+      '<strong>Select a private photo to attach to ' + ghEsc(ent.display_name) + ':</strong>' +
+      '<div class="cp-photo-strip" style="margin-bottom:10px">' +
+      photos
+        .map(function (p) {
+          var isSel = selPhotoId === p.photo_id;
+          return (
+            '<label class="cp-photo-thumb" style="cursor:pointer;outline:' + (isSel ? '3px solid var(--trk-green,#234B3A)' : 'none') + '">' +
+            '<input type="radio" name="ghPickPhoto-' + idx + '" data-gh-pick-photo-vendor="' + ghEsc(ent.vendor_id) + '" value="' + ghEsc(p.photo_id) + '"' + (isSel ? ' checked' : '') + ' style="margin:6px">' +
+            '<img src="' + ghEsc(p.thumb_url) + '" alt="' + ghEsc(p.business_name || 'Saved photo') + '">' +
+            '<span>' + ghEsc(p.business_name || 'Saved photo') + '</span>' +
+            '</label>'
+          );
+        })
+        .join('') +
+      '</div>' +
+      '<label class="cp-check-tile">' +
+      '<input type="checkbox" data-gh-photo-consent-vendor="' + ghEsc(ent.vendor_id) + '"' + (consented ? ' checked' : '') + '>' +
+      '<span>I explicitly consent to creating an EXIF-stripped shared copy of this photo for unlisted links on this collection (private captions are never copied; deleting my source photo removes shared access immediately)</span>' +
+      '</label>' +
+      '<div class="cp-btn-row">' +
+      '<button type="button" class="cp-inline-btn is-primary" data-gh-confirm-attach-photo="' + ghEsc(ent.vendor_id) + '">Save &amp; attach consented photo</button>' +
+      '<button type="button" class="cp-inline-btn" data-gh-close-photo-picker="1">Cancel</button>' +
+      '</div>' +
+      '</div>'
+    );
   }
 
   function renderPreviewBox(dto, ghEsc) {
@@ -455,11 +539,106 @@
         }
       };
     });
+
+    root.querySelectorAll('[data-gh-open-photo-picker]').forEach(function (btn) {
+      btn.onclick = async function () {
+        shState.openPhotoPickerVendorId = btn.dataset.ghOpenPhotoPicker;
+        rerender();
+        if (shState.ownerPhotosCache === null && window.bitesharkExploration) {
+          try {
+            var res = await window.bitesharkExploration.listPhotos({ limit: 12 });
+            shState.ownerPhotosCache = res.photos || [];
+          } catch (_e) {
+            shState.ownerPhotosCache = [];
+          }
+          rerender();
+        }
+      };
+    });
+
+    root.querySelectorAll('[data-gh-close-photo-picker]').forEach(function (btn) {
+      btn.onclick = function () {
+        shState.openPhotoPickerVendorId = null;
+        rerender();
+      };
+    });
+
+    root.querySelectorAll('[data-gh-pick-photo-vendor]').forEach(function (rad) {
+      rad.onchange = function () {
+        shState.selectedPhotoIdByVendor[rad.dataset.ghPickPhotoVendor] = rad.value;
+        rerender();
+      };
+    });
+
+    root.querySelectorAll('[data-gh-photo-consent-vendor]').forEach(function (chk) {
+      chk.onchange = function () {
+        shState.photoConsentByVendor[chk.dataset.ghPhotoConsentVendor] = Boolean(chk.checked);
+      };
+    });
+
+    root.querySelectorAll('[data-gh-confirm-attach-photo]').forEach(function (btn) {
+      btn.onclick = async function () {
+        var vid = btn.dataset.ghConfirmAttachPhoto;
+        var pid = shState.selectedPhotoIdByVendor[vid] || '';
+        var consented = Boolean(shState.photoConsentByVendor[vid]);
+        if (!pid) {
+          shState.msg = { text: 'Select a private photo first.', isError: true };
+          rerender();
+          return;
+        }
+        if (!consented) {
+          shState.msg = { text: 'Check the per-photo sharing consent box before attaching.', isError: true };
+          rerender();
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await window.bitesharkProfile.attachCollectionPhoto({
+            collection_id: col.collection_id,
+            vendor_id: vid,
+            source_photo_id: pid,
+            share_consent_confirmed: true,
+            confirm_shared_view_update: true
+          });
+          shState.openPhotoPickerVendorId = null;
+          shState.msg = { text: 'Attached consented shared photo derivative.', isError: false };
+          if (ctx && typeof ctx.reloadEditor === 'function') {
+            await ctx.reloadEditor();
+          }
+        } catch (err) {
+          btn.disabled = false;
+          shState.msg = { text: err.message || 'Could not attach photo. Save the spot in your collection first.', isError: true };
+          rerender();
+        }
+      };
+    });
+
+    root.querySelectorAll('[data-gh-remove-photo-att]').forEach(function (btn) {
+      btn.onclick = async function () {
+        var attId = btn.dataset.ghRemovePhotoAtt;
+        btn.disabled = true;
+        try {
+          await window.bitesharkProfile.removeCollectionPhoto({
+            collection_id: col.collection_id,
+            attachment_id: attId
+          });
+          shState.msg = { text: 'Removed shared photo copy immediately.', isError: false };
+          if (ctx && typeof ctx.reloadEditor === 'function') {
+            await ctx.reloadEditor();
+          }
+        } catch (err) {
+          btn.disabled = false;
+          shState.msg = { text: err.message || 'Could not remove photo attachment.', isError: true };
+          rerender();
+        }
+      };
+    });
   }
 
   if (typeof window !== 'undefined') {
     if (window.bitesharkGreatestHitsHooks) {
       window.bitesharkGreatestHitsHooks.setSharingHooks(renderSharingSection, bindSharingSectionEvents);
+      window.bitesharkGreatestHitsHooks.setPhotoSlotHook(renderEntryPhotoSlot);
     }
     var prevReset = window.bitesharkResetProfileUiOnAuthChange;
     window.bitesharkResetProfileUiOnAuthChange = function () {
