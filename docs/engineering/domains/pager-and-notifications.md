@@ -1,5 +1,6 @@
 # Domain Map — Pickup Pagers & Web Push Notifications
 
+- **Shared Contract**: [`CTR-PAGER-WEBPUSH`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
 - **Authoritative Deep Dive**: [PAGER_NOTIFICATIONS_RUNBOOK.md](../../PAGER_NOTIFICATIONS_RUNBOOK.md) *(note: primary env prefix is now `BITESHARK_*` + Migration `022` feature controls)*
 
 ## 1. Current Behavior (Including Disabled Hosted State)

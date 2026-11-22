@@ -1,7 +1,8 @@
 # Backend HTTP API Contracts
 
 This document summarizes BiteShark's HTTP route families, shared contracts, internal-only endpoints, and known client-server nuances.
-- For the machine-generated list of all **97** routes on `working/biteshark-vps` (**85** on `staging2` branches prior to exploration merge), see [ROUTE-INVENTORY.md](generated/ROUTE-INVENTORY.md).
+- For the AST-extracted inventory of **97** HTTP routes indexed on `working/biteshark-vps` (with method basis, auth/authz evidence, per-method feature gates, confirmed frontend callers, and 3-tier test references), see [ROUTE-INVENTORY.md](generated/ROUTE-INVENTORY.md).
+- For structured shared contracts (`CTR-*`), see [generated/CONTRACTS-CATALOG.md](generated/CONTRACTS-CATALOG.md) ([contracts/shared-contracts.json](contracts/shared-contracts.json)).
 - For exact JSON envelope, header, and global error-code contracts, see [contracts/shared-api-envelopes.md](contracts/shared-api-envelopes.md).
 
 ---
@@ -50,8 +51,8 @@ This document summarizes BiteShark's HTTP route families, shared contracts, inte
 - Admin telemetry: `GET /api/pager/telemetry` (`Admin: Top`).
 
 ### E. Vendor Operations, Onboarding, Invitations & Admin Portal
-- Vendor Operations: `GET|POST /api/owner/{profile,location,schedule,requests}`, `GET /api/owner/{stats,bookings}` *(note: `public/app.js` calls `/api/owner/requests`, leaving `/api/owner/bookings` unreferenced in `public/`)*.
-- Vendor Team & Onboarding: `GET|POST /api/onboarding/applications`, `GET|POST /api/onboarding/evidence` (`<= 512 KiB` magic-byte-verified PDF/PNG/JPEG/WebP), `GET|DELETE /api/vendor/members`, `POST /api/vendor/staff-invitations`, `GET|POST /api/invitations/inspect`, `POST /api/invitations/accept`.
+- Vendor Operations: `GET|POST /api/owner/{profile,location,schedule,requests}`, `GET /api/owner/{stats,bookings}` *(both `/api/owner/requests` and `/api/owner/bookings` are called conditionally in `public/app.js#loadOwnerRequests`)*.
+- Vendor Team & Onboarding: `GET|POST /api/onboarding/applications`, `GET|POST|DELETE /api/onboarding/evidence` (`<= 512 KiB` magic-byte-verified PDF/PNG/JPEG/WebP; `DELETE` allows applicant on editable drafts or `Admin: Top` with audited reason), `GET|DELETE /api/vendor/members`, `POST /api/vendor/staff-invitations`, `GET|POST /api/invitations/inspect`, `POST /api/invitations/accept`.
 - Admin Portal (`/api/admin/*` in `server/admin-routes.js`): `overview`, `email-readiness` (`Top`), `vendor-preview`, `applications` + `applications/decision`, `vendors` + `vendors/update`, `accounts` + `accounts/role` (`Top`) + `accounts/status` (`Top`), `invitations` + `invitations/create` + `invitations/decision` + `invitations/resend`, `moderation` + `moderation/decision`, `issues` + `issues/update` + `issues/diagnostics`, `readiness` + `readiness/note` + `readiness/update` (`Top`), `features` + `features/update` (`Top`), `diagnostics` + `diagnostics/{detail,triage,note,synthetic-test,cleanup,notify-tickets}`, `audit`.
 
 ---

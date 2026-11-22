@@ -1,5 +1,7 @@
 # Domain Map — Visit Journal & Food Passport
 
+- **Shared Contract**: [`CTR-CUSTOMER-EXPLORATION`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
+
 ## 1. Current Behavior
 - **Primary (`working/biteshark-vps` / `staging.biteshark.live`)**: Stores self-reported customer visits and private tasting notes (`<= 280` chars) in PostgreSQL table `customer_visits` (`migrations/027_customer_exploration_foundation.sql`, `FORCE ROW LEVEL SECURITY` via `app.user_id`). Enforces at most 1 active visit per `(user_id, recorded_vendor_id, visit_local_date)` in `America/Los_Angeles` (`idx_customer_visits_active_user_vendor_day`), allows repeat visits on distinct Pacific calendar days (`+25` points each), supports soft-delete (`POST /api/me/visits/delete`), explicit user-confirmed one-time import from legacy `localStorage['truckly_guide_passport_v1']` (`POST /api/me/exploration/import`), and self-service JSON privacy export (`GET /api/me/exploration/export` + `#rxExplorationPrivacyModal` in `public/role-experience.js`).
 - **Secondary Staging (`staging2` branches prior to exploration merge)**: Still uses device-only `localStorage['truckly_guide_passport_v1']`.

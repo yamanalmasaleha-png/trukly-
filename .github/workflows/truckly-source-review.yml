@@ -75,28 +75,59 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run code-registry parser, fixture, exclusion, comparison & determinism tests
-        run: node tests/code-registry.test.cjs
-      - name: Validate handbook links, schemas, determinism & structural drift gate
-        run: node tools/code-registry/cli.mjs validate
-      - name: Build timestamped registry snapshot & merge-base change-impact report
+      - name: Resolve meaningful comparison & trusted-baseline Git reference
+        id: refs
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           PR_BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
           mkdir -p /tmp/bs-registry-artifacts
-          node tools/code-registry/cli.mjs scan --out /tmp/bs-registry-artifacts/registry-full-snapshot.json --include-timestamp
+          HEAD_SHA="$(git rev-parse HEAD)"
           BASE_REF="HEAD~1"
-          if [ -n "$PR_BASE_REF" ] && git rev-parse --verify "origin/$PR_BASE_REF^{commit}" >/dev/null 2>&1; then
+          USE_MERGE_BASE="false"
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_REF" ] && git rev-parse --verify "origin/$PR_BASE_REF^{commit}" >/dev/null 2>&1; then
             BASE_REF="origin/$PR_BASE_REF"
-          elif git rev-parse --verify "origin/working/biteshark-vps^{commit}" >/dev/null 2>&1; then
+            USE_MERGE_BASE="true"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] && git rev-parse --verify "${PUSH_BEFORE}^{commit}" >/dev/null 2>&1 && [ "$(git rev-parse "${PUSH_BEFORE}^{commit}")" != "$HEAD_SHA" ]; then
+            BASE_REF="$PUSH_BEFORE"
+          elif git rev-parse --verify "origin/working/biteshark-vps^{commit}" >/dev/null 2>&1 && [ "$(git rev-parse "origin/working/biteshark-vps^{commit}")" != "$HEAD_SHA" ]; then
             BASE_REF="origin/working/biteshark-vps"
+            USE_MERGE_BASE="true"
           fi
+          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          echo "use_merge_base=$USE_MERGE_BASE" >> "$GITHUB_OUTPUT"
+          echo "Resolved BASE_REF=$BASE_REF (merge_base=$USE_MERGE_BASE) for HEAD=$HEAD_SHA"
+      - name: Run code-registry parser, fixture, exclusion, comparison & determinism tests
+        run: node tests/code-registry.test.cjs
+      - name: Validate handbook links, recursive schemas, freshness & trusted-baseline drift gate
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.refs.outputs.base_ref }}
+        run: |
           if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
-            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD --merge-base --format markdown --out /tmp/bs-registry-artifacts/change-impact.md
-            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD --merge-base --format json --out /tmp/bs-registry-artifacts/change-impact.json
+            node tools/code-registry/cli.mjs validate --trusted-baseline-ref "$BASE_REF" --out /tmp/bs-registry-artifacts/validate-report.json
+          else
+            node tools/code-registry/cli.mjs validate --out /tmp/bs-registry-artifacts/validate-report.json
           fi
-      - name: Upload code-registry & change-impact artifact
+      - name: Build timestamped registry snapshot & change-impact report (always runs for diagnostics)
+        if: always()
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.refs.outputs.base_ref }}
+          USE_MERGE_BASE: ${{ steps.refs.outputs.use_merge_base }}
+        run: |
+          mkdir -p /tmp/bs-registry-artifacts
+          node tools/code-registry/cli.mjs scan --out /tmp/bs-registry-artifacts/registry-full-snapshot.json --include-timestamp || true
+          if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+            MB_FLAG=""
+            if [ "$USE_MERGE_BASE" = "true" ]; then MB_FLAG="--merge-base"; fi
+            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD $MB_FLAG --format markdown --out /tmp/bs-registry-artifacts/change-impact.md || true
+            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD $MB_FLAG --format json --out /tmp/bs-registry-artifacts/change-impact.json || true
+          fi
+      - name: Upload code-registry, validation & change-impact diagnostic artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: biteshark-code-registry-impact
@@ -140,123 +171,184 @@ jobs:
           node-version: '22'
       - name: Install locked dependencies via npm ci
         run: npm ci --no-audit --no-fund
-      - name: Cross-verify reconstructed SQL schema & RLS against disposable PostgreSQL 16
+      - name: Cross-verify reconstructed SQL schema, columns, constraints, indexes & RLS against PostgreSQL 16 (required)
         env:
           BITESHARK_REGISTRY_VERIFY_PG_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
-        run: node tools/code-registry/cli.mjs validate --verify-db
+        run: node tools/code-registry/cli.mjs validate --verify-db=required
+      - name: Determine whether runtime, migration, deployment, dependency, or application test files changed
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.base_ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          BASE_REF=""
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$PR_BASE_REF" ] && git rev-parse --verify "origin/$PR_BASE_REF^{commit}" >/dev/null 2>&1; then
+            BASE_REF="$(git merge-base "origin/$PR_BASE_REF" HEAD)"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$PUSH_BEFORE" ] && [ "$PUSH_BEFORE" != "0000000000000000000000000000000000000000" ] && git rev-parse --verify "${PUSH_BEFORE}^{commit}" >/dev/null 2>&1 && [ "$(git rev-parse "${PUSH_BEFORE}^{commit}")" != "$HEAD_SHA" ]; then
+            BASE_REF="$PUSH_BEFORE"
+          elif git rev-parse --verify "origin/working/biteshark-vps^{commit}" >/dev/null 2>&1 && [ "$(git rev-parse "origin/working/biteshark-vps^{commit}")" != "$HEAD_SHA" ]; then
+            BASE_REF="$(git merge-base "origin/working/biteshark-vps" HEAD)"
+          fi
+          if [ -z "$BASE_REF" ]; then
+            echo "runtime_changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          RUNTIME_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- api lib server packages public migrations deploy scripts package-lock.json)"
+          APP_TEST_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- tests | grep -v '^tests/code-registry\.test\.cjs$' || true)"
+          if [ -n "$RUNTIME_DIFF" ] || [ -n "$APP_TEST_DIFF" ]; then
+            echo "Runtime or application test changes detected vs $BASE_REF:"
+            echo "$RUNTIME_DIFF"
+            echo "$APP_TEST_DIFF"
+            echo "runtime_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Documentation/registry-only change vs $BASE_REF; skipping full browser/integration matrix after required PostgreSQL schema verification."
+            echo "runtime_changed=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Run standalone runtime, OTP auth, concurrency, CSRF & proxy integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/standalone-runtime-auth.integration.cjs
       - name: Run authentication email delivery, provider diagnostics, DNS readiness & UI contract suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/auth-email-delivery.integration.cjs
       - name: Run BiteShark two-tier admin portal, onboarding, invitations, moderation, issues & viewpoints PostgreSQL suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/admin-governance.integration.cjs
       - name: Run BiteShark legal-policy drafts, 14+ age eligibility & compliance readiness PostgreSQL suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/legal-readiness.integration.cjs
       - name: Run BiteShark controlled feature management, worker recheck, dependency DAG & CLI recovery PostgreSQL suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/feature-controls.integration.cjs
       - name: Run BiteShark account invitation workflow, Resend delivery, idempotency & narrow staging eligibility PostgreSQL suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/invitation-workflow.integration.cjs
       - name: Run BiteShark operational diagnostics, redaction, release attribution, RBAC & retention PostgreSQL suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/diagnostics-and-reliability.integration.cjs
       - name: Run BiteShark Support & Feedback + Connected Diagnostics PostgreSQL integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/support-feedback.integration.cjs
       - name: Run deployment installer archive-safety, concurrency & service-failure rollback suite on Linux
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/install-staging-release.test.cjs
       - name: Validate standalone VPS staging gate runner, SQL bootstrap, probe & cleanup pre-flight
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/vps-staging-gates.cjs --preflight-local
       - name: Run real-PostgreSQL backend hardening & FOR SHARE permission-lock concurrency suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/backend-hardening.integration.cjs
       - name: Run P1 unified discovery & owner publishing PostgreSQL integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/p1-unified-discovery.integration.cjs
       - name: Run pager notifications outbox, worker lease fencing, pre-dispatch recheck, catch-up & config suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/pager-notifications.integration.cjs
       - name: Run real headless Chrome + PostgreSQL discovery & OTP sign-in browser E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/discovery-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL pager notification browser E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/pager-notifications-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Admin Portal & Role Experiences E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/admin-portal-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Legal Policy, Accessibility, 14+ Signup & Readiness E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/legal-readiness-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Controlled Feature Management & Open-Tab Sync E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/feature-controls-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Map Tile Referrer, Provider Config & Outage Resilience E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/map-resilience-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Account Invitation Workflow & Zero-Query-String Token E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/invitation-workflow-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Reliability, Accessible Feedback & Error Diagnostics Portal E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/reliability-accessibility-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Support & Feedback + Connected Diagnostics E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/support-feedback-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark First-Visit Welcome, Vendor Intro & Bypass Rules E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/welcome-experience-browser.e2e.cjs
       - name: Run real PostgreSQL BiteShark Urgent Pre-Pilot Security & Concurrency Integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/urgent-pilot-security.integration.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Shared-Device Sign-Out Isolation E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/urgent-pilot-security-browser.e2e.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Discovery Cards UX, Media Slot, Zoom & Accessibility E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/discovery-cards-ux-browser.e2e.cjs
       - name: Run real PostgreSQL + Sharp BiteShark Customer Exploration, Visit Journal, Photos & Trails Integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/customer-exploration.integration.cjs
       - name: Run real headless Chrome + PostgreSQL BiteShark Customer Exploration, Legacy Migration & Feature Controls E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/customer-exploration-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
+        if: steps.scope.outputs.runtime_changed == 'true'
         shell: bash
         env:
           PGPASSWORD: postgres_ci_password

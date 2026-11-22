@@ -33,6 +33,8 @@
     "registry:scan": "node tools/code-registry/cli.mjs scan",
     "registry:docs": "node tools/code-registry/cli.mjs generate-docs",
     "registry:validate": "node tools/code-registry/cli.mjs validate",
+    "registry:accept-drift": "node tools/code-registry/cli.mjs accept-drift",
+    "registry:prune-drift": "node tools/code-registry/cli.mjs prune-drift",
     "registry:compare": "node tools/code-registry/cli.mjs compare",
     "registry:impact": "node tools/code-registry/cli.mjs impact",
     "registry:locate": "node tools/code-registry/cli.mjs locate",

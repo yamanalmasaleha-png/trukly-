@@ -16,12 +16,13 @@ Two pitfalls had to be avoided:
 
 ## Decision
 
-1. **Separate Maintained vs Generated vs Per-Commit Artifacts**:
-   - Human-maintained architectural/domain guides (`docs/engineering/*.md`, `docs/engineering/domains/*.md`) explicitly distinguish baseline (`a4e9f53`) contracts from branch-specific additions (`83181ba` vs `a2f0135`).
-   - Committed generated reference catalogs (`docs/engineering/generated/*.md`, `registry-summary.json`, `drift-baseline.json`) omit volatile UTC timestamps and validate freshness using `deterministic_digest_sha256` computed over all scanned non-generated repository inputs.
-   - Full raw AST snapshots (`registry-full-snapshot.json`, including `generated_at_utc`, exact `commit_sha`, and `working_tree_clean`) and merge-base `change-impact` reports are uploaded as CI workflow artifacts on every push and pull request rather than bloating Git history.
+1. **Separate Maintained vs Generated vs Governance vs Per-Commit Artifacts**:
+   - Human-maintained architectural/domain guides (`docs/engineering/*.md`, `docs/engineering/domains/*.md`, `contracts/shared-contracts.json`) explicitly distinguish shared baseline contracts from branch-specific additions (`working/biteshark-vps` vs `staging2` branches).
+   - Committed generated reference catalogs (`docs/engineering/generated/*.md`, `generated/symbols/*.md`, `registry-summary.json`) use `provenance_mode: "committed_source_digest"` (omitting volatile UTC timestamps, branch names, and self-referential final commit SHAs) and validate freshness against `source_analysis_digest_sha256`.
+   - Audited baseline debt (`docs/engineering/schemas/drift-baseline.json`) is **never** modified by `npm run registry:docs`; it is updated only via explicit `accept-drift` / `prune-drift` commands and checked against the target branch in PR CI via `--trusted-baseline-ref`.
+   - Full raw AST snapshots (`registry-full-snapshot.json`, including `generated_at_utc`, exact `commit_sha`, and `working_tree_clean`) and ref `change-impact` reports are uploaded as CI workflow artifacts (`if: always()`) rather than bloating Git history.
 2. **Branch-Specific Regeneration on Integration**:
-   - Whenever handbook/tooling updates are integrated into a staging or feature branch, `npm run registry:docs` is executed on that branch so `docs/engineering/generated/*` and `drift-baseline.json` reflect that branch's exact code.
+   - Whenever handbook/tooling updates are integrated into a staging or feature branch, `npm run registry:docs && npm run registry:validate` is executed on that branch so `docs/engineering/generated/*` reflects that branch's exact source tree without auto-accepting new drift.
 
 ## Consequences
 

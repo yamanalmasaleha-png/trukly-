@@ -1,8 +1,8 @@
-// BiteShark Code Registry — Evidence-Based Drift, Duplicate, Orphan & Link Detector
+// BiteShark Code Registry — Evidence-Based Drift, Duplicate, Orphan, Contract & Link Detector
 // (`tools/code-registry/drift-detector.mjs`)
 
 import path from 'node:path';
-import { toPosixPath } from './schema-versions.mjs';
+import { asciiCompare, toPosixPath } from './schema-versions.mjs';
 
 const BUILTIN_BROWSER_OR_DOM_IDENTIFIERS = new Set([
   'alert',
@@ -45,10 +45,13 @@ const RUNTIME_ONLY_NODE_ENV_ALLOWLIST = new Set([
   'TMP',
   'CHROME_BIN',
   'CI',
-  'GITHUB_ACTIONS'
+  'GITHUB_ACTIONS',
+  'GITHUB_HEAD_REF',
+  'GITHUB_REF_NAME',
+  'BITESHARK_REGISTRY_VERIFY_PG_URL'
 ]);
 
-function makeStableFindingId(category, primaryKey) {
+export function makeStableFindingId(category, primaryKey) {
   const cleanKey = String(primaryKey || 'root')
     .replace(/[^A-Za-z0-9_./#-]+/g, '_')
     .replace(/^_+|_+$/g, '')
@@ -89,8 +92,10 @@ export function validateMarkdownLinks({ markdownFilesByPath, allRepoPathsSet }) 
 
   for (const [mdPath, content] of markdownFilesByPath.entries()) {
     if (mdPath.startsWith('docs/archive/')) continue;
-    // Strip fenced code blocks so example links inside ```markdown blocks do not false-trigger
-    const withoutCodeBlocks = content.replace(/```[\s\S]*?```/g, match => '\n'.repeat(match.split('\n').length - 1));
+    // Strip fenced code blocks (supporting 3 or 4 backticks) so example links inside fences do not false-trigger
+    const withoutCodeBlocks = content.replace(/(`{3,})[\s\S]*?\1/g, match =>
+      '\n'.repeat(match.split('\n').length - 1)
+    );
     const lines = withoutCodeBlocks.split('\n');
     const dir = path.posix.dirname(mdPath);
 
@@ -109,7 +114,9 @@ export function validateMarkdownLinks({ markdownFilesByPath, allRepoPathsSet }) 
         if (!relPart) continue;
         const cleanRel = relPart.split('?')[0];
         const resolved = toPosixPath(
-          cleanRel.startsWith('/') ? cleanRel.slice(1) : path.posix.normalize(path.posix.join(dir === '.' ? '' : dir, cleanRel))
+          cleanRel.startsWith('/')
+            ? cleanRel.slice(1)
+            : path.posix.normalize(path.posix.join(dir === '.' ? '' : dir, cleanRel))
         );
         const dirReadme = `${resolved}/README.md`;
         if (!allRepoPathsSet.has(resolved) && !allRepoPathsSet.has(dirReadme)) {
@@ -124,7 +131,7 @@ export function validateMarkdownLinks({ markdownFilesByPath, allRepoPathsSet }) 
     }
   }
 
-  brokenLinks.sort((a, b) => a.source_file.localeCompare(b.source_file) || a.line - b.line);
+  brokenLinks.sort((a, b) => asciiCompare(a.source_file, b.source_file) || a.line - b.line);
   return brokenLinks;
 }
 
@@ -155,7 +162,8 @@ export function detectRepositoryDrift({
         source_commit: commitSha,
         affected_objects: [`${html.file}#${dup.id}`],
         evidence: `HTML id="${dup.id}" is declared at both line ${dup.first_line} and line ${dup.duplicate_line} in ${html.file}.`,
-        potential_impact: 'document.getElementById() returns only the first node, causing silent listener or state failures on the duplicate node.',
+        potential_impact:
+          'document.getElementById() returns only the first node, causing silent listener or state failures on the duplicate node.',
         suggested_verification: `Inspect ${html.file} lines ${dup.first_line} and ${dup.duplicate_line}.`,
         proposed_remediation: 'Assign unique IDs or convert repeated hooks to class/data-* attributes.',
         false_positive_considerations: 'None inside a single static HTML document.'
@@ -163,7 +171,6 @@ export function detectRepositoryDrift({
     }
   }
 
-  // Build HTML page -> loaded JS scopes so DOM & inline-handler checks respect per-page context (`index.html` vs `admin.html` vs `login.html`)
   const jsByPath = new Map(jsAnalyses.map(j => [j.file, j]));
   const allStaticDomIds = new Set();
   const allDynamicDomIds = new Set();
@@ -181,14 +188,13 @@ export function detectRepositoryDrift({
         allDynamicDomIds.add(d.id);
       }
     }
-    // Also scan string literals in public/*.js for dynamically constructed IDs like `'fc-state-' + key` or `id="${...}"`
   }
 
   // 2. Competing / Reassigned Browser Globals across `public/*.js` loaded together in `public/index.html`
   const indexHtml = htmlAnalyses.find(h => h.file === 'public/index.html');
   const indexLoadedScripts = (indexHtml?.scripts_order || [])
     .filter(s => !s.external)
-    .map(s => toPosixPath(path.posix.join('public', s.src.replace(/^\//, ''))));
+    .map(s => toPosixPath(path.posix.join('public', s.src.split('?')[0].replace(/^\//, ''))));
 
   const globalsMap = new Map();
   for (const scriptPath of indexLoadedScripts) {
@@ -199,7 +205,7 @@ export function detectRepositoryDrift({
       globalsMap.get(g.name).push(g);
     }
   }
-  for (const [gName, defs] of [...globalsMap.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+  for (const [gName, defs] of [...globalsMap.entries()].sort((a, b) => asciiCompare(a[0], b[0]))) {
     const distinctFiles = [...new Set(defs.map(d => d.file))];
     if (distinctFiles.length > 1) {
       const isIntentionalWrapper = defs.some(d => d.kind === 'browser_global_reassignment');
@@ -219,7 +225,8 @@ export function detectRepositoryDrift({
         proposed_remediation: isIntentionalWrapper
           ? 'Preserve documented load order or migrate post-render hooks to explicit event/callback registration in future refactors.'
           : 'Namespace module-private state inside an IIFE or distinct window.biteshark* namespace.',
-        false_positive_considerations: 'Intentional post-render decorator wrappers (such as openDetail) are load-order-sensitive design patterns rather than accidental bugs.'
+        false_positive_considerations:
+          'Intentional post-render decorator wrappers (such as openDetail) are load-order-sensitive design patterns rather than accidental bugs.'
       });
     }
   }
@@ -252,7 +259,12 @@ export function detectRepositoryDrift({
 
     for (const h of html.inline_handlers) {
       for (const fn of h.called_functions) {
-        if (BUILTIN_BROWSER_OR_DOM_IDENTIFIERS.has(fn) || fn.startsWith('window.') || fn.startsWith('this.') || fn.startsWith('document.')) {
+        if (
+          BUILTIN_BROWSER_OR_DOM_IDENTIFIERS.has(fn) ||
+          fn.startsWith('window.') ||
+          fn.startsWith('this.') ||
+          fn.startsWith('document.')
+        ) {
           continue;
         }
         const rootName = fn.split('.')[0];
@@ -269,7 +281,8 @@ export function detectRepositoryDrift({
             potential_impact: 'User interaction throws ReferenceError at runtime.',
             suggested_verification: `Verify ${html.file} script tags and global symbol "${fn}".`,
             proposed_remediation: 'Expose the handler on window or bind via addEventListener inside the owning module.',
-            false_positive_considerations: 'Guarded typeof checks (`if (typeof fn === "function") fn()`) avoid ReferenceError when an optional script is omitted.'
+            false_positive_considerations:
+              'Guarded typeof checks (`if (typeof fn === "function") fn()`) avoid ReferenceError when an optional script is omitted.'
           });
         }
       }
@@ -297,19 +310,26 @@ export function detectRepositoryDrift({
           evidence: `${ja.file}:L${ref.line} (${ref.caller}) calls getElementById('${targetId}'), which does not appear in static public/*.html or detected innerHTML templates.`,
           potential_impact: 'Null return value; if unguarded, causes TypeError or dead UI wiring.',
           suggested_verification: `Search public/ for "${targetId}" and check whether ${ja.file} guards for null or dynamically creates the element via createElement().`,
-          proposed_remediation: 'Keep explicit null guard if optional/dynamically created via createElement(), or remove obsolete DOM lookup.',
-          false_positive_considerations: 'Elements created imperatively via document.createElement() + el.id = "..." (such as lazy error boxes) are valid runtime targets.'
+          proposed_remediation:
+            'Keep explicit null guard if optional/dynamically created via createElement(), or remove obsolete DOM lookup.',
+          false_positive_considerations:
+            'Elements created imperatively via document.createElement() + el.id = "..." (such as lazy error boxes) are valid runtime targets.'
         });
       }
     }
   }
 
-  // 5. Duplicated Shared Helper Implementations (e.g., HTML escape helpers, fetch wrappers)
+  // 5. Duplicated Shared Helper Implementations (HTML escape helpers)
   const htmlEscapeImpls = [];
   for (const ja of jsAnalyses) {
-    if (ja.file.startsWith('tests/')) continue;
+    if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/')) continue;
     for (const sym of ja.symbols) {
-      if (/^(esc|escapeHtml|escapeHtmlSafe|rxEsc|admEsc|pagerEscape|smartEscape|guidesEscape|guidePassportHtmlEscape|communityEscape|streetEscape|whispersEsc|loginEsc|dbgEsc)$/i.test(sym.name)) {
+      const checkName = sym.local_name || sym.name;
+      if (
+        /^(esc|escapeHtml|escapeHtmlSafe|rxEsc|admEsc|pagerEscape|smartEscape|guidesEscape|guidePassportHtmlEscape|communityEscape|streetEscape|whispersEsc|loginEsc|dbgEsc)$/i.test(
+          checkName
+        )
+      ) {
         htmlEscapeImpls.push(`${ja.file}:${sym.name}@L${sym.start_line}`);
       }
     }
@@ -324,10 +344,13 @@ export function detectRepositoryDrift({
       source_commit: commitSha,
       affected_objects: htmlEscapeImpls,
       evidence: `${htmlEscapeImpls.length} separate HTML-escaping helper functions exist across frontend/backend modules: ${htmlEscapeImpls.join(', ')}.`,
-      potential_impact: 'Inconsistent character escaping (e.g., omitting single-quote &#39; or null coercion) can introduce XSS or display bugs if a weaker variant is copied.',
+      potential_impact:
+        'Inconsistent character escaping (e.g., omitting single-quote &#39; or null coercion) can introduce XSS or display bugs if a weaker variant is copied.',
       suggested_verification: 'Inspect each escape helper to confirm all 5 characters (&, <, >, ", \') and nullish inputs are handled.',
-      proposed_remediation: 'Retain existing helpers to avoid churn; for new frontend modules, reuse a single canonical 5-entity escape helper.',
-      false_positive_considerations: 'IIFE-encapsulated browser scripts intentionally keep tiny local esc() functions to remain zero-build.'
+      proposed_remediation:
+        'Retain existing helpers to avoid churn; for new frontend modules, reuse a single canonical 5-entity escape helper.',
+      false_positive_considerations:
+        'IIFE-encapsulated browser scripts intentionally keep tiny local esc() functions to remain zero-build.'
     });
   }
 
@@ -335,7 +358,7 @@ export function detectRepositoryDrift({
   const registeredFeatureKeys = new Set((featureContract?.features || []).map(f => f.key));
   if (registeredFeatureKeys.size > 0) {
     for (const ja of jsAnalyses) {
-      if (ja.file.startsWith('tests/')) continue;
+      if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/')) continue;
       for (const fk of ja.feature_key_refs) {
         if (!registeredFeatureKeys.has(fk.feature_key)) {
           rawFindings.push({
@@ -347,7 +370,8 @@ export function detectRepositoryDrift({
             source_commit: commitSha,
             affected_objects: [`${ja.file}:L${fk.line}`, fk.feature_key],
             evidence: `${ja.file}:L${fk.line} checks feature key "${fk.feature_key}" via ${fk.helper}, which is not registered in FEATURE_CONTROLS_REGISTRY.`,
-            potential_impact: 'Feature check falls back to default/unknown state and cannot be governed from /admin#features.',
+            potential_impact:
+              'Feature check falls back to default/unknown state and cannot be governed from /admin#features.',
             suggested_verification: `Check lib/feature-controls.js FEATURE_CONTROLS_REGISTRY for "${fk.feature_key}".`,
             proposed_remediation: 'Register the feature key in lib/feature-controls.js or correct the key typo.',
             false_positive_considerations: 'None for static literal feature-key lookups.'
@@ -360,7 +384,7 @@ export function detectRepositoryDrift({
   // 6B. Invalid Write-Pause Scopes (`isWritePaused(...)` vs `VALID_WRITE_PAUSE_SCOPES` in `lib/authz.js`)
   const validPauseScopes = new Set(['bookings', 'pagers', 'community', 'owner', 'notifications', 'all']);
   for (const ja of jsAnalyses) {
-    if (ja.file.startsWith('tests/')) continue;
+    if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/')) continue;
     for (const wp of ja.write_pause_refs || []) {
       if (!validPauseScopes.has(wp.scope)) {
         rawFindings.push({
@@ -381,11 +405,11 @@ export function detectRepositoryDrift({
     }
   }
 
-  // 7. Undocumented Configuration Keys Read in Application Code
+  // 7. Undocumented Configuration Keys Read in Application Code (excluding tests/ and tools/code-registry/)
   if (documentedConfigKeys.size > 0) {
     const seenUndoc = new Set();
     for (const ja of jsAnalyses) {
-      if (ja.file.startsWith('tests/')) continue;
+      if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/code-registry/')) continue;
       for (const env of ja.env_reads) {
         if (RUNTIME_ONLY_NODE_ENV_ALLOWLIST.has(env.key)) continue;
         if (!documentedConfigKeys.has(env.key) && !seenUndoc.has(env.key)) {
@@ -401,8 +425,10 @@ export function detectRepositoryDrift({
             evidence: `Environment variable "${env.key}" is read in ${ja.file}:L${env.line} (${env.via}) without an entry in docs/engineering/contracts/configuration-keys.json.`,
             potential_impact: 'Operators or staging environments may omit or misconfigure an undocumented runtime variable.',
             suggested_verification: `Inspect ${ja.file}:L${env.line} and deploy/*.env.example.`,
-            proposed_remediation: 'Document the configuration key, default, validation, and secret classification in docs/engineering/contracts/configuration-keys.json and CONFIGURATION.md.',
-            false_positive_considerations: 'Test-only fault injection variables should be scoped to tests or explicitly marked test_only in configuration-keys.json.'
+            proposed_remediation:
+              'Document the configuration key, default, validation, and secret classification in docs/engineering/contracts/configuration-keys.json and CONFIGURATION.md.',
+            false_positive_considerations:
+              'Test-only fault injection variables should be scoped to tests or explicitly marked test_only in configuration-keys.json.'
           });
         }
       }
@@ -427,9 +453,11 @@ export function detectRepositoryDrift({
         source_commit: commitSha,
         affected_objects: files.map(f => `migrations/${f}`),
         evidence: `Multiple SQL migrations share numeric sequence prefix ${String(seq).padStart(3, '0')}: ${files.join(', ')}.`,
-        potential_impact: 'Lexical execution order across branches becomes ambiguous and risks schema conflict during cross-branch merges.',
+        potential_impact:
+          'Lexical execution order across branches becomes ambiguous and risks schema conflict during cross-branch merges.',
         suggested_verification: 'Inspect migrations/ directory across both active staging branches before merging.',
-        proposed_remediation: 'Renumber unapplied branch migration before merging into working/biteshark-vps (never rename already-applied staging migrations).',
+        proposed_remediation:
+          'Renumber unapplied branch migration before merging into working/biteshark-vps (never rename already-applied staging migrations).',
         false_positive_considerations: 'None.'
       });
     }
@@ -463,7 +491,7 @@ export function detectRepositoryDrift({
         dfs(v);
       } else if (inStack.has(v)) {
         const cycleSlice = stack.slice(stack.indexOf(v));
-        const minRot = [...cycleSlice].sort()[0];
+        const minRot = [...cycleSlice].sort(asciiCompare)[0];
         const rotIdx = cycleSlice.indexOf(minRot);
         const canonical = [...cycleSlice.slice(rotIdx), ...cycleSlice.slice(0, rotIdx), minRot].join(' -> ');
         if (!recordedCycles.has(canonical)) {
@@ -480,7 +508,8 @@ export function detectRepositoryDrift({
             potential_impact: 'Can cause Temporal Dead Zone ReferenceError during module initialization.',
             suggested_verification: 'Trace top-level initialization order across the cycle.',
             proposed_remediation: 'Extract shared constants/types into a leaf module in lib/.',
-            false_positive_considerations: 'Function-body-only references across cyclic ESM imports may run at runtime but remain fragile.'
+            false_positive_considerations:
+              'Function-body-only references across cyclic ESM imports may run at runtime but remain fragile.'
           });
         }
       }
@@ -488,7 +517,7 @@ export function detectRepositoryDrift({
     stack.pop();
     inStack.delete(u);
   }
-  for (const mod of [...adj.keys()].sort()) {
+  for (const mod of [...adj.keys()].sort(asciiCompare)) {
     if (!visited.has(mod)) dfs(mod);
   }
 
@@ -528,7 +557,7 @@ export function detectRepositoryDrift({
         source_commit: commitSha,
         affected_objects: [docFile, 'migrations/'],
         evidence: `${docFile} states migrations run 001 through ${m[1]}, whereas migrations/ currently contains 001 through ${maxMigStr}.`,
-        potential_impact: 'Operators or assistants reading top-level docs underestimate active schema tables (e.g., 022..026+).',
+        potential_impact: 'Operators or assistants reading top-level docs underestimate active schema tables.',
         suggested_verification: `Compare ${docFile} against migrations/ directory.`,
         proposed_remediation: `Refer to docs/engineering/MIGRATIONS.md or update range in ${docFile}.`,
         false_positive_considerations: 'None.'
@@ -553,7 +582,8 @@ export function detectRepositoryDrift({
         source_commit: commitSha,
         affected_objects: [r.handler_file, r.path],
         evidence: `Domain route ${r.path} (${r.handler_file}) has 0 detected callers in public/*.js or public/*.html.`,
-        potential_impact: 'Unused HTTP surface retained for REGISTERED_DOMAIN_ROUTE_COUNT === 30 invariant; do not delete without updating server/routes.js and healthz tests.',
+        potential_impact:
+          'Unused HTTP surface retained for REGISTERED_DOMAIN_ROUTE_COUNT === 30 invariant; do not delete without updating server/routes.js and healthz tests.',
         suggested_verification: `Search public/ and tests/ for "${r.path}".`,
         proposed_remediation: 'Retain while 30-route parity is enforced; document as unreferenced in API-CONTRACTS.md.',
         false_positive_considerations: 'External or operator CLI tools may call public catalog endpoints directly.'
@@ -561,6 +591,6 @@ export function detectRepositoryDrift({
     }
   }
 
-  rawFindings.sort((a, b) => a.finding_id.localeCompare(b.finding_id));
+  rawFindings.sort((a, b) => asciiCompare(a.finding_id, b.finding_id));
   return applyScopedSuppressions(rawFindings, suppressions);
 }

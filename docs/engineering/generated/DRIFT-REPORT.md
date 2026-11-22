@@ -1,21 +1,21 @@
-# Code Registry — Automated Baseline Drift & Discrepancy Report
+# Code Registry — Automated Drift & Discrepancy Report
 
 > [!NOTE]
 > **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via `npm run registry:docs` (`node tools/code-registry/cli.mjs generate-docs`).
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
-> - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
-> - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825`
-> - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
+> - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
+> - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
+> - **Source Analysis Digest**: `914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba`
+> - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
-- **Active Findings**: **13**
-- **Scoped Suppressions Applied**: **2** (configured in [suppressions.json](../../../tools/code-registry/suppressions.json))
+- **Active Findings**: **11** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*
+- **Scoped Intentional-Pattern Suppressions**: **2** *(configured in [suppressions.json](../../../tools/code-registry/suppressions.json))*
 - **Human-Curated Architectural & Cross-Branch Drift**: See [KNOWN-DRIFT.md](../KNOWN-DRIFT.md)
 
 > [!IMPORTANT]
-> **Zero-Deletion Invariant**: Suspected orphan or duplicate findings in this report are diagnostic evidence only. Never delete runtime routes, files, or helpers without explicit product authorization and cross-branch impact verification.
+> **Governance Separation**: Running `npm run registry:docs` updates this report for visibility without modifying `drift-baseline.json`. Any newly introduced high-confidence blocking finding fails `npm run registry:validate` until fixed in code or explicitly accepted with rationale via `npm run registry:accept-drift -- --finding <ID> --reason "..."`.
 
-## 1. Active Findings (13)
+## 1. Active Findings (11)
 
 ### `DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md`
 - **Category**: `BROKEN_DOC_LINK` | **Severity**: `high` | **Confidence**: `high` (`parsed_markdown`)
@@ -43,15 +43,6 @@
 - **Suggested Verification**: Check script order in public/index.html and callers of preselectedVisitVendorId.
 - **Proposed Remediation**: Preserve documented load order or migrate post-render hooks to explicit event/callback registration in future refactors.
 - **False-Positive Considerations**: Intentional post-render decorator wrappers (such as openDetail) are load-order-sensitive design patterns rather than accidental bugs.
-
-### `DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range`
-- **Category**: `DOC_CODE_MISMATCH` | **Severity**: `medium` | **Confidence**: `high` (`parsed_docs_vs_migrations`)
-- **Affected Objects**: `README.md`, `migrations/`
-- **Evidence**: README.md states migrations run 001 through 026, whereas migrations/ currently contains 001 through 028.
-- **Potential Impact**: Operators or assistants reading top-level docs underestimate active schema tables (e.g., 022..026+).
-- **Suggested Verification**: Compare README.md against migrations/ directory.
-- **Proposed Remediation**: Refer to docs/engineering/MIGRATIONS.md or update range in README.md.
-- **False-Positive Considerations**: None.
 
 ### `DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers`
 - **Category**: `DUPLICATE_HELPER_IMPLEMENTATION` | **Severity**: `low` | **Confidence**: `high` (`parsed_ast`)
@@ -95,15 +86,6 @@
 - **Evidence**: Domain route /api/catalog/featured (api/catalog/featured.js) has 0 detected callers in public/*.js or public/*.html.
 - **Potential Impact**: Unused HTTP surface retained for REGISTERED_DOMAIN_ROUTE_COUNT === 30 invariant; do not delete without updating server/routes.js and healthz tests.
 - **Suggested Verification**: Search public/ and tests/ for "/api/catalog/featured".
-- **Proposed Remediation**: Retain while 30-route parity is enforced; document as unreferenced in API-CONTRACTS.md.
-- **False-Positive Considerations**: External or operator CLI tools may call public catalog endpoints directly.
-
-### `DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/owner/bookings`
-- **Category**: `SUSPECTED_ORPHAN_ROUTE` | **Severity**: `low` | **Confidence**: `medium` (`parsed_ast_route_callers`)
-- **Affected Objects**: `api/owner/bookings.js`, `/api/owner/bookings`
-- **Evidence**: Domain route /api/owner/bookings (api/owner/bookings.js) has 0 detected callers in public/*.js or public/*.html.
-- **Potential Impact**: Unused HTTP surface retained for REGISTERED_DOMAIN_ROUTE_COUNT === 30 invariant; do not delete without updating server/routes.js and healthz tests.
-- **Suggested Verification**: Search public/ and tests/ for "/api/owner/bookings".
 - **Proposed Remediation**: Retain while 30-route parity is enforced; document as unreferenced in API-CONTRACTS.md.
 - **False-Positive Considerations**: External or operator CLI tools may call public catalog endpoints directly.
 

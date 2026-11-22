@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/change-impact.schema.json",
-  "title": "BiteShark Ref Comparison & Change-Impact Schema",
+  "title": "BiteShark Ref Comparison & Change-Impact Schema (v2)",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schema_version",
     "generator",
@@ -14,11 +15,13 @@
     "database",
     "feature_controls",
     "configuration",
+    "events_and_diagnostics",
+    "governance_changes",
     "relevant_tests",
     "documentation_requiring_review"
   ],
   "properties": {
-    "schema_version": { "const": "biteshark.change-impact.v1" },
+    "schema_version": { "const": "biteshark.change-impact.v2" },
     "generator": { "type": "object", "required": ["name", "version"] },
     "comparison": {
       "type": "object",
@@ -26,20 +29,62 @@
     },
     "compatibility_assessment": {
       "type": "object",
-      "required": ["classification", "breaking_evidence", "potentially_breaking_evidence", "behavioral_caveat"],
+      "required": [
+        "classification",
+        "breaking_evidence",
+        "potentially_breaking_evidence",
+        "unresolved_or_incomplete_reasons",
+        "behavioral_caveat"
+      ],
       "properties": {
         "classification": {
-          "enum": ["compatible", "potentially_breaking", "breaking", "unresolved"]
-        }
+          "enum": [
+            "breaking_change_detected",
+            "potentially_breaking_change",
+            "no_structural_break_detected_behavior_unverified",
+            "analysis_incomplete_or_unresolved"
+          ]
+        },
+        "breaking_evidence": { "type": "array", "items": { "type": "string" } },
+        "potentially_breaking_evidence": { "type": "array", "items": { "type": "string" } },
+        "unresolved_or_incomplete_reasons": { "type": "array", "items": { "type": "string" } },
+        "behavioral_caveat": { "type": "string", "minLength": 1 }
       }
     },
     "summary_counts": { "type": "object" },
-    "symbols": { "type": "object" },
-    "apis": { "type": "object" },
-    "database": { "type": "object" },
-    "feature_controls": { "type": "object" },
-    "configuration": { "type": "object" },
-    "relevant_tests": { "type": "array" },
-    "documentation_requiring_review": { "type": "array" }
+    "symbols": {
+      "type": "object",
+      "required": [
+        "added",
+        "signature_changed",
+        "body_changed",
+        "removed",
+        "renamed_or_moved_candidates",
+        "constants_changed",
+        "broken_consumer_links"
+      ]
+    },
+    "apis": { "type": "object", "required": ["added", "changed", "removed"] },
+    "database": {
+      "type": "object",
+      "required": [
+        "migrations_added",
+        "migrations_removed",
+        "migrations_checksum_changed",
+        "migrations_requiring_manual_review",
+        "tables_added",
+        "tables_removed",
+        "tables_changed"
+      ]
+    },
+    "feature_controls": { "type": "object", "required": ["added", "removed", "changed"] },
+    "configuration": { "type": "object", "required": ["added", "removed"] },
+    "events_and_diagnostics": { "type": "object" },
+    "governance_changes": {
+      "type": "object",
+      "required": ["changed", "added_baseline_ids", "removed_baseline_ids", "added_suppressions", "removed_suppressions"]
+    },
+    "relevant_tests": { "type": "array", "items": { "type": "string" } },
+    "documentation_requiring_review": { "type": "array", "items": { "type": "string" } }
   }
 }

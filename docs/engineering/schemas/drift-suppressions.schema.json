@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/drift-suppressions.schema.json",
+  "title": "BiteShark Intentional-Pattern Drift Suppressions Schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "description", "suppressions"],
+  "properties": {
+    "schema_version": { "const": "biteshark.drift-suppressions.v1" },
+    "description": { "type": "string", "minLength": 10 },
+    "suppressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "reason"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SUPP-[A-Z0-9-]+$" },
+          "finding_id": { "type": "string", "pattern": "^DRIFT:" },
+          "category": { "type": "string", "minLength": 1 },
+          "target": { "type": "string", "minLength": 1 },
+          "scope_prefix": { "type": "string", "minLength": 1 },
+          "reason": { "type": "string", "minLength": 12 },
+          "reference": { "type": "string" }
+        }
+      }
+    }
+  }
+}

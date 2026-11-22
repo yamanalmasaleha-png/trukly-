@@ -1,5 +1,7 @@
 # Domain Map — Customer & Vendor Support Tickets (`BS-001001`+)
 
+- **Shared Contract**: [`CTR-SUPPORT-TICKETS`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
+
 ## 1. Current Behavior
 Provides an always-reachable Help, Privacy & Issue Reporting workflow (`#supportIssuesModal` in `public/role-experience.js`, `/api/issues*`) with sequential human ticket numbers (`BS-001001`+), reporter/staff reply threads, unread-activity badges, SLA tracking, optional correlation-ID linking to `diagnostic_incident_groups`, and optional transactional email notifications (`lib/standalone-auth.js`).
 
@@ -14,5 +16,5 @@ Provides an always-reachable Help, Privacy & Issue Reporting workflow (`#support
 ## 4. Permissions, Flags & Tests
 - **Permissions & Flags**: **Protected essential capability** (`policy_accessibility_and_privacy_support` — never disabled by Feature Controls, and **exempt from the 14+ age-assessment lockout** via `isGovernanceRouteExemptFromAgeGate` so locked-out or privacy-requesting users can always reach staff!). Internal staff notes (`internal_staff`) and unconfirmed diagnostic links are strictly stripped at both SQL RLS and `serializeSupportTicketForReporter` layers.
 - **Tests**: `tests/support-feedback.integration.cjs`, `tests/support-feedback-browser.e2e.cjs`, `tests/urgent-pilot-security.integration.cjs`.
-- **Known Inconsistencies**: Sign-out cleanup in `public/role-experience.js:1060,1069` references stale `#supportModal` and `#siDesc` instead of `#supportIssuesModal` and `#siDescription` (`KD-002`).
+- **Branch Status**: `KD-002` sign-out modal cleanup IDs (`#supportIssuesModal`, `#siDescription`) are resolved on `working/biteshark-vps` (still pending merge into `staging2` branches).
 - **Safe Extension Points**: Preserve `app.support_user_update = 'true'` GUC discipline whenever adding reporter-initiated mutations on `support_issues`.

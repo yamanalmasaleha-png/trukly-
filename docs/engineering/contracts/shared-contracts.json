@@ -1,0 +1,677 @@
+{
+  "schema_version": "biteshark.shared-contracts.v1",
+  "description": "Single maintained specification for BiteShark's highest-value shared backend/frontend/deployment contracts. Validated against live source symbols, HTTP routes, database tables, feature controls, and test files by `npm run registry:validate`.",
+  "contracts": [
+    {
+      "contract_id": "CTR-DB-TX-SESSION",
+      "title": "Pinned PostgreSQL Transaction, Session Row-Locking & Local GUC Context",
+      "domain": "backend-foundation",
+      "shape_evidence_basis": "declared_exports_and_runtime_guards",
+      "purpose": "Pins a single pg.Client connection per transaction, enforces deterministic FOR SHARE locking on auth_users -> auth_sessions when governance session verification is active, scopes SET LOCAL app.* RLS GUCs, and clears verification state on commit/rollback.",
+      "implementation_symbols": [
+        "lib/db-tx.js#withTransaction",
+        "lib/db-tx.js#verifySessionAndEligibilityInTx",
+        "lib/db-tx.js#respondIfSessionEligibilityError",
+        "packages/runtime-adapter/index.js"
+      ],
+      "http_routes": [],
+      "db_tables": ["auth_users", "auth_sessions"],
+      "feature_controls": [],
+      "inputs_and_validation": "(dbAdapter, async fn(tx)) — acquires dedicated client via db.connect(), starts BEGIN, and if governance context sets requireEligibleSessionInTx, verifies active non-disabled 14+-eligible user and non-revoked session before executing fn(tx).",
+      "outputs": "Promise resolving to the return value of fn(tx) after COMMIT (inferred per caller; plain JS).",
+      "errors": "Throws SessionEligibilityError (401 SESSION_REVOKED / ACCOUNT_DISABLED or 403 AGE_ASSESSMENT_REQUIRED) after ROLLBACK when session/account state changed mid-flight; rethrows domain or pg errors after ROLLBACK.",
+      "side_effects": "Executes BEGIN/COMMIT/ROLLBACK on a dedicated pg.Client; scopes all SET LOCAL / set_config(..., true) GUC mutations strictly to the transaction.",
+      "permissions_and_ownership": "Mandatory foundation for all FORCE ROW LEVEL SECURITY mutations and live RBAC re-verification.",
+      "idempotency_and_concurrency": "Prevents deadlocks by acquiring FOR SHARE locks in canonical order (auth_users before auth_sessions, before platform_roles / vendor_memberships / domain rows).",
+      "known_consumers": [
+        "server/admin-routes.js",
+        "lib/customer-exploration.js",
+        "api/bookings/create.js",
+        "api/owner/profile.js",
+        "api/pager/staff.js"
+      ],
+      "compatibility_expectations": "Signature withTransaction(db, fn) and SessionEligibilityError properties (.status, .code) are stable cross-cutting invariants.",
+      "known_limitations": "Read-only public catalog queries that do not set app.* GUCs may use pooled db.query directly; never call set_config(..., false) on an unpinned pool query.",
+      "test_mappings": [
+        {
+          "file": "tests/backend-hardening.integration.cjs",
+          "protected_assertions": ["authentication", "ownership_rls", "concurrency_locking"]
+        },
+        {
+          "file": "tests/urgent-pilot-security.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "concurrency_locking"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-AUTH-SESSION-OTP",
+      "title": "Standalone Email OTP Sign-In, HttpOnly Session Cookie & CSRF Origin Verification",
+      "domain": "auth-and-email",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Manages passwordless 6-digit email OTP challenges (HMAC-SHA256), Resend HTTPS delivery, sliding HttpOnly session cookies (bs_session / __Host-bs_session), same-origin mutation CSRF checks, and sign-out cleanup.",
+      "implementation_symbols": [
+        "lib/standalone-auth.js#startEmailOtpChallenge",
+        "lib/standalone-auth.js#verifyEmailOtpChallenge",
+        "lib/standalone-auth.js#resolveSessionFromRequest",
+        "lib/standalone-auth.js#revokeSessionFromRequest",
+        "lib/standalone-auth.js#verifySameOriginMutationRequest",
+        "public/auth-client.js"
+      ],
+      "http_routes": [
+        "/api/auth/start",
+        "/api/auth/verify",
+        "/api/auth/session",
+        "/api/auth/logout",
+        "/api/auth/staging-mailbox",
+        "/api/admin/email-readiness"
+      ],
+      "db_tables": [
+        "auth_users",
+        "auth_otp_challenges",
+        "auth_sessions",
+        "auth_rate_limits",
+        "auth_delivery_telemetry"
+      ],
+      "feature_controls": [],
+      "inputs_and_validation": "POST /api/auth/start validates normalized email, X-BiteShark-Auth-Client header, rate limits, staging recipient allowlist (when staging), and 14+ DOB on new-account signup without persisting raw DOB. POST /api/auth/verify validates 6-digit OTP and challenge attempt cap.",
+      "outputs": "Validated JSON envelopes ({ ok, status, delivery_mode } on start; { ok, authenticated, user, requires_age_assessment } on verify/session) plus Set-Cookie headers.",
+      "errors": "400 validation errors, 403 CSRF_ORIGIN_DENIED / UNDER_MINIMUM_AGE / STAGING_RECIPIENT_RESTRICTED, 429 rate-limit responses with Retry-After, 503 delivery unavailability.",
+      "side_effects": "Writes hashed OTP/session rows, records redacted auth_delivery_telemetry, dispatches Resend HTTPS email when BITESHARK_AUTH_DELIVERY_MODE=resend, and clears client-scoped caches on sign-out via biteshark:auth-signed-out.",
+      "permissions_and_ownership": "Session cookies are HttpOnly, SameSite=Lax, Secure on HTTPS; /api/auth/staging-mailbox requires loopback/flag + operator mailbox secret; /api/admin/email-readiness is Admin: Top only.",
+      "idempotency_and_concurrency": "OTP consumption locks challenge row FOR UPDATE so a code can succeed at most once; logout revokes server session idempotently.",
+      "known_consumers": [
+        "server/app.js",
+        "public/login.html",
+        "public/auth-client.js",
+        "public/app.js",
+        "public/role-experience.js"
+      ],
+      "compatibility_expectations": "Cookie names, CSRF header/Origin semantics, and /api/auth/session user projection are shared across /, /login.html, and /admin.",
+      "known_limitations": "Staging Resend mode intentionally restricts recipients to allowlisted emails/domains unless existing eligible staff/vendor account.",
+      "test_mappings": [
+        {
+          "file": "tests/standalone-runtime-auth.integration.cjs",
+          "protected_assertions": ["authentication", "input_validation", "response_shape", "concurrency_locking"]
+        },
+        {
+          "file": "tests/auth-email-delivery.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "input_validation", "response_shape"]
+        },
+        {
+          "file": "tests/urgent-pilot-security-browser.e2e.cjs",
+          "protected_assertions": ["authentication", "ownership_rls"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-AGE-ELIGIBILITY",
+      "title": "Minimum Account Age (14+ Pacific Civil Date) & Pending-Assessment Allowlist",
+      "domain": "legal-and-readiness",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Evaluates 14+ minimum account age in America/Los_Angeles civil calendar dates (with Feb 29 -> Mar 1 non-leap birthday rule), stores zero raw DOB fields, and blocks unassessed accounts outside the narrow governance allowlist.",
+      "implementation_symbols": [
+        "lib/age-policy.js#evaluateMinimumAgeEligibility",
+        "lib/age-policy.js#parseAndValidateDobInput",
+        "lib/age-policy.js#isGovernanceRouteExemptFromAgeGate",
+        "lib/standalone-auth.js#submitExistingAccountAgeAssessment"
+      ],
+      "http_routes": [
+        "/api/auth/age-assessment",
+        "/api/account/context"
+      ],
+      "db_tables": ["auth_users"],
+      "feature_controls": [],
+      "inputs_and_validation": "Accepts { dob: 'YYYY-MM-DD' } or { dob_year, dob_month, dob_day }; validates real Gregorian date >= 1900 and not in the future in America/Los_Angeles.",
+      "outputs": "Derived eligibility status ('eligible_14_plus' or 'ineligible_under_14') and AGE_POLICY_VERSION without echoing DOB.",
+      "errors": "403 AGE_ASSESSMENT_REQUIRED on gated endpoints while not_assessed; 403 UNDER_MINIMUM_AGE (disabling existing account and revoking sessions + setting cooldown cookie) when < 14.",
+      "side_effects": "Persists only age_eligibility_status, age_assessed_at, and age_policy_version on auth_users; never logs or stores raw DOB.",
+      "permissions_and_ownership": "Enforced centrally in server/app.js and inside withTransaction(verifySessionAndEligibilityInTx).",
+      "idempotency_and_concurrency": "Already-eligible accounts bypass reassessment; under-14 submission atomically disables account and revokes all active sessions.",
+      "known_consumers": [
+        "server/app.js",
+        "lib/standalone-auth.js",
+        "lib/db-tx.js",
+        "public/login.html"
+      ],
+      "compatibility_expectations": "EXEMPT_GOVERNANCE_METHODS_BY_PATH must remain minimal (auth bootstrap, public stories/trails/features, invitation preview, and privacy/accessibility/account-access support tickets).",
+      "known_limitations": "Proposed 14+ policy is marked pending formal legal counsel sign-off in compliance_readiness_items.",
+      "test_mappings": [
+        {
+          "file": "tests/legal-readiness.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "input_validation", "response_shape"]
+        },
+        {
+          "file": "tests/legal-readiness-browser.e2e.cjs",
+          "protected_assertions": ["authentication", "input_validation"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-AUTHZ-RBAC-VENDOR",
+      "title": "Five-Role RBAC, Row-Locked Tx Re-Verification, Act-on-Behalf & Audit Logging",
+      "domain": "vendor-onboarding-and-admin",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Enforces Customer, Vendor Staff, Vendor Owner, Admin: Mod, and Admin: Top permissions, live row-locked re-verification inside transactions, Top-only Act-on-Behalf support reasons, and redacted audit_logs entries.",
+      "implementation_symbols": [
+        "lib/authz.js#loadAccessContext",
+        "lib/authz.js#authorizeVendorTarget",
+        "lib/authz.js#authorizeVendorScope",
+        "lib/authz.js#reverifyVendorMembershipInTx",
+        "lib/authz.js#reverifyModeratorInTx",
+        "lib/authz.js#reverifyPlatformAdminInTx",
+        "lib/authz.js#recordAuditLog"
+      ],
+      "http_routes": [
+        "/api/account/context",
+        "/api/vendor/members",
+        "/api/vendor/staff-invitations",
+        "/api/admin/accounts",
+        "/api/admin/accounts/role",
+        "/api/admin/accounts/status",
+        "/api/admin/vendors/update"
+      ],
+      "db_tables": [
+        "platform_roles",
+        "vendor_memberships",
+        "vendors",
+        "account_invitations",
+        "audit_logs"
+      ],
+      "feature_controls": ["vendor_onboarding"],
+      "inputs_and_validation": "reverify*InTx locks auth_users / platform_roles / vendor_memberships FOR SHARE (and vendors FOR NO KEY UPDATE when required); Act-on-Behalf requires X-BiteShark-Act-On-Behalf + 8-240 char X-BiteShark-Support-Reason from Admin: Top.",
+      "outputs": "Structured { ok, actorRole, vendorId } or { ok: false, status, code, error } decision objects.",
+      "errors": "401 unauthenticated/revoked, 403 TOP_ADMIN_REQUIRED / ACT_ON_BEHALF_FORBIDDEN / SELF_ROLE_CHANGE_FORBIDDEN / LAST_TOP_ADMIN_REQUIRED / vendor restriction errors.",
+      "side_effects": "Appends immutable audit_logs rows (REVOKE UPDATE, DELETE enforced on runtime app role).",
+      "permissions_and_ownership": "Admin: Mod can triage/recommend but cannot grant roles, approve vendor onboarding finalization, or mutate feature controls; last eligible Admin: Top cannot be removed or suspended.",
+      "idempotency_and_concurrency": "Uses pg_advisory_xact_lock('biteshark_platform_roles_mutation') and row locks to prevent concurrent last-Top removal races.",
+      "known_consumers": [
+        "server/admin-routes.js",
+        "api/owner/profile.js",
+        "api/owner/location.js",
+        "api/owner/schedule.js",
+        "api/owner/requests.js",
+        "api/pager/staff.js",
+        "api/pager/update.js",
+        "api/community/moderate.js"
+      ],
+      "compatibility_expectations": "Role labels ('Admin: Top', 'Admin: Mod', 'Vendor Owner', 'Vendor Staff', 'Customer') and audit_logs immutability must be preserved.",
+      "known_limitations": "api/favorites/toggle.js currently passes 'favorites' to isWritePaused (tracked in KNOWN-DRIFT.md).",
+      "test_mappings": [
+        {
+          "file": "tests/admin-governance.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "ownership_rls", "concurrency_locking"]
+        },
+        {
+          "file": "tests/invitation-workflow.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "idempotency", "input_validation"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-FEATURE-CONTROLS",
+      "title": "Runtime Feature Controls DAG, HTTP Route Gate & Browser Sync",
+      "domain": "feature-controls",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Governs runtime feature availability (enabled, paused, hidden) and audience (all, staff_beta) with cycle-free parent-child dependency propagation, optimistic revision concurrency, CLI break-glass recovery, and Cross-Tab BroadcastChannel sync.",
+      "implementation_symbols": [
+        "lib/feature-controls.js#evaluateFeatureControlsSnapshot",
+        "lib/feature-controls.js#enforceHttpFeatureGate",
+        "lib/feature-controls.js#updateFeatureControlInTx",
+        "public/role-experience.js#isFeatureAvailable",
+        "public/role-experience.js#isFeatureHidden"
+      ],
+      "http_routes": [
+        "/api/features",
+        "/api/admin/features",
+        "/api/admin/features/update"
+      ],
+      "db_tables": ["feature_controls", "feature_control_history"],
+      "feature_controls": [
+        "event_inquiries",
+        "community_hub",
+        "community_submissions",
+        "local_guides_passport",
+        "editorial_stories",
+        "visit_journal",
+        "private_photos",
+        "exploration_badges",
+        "weekly_challenges",
+        "suggested_trails"
+      ],
+      "inputs_and_validation": "POST /api/admin/features/update requires Admin: Top, expected_revision (non-negative integer), valid allowed_states / allowed_audiences, 4-500 char reason, and confirm_interrupt=true on high-impact interrupts.",
+      "outputs": "GET /api/features returns caller-safe effective states { ok: true, features } with zero internal reasons/actors; /api/admin/features adds revision, dependency graph, env overrides, and history.",
+      "errors": "503 FEATURE_PAUSED (when paused on mutation routes), 403 FEATURE_DISABLED (when hidden), 409 REVISION_CONFLICT on stale expected_revision, 503 fail-closed on corrupted persisted rows.",
+      "side_effects": "Updates feature_controls, appends feature_control_history + audit_logs, and broadcasts biteshark_feature_controls_v1 across open browser tabs.",
+      "permissions_and_ownership": "Public caller projection on GET /api/features; Admin: Mod or Top read on GET /api/admin/features; Admin: Top only on POST /api/admin/features/update (blocked during Viewpoint Preview).",
+      "idempotency_and_concurrency": "Optimistic concurrency via expected_revision + FOR UPDATE row lock; 0ms server-side cache ensures immediate enforcement across workers.",
+      "known_consumers": [
+        "server/app.js",
+        "server/admin-routes.js",
+        "server/customer-exploration-routes.js",
+        "scripts/feature-controls-cli.cjs",
+        "public/role-experience.js",
+        "public/admin.js"
+      ],
+      "compatibility_expectations": "Disabling or hiding a feature never deletes underlying customer or vendor rows; self-service account export and deletion endpoints remain exempt.",
+      "known_limitations": "Client UI checks via window.bitesharkFeatures are presentation-only; server routes must also register in ROUTE_FEATURE_ENFORCEMENT_RULES.",
+      "test_mappings": [
+        {
+          "file": "tests/feature-controls.integration.cjs",
+          "protected_assertions": ["role_restrictions", "feature_disabled", "concurrency_locking", "response_shape"]
+        },
+        {
+          "file": "tests/feature-controls-browser.e2e.cjs",
+          "protected_assertions": ["feature_disabled", "role_restrictions"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-DIAGNOSTICS-PIPELINE",
+      "title": "Redacted Operational Diagnostics, Incident Fingerprinting & Bounded Client Fetch",
+      "domain": "diagnostics",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Captures server, worker, and rate-limited untrusted client operational failures with strict PII/token redaction, release SHA attribution, incident-group deduplication, and bounded client fetch timeouts.",
+      "implementation_symbols": [
+        "lib/diagnostics.js#recordDiagnosticEvent",
+        "lib/diagnostics.js#computeIncidentFingerprint",
+        "lib/diagnostics.js#cleanupExpiredDiagnostics",
+        "public/diagnostics-client.js#fetchJsonBounded",
+        "public/diagnostics-client.js#reportClientDiagnostic"
+      ],
+      "http_routes": [
+        "/api/diagnostics/report",
+        "/api/admin/diagnostics",
+        "/api/admin/diagnostics/detail",
+        "/api/admin/diagnostics/triage",
+        "/api/admin/diagnostics/note",
+        "/api/admin/diagnostics/synthetic-test",
+        "/api/admin/diagnostics/cleanup"
+      ],
+      "db_tables": [
+        "diagnostic_event_samples",
+        "diagnostic_incident_groups",
+        "diagnostic_incident_notes",
+        "diagnostic_releases",
+        "worker_runtime_heartbeats"
+      ],
+      "feature_controls": [],
+      "inputs_and_validation": "Validates ALLOWED_FEATURE_KEYS, ALLOWED_SEVERITIES, ALLOWED_OUTCOMES, and SAFE_CONTEXT_KEYS; strips emails, phone numbers, bearer tokens, query strings, and file paths.",
+      "outputs": "Correlation ID (corr_<hex>) in X-Correlation-Id and error envelopes; grouped incidents with release relationship in /api/admin/diagnostics*.",
+      "errors": "POST /api/diagnostics/report is non-recursive and rate-limited (429 when exceeded) and never resolves or refreshes session cookies.",
+      "side_effects": "Upserts diagnostic_incident_groups and inserts diagnostic_events using isolated error-absorbing DB connection.",
+      "permissions_and_ownership": "Admin: Mod sees non-Top feature keys with coarse actor state; Admin: Top sees full redacted incident groups and executes triage/synthetic-test/cleanup.",
+      "idempotency_and_concurrency": "fetchJsonBounded marks timed-out mutating requests as uncertainWrite=true so callers do not blindly auto-retry non-idempotent writes.",
+      "known_consumers": [
+        "server/app.js",
+        "server/admin-routes.js",
+        "server/customer-exploration-routes.js",
+        "public/diagnostics-client.js",
+        "public/exploration-client.js",
+        "public/admin.js"
+      ],
+      "compatibility_expectations": "Every new feature domain must register its diagnostic featureKey in ALLOWED_FEATURE_KEYS in lib/diagnostics.js.",
+      "known_limitations": "Intentional 503 maintenance/paused responses are excluded from server error incident creation to prevent false alert storms.",
+      "test_mappings": [
+        {
+          "file": "tests/diagnostics-and-reliability.integration.cjs",
+          "protected_assertions": ["role_restrictions", "input_validation", "response_shape"]
+        },
+        {
+          "file": "tests/reliability-accessibility-browser.e2e.cjs",
+          "protected_assertions": ["response_shape", "input_validation"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-DISCOVERY-CATALOG",
+      "title": "Unified Sonoma Discovery Catalog, Pacific Live/Schedule Precedence & Card Rendering",
+      "domain": "discovery-catalog",
+      "shape_evidence_basis": "declared_exports_and_runtime_guards",
+      "purpose": "Merges PostgreSQL vendors, owner_profiles, truck_settings, and owner_schedule with curated Sonoma baseline metadata, evaluates Pacific Time live/scheduled windows, serves ETag-cached /api/trucks*, and renders compact horizontal cards.",
+      "implementation_symbols": [
+        "lib/discovery.js#loadDiscoveryCatalog",
+        "lib/discovery.js#isVendorPubliclyDiscoverable",
+        "lib/discovery.js#evaluateSchedulePrecedence",
+        "public/app.js#cardHTML"
+      ],
+      "http_routes": [
+        "/api/trucks",
+        "/api/trucks/:id",
+        "/api/trucks/nearby",
+        "/api/trucks/search",
+        "/api/trucks/availability"
+      ],
+      "db_tables": ["vendors", "owner_profiles", "truck_settings", "owner_schedule"],
+      "feature_controls": ["event_inquiries"],
+      "inputs_and_validation": "Filters out inactive, hidden_from_discovery, or active temp-restricted vendors via isVendorPubliclyDiscoverable; enforces photo_rights_basis ('owner_confirmed' | 'admin_verified') before emitting external photo URLs.",
+      "outputs": "GET /api/trucks returns { trucks, directoryPlaces, meta, evaluatedCatalogVersion } with public Cache-Control + ETag.",
+      "errors": "404 on unknown/hidden truck ID; 403/503 on /api/trucks/availability when event_inquiries is hidden.",
+      "side_effects": "Read-only public catalog queries; never reads session cookies or emits Set-Cookie on /api/trucks.",
+      "permissions_and_ownership": "Public read for discoverable listings; self-elevation fields (verified, photo_rights_basis) are blocked on vendor profile writes via findForbiddenSelfElevationField.",
+      "idempotency_and_concurrency": "Deterministic Pacific Time window evaluation and ETag computation.",
+      "known_consumers": [
+        "api/trucks.js",
+        "public/app.js",
+        "public/listing-highlights.js",
+        "public/smart.js",
+        "lib/customer-exploration.js"
+      ],
+      "compatibility_expectations": "Card media slot and badge rules are owned by public/app.js#cardHTML and public/color-calm.css without unverified external food photos.",
+      "known_limitations": "Legacy /api/catalog/* and /api/schedule/today endpoints have zero public/ callers but are retained for 30-route parity.",
+      "test_mappings": [
+        {
+          "file": "tests/p1-unified-discovery.integration.cjs",
+          "protected_assertions": ["role_restrictions", "input_validation", "response_shape"]
+        },
+        {
+          "file": "tests/listing-verification.cjs",
+          "protected_assertions": ["response_shape", "input_validation"]
+        },
+        {
+          "file": "tests/discovery-cards-ux-browser.e2e.cjs",
+          "protected_assertions": ["response_shape"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-CUSTOMER-EXPLORATION",
+      "title": "Account-Backed Customer Exploration: Stories, Visit Journal, Badges, Challenges, Trails & Legacy Import",
+      "domain": "visits-and-passport",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Provides public sourced editorial stories and suggested trails alongside strictly account-backed (FORCE ROW LEVEL SECURITY) customer visit check-ins, derived points/levels/badges, Monday-Sunday Pacific weekly challenges, saved itineraries, one-time legacy device import, and self-service privacy export/deletion.",
+      "implementation_symbols": [
+        "lib/customer-exploration.js#getExplorationSummary",
+        "lib/customer-exploration.js#logUserVisit",
+        "lib/customer-exploration.js#buildSuggestedTrail",
+        "lib/customer-exploration.js#saveUserTrail",
+        "lib/customer-exploration.js#importLegacyDeviceVisits",
+        "lib/customer-exploration.js#exportUserExplorationData",
+        "lib/editorial-stories.js#buildPublicStoriesPayload",
+        "server/customer-exploration-routes.js#handleCustomerExplorationRoute",
+        "public/exploration-client.js#getSummary",
+        "public/exploration-client.js#importLegacyDeviceData"
+      ],
+      "http_routes": [
+        "/api/stories",
+        "/api/trails/suggest",
+        "/api/me/exploration",
+        "/api/me/exploration/import",
+        "/api/me/exploration/export",
+        "/api/me/visits",
+        "/api/me/visits/delete",
+        "/api/me/trails",
+        "/api/me/trails/delete"
+      ],
+      "db_tables": [
+        "customer_visits",
+        "customer_photos",
+        "customer_saved_trails",
+        "customer_saved_trail_stops",
+        "vendors"
+      ],
+      "feature_controls": [
+        "local_guides_passport",
+        "editorial_stories",
+        "visit_journal",
+        "private_photos",
+        "exploration_badges",
+        "weekly_challenges",
+        "suggested_trails"
+      ],
+      "inputs_and_validation": "Never accepts client user_id; binds verifiedUser.id + setUserRlsContextInTx(app.user_id). Validates discoverable vendor_id on new visits, max 1 visit per (user_id, vendor_id, visited_on_pacific) calendar day, 280-char sanitized private_note, 2-4 deduplicated trail stops, and optional idempotency_key.",
+      "outputs": "Structured { ok: true, ... } payloads with Pacific week bounds, derived achievements (5 badge definitions, non-monetary points/levels), saved trail stop progress, and complete JSON export.",
+      "errors": "401 AUTH_REQUIRED on anonymous /api/me/*, 409 VISIT_ALREADY_LOGGED_TODAY (with existing_visit), 400 INVALID_VENDOR_ID / TRAIL_STOPS_INVALID, 503 FEATURE_PAUSED, 403 FEATURE_DISABLED.",
+      "side_effects": "Persists RLS-isolated rows in PostgreSQL; client clears memory cache on account switch/sign-out and prunes legacy localStorage/IndexedDB entries ONLY after confirmed per-item server persistence.",
+      "permissions_and_ownership": "GET /api/stories and GET /api/trails/suggest are public; all /api/me/* routes require 14+-eligible authenticated session and owner-only RLS; /api/me/exploration/export and /api/me/*/delete remain available even when features are paused/hidden.",
+      "idempotency_and_concurrency": "Unique indexes on (user_id, idempotency_key) and (user_id, vendor_id, visited_on_pacific) prevent duplicate visits or duplicate saved trails under retry/double-submit.",
+      "known_consumers": [
+        "public/exploration-client.js",
+        "public/local-guides.js",
+        "public/guide-passport.js",
+        "public/smart.js",
+        "public/street-whispers.js",
+        "public/app.js",
+        "public/role-experience.js"
+      ],
+      "compatibility_expectations": "Points, levels, badges, and weekly challenges must remain derived projections over customer_visits and customer_photos so disabling presentation never corrupts underlying records.",
+      "known_limitations": "Visits are explicitly labeled self-reported check-ins (no background GPS tracking).",
+      "test_mappings": [
+        {
+          "file": "tests/customer-exploration.integration.cjs",
+          "protected_assertions": [
+            "authentication",
+            "ownership_rls",
+            "input_validation",
+            "response_shape",
+            "feature_disabled",
+            "idempotency"
+          ]
+        },
+        {
+          "file": "tests/customer-exploration-browser.e2e.cjs",
+          "protected_assertions": [
+            "authentication",
+            "ownership_rls",
+            "feature_disabled",
+            "response_shape"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-PRIVATE-PHOTO-STORAGE",
+      "title": "Private Confined Photo Derivatives, EXIF Stripping & Orphan Reconciliation",
+      "domain": "photos",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Validates uploaded JPEG/PNG/WebP magic bytes (<= 5 MB, <= 24 MP), re-encodes display and thumb WebP derivatives via sharp to strip EXIF/GPS metadata, stores files outside public/ under BITESHARK_PHOTO_STORAGE_DIR, serves owner-authenticated downloads with nosniff/no-store headers, and reconciles orphan files/rows.",
+      "implementation_symbols": [
+        "lib/photo-storage.js#verifyAndNormalizeUploadedPhoto",
+        "lib/photo-storage.js#writePhotoDerivativesAtomically",
+        "lib/photo-storage.js#readPhotoDerivativeSafely",
+        "lib/photo-storage.js#deletePhotoFilesSafely",
+        "lib/customer-exploration.js#createUserPhoto",
+        "lib/customer-exploration.js#readUserPhotoFile",
+        "lib/customer-exploration.js#deleteUserPhoto",
+        "lib/customer-exploration.js#reconcilePhotoStorage"
+      ],
+      "http_routes": [
+        "/api/me/photos",
+        "/api/me/photos/file",
+        "/api/me/photos/delete"
+      ],
+      "db_tables": ["customer_photos"],
+      "feature_controls": ["private_photos"],
+      "inputs_and_validation": "Rejects SVG/GIF/HTML, MIME/magic-byte mismatches, > 5 MiB raw bytes, > 8000px per side or > 24 MP, path traversal, symlinks outside realpath root, and insufficient free disk space (BITESHARK_PHOTO_MIN_FREE_BYTES).",
+      "outputs": "Metadata DTOs on /api/me/photos (never exposing host filesystem paths) and binary image/webp stream on GET /api/me/photos/file with Cache-Control: private, no-store, Content-Security-Policy: sandbox, and X-Content-Type-Options: nosniff.",
+      "errors": "400 UNSUPPORTED_PHOTO_FORMAT / PHOTO_MIME_MISMATCH / CORRUPT_PHOTO_DATA, 413 PHOTO_TOO_LARGE, 404 PHOTO_NOT_FOUND (for non-owners or deleted photos), 507 PHOTO_STORAGE_LOW_SPACE.",
+      "side_effects": "Writes 0600 files inside 0700 user shard directories under BITESHARK_PHOTO_STORAGE_DIR; cleans up newly written files if DB commit fails; reconcilePhotoStorage purges orphan files beyond grace window and marks missing-file rows storage_missing.",
+      "permissions_and_ownership": "Strictly private to uploading user (visibility = 'private' CHECK constraint + FORCE ROW LEVEL SECURITY); never served as public static files.",
+      "idempotency_and_concurrency": "Deduplicates retries by (user_id, idempotency_key) before writing duplicate derivatives.",
+      "known_consumers": [
+        "server/customer-exploration-routes.js",
+        "scripts/reconcile-photo-storage.cjs",
+        "public/exploration-client.js",
+        "public/guide-passport.js"
+      ],
+      "compatibility_expectations": "Deployment releases must never place BITESHARK_PHOTO_STORAGE_DIR inside ephemeral release directories (/srv/*/releases/*) or public/.",
+      "known_limitations": "Public/community photo sharing is intentionally unsupported in this contract.",
+      "test_mappings": [
+        {
+          "file": "tests/customer-exploration.integration.cjs",
+          "protected_assertions": [
+            "authentication",
+            "ownership_rls",
+            "input_validation",
+            "feature_disabled",
+            "idempotency",
+            "rollback_and_recovery"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-SUPPORT-TICKETS",
+      "title": "Support & Feedback Tickets, Sharing Scope & Connected Incident Links",
+      "domain": "support-and-feedback",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Manages human-readable BS-001xxx support/feedback tickets, personal vs vendor_service sharing scopes, reporter/staff notes, append-only timeline events, and many-to-many diagnostic_incident_groups links.",
+      "implementation_symbols": [
+        "lib/support-tickets.js#serializeSupportTicketForReporter",
+        "lib/support-tickets.js#validateStaffStatusTransition",
+        "lib/support-tickets.js#autoSuggestDiagnosticLinksInTx",
+        "server/admin-routes.js#handleGovernanceApiRequest"
+      ],
+      "http_routes": [
+        "/api/issues",
+        "/api/issues/reply",
+        "/api/issues/reopen",
+        "/api/issues/read",
+        "/api/admin/issues",
+        "/api/admin/issues/update",
+        "/api/admin/issues/diagnostics",
+        "/api/admin/diagnostics/notify-tickets"
+      ],
+      "db_tables": [
+        "support_issues",
+        "support_issue_notes",
+        "support_issue_events",
+        "support_issue_diagnostic_links",
+        "support_issue_notifications"
+      ],
+      "feature_controls": [],
+      "inputs_and_validation": "Validates category, reporter_urgency, sharing_scope (forbidding vendor_service on customer or account_access tickets), sanitized correlation/release context, and idempotency_key.",
+      "outputs": "Reporter-redacted ticket timelines on /api/issues* (never exposing internal staff notes or raw incident internals); full triage view on /api/admin/issues*.",
+      "errors": "401 unauthenticated, 403 unauthorized ticket/vendor scope, 400 invalid state transition or missing resolution note.",
+      "side_effects": "Appends support_issue_events (REVOKE UPDATE, DELETE), links incidents, and dispatches bounded Resend notifications when configured.",
+      "permissions_and_ownership": "Unassessed accounts may use /api/issues* ONLY for privacy, accessibility, or account_access categories; internal notes and suggested diagnostic links are hidden from reporters.",
+      "idempotency_and_concurrency": "Deduplicates ticket and reply submissions by idempotency_key and locks support_issues FOR UPDATE on status/assignment transitions.",
+      "known_consumers": [
+        "public/role-experience.js",
+        "public/admin.js",
+        "public/diagnostics-client.js"
+      ],
+      "compatibility_expectations": "Internal triage metadata must never leak into serializeSupportTicketForReporter.",
+      "known_limitations": "Email notifications degrade gracefully to in-app unread badges when email delivery is disabled.",
+      "test_mappings": [
+        {
+          "file": "tests/support-feedback.integration.cjs",
+          "protected_assertions": [
+            "authentication",
+            "ownership_rls",
+            "role_restrictions",
+            "input_validation",
+            "response_shape",
+            "idempotency"
+          ]
+        },
+        {
+          "file": "tests/support-feedback-browser.e2e.cjs",
+          "protected_assertions": ["authentication", "ownership_rls", "response_shape"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-PAGER-WEBPUSH",
+      "title": "Pickup Pagers, Web Push Subscriptions & Lease-Fenced Outbox Worker",
+      "domain": "pager-and-notifications",
+      "shape_evidence_basis": "validated_runtime_checks_and_sql_schema",
+      "purpose": "Creates vendor pickup pagers, manages RFC 8291 encrypted Web Push subscriptions with capability/unsubscribe tokens, and dispatches ready notifications via a lease-fenced background worker with pre-send rechecks.",
+      "implementation_symbols": [
+        "lib/pager-notifications.js#handlePagerTransitionNotificationsInTx",
+        "lib/pager-notifications.js#runNotificationWorkerBatch",
+        "lib/pager-notifications.js#verifySameOriginMutation",
+        "lib/webpush-crypto.js",
+        "public/pager.js"
+      ],
+      "http_routes": [
+        "/api/pager/staff",
+        "/api/pager/status",
+        "/api/pager/subscriptions",
+        "/api/pager/update",
+        "/api/pager/worker",
+        "/api/pager/telemetry"
+      ],
+      "db_tables": [
+        "pickup_pagers",
+        "pager_notification_subscriptions",
+        "pager_notification_events",
+        "pager_notification_deliveries"
+      ],
+      "feature_controls": [
+        "pickup_pager_creation",
+        "pager_push_subscriptions",
+        "pager_push_delivery"
+      ],
+      "inputs_and_validation": "Validates HTTPS Web Push endpoint allowlist, ECDH P-256 keys, X-BiteShark-Client: web-pager-v1 CSRF header, UUID request_key idempotency on staff pager creation, and loopback + timing-safe worker bearer secret on /api/pager/worker.",
+      "outputs": "Redacted guest pager status on /api/pager/status; vendor queue on /api/pager/staff; Top-admin outbox metrics on /api/pager/telemetry.",
+      "errors": "403 loopback/CSRF/feature-disabled rejections, 401 invalid worker secret, 503 write-pause or disabled push provider.",
+      "side_effects": "Claims delivery leases with fencing tokens, re-verifies feature control and active pager state immediately before external HTTPS push send, and records worker heartbeats.",
+      "permissions_and_ownership": "Vendor Staff/Owner/Admin on /api/pager/staff & /update; capability UUID on /status & /subscriptions; loopback supervisor + secret on /worker; Admin: Top only on /telemetry.",
+      "idempotency_and_concurrency": "FOR UPDATE SKIP LOCKED wave claiming + monotonic lease fencing tokens prevent double-send races across worker restarts.",
+      "known_consumers": [
+        "scripts/run-pager-worker.cjs",
+        "public/pager.js",
+        "public/sw.js"
+      ],
+      "compatibility_expectations": "DELETE /api/pager/subscriptions (guest unsubscribe) must remain exempt when pager_push_subscriptions is paused or hidden.",
+      "known_limitations": "Real Web Push delivery requires VAPID keys and BITESHARK_PUSH_PROVIDER_MODE=webpush.",
+      "test_mappings": [
+        {
+          "file": "tests/pager-notifications.integration.cjs",
+          "protected_assertions": [
+            "authentication",
+            "role_restrictions",
+            "feature_disabled",
+            "idempotency",
+            "concurrency_locking"
+          ]
+        },
+        {
+          "file": "tests/pager-notifications-browser.e2e.cjs",
+          "protected_assertions": ["response_shape", "input_validation"]
+        }
+      ]
+    },
+    {
+      "contract_id": "CTR-RELEASE-MIGRATION-DEPLOY",
+      "title": "Immutable SQL Migration Checksums, Release Tarball Packaging & Atomic Staging Installer",
+      "domain": "release-and-deploy",
+      "shape_evidence_basis": "declared_exports_and_runtime_guards",
+      "purpose": "Verifies SHA-256 checksums of applied migrations/001..NNN.sql, enforces NOBYPASSRLS + table-level REVOKE privileges on the runtime DB role, builds clean Git release tarballs, and atomically switches /srv/*/current with automatic healthz/worker rollback.",
+      "implementation_symbols": [
+        "scripts/run-migrations.cjs#parseArgs",
+        "scripts/build-linux-release-tarball.cjs#parseArgs"
+      ],
+      "http_routes": ["/api/healthz"],
+      "db_tables": ["schema_migrations"],
+      "feature_controls": [],
+      "inputs_and_validation": "run-migrations.cjs aborts on any SHA-256 mismatch against schema_migrations; build-linux-release-tarball.cjs honors .gitattributes export-ignore (excluding tests/, dev-server.cjs, .env*); install-staging-release.sh verifies tarball SHA-256, flock lock, and post-switch /api/healthz release_sha.",
+      "outputs": "Deterministic release tarball + .sha256 manifest; /api/healthz returns { status: 'ok', release_sha, registered_routes: 30 }.",
+      "errors": "Nonzero exit and automatic symlink + systemd rollback in deploy/install-staging-release.sh if migration, service restart, healthz SHA check, or worker journal check fails.",
+      "side_effects": "Applies forward-only additive SQL migrations, updates /srv/*/current symlink, restarts truckly-staging / truckly-pager-worker (or staging2 units via biteshark-staging2-ctl).",
+      "permissions_and_ownership": "Primary staging (/srv/truckly-staging, port 4100) and secondary staging2 (/srv/biteshark-staging2, port 4102) have strictly isolated Linux users, DBs, env files, photo roots, and systemd units.",
+      "idempotency_and_concurrency": "Already-applied migrations with matching SHA-256 are skipped idempotently; concurrent deploys are blocked via flock.",
+      "known_consumers": [
+        "deploy/install-staging-release.sh",
+        "deploy/bin/biteshark-staging2-ctl",
+        ".github/workflows/truckly-source-review.yml"
+      ],
+      "compatibility_expectations": "Applied SQL migrations are immutable and additive-only so symlink rollback to the previous release remains compatible with the database schema.",
+      "known_limitations": "Symlink rollback reverts code and restarts services; it never runs destructive DOWN SQL against persistent staging/production data.",
+      "test_mappings": [
+        {
+          "file": "tests/install-staging-release.test.cjs",
+          "protected_assertions": ["input_validation", "rollback_and_recovery", "concurrency_locking"]
+        },
+        {
+          "file": "tests/staging2-ctl-security.test.cjs",
+          "protected_assertions": ["role_restrictions", "input_validation"]
+        },
+        {
+          "file": "tests/vps-platform-contract.test.cjs",
+          "protected_assertions": ["response_shape", "input_validation"]
+        }
+      ]
+    }
+  ]
+}

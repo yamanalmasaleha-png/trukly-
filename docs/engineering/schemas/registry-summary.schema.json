@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/registry-summary.schema.json",
+  "title": "BiteShark Committed Registry Summary Schema (v2)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "snapshot_schema_version",
+    "provenance_mode",
+    "generator",
+    "repository",
+    "source_analysis_digest_sha256",
+    "deterministic_digest_sha256",
+    "included_files_manifest_sha256",
+    "coverage_counts",
+    "parse_failures",
+    "exclusion_rules",
+    "modules",
+    "routes",
+    "shared_contracts",
+    "database_tables",
+    "feature_controls",
+    "drift_summary"
+  ],
+  "properties": {
+    "schema_version": { "const": "biteshark.registry-summary.v2" },
+    "snapshot_schema_version": { "const": "biteshark.code-registry.v2" },
+    "provenance_mode": { "const": "committed_source_digest" },
+    "generator": { "type": "object", "required": ["name", "version"] },
+    "repository": { "type": "string", "minLength": 1 },
+    "source_analysis_digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "deterministic_digest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "included_files_manifest_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "coverage_counts": { "type": "object" },
+    "parse_failures": { "type": "array" },
+    "exclusion_rules": { "type": "array" },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "symbol_count", "exported_symbols", "globals_assigned"],
+        "properties": {
+          "file": { "type": "string", "minLength": 1 },
+          "source_type": { "type": ["string", "null"] },
+          "symbol_count": { "type": "integer", "minimum": 0 },
+          "exported_symbols": { "type": "array", "items": { "type": "string" } },
+          "globals_assigned": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "methods", "method_source", "dispatcher", "handler_file", "auth_requirement", "authorization_summary"]
+      }
+    },
+    "shared_contracts": { "type": "array", "items": { "type": "object", "required": ["contract_id", "title"] } },
+    "database_tables": { "type": "array", "items": { "type": "object", "required": ["table_name", "column_count", "rls_forced"] } },
+    "feature_controls": { "type": "array", "items": { "type": "object", "required": ["key", "default_state"] } },
+    "drift_summary": {
+      "type": "object",
+      "required": ["active_count", "suppressed_count", "active_finding_ids"]
+    }
+  }
+}

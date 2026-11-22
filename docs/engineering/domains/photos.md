@@ -1,5 +1,7 @@
 # Domain Map — Listing Photos, Owner Preview & Private Customer Photos
 
+- **Shared Contracts**: [`CTR-PRIVATE-PHOTO-STORAGE`](../generated/CONTRACTS-CATALOG.md) & [`CTR-DISCOVERY-CATALOG`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
+
 ## 1. Three Distinct Photo Subsystems in BiteShark
 
 1. **Public Discovery Listing Photos (`vendors.photo_url` + `vendors.photo_rights_verified`)**:

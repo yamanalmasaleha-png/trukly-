@@ -8,14 +8,14 @@ BiteShark provides Sonoma County food discovery, vendor operations, event inquir
 
 Start here before changing routes, database schema, browser globals, CSS cascades, feature controls, or configuration:
 
-- **[Shared Engineering Handbook (`docs/engineering/README.md`)](docs/engineering/README.md)** — Code-grounded index of symbols, HTTP contracts, PostgreSQL tables/RLS, frontend screens/cascades, 17 domain maps, canonical components, and known drift across active branches.
+- **[Quickstart (`docs/engineering/START-HERE.md`)](docs/engineering/START-HERE.md)** & **[Shared Engineering Handbook (`docs/engineering/README.md`)](docs/engineering/README.md)** — Task-oriented developer quickstart, shared contracts (`CTR-*`), AST symbol/route/schema inventories, 17 domain maps, and known drift ledger.
 - **[Standing Agent & Developer Rules (`AGENTS.md`)](AGENTS.md)** & **[Assistant Instructions (`docs/engineering/ASSISTANT-INSTRUCTIONS.md`)](docs/engineering/ASSISTANT-INSTRUCTIONS.md)**.
-- **Code Registry CLI** (offline AST/HTML/CSS/SQL inventory, drift check & ref comparison):
+- **Code Registry CLI** (offline AST/HTML/CSS/SQL inventory, drift gate & ref comparison):
   ```bash
-  npm run registry:locate -- <symbol|route|table|flag|config>
+  npm run registry:locate -- <symbol|route|table|flag|CTR-ID>
   npm run registry:docs
   npm run registry:validate
-  npm run registry:compare -- --base origin/working/biteshark-vps --head HEAD
+  npm run registry:compare -- --base origin/working/biteshark-vps --head HEAD --merge-base
   npm run test:registry
   ```
 
@@ -26,7 +26,7 @@ Start here before changing routes, database schema, browser globals, CSS cascade
 - https://biteshark.live remains a holding page until production launch is separately approved.
 - `server/index.js` starts the application; `server/app.js` handles authentication, administration and static assets; `server/routes.js` explicitly registers domain handlers in `api/`.
 - `@biteshark/runtime-adapter` is a repository-owned package in `packages/runtime-adapter`, backed by PostgreSQL and server-verified sessions. It does not call a hosted SDK.
-- Apply additive migrations `001`–`026`+ (see [MIGRATIONS.md](docs/engineering/MIGRATIONS.md) for exact branch sequence) using the separate migrator role. Never edit applied migrations.
+- Apply additive migrations `001`–`028` (see [MIGRATIONS.md](docs/engineering/MIGRATIONS.md) for exact branch sequence) using the separate migrator role. Never edit applied migrations.
 
 ## Development and verification
 

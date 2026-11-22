@@ -1,16 +1,18 @@
-# Branch Topology & Environment Relationship Map
+# Branch Topology & Environment Isolation Map
 
-This record documents the **verified Git branch topology, integration history, and narrow release metadata** across `working/biteshark-vps` (`staging.biteshark.live`) and secondary staging branches (`staging2.biteshark.live`).
+This document separates **1. Stable Environment Isolation Policy** from **2. Dated Git & Release Snapshot Metadata** (`Snapshot Date: 2026-11-22`).
 
 > [!CAUTION]
-> **Deployed SHA != Permanent Branch Mapping**: Installing a commit tarball onto `staging` or `staging2` proves that exact commit SHA is currently running on that host — it does **not** automatically redefine the authoritative integration branch. Always check `git log` and `merge-base` before integrating or deploying.
+> **Live Host Truth vs Git Branch Names**:
+> - Git branch names never prove what commit is currently running on a VPS host.
+> - Live deployed SHA truth comes strictly from `/api/healthz` (`release_sha`) and `/srv/*/current` symlink targets on `172.233.140.74`. Never update live deployment claims in documentation from Git branch names alone.
 
 ---
 
-## 1. Repository & Authoritative Base
+## 1. Dated Git Branch Snapshot (`Recorded 2026-11-22`)
 
 - **Remote URL**: `https://github.com/yamanalmasaleha-png/trukly-/` (`origin`)
-- **Authoritative Development & Integration Branch**: `working/biteshark-vps` (established in [README.md](../../README.md#L5) and [VPS_OPERATIONS.md](../VPS_OPERATIONS.md))
+- **Authoritative Development & Integration Branch**: `working/biteshark-vps` (`586be39b42bd90501daba2f4afcbd4d7597a2b7e` as of `2026-11-22`; established in [README.md](../../README.md#L5) and [VPS_OPERATIONS.md](../VPS_OPERATIONS.md))
 - **Pre-Exploration Shared Merge-Base**: [`a4e9f532223f88486610a3c8a1babaa58c6e4ee6`](https://github.com/yamanalmasaleha-png/trukly-/commit/a4e9f532223f88486610a3c8a1babaa58c6e4ee6)
 - **Handbook Integration Baseline on `working/biteshark-vps`**: [`2964a9a903932a06b075a63fd6e93d65cc1f6d5b`](https://github.com/yamanalmasaleha-png/trukly-/commit/2964a9a903932a06b075a63fd6e93d65cc1f6d5b)
 - **Integrated Customer-Exploration Candidate**: [`83181ba0fea67183e21781896447f19f1a8f4860`](https://github.com/yamanalmasaleha-png/trukly-/commit/83181ba0fea67183e21781896447f19f1a8f4860) (`feature/customer-exploration-journal-trails`), merged and hardened via `integrate/customer-exploration-verified` (`migrations/001`–`028`) into `working/biteshark-vps`.

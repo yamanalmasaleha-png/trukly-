@@ -1,4 +1,4 @@
-// BiteShark Code Registry — Versions, Scope, Safety Exclusions & Deterministic Serialization
+// BiteShark Code Registry — Versions, Scope, Safety Exclusions & Deterministic Digests
 // (`tools/code-registry/schema-versions.mjs`)
 
 import fs from 'node:fs';
@@ -7,11 +7,25 @@ import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 
 export const GENERATOR_NAME = 'biteshark-code-registry';
-export const GENERATOR_VERSION = '1.0.0';
-export const REGISTRY_SCHEMA_VERSION = 'biteshark.code-registry.v1';
-export const IMPACT_SCHEMA_VERSION = 'biteshark.change-impact.v1';
-export const DRIFT_SCHEMA_VERSION = 'biteshark.drift-report.v1';
+export const GENERATOR_VERSION = '2.0.0';
+export const REGISTRY_SCHEMA_VERSION = 'biteshark.code-registry.v2';
+export const SUMMARY_SCHEMA_VERSION = 'biteshark.registry-summary.v2';
+export const IMPACT_SCHEMA_VERSION = 'biteshark.change-impact.v2';
+export const DRIFT_BASELINE_SCHEMA_VERSION = 'biteshark.drift-baseline.v2';
+export const SUPPRESSIONS_SCHEMA_VERSION = 'biteshark.drift-suppressions.v1';
+export const CONTRACTS_SCHEMA_VERSION = 'biteshark.shared-contracts.v1';
+export const ROUTE_OVERRIDES_SCHEMA_VERSION = 'biteshark.route-overrides.v1';
 export const REPOSITORY_CANONICAL_URL = 'https://github.com/yamanalmasaleha-png/trukly-';
+
+export const HIGH_CONFIDENCE_BLOCKING_DRIFT_CATEGORIES = Object.freeze([
+  'DUPLICATE_HTML_ID',
+  'UNRESOLVED_INLINE_HANDLER',
+  'UNREGISTERED_FEATURE_KEY',
+  'INVALID_WRITE_PAUSE_SCOPE',
+  'MIGRATION_SEQUENCE_COLLISION',
+  'MODULE_CYCLE',
+  'BROKEN_DOC_LINK'
+]);
 
 export const DEFAULT_INCLUDED_ROOTS = Object.freeze([
   'api',
@@ -22,6 +36,7 @@ export const DEFAULT_INCLUDED_ROOTS = Object.freeze([
   'migrations',
   'scripts',
   'deploy',
+  'tools',
   'tests',
   'docs',
   '.github',
@@ -60,14 +75,24 @@ export const EXPLICIT_EXCLUSION_RULES = Object.freeze([
   {
     rule_id: 'EXCL_GENERATED_REGISTRY_OUTPUTS',
     pattern: 'docs/engineering/generated/**, docs/engineering/schemas/drift-baseline.json',
-    reason: 'Machine-generated outputs of this registry tool (excluded from self-ingestion to guarantee idempotence).'
+    reason: 'Machine-generated reference outputs and baseline-debt ledger (excluded from source self-ingestion; governed via governance_digest_sha256).'
   },
   {
     rule_id: 'EXCL_BINARY_MEDIA',
-    pattern: '**/*.png, **/*.jpg, **/*.jpeg, **/*.webp, **/*.ico, **/*.woff2, **/*.gz, **/*.zip, **/*.gpg',
+    pattern: '**/*.png, **/*.jpg, **/*.jpeg, **/*.webp, **/*.ico, **/*.woff2, **/*.gz, **/*.zip, **/*.gpg, **/*.pdf',
     reason: 'Binary media/archives; cataloged by path/size/SHA-256 metadata without text AST parsing.'
   }
 ]);
+
+export function asciiCompare(a, b) {
+  const sa = String(a ?? '');
+  const sb = String(b ?? '');
+  return sa < sb ? -1 : sa > sb ? 1 : 0;
+}
+
+export function sha256Text(text) {
+  return crypto.createHash('sha256').update(String(text ?? ''), 'utf8').digest('hex');
+}
 
 export function toPosixPath(relPath) {
   return String(relPath || '').split(path.sep).join('/').replace(/^\/+/, '');
@@ -144,7 +169,9 @@ export function collectWorkspaceFiles(rootDir, { customRoots = null } = {}) {
     }
 
     if (stat.isDirectory()) {
-      const entries = fs.readdirSync(absCurrent, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+      const entries = fs
+        .readdirSync(absCurrent, { withFileTypes: true })
+        .sort((a, b) => asciiCompare(a.name, b.name));
       for (const entry of entries) {
         const childRel = relCurrent ? `${relCurrent}/${entry.name}` : entry.name;
         walk(path.join(absCurrent, entry.name), childRel);
@@ -171,33 +198,28 @@ export function collectWorkspaceFiles(rootDir, { customRoots = null } = {}) {
     });
   }
 
-  if (customRoots === null) {
-    for (const candidate of rootsToScan) {
-      const absCandidate = path.join(absRoot, candidate);
-      if (fs.existsSync(absCandidate)) {
-        walk(absCandidate, toPosixPath(candidate));
-      }
+  for (const candidate of rootsToScan) {
+    const absCandidate = path.join(absRoot, candidate);
+    if (fs.existsSync(absCandidate)) {
+      walk(absCandidate, toPosixPath(candidate));
     }
-    // Also record top-level excluded items explicitly (e.g. truckly-v63.zip, node_modules)
-    for (const topEntry of fs.readdirSync(absRoot, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+  }
+
+  if (customRoots === null) {
+    for (const topEntry of fs
+      .readdirSync(absRoot, { withFileTypes: true })
+      .sort((a, b) => asciiCompare(a.name, b.name))) {
       const rel = toPosixPath(topEntry.name);
       const excl = classifyPathExclusion(rel);
       if (excl.excluded && !excludedRecords.some(e => e.path === rel)) {
         excludedRecords.push({ path: rel, rule_id: excl.rule_id });
       }
     }
-  } else {
-    for (const candidate of rootsToScan) {
-      const absCandidate = path.join(absRoot, candidate);
-      if (fs.existsSync(absCandidate)) {
-        walk(absCandidate, toPosixPath(candidate));
-      }
-    }
   }
 
-  includedFiles.sort((a, b) => a.path.localeCompare(b.path));
-  binaryAssets.sort((a, b) => a.path.localeCompare(b.path));
-  excludedRecords.sort((a, b) => a.path.localeCompare(b.path));
+  includedFiles.sort((a, b) => asciiCompare(a.path, b.path));
+  binaryAssets.sort((a, b) => asciiCompare(a.path, b.path));
+  excludedRecords.sort((a, b) => asciiCompare(a.path, b.path));
 
   return {
     rootDir: absRoot,
@@ -269,7 +291,7 @@ export function sortObjectKeysDeep(value) {
   }
   if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
     const out = {};
-    for (const k of Object.keys(value).sort()) {
+    for (const k of Object.keys(value).sort(asciiCompare)) {
       if (value[k] !== undefined) {
         out[k] = sortObjectKeysDeep(value[k]);
       }
@@ -284,12 +306,26 @@ export function deterministicStringify(payload, pretty = true) {
   return JSON.stringify(normalized, null, pretty ? 2 : 0) + '\n';
 }
 
+/**
+ * Computes `source_analysis_digest_sha256` (`deterministic_digest_sha256`).
+ *
+ * Exact coverage:
+ *   - Included first-party source, contract, migration, test, CI, documentation, and registry-tooling
+ *     files (CRLF-normalized to `\n` via `included_files_manifest_sha256`), plus binary asset SHA-256s
+ *     and all extracted AST/HTML/CSS/SQL/route/contract/drift structures.
+ *   - Explicitly excludes volatile Git metadata (`provenance`, `commit_sha`, `branch_or_ref`,
+ *     `generated_at_utc`), generated outputs (`docs/engineering/generated/**`), `drift-baseline.json`
+ *     (governed separately via `governance_digest_sha256`), and local environment artifacts
+ *     (`node_modules/`, `.git/`, `.env*`, private keys).
+ */
 export function computePayloadDigest(payload) {
-  // Strip volatile git-ref/timestamp headers so content digest depends purely on scanned source & findings
   const clone = { ...payload };
   delete clone.generated_at_utc;
   delete clone.deterministic_digest_sha256;
+  delete clone.source_analysis_digest_sha256;
+  delete clone.governance_digest_sha256;
   delete clone.provenance;
+
   if (clone.scope) {
     const sc = { ...clone.scope };
     if (Array.isArray(sc.excluded_paths)) {
@@ -304,6 +340,7 @@ export function computePayloadDigest(payload) {
     }
     clone.scope = sc;
   }
+
   if (clone.drift_report && Array.isArray(clone.drift_report.findings)) {
     clone.drift_report = {
       ...clone.drift_report,
@@ -314,6 +351,26 @@ export function computePayloadDigest(payload) {
       })
     };
   }
+
   const canonical = deterministicStringify(clone, false);
   return crypto.createHash('sha256').update(canonical, 'utf8').digest('hex');
+}
+
+export function computeGovernanceDigest({ baselineObj = null, suppressionsObj = null } = {}) {
+  const normalized = deterministicStringify(
+    {
+      baseline_entries: Array.isArray(baselineObj?.entries)
+        ? baselineObj.entries.map(e => ({
+            finding_id: e.finding_id,
+            category: e.category || null,
+            accepted_reason: e.accepted_reason || '',
+            reference: e.reference || null
+          }))
+        : (baselineObj?.baseline_finding_ids || []).map(id => ({ finding_id: id })),
+      high_confidence_blocking_categories: baselineObj?.high_confidence_blocking_categories || [],
+      suppressions: Array.isArray(suppressionsObj?.suppressions) ? suppressionsObj.suppressions : []
+    },
+    false
+  );
+  return crypto.createHash('sha256').update(normalized, 'utf8').digest('hex');
 }

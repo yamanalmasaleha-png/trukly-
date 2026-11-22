@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/yamanalmasaleha-png/trukly-/docs/engineering/schemas/code-registry.schema.json",
-  "title": "BiteShark Code Registry Snapshot Schema",
+  "title": "BiteShark Code Registry Snapshot Schema (v2)",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "schema_version",
     "generator",
@@ -13,9 +14,11 @@
     "package_metadata",
     "external_browser_assets",
     "js_modules",
+    "relationships",
     "html_documents",
     "css_stylesheets",
     "backend_routes",
+    "shared_contracts",
     "feature_controls",
     "diagnostics_contract",
     "configuration_consumers",
@@ -23,43 +26,310 @@
     "database",
     "binary_assets",
     "drift_report",
-    "deterministic_digest_sha256"
+    "source_analysis_digest_sha256",
+    "deterministic_digest_sha256",
+    "governance_digest_sha256"
   ],
+  "$defs": {
+    "Sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "JsParam": {
+      "type": "object",
+      "required": ["name", "observed_type", "kind"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "observed_type": { "type": "string", "minLength": 1 },
+        "type_basis": { "type": "string" },
+        "kind": { "type": "string", "minLength": 1 }
+      }
+    },
+    "JsSymbol": {
+      "type": "object",
+      "required": [
+        "symbol_id",
+        "name",
+        "local_name",
+        "scope_kind",
+        "kind",
+        "async",
+        "exported",
+        "top_level",
+        "params",
+        "return_behavior",
+        "throws",
+        "body_fingerprint_sha256",
+        "file",
+        "start_line",
+        "end_line"
+      ],
+      "properties": {
+        "symbol_id": { "type": "string", "pattern": "^sym:fn:.+#.+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "local_name": { "type": "string", "minLength": 1 },
+        "scope_kind": {
+          "enum": ["module_top", "iife_module", "class_member", "object_member", "nested_function"]
+        },
+        "kind": { "type": "string", "minLength": 1 },
+        "async": { "type": "boolean" },
+        "generator": { "type": "boolean" },
+        "exported": { "type": "boolean" },
+        "top_level": { "type": "boolean" },
+        "params": { "type": "array", "items": { "$ref": "#/$defs/JsParam" } },
+        "return_behavior": { "enum": ["promise", "sync_value", "void_or_implicit"] },
+        "throws": { "type": "array", "items": { "type": "string" } },
+        "body_fingerprint_sha256": { "$ref": "#/$defs/Sha256Hex" },
+        "literals_fingerprint_sha256": { "$ref": "#/$defs/Sha256Hex" },
+        "confirmed_callers": { "type": "array", "items": { "type": "string" } },
+        "confirmed_test_callers": { "type": "array", "items": { "type": "string" } },
+        "inferred_candidate_callers": { "type": "array", "items": { "type": "string" } },
+        "confirmed_callees": { "type": "array", "items": { "type": "string" } },
+        "dynamic_unresolved_callsites": { "type": "array", "items": { "type": "object" } },
+        "contract_ids": { "type": "array", "items": { "type": "string" } },
+        "file": { "type": "string", "minLength": 1 },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "JsModule": {
+      "type": "object",
+      "required": ["file", "parse_ok", "symbols", "classes", "constants", "imports", "exports", "globals_assigned", "calls"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "parse_ok": { "type": "boolean" },
+        "parse_error": { "type": ["object", "null"] },
+        "source_type": { "type": ["string", "null"] },
+        "symbols": { "type": "array", "items": { "$ref": "#/$defs/JsSymbol" } },
+        "classes": { "type": "array", "items": { "type": "object" } },
+        "constants": { "type": "array", "items": { "type": "object" } },
+        "imports": { "type": "array", "items": { "type": "object" } },
+        "exports": { "type": "array", "items": { "type": "object" } },
+        "globals_assigned": { "type": "array", "items": { "type": "object" } },
+        "window_namespace_members": { "type": "array", "items": { "type": "object" } },
+        "calls": { "type": "array", "items": { "type": "object" } },
+        "dom_references": { "type": "array", "items": { "type": "object" } },
+        "dynamic_dom_definitions": { "type": "array", "items": { "type": "object" } },
+        "event_bindings": { "type": "array", "items": { "type": "object" } },
+        "api_consumers": { "type": "array", "items": { "type": "object" } },
+        "test_http_calls": { "type": "array", "items": { "type": "object" } },
+        "env_reads": { "type": "array", "items": { "type": "object" } },
+        "feature_key_refs": { "type": "array", "items": { "type": "object" } },
+        "write_pause_refs": { "type": "array", "items": { "type": "object" } },
+        "storage_accesses": { "type": "array", "items": { "type": "object" } },
+        "side_effect_only": { "type": "boolean" }
+      }
+    },
+    "BackendRoute": {
+      "type": "object",
+      "required": [
+        "route_id",
+        "path",
+        "methods",
+        "method_source",
+        "dispatcher",
+        "handler_file",
+        "handler_symbol",
+        "line",
+        "auth_requirement",
+        "authorization_summary",
+        "authorization_confidence",
+        "feature_enforcement_by_method",
+        "known_frontend_callers",
+        "test_references"
+      ],
+      "properties": {
+        "route_id": { "type": "string", "pattern": "^route:/api/" },
+        "path": { "type": "string", "pattern": "^/api/" },
+        "methods": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "UNRESOLVED"]
+          }
+        },
+        "method_source": {
+          "enum": ["declared_export", "confirmed_method_guard", "confirmed_method_branches", "manual_override", "unresolved"]
+        },
+        "dispatcher": { "type": "string", "minLength": 1 },
+        "handler_file": { "type": "string", "minLength": 1 },
+        "handler_symbol": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "auth_requirement": { "type": "string", "minLength": 1 },
+        "authentication_evidence": { "type": "array", "items": { "type": "string" } },
+        "authorization_summary": { "type": "string", "minLength": 1 },
+        "authorization_confidence": { "enum": ["confirmed_static", "inferred", "manual_override", "unresolved"] },
+        "authorization_evidence": { "type": "array", "items": { "type": "string" } },
+        "authorization_by_method": { "type": "object" },
+        "age_gate_exempt_methods": { "type": "array", "items": { "type": "string" } },
+        "feature_gate": { "type": ["string", "null"] },
+        "feature_enforcement_by_method": { "type": "object" },
+        "status_codes": { "type": "array", "items": { "type": "integer", "minimum": 100, "maximum": 599 } },
+        "error_codes": { "type": "array", "items": { "type": "string" } },
+        "observed_response_keys": { "type": "array", "items": { "type": "string" } },
+        "db_tables_touched": { "type": "array", "items": { "type": "string" } },
+        "contract_ids": { "type": "array", "items": { "type": "string" } },
+        "known_frontend_callers": { "type": "array", "items": { "type": "string" } },
+        "inferred_frontend_callers": { "type": "array", "items": { "type": "string" } },
+        "test_references": {
+          "type": "object",
+          "required": ["contract_mappings", "static_http_call_tests", "candidate_path_mentions"],
+          "properties": {
+            "contract_mappings": { "type": "array", "items": { "type": "object" } },
+            "static_http_call_tests": { "type": "array", "items": { "type": "string" } },
+            "candidate_path_mentions": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "DatabaseColumn": {
+      "type": "object",
+      "required": ["name", "sql_type", "not_null", "primary_key", "added_in_migration"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "sql_type": { "type": "string", "minLength": 1 },
+        "not_null": { "type": "boolean" },
+        "primary_key": { "type": "boolean" },
+        "default_expr": { "type": ["string", "null"] },
+        "references_table": { "type": ["string", "null"] },
+        "references_column": { "type": ["string", "null"] },
+        "on_delete": { "type": ["string", "null"] },
+        "added_in_migration": { "type": "string", "minLength": 1 }
+      }
+    },
+    "DatabaseTable": {
+      "type": "object",
+      "required": ["table_name", "rls_enabled", "rls_forced", "columns", "constraints", "foreign_keys", "indexes", "rls_policies"],
+      "properties": {
+        "table_name": { "type": "string", "minLength": 1 },
+        "created_in_migration": { "type": ["string", "null"] },
+        "altered_in_migrations": { "type": "array", "items": { "type": "string" } },
+        "rls_enabled": { "type": "boolean" },
+        "rls_forced": { "type": "boolean" },
+        "columns": { "type": "array", "items": { "$ref": "#/$defs/DatabaseColumn" } },
+        "constraints": { "type": "array", "items": { "type": "object" } },
+        "foreign_keys": { "type": "array", "items": { "type": "object" } },
+        "indexes": { "type": "array", "items": { "type": "object" } },
+        "rls_policies": { "type": "array", "items": { "type": "object" } },
+        "app_role_revokes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "DriftFinding": {
+      "type": "object",
+      "required": [
+        "finding_id",
+        "category",
+        "severity",
+        "confidence",
+        "determination",
+        "affected_objects",
+        "evidence",
+        "suppressed"
+      ],
+      "properties": {
+        "finding_id": { "type": "string", "pattern": "^DRIFT:[A-Z0-9_]+:.+$" },
+        "category": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["high", "medium", "low"] },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "determination": { "type": "string", "minLength": 1 },
+        "affected_objects": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "evidence": { "type": "string", "minLength": 1 },
+        "suppressed": { "type": "boolean" },
+        "suppression_id": { "type": ["string", "null"] },
+        "suppression_reason": { "type": ["string", "null"] }
+      }
+    }
+  },
   "properties": {
-    "schema_version": { "const": "biteshark.code-registry.v1" },
+    "schema_version": { "const": "biteshark.code-registry.v2" },
     "generator": {
       "type": "object",
-      "required": ["name", "version", "analysis_mode", "limitations_note"]
+      "required": ["name", "version", "analysis_mode", "limitations_note"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "analysis_mode": { "type": "string", "minLength": 1 },
+        "limitations_note": { "type": "string", "minLength": 1 }
+      }
     },
     "provenance": {
       "type": "object",
-      "required": ["repository", "branch_or_ref", "commit_sha", "working_tree_clean", "dirty_file_count"]
+      "required": ["repository", "branch_or_ref", "commit_sha", "working_tree_clean", "dirty_file_count"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "branch_or_ref": { "type": "string", "minLength": 1 },
+        "commit_sha": { "type": "string", "minLength": 1 },
+        "working_tree_clean": { "type": "boolean" },
+        "dirty_file_count": { "type": "integer", "minimum": 0 },
+        "generated_at_utc": { "type": "string" }
+      }
     },
     "scope": {
       "type": "object",
-      "required": ["included_file_count", "binary_asset_count", "excluded_item_count", "exclusion_rules", "excluded_paths"]
+      "required": [
+        "included_file_count",
+        "included_files_manifest_sha256",
+        "binary_asset_count",
+        "excluded_item_count",
+        "exclusion_rules",
+        "excluded_paths"
+      ],
+      "properties": {
+        "included_file_count": { "type": "integer", "minimum": 0 },
+        "included_files_manifest_sha256": { "$ref": "#/$defs/Sha256Hex" },
+        "binary_asset_count": { "type": "integer", "minimum": 0 },
+        "excluded_item_count": { "type": "integer", "minimum": 0 },
+        "exclusion_rules": { "type": "array", "items": { "type": "object" } },
+        "excluded_paths": { "type": "array", "items": { "type": "object" } }
+      }
     },
     "coverage_counts": { "type": "object" },
-    "parse_failures": { "type": "array" },
+    "parse_failures": { "type": "array", "items": { "type": "object" } },
     "package_metadata": { "type": "object" },
-    "external_browser_assets": { "type": "array" },
-    "js_modules": { "type": "array" },
-    "html_documents": { "type": "array" },
-    "css_stylesheets": { "type": "array" },
-    "backend_routes": { "type": "array" },
-    "feature_controls": { "type": "object" },
+    "external_browser_assets": { "type": "array", "items": { "type": "object" } },
+    "js_modules": { "type": "array", "items": { "$ref": "#/$defs/JsModule" } },
+    "relationships": {
+      "type": "object",
+      "required": ["confirmed_edge_count", "inferred_edge_count", "html_handler_bindings", "wrapper_chains"]
+    },
+    "html_documents": { "type": "array", "items": { "type": "object" } },
+    "css_stylesheets": { "type": "array", "items": { "type": "object" } },
+    "backend_routes": { "type": "array", "items": { "$ref": "#/$defs/BackendRoute" } },
+    "shared_contracts": { "type": "array", "items": { "type": "object" } },
+    "feature_controls": {
+      "type": "object",
+      "required": ["features", "route_rules"]
+    },
     "diagnostics_contract": { "type": "object" },
-    "configuration_consumers": { "type": "array" },
-    "storage_inventory": { "type": "array" },
-    "database": { "type": "object" },
-    "binary_assets": { "type": "array" },
+    "configuration_consumers": { "type": "array", "items": { "type": "object" } },
+    "storage_inventory": { "type": "array", "items": { "type": "object" } },
+    "database": {
+      "type": "object",
+      "required": ["schema_basis", "database_verified", "migrations", "tables", "views", "sql_functions", "triggers", "role_grants", "mermaid_er_diagram"],
+      "properties": {
+        "schema_basis": { "type": "string" },
+        "database_verified": { "type": "boolean" },
+        "migrations": { "type": "array", "items": { "type": "object" } },
+        "tables": { "type": "array", "items": { "$ref": "#/$defs/DatabaseTable" } },
+        "views": { "type": "array", "items": { "type": "object" } },
+        "sql_functions": { "type": "array", "items": { "type": "object" } },
+        "triggers": { "type": "array", "items": { "type": "object" } },
+        "role_grants": { "type": "object" },
+        "mermaid_er_diagram": { "type": "string" }
+      }
+    },
+    "binary_assets": { "type": "array", "items": { "type": "object" } },
     "drift_report": {
       "type": "object",
-      "required": ["active_count", "suppressed_count", "findings"]
+      "required": ["active_count", "suppressed_count", "findings"],
+      "properties": {
+        "active_count": { "type": "integer", "minimum": 0 },
+        "suppressed_count": { "type": "integer", "minimum": 0 },
+        "findings": { "type": "array", "items": { "$ref": "#/$defs/DriftFinding" } }
+      }
     },
-    "deterministic_digest_sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    }
+    "source_analysis_digest_sha256": { "$ref": "#/$defs/Sha256Hex" },
+    "deterministic_digest_sha256": { "$ref": "#/$defs/Sha256Hex" },
+    "governance_digest_sha256": { "$ref": "#/$defs/Sha256Hex" }
   }
 }

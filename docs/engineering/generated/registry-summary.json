@@ -1,398 +1,551 @@
 {
-  "branch_at_generation": "integrate/customer-exploration-verified",
   "coverage_counts": {
-    "browser_globals_and_assignments": 622,
+    "browser_globals_and_assignments": 658,
     "classes": 19,
     "configuration_keys_observed": 64,
+    "confirmed_call_edges": 6894,
     "css_files_scanned": 18,
-    "drift_findings_active": 13,
+    "drift_findings_active": 11,
     "drift_findings_suppressed": 2,
     "feature_controls": 21,
-    "functions_and_methods": 2528,
+    "functions_and_methods": 2662,
     "html_element_ids": 488,
     "html_files_scanned": 12,
     "http_routes": 97,
-    "js_files_scanned": 117,
+    "inferred_call_edges": 33,
+    "js_files_scanned": 128,
     "js_parse_failures": 0,
-    "significant_constants": 584,
+    "shared_contracts": 12,
+    "significant_constants": 648,
     "sql_migrations": 28,
-    "sql_rls_policies": 55,
+    "sql_rls_policies": 51,
     "sql_tables": 51,
     "storage_keys_observed": 19
   },
   "database_tables": [
     {
       "column_count": 13,
+      "constraint_count": 11,
       "created_in_migration": "023_invitation_delivery_and_lifecycle.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "account_invitation_events"
     },
     {
       "column_count": 36,
+      "constraint_count": 23,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
-      "policy_count": 2,
+      "index_count": 4,
+      "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "account_invitations"
     },
     {
       "column_count": 5,
+      "constraint_count": 5,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "admin_bootstrap_grants"
     },
     {
       "column_count": 8,
+      "constraint_count": 5,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "admin_notification_outbox"
     },
     {
       "column_count": 9,
+      "constraint_count": 6,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "audit_logs"
     },
     {
       "column_count": 11,
+      "constraint_count": 9,
       "created_in_migration": "021_auth_diagnostics_and_email_readiness.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_delivery_telemetry"
     },
     {
       "column_count": 13,
+      "constraint_count": 6,
       "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_otp_challenges"
     },
     {
       "column_count": 3,
+      "constraint_count": 3,
       "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_rate_limits"
     },
     {
       "column_count": 10,
+      "constraint_count": 3,
       "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_sessions"
     },
     {
       "column_count": 7,
+      "constraint_count": 1,
       "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_staging_mailbox"
     },
     {
       "column_count": 10,
+      "constraint_count": 8,
       "created_in_migration": "017_standalone_auth_and_sessions.sql",
+      "index_count": 0,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "auth_users"
     },
     {
-      "column_count": 18,
+      "column_count": 21,
+      "constraint_count": 5,
       "created_in_migration": "001_create_bookings.sql",
+      "index_count": 3,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "bookings"
     },
     {
       "column_count": 10,
+      "constraint_count": 6,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "community_moderation_history"
     },
     {
       "column_count": 9,
+      "constraint_count": 6,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "community_reports"
     },
     {
       "column_count": 23,
+      "constraint_count": 9,
       "created_in_migration": "009_create_community_reviews.sql",
+      "index_count": 1,
       "policy_count": 5,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "community_reviews"
     },
     {
       "column_count": 10,
+      "constraint_count": 5,
       "created_in_migration": "019_age_eligibility_and_compliance_readiness.sql",
+      "index_count": 1,
       "policy_count": 2,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "compliance_readiness_history"
     },
     {
       "column_count": 29,
+      "constraint_count": 19,
       "created_in_migration": "019_age_eligibility_and_compliance_readiness.sql",
+      "index_count": 0,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "compliance_readiness_items"
     },
     {
       "column_count": 20,
+      "constraint_count": 15,
       "created_in_migration": "027_customer_exploration_foundation.sql",
+      "index_count": 3,
       "policy_count": 3,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_photos"
     },
     {
       "column_count": 7,
+      "constraint_count": 6,
       "created_in_migration": "027_customer_exploration_foundation.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_saved_trail_stops"
     },
     {
       "column_count": 9,
+      "constraint_count": 6,
       "created_in_migration": "027_customer_exploration_foundation.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_saved_trails"
     },
     {
       "column_count": 15,
+      "constraint_count": 10,
       "created_in_migration": "027_customer_exploration_foundation.sql",
+      "index_count": 4,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_visits"
     },
     {
       "column_count": 24,
+      "constraint_count": 19,
       "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "index_count": 3,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "diagnostic_event_samples"
     },
     {
       "column_count": 35,
+      "constraint_count": 25,
       "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "index_count": 3,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "diagnostic_incident_groups"
     },
     {
       "column_count": 15,
+      "constraint_count": 12,
       "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "diagnostic_incident_notes"
     },
     {
       "column_count": 9,
+      "constraint_count": 8,
       "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "diagnostic_releases"
     },
     {
       "column_count": 3,
+      "constraint_count": 1,
       "created_in_migration": "003_create_favorites.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "favorites"
     },
     {
       "column_count": 12,
+      "constraint_count": 11,
       "created_in_migration": "022_feature_controls.sql",
+      "index_count": 2,
       "policy_count": 2,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "feature_control_history"
     },
     {
       "column_count": 8,
+      "constraint_count": 8,
       "created_in_migration": "022_feature_controls.sql",
+      "index_count": 0,
       "policy_count": 3,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "feature_controls"
     },
     {
       "column_count": 4,
+      "constraint_count": 2,
       "created_in_migration": "004_create_notification_settings.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "notification_settings"
     },
     {
       "column_count": 6,
+      "constraint_count": 2,
       "created_in_migration": "005_create_owner_profiles.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "owner_profiles"
     },
     {
       "column_count": 8,
+      "constraint_count": 3,
       "created_in_migration": "006_create_owner_schedule.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "owner_schedule"
     },
     {
       "column_count": 21,
+      "constraint_count": 7,
       "created_in_migration": "015_pager_notifications_outbox.sql",
+      "index_count": 2,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "pager_notification_deliveries"
     },
     {
       "column_count": 10,
+      "constraint_count": 4,
       "created_in_migration": "015_pager_notifications_outbox.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "pager_notification_events"
     },
     {
       "column_count": 15,
+      "constraint_count": 5,
       "created_in_migration": "015_pager_notifications_outbox.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "pager_notification_subscriptions"
     },
     {
       "column_count": 3,
+      "constraint_count": 2,
       "created_in_migration": "015_pager_notifications_outbox.sql",
+      "index_count": 0,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "pager_rate_limits"
     },
     {
       "column_count": 13,
+      "constraint_count": 5,
       "created_in_migration": "008_pickup_pagers.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "pickup_pagers"
     },
     {
       "column_count": 4,
+      "constraint_count": 4,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "platform_role_revocations"
     },
     {
       "column_count": 6,
+      "constraint_count": 4,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "platform_roles"
     },
     {
       "column_count": 3,
+      "constraint_count": 1,
       "created_in_migration": "scripts/run-migrations.cjs",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "schema_migrations"
     },
     {
       "column_count": 17,
+      "constraint_count": 11,
       "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "index_count": 2,
       "policy_count": 2,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "support_issue_diagnostic_links"
     },
     {
       "column_count": 10,
+      "constraint_count": 8,
       "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "index_count": 1,
       "policy_count": 3,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "support_issue_events"
     },
     {
       "column_count": 9,
+      "constraint_count": 7,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
-      "policy_count": 5,
+      "index_count": 2,
+      "policy_count": 3,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "support_issue_notes"
     },
     {
       "column_count": 14,
+      "constraint_count": 12,
       "created_in_migration": "025_support_feedback_and_diagnostic_links.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "support_issue_notifications"
     },
     {
       "column_count": 47,
+      "constraint_count": 25,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
-      "policy_count": 2,
+      "index_count": 7,
+      "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "support_issues"
     },
     {
       "column_count": 12,
+      "constraint_count": 7,
       "created_in_migration": "002_create_truck_settings.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "truck_settings"
     },
     {
       "column_count": 13,
+      "constraint_count": 7,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 1,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "vendor_application_evidence"
     },
     {
       "column_count": 33,
+      "constraint_count": 27,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 3,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "vendor_applications"
     },
     {
       "column_count": 5,
+      "constraint_count": 4,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "index_count": 0,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "vendor_memberships"
     },
     {
       "column_count": 9,
+      "constraint_count": 5,
       "created_in_migration": "018_admin_portal_onboarding_moderation_issues.sql",
+      "index_count": 1,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "vendor_status_history"
     },
     {
       "column_count": 50,
+      "constraint_count": 12,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
+      "index_count": 1,
       "policy_count": 0,
+      "rls_enabled": false,
       "rls_forced": false,
       "table_name": "vendors"
     },
     {
       "column_count": 7,
+      "constraint_count": 6,
       "created_in_migration": "024_diagnostics_and_reliability.sql",
+      "index_count": 0,
       "policy_count": 1,
+      "rls_enabled": true,
       "rls_forced": true,
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825",
+  "deterministic_digest_sha256": "914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba",
   "drift_summary": {
-    "active_count": 13,
+    "active_count": 11,
     "active_finding_ids": [
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
-      "DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range",
       "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
       "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
-      "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/owner/bookings",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/schedule/today",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
@@ -427,11 +580,11 @@
     },
     {
       "pattern": "docs/engineering/generated/**, docs/engineering/schemas/drift-baseline.json",
-      "reason": "Machine-generated outputs of this registry tool (excluded from self-ingestion to guarantee idempotence).",
+      "reason": "Machine-generated reference outputs and baseline-debt ledger (excluded from source self-ingestion; governed via governance_digest_sha256).",
       "rule_id": "EXCL_GENERATED_REGISTRY_OUTPUTS"
     },
     {
-      "pattern": "**/*.png, **/*.jpg, **/*.jpeg, **/*.webp, **/*.ico, **/*.woff2, **/*.gz, **/*.zip, **/*.gpg",
+      "pattern": "**/*.png, **/*.jpg, **/*.jpeg, **/*.webp, **/*.ico, **/*.woff2, **/*.gz, **/*.zip, **/*.gpg, **/*.pdf",
       "reason": "Binary media/archives; cataloged by path/size/SHA-256 metadata without text AST parsing.",
       "rule_id": "EXCL_BINARY_MEDIA"
     }
@@ -603,10 +756,11 @@
   ],
   "generator": {
     "analysis_mode": "static_ast_html_css_sql_offline",
-    "limitations_note": "Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.",
+    "limitations_note": "Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.",
     "name": "biteshark-code-registry",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
+  "included_files_manifest_sha256": "1039a8794c49225c117d64c98a8b2a3760e2229739aecc6a736fe15beb8c1aeb",
   "modules": [
     {
       "exported_symbols": [
@@ -1430,6 +1584,16 @@
         "location.href",
         "location.href",
         "location.href",
+        "inviteDraftKey",
+        "inviteDraftSig",
+        "inviteDraftKey",
+        "inviteDraftSig",
+        "pendingInviteAction",
+        "lastInviteTriggerEl",
+        "pendingInviteAction",
+        "lastInviteTriggerEl",
+        "lastInviteTriggerEl",
+        "lastInviteTriggerEl",
         "location.href",
         "location.href",
         "location.href",
@@ -1437,7 +1601,7 @@
         "location.hash"
       ],
       "source_type": "script",
-      "symbol_count": 198
+      "symbol_count": 197
     },
     {
       "exported_symbols": [],
@@ -1770,7 +1934,7 @@
         "trucklyReady"
       ],
       "source_type": "script",
-      "symbol_count": 181
+      "symbol_count": 179
     },
     {
       "exported_symbols": [],
@@ -1781,7 +1945,7 @@
         "biteshark"
       ],
       "source_type": "script",
-      "symbol_count": 13
+      "symbol_count": 12
     },
     {
       "exported_symbols": [],
@@ -1844,9 +2008,15 @@
     {
       "exported_symbols": [],
       "file": "public/diagnostics-client.js",
-      "globals_assigned": [],
+      "globals_assigned": [
+        "loadedServerReleaseSha",
+        "latestServerReleaseSha",
+        "reportsSentCount",
+        "activeReportInFlight",
+        "activeReportInFlight"
+      ],
       "source_type": "script",
-      "symbol_count": 29
+      "symbol_count": 28
     },
     {
       "exported_symbols": [],
@@ -1856,7 +2026,7 @@
         "bitesharkExploration"
       ],
       "source_type": "script",
-      "symbol_count": 56
+      "symbol_count": 55
     },
     {
       "exported_symbols": [],
@@ -1893,7 +2063,7 @@
         "openDetail"
       ],
       "source_type": "script",
-      "symbol_count": 6
+      "symbol_count": 5
     },
     {
       "exported_symbols": [],
@@ -2051,18 +2221,39 @@
       "exported_symbols": [],
       "file": "public/role-experience.js",
       "globals_assigned": [
+        "resolveInitialFeatures",
         "fetch",
         "location.href",
         "location.href",
+        "rxAuthEpoch",
+        "epLatestExportPayload",
+        "epConfirmTarget",
+        "epConfirmTarget",
+        "epConfirmTarget",
+        "epConfirmTarget",
+        "epLatestExportPayload",
+        "epConfirmTarget",
         "openExplorationPrivacyModal",
         "bitesharkOnSignedOut",
+        "staffInviteDraftKey",
+        "staffInviteDraftSig",
+        "staffInviteDraftKey",
+        "staffInviteDraftSig",
         "location.href",
         "bitesharkOpenSupport",
         "bitesharkSyncOwnerVendorContext",
+        "supportIssueDraftKey",
+        "supportIssueDraftSig",
+        "supportIssueDraftKey",
+        "supportIssueDraftSig",
         "bitesharkOpenCommunityReport",
         "location.href",
         "location.hash",
         "location.href",
+        "featureRefreshInFlight",
+        "featureRefreshInFlight",
+        "resolveInitialFeatures",
+        "featurePollTimer",
         "bitesharkFeatures",
         "location.href",
         "bitesharkMarkDiscoveryInteraction",
@@ -2070,7 +2261,7 @@
         "bitesharkWelcome"
       ],
       "source_type": "script",
-      "symbol_count": 186
+      "symbol_count": 185
     },
     {
       "exported_symbols": [],
@@ -2179,7 +2370,7 @@
         "__BITESHARK_RUNTIME__"
       ],
       "source_type": "script",
-      "symbol_count": 24
+      "symbol_count": 23
     },
     {
       "exported_symbols": [],
@@ -2192,14 +2383,14 @@
         "trucklyDebug"
       ],
       "source_type": "module",
-      "symbol_count": 32
+      "symbol_count": 31
     },
     {
       "exported_symbols": [],
       "file": "scripts/manage-feature-controls.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 5
+      "symbol_count": 4
     },
     {
       "exported_symbols": [],
@@ -2213,18 +2404,18 @@
       "file": "scripts/run-migrations.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 5
+      "symbol_count": 4
     },
     {
       "exported_symbols": [],
       "file": "scripts/run-pager-worker.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 10
+      "symbol_count": 9
     },
     {
       "exported_symbols": [
-        "module.exports"
+        "loadSeedVendorsFromMigration014"
       ],
       "file": "scripts/seed-sql-reader.cjs",
       "globals_assigned": [],
@@ -2299,21 +2490,21 @@
       "file": "tests/admin-governance.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 14
+      "symbol_count": 13
     },
     {
       "exported_symbols": [],
       "file": "tests/admin-portal-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 34
+      "symbol_count": 33
     },
     {
       "exported_symbols": [],
       "file": "tests/auth-email-delivery.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 24
+      "symbol_count": 23
     },
     {
       "exported_symbols": [],
@@ -2322,28 +2513,28 @@
         "__BITESHARK_RUNTIME__"
       ],
       "source_type": "script",
-      "symbol_count": 36
+      "symbol_count": 35
     },
     {
       "exported_symbols": [],
       "file": "tests/code-registry.test.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 10
+      "symbol_count": 17
     },
     {
       "exported_symbols": [],
       "file": "tests/customer-exploration-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 40
+      "symbol_count": 39
     },
     {
       "exported_symbols": [],
       "file": "tests/customer-exploration.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 16
+      "symbol_count": 15
     },
     {
       "exported_symbols": [],
@@ -2357,42 +2548,42 @@
       "file": "tests/discovery-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 25
+      "symbol_count": 24
     },
     {
       "exported_symbols": [],
       "file": "tests/discovery-cards-ux-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 22
+      "symbol_count": 21
     },
     {
       "exported_symbols": [],
       "file": "tests/feature-controls-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 36
+      "symbol_count": 35
     },
     {
       "exported_symbols": [],
       "file": "tests/feature-controls.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 18
+      "symbol_count": 17
     },
     {
       "exported_symbols": [],
       "file": "tests/install-staging-release.test.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 19
+      "symbol_count": 18
     },
     {
       "exported_symbols": [],
       "file": "tests/invitation-workflow-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 35
+      "symbol_count": 34
     },
     {
       "exported_symbols": [],
@@ -2406,14 +2597,14 @@
       "file": "tests/legal-readiness-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 31
+      "symbol_count": 30
     },
     {
       "exported_symbols": [],
       "file": "tests/legal-readiness.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 18
+      "symbol_count": 17
     },
     {
       "exported_symbols": [],
@@ -2422,21 +2613,21 @@
         "__BITESHARK_RUNTIME__"
       ],
       "source_type": "script",
-      "symbol_count": 118
+      "symbol_count": 117
     },
     {
       "exported_symbols": [],
       "file": "tests/map-resilience-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 42
+      "symbol_count": 41
     },
     {
       "exported_symbols": [],
       "file": "tests/map-resilience.test.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 1
+      "symbol_count": 0
     },
     {
       "exported_symbols": [],
@@ -2445,7 +2636,7 @@
         "__BITESHARK_TEST_RUNTIME__"
       ],
       "source_type": "script",
-      "symbol_count": 20
+      "symbol_count": 19
     },
     {
       "exported_symbols": [],
@@ -2459,7 +2650,7 @@
       "file": "tests/pager-notifications-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 27
+      "symbol_count": 26
     },
     {
       "exported_symbols": [],
@@ -2468,18 +2659,19 @@
         "__BITESHARK_NOTIF_TEST_RUNTIME__"
       ],
       "source_type": "script",
-      "symbol_count": 36
+      "symbol_count": 35
     },
     {
       "exported_symbols": [],
       "file": "tests/reliability-accessibility-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 48
+      "symbol_count": 47
     },
     {
       "exported_symbols": [
-        "module.exports"
+        "runStagingSuite",
+        "assertNotProductionUrl"
       ],
       "file": "tests/staging-http-gates.cjs",
       "globals_assigned": [],
@@ -2498,14 +2690,14 @@
       "file": "tests/standalone-runtime-auth.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 24
+      "symbol_count": 23
     },
     {
       "exported_symbols": [],
       "file": "tests/support-feedback-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 40
+      "symbol_count": 39
     },
     {
       "exported_symbols": [],
@@ -2519,7 +2711,7 @@
       "file": "tests/urgent-pilot-security-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 34
+      "symbol_count": 33
     },
     {
       "exported_symbols": [],
@@ -2533,1221 +2725,2347 @@
       "file": "tests/vps-platform-contract.test.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 3
+      "symbol_count": 2
     },
     {
       "exported_symbols": [],
       "file": "tests/vps-staging-gates.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 14
+      "symbol_count": 13
     },
     {
       "exported_symbols": [],
       "file": "tests/welcome-experience-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 45
+      "symbol_count": 44
+    },
+    {
+      "exported_symbols": [
+        "extractFeatureControlsContract",
+        "extractDiagnosticsContract",
+        "extractAgePolicyAllowlist",
+        "extractBackendRoutes",
+        "analyzeMigrationsAndSchema",
+        "generateMermaidErDiagram"
+      ],
+      "file": "tools/code-registry/backend-db-analyzer.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 39
+    },
+    {
+      "exported_symbols": [],
+      "file": "tools/code-registry/cli.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 15
+    },
+    {
+      "exported_symbols": [
+        "scanGitRefSnapshot",
+        "resolveMergeBaseSha",
+        "loadGovernanceFilesFromRef",
+        "diffGovernanceState",
+        "compareRegistrySnapshots",
+        "formatImpactReportMarkdown"
+      ],
+      "file": "tools/code-registry/compare-impact.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 15
+    },
+    {
+      "exported_symbols": [
+        "buildCompactRegistrySummary",
+        "renderSymbolIndexOverviewMarkdown",
+        "renderSymbolAreaCatalogMarkdown",
+        "renderContractsCatalogMarkdown",
+        "renderRouteInventoryMarkdown",
+        "renderFrontendInventoryMarkdown",
+        "renderSchemaInventoryMarkdown",
+        "renderDriftReportMarkdown",
+        "writeGeneratedDocs"
+      ],
+      "file": "tools/code-registry/doc-generator.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 22
+    },
+    {
+      "exported_symbols": [
+        "makeStableFindingId",
+        "applyScopedSuppressions",
+        "validateMarkdownLinks",
+        "detectRepositoryDrift"
+      ],
+      "file": "tools/code-registry/drift-detector.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 8
+    },
+    {
+      "exported_symbols": [
+        "analyzeHtmlFile",
+        "analyzeCssFile"
+      ],
+      "file": "tools/code-registry/html-css-analyzer.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 7
+    },
+    {
+      "exported_symbols": [
+        "parseJavaScriptSource",
+        "computeAstNodeFingerprint",
+        "analyzeJavaScriptFile",
+        "extractCalledIdentifiersInInlineHandler"
+      ],
+      "file": "tools/code-registry/js-analyzer.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 32
+    },
+    {
+      "exported_symbols": [
+        "resolveSymbolRelationships"
+      ],
+      "file": "tools/code-registry/relationship-resolver.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 5
+    },
+    {
+      "exported_symbols": [
+        "CANONICAL_GENERATED_DOC_PATHS",
+        "scanRepositorySnapshot"
+      ],
+      "file": "tools/code-registry/scanner.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 3
+    },
+    {
+      "exported_symbols": [
+        "validateAgainstJsonSchema",
+        "validateJsonWithSchemaFile"
+      ],
+      "file": "tools/code-registry/schema-validator.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 6
+    },
+    {
+      "exported_symbols": [
+        "GENERATOR_NAME",
+        "GENERATOR_VERSION",
+        "REGISTRY_SCHEMA_VERSION",
+        "SUMMARY_SCHEMA_VERSION",
+        "IMPACT_SCHEMA_VERSION",
+        "DRIFT_BASELINE_SCHEMA_VERSION",
+        "SUPPRESSIONS_SCHEMA_VERSION",
+        "CONTRACTS_SCHEMA_VERSION",
+        "ROUTE_OVERRIDES_SCHEMA_VERSION",
+        "REPOSITORY_CANONICAL_URL",
+        "HIGH_CONFIDENCE_BLOCKING_DRIFT_CATEGORIES",
+        "DEFAULT_INCLUDED_ROOTS",
+        "EXPLICIT_EXCLUSION_RULES",
+        "asciiCompare",
+        "sha256Text",
+        "toPosixPath",
+        "classifyPathExclusion",
+        "isBinaryAssetPath",
+        "collectWorkspaceFiles",
+        "resolveGitProvenance",
+        "sortObjectKeysDeep",
+        "deterministicStringify",
+        "computePayloadDigest",
+        "computeGovernanceDigest"
+      ],
+      "file": "tools/code-registry/schema-versions.mjs",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 15
     }
   ],
   "parse_failures": [],
+  "provenance_mode": "committed_source_digest",
   "repository": "https://github.com/yamanalmasaleha-png/trukly-",
   "routes": [
     {
-      "auth_requirement": "internal_probe_token_and_top_admin",
-      "caller_count": 0,
+      "auth_requirement": "authenticated_14_plus_and_staging_flag",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "staging_probe_secret_and_top_admin",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/app.js",
       "feature_gate": null,
-      "handler_file": "server/app.js",
+      "handler_file": "lib/staging-gate-probe.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/_staging_gate_probe",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 6,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-AGE-ELIGIBILITY",
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 4,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/account/context",
-      "test_count": 6
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/accounts",
-      "test_count": 5
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 6,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/accounts/role",
-      "test_count": 5
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/accounts/status",
-      "test_count": 4
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/applications",
-      "test_count": 3
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/applications/decision",
-      "test_count": 2
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/audit",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 9,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/diagnostics",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/diagnostics/cleanup",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/diagnostics/detail",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/diagnostics/note",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/diagnostics/notify-tickets",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/diagnostics/synthetic-test",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/diagnostics/triage",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/email-readiness",
-      "test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-FEATURE-CONTROLS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/admin/features",
-      "test_count": 6
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-FEATURE-CONTROLS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/features/update",
-      "test_count": 6
+      "static_http_test_count": 7
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/admin/invitations",
-      "test_count": 6
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/invitations/create",
-      "test_count": 6
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/invitations/decision",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 0,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/invitations/resend",
-      "test_count": 0
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 0,
-      "dispatcher": "server/admin-routes.js",
-      "feature_gate": null,
-      "handler_file": "server/admin-routes.js",
-      "methods": [
-        "GET",
-        "POST"
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 3,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
       ],
-      "path": "/api/admin/invitations/resend",
-      "test_count": 0
-    },
-    {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 5,
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/issues",
-      "test_count": 5
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/issues/diagnostics",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/issues/update",
-      "test_count": 3
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/moderation",
-      "test_count": 2
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/moderation/decision",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/overview",
-      "test_count": 5
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/readiness",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/readiness/note",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/readiness/update",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/vendor-preview",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 5,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/admin/vendors",
-      "test_count": 2
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 3,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/admin/vendors/update",
-      "test_count": 2
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "public",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_endpoint",
+      "candidate_test_mention_count": 0,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
+      "dispatcher": "server/app.js",
+      "feature_gate": null,
+      "handler_file": "server/app.js",
+      "method_source": "unresolved",
+      "methods": [
+        "UNRESOLVED"
+      ],
+      "path": "/api/auth",
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_pending_age",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "self_session_only",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AGE-ELIGIBILITY"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/auth/age-assessment",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public_or_session",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "csrf_origin_checked",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 3,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/auth/logout",
-      "test_count": 5
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "public_or_session",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "session_cookie_inspection",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/auth/session",
-      "test_count": 5
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "internal_mailbox_secret",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "staging_loopback_operator_secret_only",
+      "candidate_test_mention_count": 7,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "test_count": 15
+      "static_http_test_count": 15
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "csrf_client_header_and_rate_limit",
+      "candidate_test_mention_count": 11,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/auth/start",
-      "test_count": 17
+      "static_http_test_count": 17
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "otp_verification_and_rate_limit",
+      "candidate_test_mention_count": 10,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTH-SESSION-OTP"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "lib/standalone-auth.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/auth/verify",
-      "test_count": 17
+      "static_http_test_count": 16
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner",
+      "candidate_test_mention_count": 6,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": "event_inquiries",
       "handler_file": "api/bookings/create.js",
+      "method_source": "declared_export",
       "methods": [
         "POST"
       ],
       "path": "/api/bookings/create",
-      "test_count": 6
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner",
+      "candidate_test_mention_count": 6,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/bookings/list.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/bookings/list",
-      "test_count": 7
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 0,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/catalog/cities.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/catalog/cities",
-      "test_count": 0
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 0,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/catalog/cuisines.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/catalog/cuisines",
-      "test_count": 0
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/catalog/featured.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/catalog/featured",
-      "test_count": 2
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 6,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": "community_hub",
       "handler_file": "api/community/list.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/community/list",
-      "test_count": 6
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/community/mine.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/community/mine",
-      "test_count": 4
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/community/moderate.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/community/moderate",
-      "test_count": 4
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 7,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": "community_submissions",
       "handler_file": "api/community/post.js",
+      "method_source": "declared_export",
       "methods": [
         "POST"
       ],
       "path": "/api/community/post",
-      "test_count": 7
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "community_hub",
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/community/report",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 0,
+      "auth_requirement": "public",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-DIAGNOSTICS-PIPELINE"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/diagnostics/report",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/favorites/list.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/favorites/list",
-      "test_count": 6
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 3,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/favorites/toggle.js",
+      "method_source": "declared_export",
       "methods": [
         "POST"
       ],
       "path": "/api/favorites/toggle",
-      "test_count": 7
+      "static_http_test_count": 5
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 3,
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-FEATURE-CONTROLS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/features",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_health_probe",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-RELEASE-MIGRATION-DEPLOY"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/app.js",
       "feature_gate": null,
       "handler_file": "server/app.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/healthz",
-      "test_count": 9
+      "static_http_test_count": 7
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/invitations/accept",
-      "test_count": 3
+      "static_http_test_count": 3
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/invitations/inspect",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 10,
-      "dispatcher": "server/admin-routes.js",
-      "feature_gate": null,
-      "handler_file": "server/admin-routes.js",
-      "methods": [
-        "GET"
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "method_specific(GET:authenticated_self_owner_rls, POST:vendor_staff_or_owner_or_admin)",
+      "candidate_test_mention_count": 7,
+      "confirmed_caller_count": 3,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
       ],
-      "path": "/api/issues",
-      "test_count": 8
-    },
-    {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "GET",
         "POST"
       ],
-      "path": "/api/issues/read",
-      "test_count": 1
+      "path": "/api/issues",
+      "static_http_test_count": 6
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/issues/read",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/issues/reopen",
-      "test_count": 2
+      "static_http_test_count": 1
     },
     {
-      "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "auth_requirement": "authenticated_age_exempt_support",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-SUPPORT-TICKETS"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/issues/reply",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 4,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/me/exploration",
-      "test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/me/exploration/export",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "visit_journal",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/me/exploration/import",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 4,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-PRIVATE-PHOTO-STORAGE"
+      ],
+      "contract_test_count": 1,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "private_photos",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/me/photos",
-      "test_count": 3
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-PRIVATE-PHOTO-STORAGE"
+      ],
+      "contract_test_count": 1,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/me/photos/delete",
-      "test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-PRIVATE-PHOTO-STORAGE"
+      ],
+      "contract_test_count": 1,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "GET"
       ],
       "path": "/api/me/photos/file",
-      "test_count": 2
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 4,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "suggested_trails",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/me/trails",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/me/trails/delete",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 4,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "visit_journal",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/me/visits",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
         "POST"
       ],
       "path": "/api/me/visits/delete",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": "nearby_alert_preferences",
       "handler_file": "api/notifications/settings.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/notifications/settings",
-      "test_count": 5
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "vendor_onboarding",
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/onboarding/applications",
-      "test_count": 5
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "method_specific(DELETE:admin_top_only, GET:admin_mod_or_top, POST:authenticated_self_owner_rls)",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "vendor_onboarding",
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
+        "DELETE",
         "GET",
         "POST"
       ],
       "path": "/api/onboarding/evidence",
-      "test_count": 4
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/bookings.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/owner/bookings",
-      "test_count": 4
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 7,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/location.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/owner/location",
-      "test_count": 8
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_owner_or_top_admin",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/profile.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/owner/profile",
-      "test_count": 7
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/requests.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/owner/requests",
-      "test_count": 4
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 2,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/schedule.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/owner/schedule",
-      "test_count": 4
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 1,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/owner/stats.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/owner/stats",
-      "test_count": 6
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": "pickup_pager_creation",
       "handler_file": "api/pager/staff.js",
+      "method_source": "declared_export",
       "methods": [
         "GET",
         "POST"
       ],
       "path": "/api/pager/staff",
-      "test_count": 9
+      "static_http_test_count": 7
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/pager/status.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/pager/status",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "pager_capability_or_unsubscribe_token",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": "pager_push_subscriptions",
       "handler_file": "api/pager/subscriptions.js",
+      "method_source": "declared_export",
       "methods": [
         "DELETE",
         "GET",
         "POST"
       ],
       "path": "/api/pager/subscriptions",
-      "test_count": 4
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_top_only",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/pager/telemetry.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/pager/telemetry",
-      "test_count": 4
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_staff_or_owner_or_admin",
+      "candidate_test_mention_count": 4,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/pager/update.js",
+      "method_source": "declared_export",
       "methods": [
         "POST"
       ],
       "path": "/api/pager/update",
-      "test_count": 7
+      "static_http_test_count": 5
     },
     {
       "auth_requirement": "internal_worker_secret",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "internal_worker_or_operator_secret",
+      "candidate_test_mention_count": 5,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-PAGER-WEBPUSH"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/pager/worker.js",
+      "method_source": "declared_export",
       "methods": [
         "POST"
       ],
       "path": "/api/pager/worker",
-      "test_count": 8
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 0,
+      "contract_ids": [],
+      "contract_test_count": 0,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/schedule/today.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/schedule/today",
-      "test_count": 3
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "editorial_stories",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/stories",
-      "test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-EXPLORATION"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": "suggested_trails",
       "handler_file": "server/customer-exploration-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/trails/suggest",
-      "test_count": 1
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "public",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 8,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DISCOVERY-CATALOG"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/trucks.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/trucks",
-      "test_count": 14
+      "static_http_test_count": 11
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-DISCOVERY-CATALOG"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/trucks/[id].js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/trucks/:id",
-      "test_count": 0
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DISCOVERY-CATALOG"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/routes.js",
       "feature_gate": "event_inquiries",
       "handler_file": "api/trucks/availability.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/trucks/availability",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-DISCOVERY-CATALOG"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/trucks/nearby.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/trucks/nearby",
-      "test_count": 3
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "public",
-      "caller_count": 0,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-DISCOVERY-CATALOG"
+      ],
+      "contract_test_count": 3,
       "dispatcher": "server/routes.js",
       "feature_gate": null,
       "handler_file": "api/trucks/search.js",
+      "method_source": "declared_export",
       "methods": [
         "GET"
       ],
       "path": "/api/trucks/search",
-      "test_count": 3
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 2,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_owner_or_top_admin",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 2,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_branches",
       "methods": [
         "DELETE",
-        "GET",
-        "POST"
+        "GET"
       ],
       "path": "/api/vendor/members",
-      "test_count": 1
+      "static_http_test_count": 0
     },
     {
       "auth_requirement": "authenticated_14_plus",
-      "caller_count": 1,
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "vendor_owner_or_top_admin",
+      "candidate_test_mention_count": 3,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
       "methods": [
         "POST"
       ],
       "path": "/api/vendor/staff-invitations",
-      "test_count": 3
+      "static_http_test_count": 2
     }
   ],
-  "schema_version": "biteshark.code-registry.v1"
+  "schema_version": "biteshark.registry-summary.v2",
+  "shared_contracts": [
+    {
+      "contract_id": "CTR-DB-TX-SESSION",
+      "db_tables": [
+        "auth_users",
+        "auth_sessions"
+      ],
+      "domain": "backend-foundation",
+      "http_routes": [],
+      "implementation_symbols": [
+        "lib/db-tx.js#withTransaction",
+        "lib/db-tx.js#verifySessionAndEligibilityInTx",
+        "lib/db-tx.js#respondIfSessionEligibilityError",
+        "packages/runtime-adapter/index.js"
+      ],
+      "title": "Pinned PostgreSQL Transaction, Session Row-Locking & Local GUC Context"
+    },
+    {
+      "contract_id": "CTR-AUTH-SESSION-OTP",
+      "db_tables": [
+        "auth_users",
+        "auth_otp_challenges",
+        "auth_sessions",
+        "auth_rate_limits",
+        "auth_delivery_telemetry"
+      ],
+      "domain": "auth-and-email",
+      "http_routes": [
+        "/api/auth/start",
+        "/api/auth/verify",
+        "/api/auth/session",
+        "/api/auth/logout",
+        "/api/auth/staging-mailbox",
+        "/api/admin/email-readiness"
+      ],
+      "implementation_symbols": [
+        "lib/standalone-auth.js#startEmailOtpChallenge",
+        "lib/standalone-auth.js#verifyEmailOtpChallenge",
+        "lib/standalone-auth.js#resolveSessionFromRequest",
+        "lib/standalone-auth.js#revokeSessionFromRequest",
+        "lib/standalone-auth.js#verifySameOriginMutationRequest",
+        "public/auth-client.js"
+      ],
+      "title": "Standalone Email OTP Sign-In, HttpOnly Session Cookie & CSRF Origin Verification"
+    },
+    {
+      "contract_id": "CTR-AGE-ELIGIBILITY",
+      "db_tables": [
+        "auth_users"
+      ],
+      "domain": "legal-and-readiness",
+      "http_routes": [
+        "/api/auth/age-assessment",
+        "/api/account/context"
+      ],
+      "implementation_symbols": [
+        "lib/age-policy.js#evaluateMinimumAgeEligibility",
+        "lib/age-policy.js#parseAndValidateDobInput",
+        "lib/age-policy.js#isGovernanceRouteExemptFromAgeGate",
+        "lib/standalone-auth.js#submitExistingAccountAgeAssessment"
+      ],
+      "title": "Minimum Account Age (14+ Pacific Civil Date) & Pending-Assessment Allowlist"
+    },
+    {
+      "contract_id": "CTR-AUTHZ-RBAC-VENDOR",
+      "db_tables": [
+        "platform_roles",
+        "vendor_memberships",
+        "vendors",
+        "account_invitations",
+        "audit_logs"
+      ],
+      "domain": "vendor-onboarding-and-admin",
+      "http_routes": [
+        "/api/account/context",
+        "/api/vendor/members",
+        "/api/vendor/staff-invitations",
+        "/api/admin/accounts",
+        "/api/admin/accounts/role",
+        "/api/admin/accounts/status",
+        "/api/admin/vendors/update"
+      ],
+      "implementation_symbols": [
+        "lib/authz.js#loadAccessContext",
+        "lib/authz.js#authorizeVendorTarget",
+        "lib/authz.js#authorizeVendorScope",
+        "lib/authz.js#reverifyVendorMembershipInTx",
+        "lib/authz.js#reverifyModeratorInTx",
+        "lib/authz.js#reverifyPlatformAdminInTx",
+        "lib/authz.js#recordAuditLog"
+      ],
+      "title": "Five-Role RBAC, Row-Locked Tx Re-Verification, Act-on-Behalf & Audit Logging"
+    },
+    {
+      "contract_id": "CTR-FEATURE-CONTROLS",
+      "db_tables": [
+        "feature_controls",
+        "feature_control_history"
+      ],
+      "domain": "feature-controls",
+      "http_routes": [
+        "/api/features",
+        "/api/admin/features",
+        "/api/admin/features/update"
+      ],
+      "implementation_symbols": [
+        "lib/feature-controls.js#evaluateFeatureControlsSnapshot",
+        "lib/feature-controls.js#enforceHttpFeatureGate",
+        "lib/feature-controls.js#updateFeatureControlInTx",
+        "public/role-experience.js#isFeatureAvailable",
+        "public/role-experience.js#isFeatureHidden"
+      ],
+      "title": "Runtime Feature Controls DAG, HTTP Route Gate & Browser Sync"
+    },
+    {
+      "contract_id": "CTR-DIAGNOSTICS-PIPELINE",
+      "db_tables": [
+        "diagnostic_event_samples",
+        "diagnostic_incident_groups",
+        "diagnostic_incident_notes",
+        "diagnostic_releases",
+        "worker_runtime_heartbeats"
+      ],
+      "domain": "diagnostics",
+      "http_routes": [
+        "/api/diagnostics/report",
+        "/api/admin/diagnostics",
+        "/api/admin/diagnostics/detail",
+        "/api/admin/diagnostics/triage",
+        "/api/admin/diagnostics/note",
+        "/api/admin/diagnostics/synthetic-test",
+        "/api/admin/diagnostics/cleanup"
+      ],
+      "implementation_symbols": [
+        "lib/diagnostics.js#recordDiagnosticEvent",
+        "lib/diagnostics.js#computeIncidentFingerprint",
+        "lib/diagnostics.js#cleanupExpiredDiagnostics",
+        "public/diagnostics-client.js#fetchJsonBounded",
+        "public/diagnostics-client.js#reportClientDiagnostic"
+      ],
+      "title": "Redacted Operational Diagnostics, Incident Fingerprinting & Bounded Client Fetch"
+    },
+    {
+      "contract_id": "CTR-DISCOVERY-CATALOG",
+      "db_tables": [
+        "vendors",
+        "owner_profiles",
+        "truck_settings",
+        "owner_schedule"
+      ],
+      "domain": "discovery-catalog",
+      "http_routes": [
+        "/api/trucks",
+        "/api/trucks/:id",
+        "/api/trucks/nearby",
+        "/api/trucks/search",
+        "/api/trucks/availability"
+      ],
+      "implementation_symbols": [
+        "lib/discovery.js#loadDiscoveryCatalog",
+        "lib/discovery.js#isVendorPubliclyDiscoverable",
+        "lib/discovery.js#evaluateSchedulePrecedence",
+        "public/app.js#cardHTML"
+      ],
+      "title": "Unified Sonoma Discovery Catalog, Pacific Live/Schedule Precedence & Card Rendering"
+    },
+    {
+      "contract_id": "CTR-CUSTOMER-EXPLORATION",
+      "db_tables": [
+        "customer_visits",
+        "customer_photos",
+        "customer_saved_trails",
+        "customer_saved_trail_stops",
+        "vendors"
+      ],
+      "domain": "visits-and-passport",
+      "http_routes": [
+        "/api/stories",
+        "/api/trails/suggest",
+        "/api/me/exploration",
+        "/api/me/exploration/import",
+        "/api/me/exploration/export",
+        "/api/me/visits",
+        "/api/me/visits/delete",
+        "/api/me/trails",
+        "/api/me/trails/delete"
+      ],
+      "implementation_symbols": [
+        "lib/customer-exploration.js#getExplorationSummary",
+        "lib/customer-exploration.js#logUserVisit",
+        "lib/customer-exploration.js#buildSuggestedTrail",
+        "lib/customer-exploration.js#saveUserTrail",
+        "lib/customer-exploration.js#importLegacyDeviceVisits",
+        "lib/customer-exploration.js#exportUserExplorationData",
+        "lib/editorial-stories.js#buildPublicStoriesPayload",
+        "server/customer-exploration-routes.js#handleCustomerExplorationRoute",
+        "public/exploration-client.js#getSummary",
+        "public/exploration-client.js#importLegacyDeviceData"
+      ],
+      "title": "Account-Backed Customer Exploration: Stories, Visit Journal, Badges, Challenges, Trails & Legacy Import"
+    },
+    {
+      "contract_id": "CTR-PRIVATE-PHOTO-STORAGE",
+      "db_tables": [
+        "customer_photos"
+      ],
+      "domain": "photos",
+      "http_routes": [
+        "/api/me/photos",
+        "/api/me/photos/file",
+        "/api/me/photos/delete"
+      ],
+      "implementation_symbols": [
+        "lib/photo-storage.js#verifyAndNormalizeUploadedPhoto",
+        "lib/photo-storage.js#writePhotoDerivativesAtomically",
+        "lib/photo-storage.js#readPhotoDerivativeSafely",
+        "lib/photo-storage.js#deletePhotoFilesSafely",
+        "lib/customer-exploration.js#createUserPhoto",
+        "lib/customer-exploration.js#readUserPhotoFile",
+        "lib/customer-exploration.js#deleteUserPhoto",
+        "lib/customer-exploration.js#reconcilePhotoStorage"
+      ],
+      "title": "Private Confined Photo Derivatives, EXIF Stripping & Orphan Reconciliation"
+    },
+    {
+      "contract_id": "CTR-SUPPORT-TICKETS",
+      "db_tables": [
+        "support_issues",
+        "support_issue_notes",
+        "support_issue_events",
+        "support_issue_diagnostic_links",
+        "support_issue_notifications"
+      ],
+      "domain": "support-and-feedback",
+      "http_routes": [
+        "/api/issues",
+        "/api/issues/reply",
+        "/api/issues/reopen",
+        "/api/issues/read",
+        "/api/admin/issues",
+        "/api/admin/issues/update",
+        "/api/admin/issues/diagnostics",
+        "/api/admin/diagnostics/notify-tickets"
+      ],
+      "implementation_symbols": [
+        "lib/support-tickets.js#serializeSupportTicketForReporter",
+        "lib/support-tickets.js#validateStaffStatusTransition",
+        "lib/support-tickets.js#autoSuggestDiagnosticLinksInTx",
+        "server/admin-routes.js#handleGovernanceApiRequest"
+      ],
+      "title": "Support & Feedback Tickets, Sharing Scope & Connected Incident Links"
+    },
+    {
+      "contract_id": "CTR-PAGER-WEBPUSH",
+      "db_tables": [
+        "pickup_pagers",
+        "pager_notification_subscriptions",
+        "pager_notification_events",
+        "pager_notification_deliveries"
+      ],
+      "domain": "pager-and-notifications",
+      "http_routes": [
+        "/api/pager/staff",
+        "/api/pager/status",
+        "/api/pager/subscriptions",
+        "/api/pager/update",
+        "/api/pager/worker",
+        "/api/pager/telemetry"
+      ],
+      "implementation_symbols": [
+        "lib/pager-notifications.js#handlePagerTransitionNotificationsInTx",
+        "lib/pager-notifications.js#runNotificationWorkerBatch",
+        "lib/pager-notifications.js#verifySameOriginMutation",
+        "lib/webpush-crypto.js",
+        "public/pager.js"
+      ],
+      "title": "Pickup Pagers, Web Push Subscriptions & Lease-Fenced Outbox Worker"
+    },
+    {
+      "contract_id": "CTR-RELEASE-MIGRATION-DEPLOY",
+      "db_tables": [
+        "schema_migrations"
+      ],
+      "domain": "release-and-deploy",
+      "http_routes": [
+        "/api/healthz"
+      ],
+      "implementation_symbols": [
+        "scripts/run-migrations.cjs#parseArgs",
+        "scripts/build-linux-release-tarball.cjs#parseArgs"
+      ],
+      "title": "Immutable SQL Migration Checksums, Release Tarball Packaging & Atomic Staging Installer"
+    }
+  ],
+  "snapshot_schema_version": "biteshark.code-registry.v2",
+  "source_analysis_digest_sha256": "914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba"
 }

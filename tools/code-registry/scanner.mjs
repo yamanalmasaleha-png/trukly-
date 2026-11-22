@@ -8,12 +8,16 @@ import {
   GENERATOR_VERSION,
   REGISTRY_SCHEMA_VERSION,
   EXPLICIT_EXCLUSION_RULES,
+  asciiCompare,
+  sha256Text,
   collectWorkspaceFiles,
   resolveGitProvenance,
-  computePayloadDigest
+  computePayloadDigest,
+  computeGovernanceDigest
 } from './schema-versions.mjs';
 import { analyzeJavaScriptFile } from './js-analyzer.mjs';
 import { analyzeHtmlFile, analyzeCssFile } from './html-css-analyzer.mjs';
+import { resolveSymbolRelationships } from './relationship-resolver.mjs';
 import {
   extractFeatureControlsContract,
   extractDiagnosticsContract,
@@ -23,6 +27,22 @@ import {
 } from './backend-db-analyzer.mjs';
 import { detectRepositoryDrift } from './drift-detector.mjs';
 
+export const CANONICAL_GENERATED_DOC_PATHS = Object.freeze([
+  'docs/engineering/generated/registry-summary.json',
+  'docs/engineering/generated/CONTRACTS-CATALOG.md',
+  'docs/engineering/generated/SYMBOL-INDEX.md',
+  'docs/engineering/generated/symbols/server-and-runtime.md',
+  'docs/engineering/generated/symbols/shared-libraries.md',
+  'docs/engineering/generated/symbols/domain-api-handlers.md',
+  'docs/engineering/generated/symbols/frontend-scripts.md',
+  'docs/engineering/generated/symbols/scripts-and-tooling.md',
+  'docs/engineering/generated/ROUTE-INVENTORY.md',
+  'docs/engineering/generated/FRONTEND-INVENTORY.md',
+  'docs/engineering/generated/SCHEMA-INVENTORY.md',
+  'docs/engineering/generated/DRIFT-REPORT.md',
+  'docs/engineering/schemas/drift-baseline.json'
+]);
+
 export function scanRepositorySnapshot(
   rootDir,
   {
@@ -30,7 +50,9 @@ export function scanRepositorySnapshot(
     overrideSha = null,
     includeTimestamp = false,
     suppressionsPath = null,
-    configContractPath = null
+    configContractPath = null,
+    sharedContractsPath = null,
+    routeOverridesPath = null
   } = {}
 ) {
   const absRoot = path.resolve(rootDir);
@@ -47,9 +69,14 @@ export function scanRepositorySnapshot(
   for (const b of collected.binaryAssets) {
     allRepoPathsSet.add(b.path);
   }
-  // Populate `allRepoPathsSet` with all tracked/present non-secret, non-node_modules repo paths so valid links to `.gitattributes`, `package-lock.json`, or `docs/archive/*` resolve accurately
   const walkAllSafePaths = (dir, relBase) => {
-    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => asciiCompare(a.name, b.name));
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
       if (ent.name === '.git' || ent.name === 'node_modules') continue;
       const rel = relBase ? `${relBase}/${ent.name}` : ent.name;
       allRepoPathsSet.add(rel);
@@ -59,16 +86,7 @@ export function scanRepositorySnapshot(
     }
   };
   walkAllSafePaths(absRoot, '');
-  // Always register canonical generated registry targets so cold-start runs before `generate-docs` resolve handbook links identically
-  for (const genRel of [
-    'docs/engineering/generated/registry-summary.json',
-    'docs/engineering/generated/SYMBOL-INDEX.md',
-    'docs/engineering/generated/ROUTE-INVENTORY.md',
-    'docs/engineering/generated/FRONTEND-INVENTORY.md',
-    'docs/engineering/generated/SCHEMA-INVENTORY.md',
-    'docs/engineering/generated/DRIFT-REPORT.md',
-    'docs/engineering/schemas/drift-baseline.json'
-  ]) {
+  for (const genRel of CANONICAL_GENERATED_DOC_PATHS) {
     allRepoPathsSet.add(genRel);
   }
 
@@ -78,6 +96,7 @@ export function scanRepositorySnapshot(
   const cssAnalyses = [];
   const migrationFiles = [];
   const parseFailures = [];
+  const manifestHashParts = [];
 
   for (const item of collected.includedFiles) {
     let text = '';
@@ -87,6 +106,7 @@ export function scanRepositorySnapshot(
       continue;
     }
     fileContentsByPath.set(item.path, text);
+    manifestHashParts.push(`${item.path}\0${sha256Text(text)}`);
 
     if (item.path.endsWith('.md')) {
       markdownFilesByPath.set(item.path, text);
@@ -119,6 +139,53 @@ export function scanRepositorySnapshot(
     }
   }
 
+  for (const bin of collected.binaryAssets) {
+    manifestHashParts.push(`BIN:${bin.path}\0${bin.sha256}`);
+  }
+  const includedFilesManifestSha256 = sha256Text(manifestHashParts.join('\n'));
+
+  // Resolve symbol-to-symbol relationships across ESM, CJS, browser scripts & HTML inline handlers
+  const relationshipSummary = resolveSymbolRelationships({
+    jsAnalyses,
+    htmlAnalyses
+  });
+
+  // Load maintained shared contracts & route overrides (if present)
+  const resolvedContractsPath =
+    sharedContractsPath || path.join(absRoot, 'docs', 'engineering', 'contracts', 'shared-contracts.json');
+  let sharedContracts = [];
+  if (fs.existsSync(resolvedContractsPath)) {
+    try {
+      const parsedCtr = JSON.parse(fs.readFileSync(resolvedContractsPath, 'utf8'));
+      sharedContracts = Array.isArray(parsedCtr.contracts) ? parsedCtr.contracts : [];
+    } catch {}
+  }
+
+  const resolvedOverridesPath =
+    routeOverridesPath || path.join(absRoot, 'docs', 'engineering', 'contracts', 'route-overrides.json');
+  let routeOverrides = [];
+  if (fs.existsSync(resolvedOverridesPath)) {
+    try {
+      const parsedOv = JSON.parse(fs.readFileSync(resolvedOverridesPath, 'utf8'));
+      routeOverrides = Array.isArray(parsedOv.overrides) ? parsedOv.overrides : [];
+    } catch {}
+  }
+
+  // Attach `contract_ids` onto matching JS symbols (`file#symbolName`)
+  const symbolContractsMap = new Map();
+  for (const ctr of sharedContracts) {
+    for (const impl of ctr.implementation_symbols || []) {
+      if (!symbolContractsMap.has(impl)) symbolContractsMap.set(impl, []);
+      symbolContractsMap.get(impl).push(ctr.contract_id);
+    }
+  }
+  for (const mod of jsAnalyses) {
+    for (const sym of mod.symbols || []) {
+      const key = `${mod.file}#${sym.name}`;
+      sym.contract_ids = (symbolContractsMap.get(key) || []).sort(asciiCompare);
+    }
+  }
+
   const featureControlsSrc = fileContentsByPath.get('lib/feature-controls.js') || '';
   const diagnosticsSrc = fileContentsByPath.get('lib/diagnostics.js') || '';
   const runMigrationsSrc = fileContentsByPath.get('scripts/run-migrations.cjs') || '';
@@ -128,7 +195,9 @@ export function scanRepositorySnapshot(
   const routes = extractBackendRoutes({
     fileContentsByPath,
     featureRouteRules: featureContract.route_rules,
-    jsAnalysesByPath
+    jsAnalysesByPath,
+    routeOverrides,
+    sharedContracts
   });
   const schemaInfo = analyzeMigrationsAndSchema({
     migrationFiles,
@@ -136,13 +205,22 @@ export function scanRepositorySnapshot(
   });
   const mermaidEr = generateMermaidErDiagram(schemaInfo.tables);
 
-  // Load optional suppressions & documented configuration keys
+  // Load suppressions & baseline for governance digest
   const resolvedSuppPath = suppressionsPath || path.join(absRoot, 'tools', 'code-registry', 'suppressions.json');
+  let parsedSuppObj = null;
   let suppressions = [];
   if (fs.existsSync(resolvedSuppPath)) {
     try {
-      const parsedSupp = JSON.parse(fs.readFileSync(resolvedSuppPath, 'utf8'));
-      suppressions = Array.isArray(parsedSupp.suppressions) ? parsedSupp.suppressions : [];
+      parsedSuppObj = JSON.parse(fs.readFileSync(resolvedSuppPath, 'utf8'));
+      suppressions = Array.isArray(parsedSuppObj.suppressions) ? parsedSuppObj.suppressions : [];
+    } catch {}
+  }
+
+  const baselinePath = path.join(absRoot, 'docs', 'engineering', 'schemas', 'drift-baseline.json');
+  let parsedBaselineObj = null;
+  if (fs.existsSync(baselinePath)) {
+    try {
+      parsedBaselineObj = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
     } catch {}
   }
 
@@ -173,8 +251,15 @@ export function scanRepositorySnapshot(
     suppressions
   });
 
-  // Aggregate Dependencies (`package.json` + CDN external assets + vendored code)
-  let packageMeta = { name: 'biteshark', version: '1.0.0', engines: {}, dependencies: {}, devDependencies: {}, scripts: {} };
+  // Aggregate Dependencies (`package.json` + CDN external assets)
+  let packageMeta = {
+    name: 'biteshark',
+    version: '1.0.0',
+    engines: {},
+    dependencies: {},
+    devDependencies: {},
+    scripts: {}
+  };
   const pkgRaw = fileContentsByPath.get('package.json');
   if (pkgRaw) {
     try {
@@ -197,12 +282,12 @@ export function scanRepositorySnapshot(
       externalBrowserAssets.push(ext);
     }
   }
-  externalBrowserAssets.sort((a, b) => a.url.localeCompare(b.url) || a.file.localeCompare(b.file));
+  externalBrowserAssets.sort((a, b) => asciiCompare(a.url, b.url) || asciiCompare(a.file, b.file));
 
-  // Aggregate unique configuration keys read in first-party non-test JS
+  // Aggregate unique configuration keys read in first-party non-test/non-registry-tool JS
   const configConsumersMap = new Map();
   for (const ja of jsAnalyses) {
-    if (ja.file.startsWith('tests/')) continue;
+    if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/code-registry/')) continue;
     for (const er of ja.env_reads) {
       if (!configConsumersMap.has(er.key)) {
         configConsumersMap.set(er.key, {
@@ -217,12 +302,12 @@ export function scanRepositorySnapshot(
       if (!entry.consumers.includes(loc)) entry.consumers.push(loc);
     }
   }
-  const configurationConsumers = [...configConsumersMap.values()].sort((a, b) => a.key.localeCompare(b.key));
+  const configurationConsumers = [...configConsumersMap.values()].sort((a, b) => asciiCompare(a.key, b.key));
 
   // Aggregate storage inventory (`localStorage`, `sessionStorage`, `IndexedDB`, `CacheStorage`, `cookie`)
   const storageInventoryMap = new Map();
   for (const ja of jsAnalyses) {
-    if (ja.file.startsWith('tests/')) continue;
+    if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/code-registry/')) continue;
     for (const sa of ja.storage_accesses) {
       const sk = `${sa.storage_type}::${sa.key}`;
       if (!storageInventoryMap.has(sk)) {
@@ -242,10 +327,10 @@ export function scanRepositorySnapshot(
     .map(r => ({
       storage_type: r.storage_type,
       key: r.key,
-      operations: [...r.operations].sort(),
-      locations: [...r.files].sort()
+      operations: [...r.operations].sort(asciiCompare),
+      locations: [...r.files].sort(asciiCompare)
     }))
-    .sort((a, b) => a.storage_type.localeCompare(b.storage_type) || a.key.localeCompare(b.key));
+    .sort((a, b) => asciiCompare(a.storage_type, b.storage_type) || asciiCompare(a.key, b.key));
 
   const totalSymbols = jsAnalyses.reduce((s, j) => s + j.symbols.length, 0);
   const totalClasses = jsAnalyses.reduce((s, j) => s + j.classes.length, 0);
@@ -261,7 +346,7 @@ export function scanRepositorySnapshot(
       version: GENERATOR_VERSION,
       analysis_mode: 'static_ast_html_css_sql_offline',
       limitations_note:
-        'Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.'
+        'Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.'
     },
     provenance: {
       ...provenance,
@@ -269,6 +354,7 @@ export function scanRepositorySnapshot(
     },
     scope: {
       included_file_count: collected.includedFiles.length,
+      included_files_manifest_sha256: includedFilesManifestSha256,
       binary_asset_count: collected.binaryAssets.length,
       excluded_item_count: collected.excludedRecords.length,
       exclusion_rules: EXPLICIT_EXCLUSION_RULES,
@@ -281,10 +367,13 @@ export function scanRepositorySnapshot(
       classes: totalClasses,
       significant_constants: totalConstants,
       browser_globals_and_assignments: totalGlobals,
+      confirmed_call_edges: relationshipSummary.confirmed_edge_count,
+      inferred_call_edges: relationshipSummary.inferred_edge_count,
       html_files_scanned: htmlAnalyses.length,
       html_element_ids: totalHtmlIds,
       css_files_scanned: cssAnalyses.length,
       http_routes: routes.length,
+      shared_contracts: sharedContracts.length,
       sql_migrations: schemaInfo.migrations.length,
       sql_tables: schemaInfo.tables.length,
       sql_rls_policies: schemaInfo.tables.reduce((s, t) => s + t.rls_policies.length, 0),
@@ -298,9 +387,16 @@ export function scanRepositorySnapshot(
     package_metadata: packageMeta,
     external_browser_assets: externalBrowserAssets,
     js_modules: jsAnalyses,
+    relationships: {
+      confirmed_edge_count: relationshipSummary.confirmed_edge_count,
+      inferred_edge_count: relationshipSummary.inferred_edge_count,
+      html_handler_bindings: relationshipSummary.html_handler_bindings,
+      wrapper_chains: relationshipSummary.wrapper_chains
+    },
     html_documents: htmlAnalyses,
     css_stylesheets: cssAnalyses,
     backend_routes: routes,
+    shared_contracts: sharedContracts,
     feature_controls: featureContract,
     diagnostics_contract: diagnosticsContract,
     configuration_consumers: configurationConsumers,
@@ -317,6 +413,12 @@ export function scanRepositorySnapshot(
     }
   };
 
-  payload.deterministic_digest_sha256 = computePayloadDigest(payload);
+  const sourceDigest = computePayloadDigest(payload);
+  payload.source_analysis_digest_sha256 = sourceDigest;
+  payload.deterministic_digest_sha256 = sourceDigest;
+  payload.governance_digest_sha256 = computeGovernanceDigest({
+    baselineObj: parsedBaselineObj,
+    suppressionsObj: parsedSuppObj
+  });
   return payload;
 }

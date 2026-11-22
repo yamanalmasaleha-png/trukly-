@@ -1,6 +1,7 @@
 // BiteShark Code Registry — Stateful HTML5 & CSS3 Structure, Cascade & Token Analyzer
 // (`tools/code-registry/html-css-analyzer.mjs`)
 
+import { asciiCompare } from './schema-versions.mjs';
 import { analyzeJavaScriptFile, extractCalledIdentifiersInInlineHandler } from './js-analyzer.mjs';
 
 function stripCommentsPreservingNewlines(text, openDelim, closeDelim) {

@@ -1,0 +1,5 @@
+{
+  "schema_version": "biteshark.route-overrides.v1",
+  "description": "Validated route metadata overrides used ONLY where dynamic dispatch prevents static AST proof. Every path and handler_file is verified against live source during `npm run registry:validate`.",
+  "overrides": []
+}

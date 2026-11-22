@@ -3,10 +3,10 @@
 > [!NOTE]
 > **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via `npm run registry:docs` (`node tools/code-registry/cli.mjs generate-docs`).
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
-> - **Branch / Ref at Generation**: `integrate/customer-exploration-verified`
-> - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `0cc71a728ad68ae6de0aab116261638be200fd1c3643354326bf4567b127d825`
-> - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
+> - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
+> - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
+> - **Source Analysis Digest**: `914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba`
+> - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## HTML Document: [public/admin.html](../../../public/admin.html)
 
@@ -316,10 +316,10 @@
 
 | Storage Mechanism | Key / Database | Operations | Code Locations |
 |---|---|---|---|
+| `IndexedDB` | `truckly-dish-notebook-v1` | `open` | `public/exploration-client.js:L702`, `public/exploration-client.js:L767`, `public/exploration-client.js:L814` |
 | `cookie` | `:expr=; Path=/; Max-Age=0; Expir` | `write` | `public/role-experience.js:L40` |
 | `cookie` | `<dynamic>` | `write` | `public/role-experience.js:L83` |
 | `cookie` | `truckly_debug_role` | `write` | `scripts/dev-workbench/debug-admin.js:L123` |
-| `IndexedDB` | `truckly-dish-notebook-v1` | `open` | `public/exploration-client.js:L702`, `public/exploration-client.js:L767`, `public/exploration-client.js:L814` |
 | `localStorage` | `<constant_or_var>` | `getItem, removeItem, setItem` | `public/app.js:L108`, `public/app.js:L128`, `scripts/dev-workbench/debug-admin.js:L13`, `scripts/dev-workbench/debug-admin.js:L21` |
 | `localStorage` | `truckly_bookings` | `removeItem` | `public/app.js:L1726`, `public/app.js:L1794`, `public/auth-client.js:L24` |
 | `localStorage` | `truckly_catalog` | `removeItem` | `public/app.js:L423` |

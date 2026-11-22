@@ -1,6 +1,7 @@
 # Domain Map — Vendor Onboarding, Operations & Platform Administration
 
-- **Authoritative Deep Dive**: [ADMIN_GOVERNANCE_AND_ONBOARDING.md](../../ADMIN_GOVERNANCE_AND_ONBOARDING.md) *(check [KNOWN-DRIFT.md](../KNOWN-DRIFT.md) §2.2 for 7 corrected details)*
+- **Shared Contract**: [`CTR-AUTHZ-RBAC-VENDOR`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
+- **Authoritative Deep Dive**: [ADMIN_GOVERNANCE_AND_ONBOARDING.md](../../ADMIN_GOVERNANCE_AND_ONBOARDING.md) *(check [KNOWN-DRIFT.md](../KNOWN-DRIFT.md) §3.2 for corrected details)*
 
 ## 1. Current Behavior
 Manages vendor claim/new-listing applications with magic-byte-verified evidence uploads, vendor staff invitations and memberships, `#ownerScreen` vendor operations (profile, live location, schedule, catering request decisions, kitchen pagers), and the server-gated `/admin` portal (`Admin: Mod` vs `Admin: Top`, read-only Viewpoint preview, and audited `Top` Act-on-Behalf).
@@ -17,5 +18,5 @@ Manages vendor claim/new-listing applications with magic-byte-verified evidence 
 - **Permissions**: Strict `Mod` vs `Top` split (`Mod` can recommend/request info and set `<= 72h` temp restrictions; `Top` required for final approvals, permanent restrictions, role grants, account status, and Act-on-Behalf). Last `Top` admin protected by `trg_protect_last_top_admin` + `trg_protect_last_top_admin_on_auth_users` (`026`).
 - **Feature Flags**: `vendor_onboarding` (`enabled` | `paused` | `hidden`), `owner_menu_photo_upload` (read-only disclosure), `BITESHARK_PAUSE_WRITES=owner`.
 - **Tests**: `tests/admin-governance.integration.cjs`, `tests/invitation-workflow.integration.cjs`, `tests/urgent-pilot-security.integration.cjs`, `tests/admin-portal-browser.e2e.cjs`, `tests/invitation-workflow-browser.e2e.cjs`, `tests/urgent-pilot-security-browser.e2e.cjs`.
-- **Known Inconsistencies**: Clicking `.brand` opens `#ownerScreen` sample preview for guests (`AUTH-AND-PERMISSIONS.md` §3); `api/owner/bookings.js` is unreferenced (`app.js` uses `/api/owner/requests`); `role-experience.js` sign-out cleanup has stale IDs (`KD-002`).
+- **Known Inconsistencies**: Clicking `.brand` opens `#ownerScreen` sample preview for guests (`AUTH-AND-PERMISSIONS.md` §3); on `staging2` branches prior to exploration merge, `role-experience.js` sign-out cleanup still has stale modal IDs (`KD-002`, resolved on `working/biteshark-vps`).
 - **Safe Extension Points**: Add admin tabs/endpoints in `server/admin-routes.js` (`GOVERNANCE_PATHS`) inside `withTransaction` + `reverifyModeratorInTx` / `reverifyPlatformAdminInTx` + `enableAdminTxGuards`.

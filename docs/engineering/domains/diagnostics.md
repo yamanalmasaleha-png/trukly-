@@ -1,5 +1,6 @@
 # Domain Map — Operational Error & Diagnostics System
 
+- **Shared Contract**: [`CTR-DIAGNOSTICS-PIPELINE`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
 - **Full Specification**: [DIAGNOSTICS-AND-ERRORS.md](../DIAGNOSTICS-AND-ERRORS.md)
 
 ## 1. Summary

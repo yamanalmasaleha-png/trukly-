@@ -44,7 +44,7 @@ This ledger tracks **verified discrepancies** across the codebase on `working/bi
 
 ## 4. Suspected Orphans & Dead Artifacts (Do Not Auto-Delete)
 
-- **7 Unreferenced `api/*.js` Routes** (`api/catalog/{cities,cuisines,featured}.js`, `api/schedule/today.js`, `api/trucks/{search,[id]}.js`, `api/owner/bookings.js`) — retained for `REGISTERED_DOMAIN_ROUTE_COUNT === 30` in `server/routes.js`.
+- **6 Unreferenced `api/*.js` Routes** (`api/catalog/{cities,cuisines,featured}.js`, `api/schedule/today.js`, `api/trucks/{search,[id]}.js`) — retained for `REGISTERED_DOMAIN_ROUTE_COUNT === 30` in `server/routes.js`. *(Note: `/api/owner/bookings` is actively called by `public/app.js#loadOwnerRequests` when filtering non-pending requests.)*
 - **`public/build.json`** — Frozen v77 static JSON (`functions: 27, migrations: 10`), unreferenced at runtime.
 - **`lib/catalog.js` (`CANONICAL_VENDORS`, `VENDORS_BY_ID`, `getCanonicalVendor`)** — Used only by local simulator `scripts/dev-server.cjs` (production imports only `BOOKING_PACKAGES`).
 - **`lib/diagnostics.js#reportDomainRouteFailure`** — Exported with 0 callers (`server/app.js` uses `res.__bsDiagHook`).

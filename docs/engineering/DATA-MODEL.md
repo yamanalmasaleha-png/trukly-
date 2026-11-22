@@ -8,9 +8,9 @@ For the full column-by-column table ledger and generated Mermaid `erDiagram`, se
 
 ## 1. Schema Provenance Levels
 
-Per Handbook Section 9, distinguish three levels of schema evidence:
-1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed from `migrations/001_create_bookings.sql` through `028_exploration_photo_reconciliation.sql` (`51` tables, `55` RLS policies on `working/biteshark-vps`; `47` tables through `026` on `staging2` branches).
-2. **Independently Verified Against Disposable PostgreSQL 16+**: Verified via `node tools/code-registry/cli.mjs validate --verify-db` and the repository's embedded PostgreSQL integration suites (`scripts/run-migrations.cjs` against a fresh database).
+Per [SCOPE-AND-EVIDENCE.md](SCOPE-AND-EVIDENCE.md), distinguish three levels of schema evidence:
+1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed offline from `migrations/001_create_bookings.sql` through `028_exploration_photo_reconciliation.sql` (`51` tables, `51` active RLS policies on `working/biteshark-vps`; `47` tables through `026` on `staging2` branches). Static reconstruction alone does not prove a live database check ran.
+2. **Verified Against Disposable PostgreSQL `pg_catalog`**: Executed when `node tools/code-registry/cli.mjs validate --verify-db` runs (`status: "VERIFIED"`), comparing tables, columns, normalized types, nullability, default presence, PK/FK constraints, explicit indexes, and `FORCE ROW LEVEL SECURITY` policies against a live migrated UTF-8 disposable database.
 3. **Deployed Schema**: Never run experimental discovery DDL against `staging.biteshark.live` (`truckly_staging`) or `staging2.biteshark.live` (`biteshark_staging2`). Deployed migration state is tracked exclusively in `public.schema_migrations`.
 
 ---

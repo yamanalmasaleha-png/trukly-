@@ -1,5 +1,6 @@
 # Domain Map — Feature Controls Governance
 
+- **Shared Contract**: [`CTR-FEATURE-CONTROLS`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
 - **Full Specification**: [FEATURE-CONTROLS.md](../FEATURE-CONTROLS.md)
 
 ## 1. Summary

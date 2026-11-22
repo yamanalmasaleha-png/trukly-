@@ -1,5 +1,6 @@
 # Domain Map — Discovery & Unified Catalog
 
+- **Shared Contract**: [`CTR-DISCOVERY-CATALOG`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
 - **Authoritative Deep Dive**: [P1_UNIFIED_DISCOVERY_ARCHITECTURE.md](../../P1_UNIFIED_DISCOVERY_ARCHITECTURE.md) & [PHOTO_MENU_VERIFICATION.md](../../PHOTO_MENU_VERIFICATION.md)
 
 ## 1. Current Behavior

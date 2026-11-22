@@ -1,5 +1,6 @@
 # Domain Map — Authentication, Sessions, 14+ Age Gate & Email Delivery
 
+- **Shared Contracts**: [`CTR-AUTH-SESSION-OTP`](../generated/CONTRACTS-CATALOG.md) & [`CTR-AGE-ELIGIBILITY`](../generated/CONTRACTS-CATALOG.md) ([shared-contracts.json](../contracts/shared-contracts.json))
 - **Authoritative Deep Dive**: [STANDALONE_VPS_RUNTIME_AND_AUTH.md](../../STANDALONE_VPS_RUNTIME_AND_AUTH.md)
 
 ## 1. Current Behavior

@@ -1,12 +1,17 @@
 // BiteShark Code Registry — Deterministic Markdown & Summary Catalog Generator
 // (`tools/code-registry/doc-generator.mjs`)
+//
+// IMPORTANT (`Section 5`): `writeGeneratedDocs` writes ONLY `docs/engineering/generated/**` and
+// NEVER modifies `docs/engineering/schemas/drift-baseline.json`. Baseline debt acceptance is a
+// separate, explicit, audited operation (`accept-drift` / `prune-drift`).
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { deterministicStringify, DRIFT_SCHEMA_VERSION } from './schema-versions.mjs';
+import { deterministicStringify, SUMMARY_SCHEMA_VERSION, asciiCompare } from './schema-versions.mjs';
 
-function relLinkFromGenerated(repoPath, line = null) {
-  const target = `../../../${repoPath}${line ? `#L${line}` : ''}`;
+function relLinkFromGenerated(repoPath, line = null, depthUp = 3) {
+  const up = '../'.repeat(depthUp);
+  const target = `${up}${repoPath}${line ? `#L${line}` : ''}`;
   return `[${repoPath}${line ? `:L${line}` : ''}](${target})`;
 }
 
@@ -18,28 +23,30 @@ function escapeMdCell(val) {
 }
 
 function buildGeneratedBanner(snapshot, title) {
-  const p = snapshot.provenance;
   return [
     `# ${title}`,
     ``,
     `> [!NOTE]`,
     `> **Machine-Generated Reference Inventory** — Do not hand-edit. Regenerate via \`npm run registry:docs\` (\`node tools/code-registry/cli.mjs generate-docs\`).`,
-    `> - **Repository**: \`${p.repository}\``,
-    `> - **Branch / Ref at Generation**: \`${p.branch_or_ref}\``,
+    `> - **Repository**: \`${snapshot.provenance.repository}\``,
+    `> - **Provenance Mode**: \`committed_source_digest\` *(branch/detached-HEAD invariant; commit-bound runs use \`npm run registry:scan -- --include-timestamp\`)*`,
     `> - **Generator**: \`${snapshot.generator.name}@${snapshot.generator.version}\` (\`${snapshot.schema_version}\`)`,
-    `> - **Deterministic Source Digest**: \`${snapshot.deterministic_digest_sha256}\``,
-    `> - **Analysis Basis**: ${snapshot.generator.limitations_note}`,
+    `> - **Source Analysis Digest**: \`${snapshot.source_analysis_digest_sha256}\``,
+    `> - **Analysis Scope & Limits**: ${snapshot.generator.limitations_note}`,
     ``
   ].join('\n');
 }
 
 export function buildCompactRegistrySummary(snapshot) {
   return {
-    schema_version: snapshot.schema_version,
+    schema_version: SUMMARY_SCHEMA_VERSION,
+    snapshot_schema_version: snapshot.schema_version,
+    provenance_mode: 'committed_source_digest',
     generator: snapshot.generator,
-    branch_at_generation: snapshot.provenance.branch_or_ref,
     repository: snapshot.provenance.repository,
+    source_analysis_digest_sha256: snapshot.source_analysis_digest_sha256,
     deterministic_digest_sha256: snapshot.deterministic_digest_sha256,
+    included_files_manifest_sha256: snapshot.scope.included_files_manifest_sha256,
     coverage_counts: snapshot.coverage_counts,
     parse_failures: snapshot.parse_failures,
     exclusion_rules: snapshot.scope.exclusion_rules,
@@ -53,17 +60,34 @@ export function buildCompactRegistrySummary(snapshot) {
     routes: snapshot.backend_routes.map(r => ({
       path: r.path,
       methods: r.methods,
+      method_source: r.method_source,
       dispatcher: r.dispatcher,
       handler_file: r.handler_file,
       auth_requirement: r.auth_requirement,
+      authorization_summary: r.authorization_summary,
+      authorization_confidence: r.authorization_confidence,
       feature_gate: r.feature_gate,
-      caller_count: (r.known_frontend_callers || []).length,
-      test_count: (r.verifying_tests || []).length
+      contract_ids: r.contract_ids || [],
+      confirmed_caller_count: (r.known_frontend_callers || []).length,
+      contract_test_count: (r.test_references?.contract_mappings || []).length,
+      static_http_test_count: (r.test_references?.static_http_call_tests || []).length,
+      candidate_test_mention_count: (r.test_references?.candidate_path_mentions || []).length
+    })),
+    shared_contracts: (snapshot.shared_contracts || []).map(c => ({
+      contract_id: c.contract_id,
+      title: c.title,
+      domain: c.domain,
+      implementation_symbols: c.implementation_symbols,
+      http_routes: c.http_routes || [],
+      db_tables: c.db_tables || []
     })),
     database_tables: snapshot.database.tables.map(t => ({
       table_name: t.table_name,
       created_in_migration: t.created_in_migration,
       column_count: t.columns.length,
+      constraint_count: t.constraints.length,
+      index_count: t.indexes.length,
+      rls_enabled: t.rls_enabled,
       rls_forced: t.rls_forced,
       policy_count: t.rls_policies.length
     })),
@@ -82,21 +106,35 @@ export function buildCompactRegistrySummary(snapshot) {
   };
 }
 
-export function renderSymbolIndexMarkdown(snapshot) {
-  // Build caller lookup across non-test modules
-  const callerLookup = new Map();
-  for (const mod of snapshot.js_modules) {
-    if (mod.file.startsWith('tests/')) continue;
-    for (const c of mod.calls) {
-      const short = c.callee.split('.').pop();
-      for (const k of [c.callee, short]) {
-        if (!k) continue;
-        if (!callerLookup.has(k)) callerLookup.set(k, new Set());
-        callerLookup.get(k).add(`${mod.file}:${c.caller}`);
-      }
-    }
+const SYMBOL_GROUPS = [
+  {
+    slug: 'server-and-runtime',
+    title: 'Server & Runtime Adapter (`server/`, `packages/`)',
+    match: f => f.startsWith('server/') || f.startsWith('packages/')
+  },
+  {
+    slug: 'shared-libraries',
+    title: 'Shared Backend Libraries (`lib/`)',
+    match: f => f.startsWith('lib/')
+  },
+  {
+    slug: 'domain-api-handlers',
+    title: 'Domain API Handlers (`api/`)',
+    match: f => f.startsWith('api/')
+  },
+  {
+    slug: 'frontend-scripts',
+    title: 'Browser Frontend Scripts (`public/`)',
+    match: f => f.startsWith('public/')
+  },
+  {
+    slug: 'scripts-and-tooling',
+    title: 'Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)',
+    match: f => f.startsWith('scripts/') || f.startsWith('tools/')
   }
+];
 
+export function renderSymbolIndexOverviewMarkdown(snapshot) {
   const lines = [
     buildGeneratedBanner(snapshot, 'Code Registry — First-Party Symbol & Module Index'),
     `## Coverage Summary`,
@@ -105,73 +143,157 @@ export function renderSymbolIndexMarkdown(snapshot) {
     `|---|---:|`,
     `| JavaScript / CJS / ESM Files Scanned | ${snapshot.coverage_counts.js_files_scanned} |`,
     `| Parse Failures | ${snapshot.coverage_counts.js_parse_failures} |`,
-    `| Named Functions, Methods & Handlers | ${snapshot.coverage_counts.functions_and_methods} |`,
+    `| Functions, Methods & Handlers | ${snapshot.coverage_counts.functions_and_methods} |`,
     `| Classes | ${snapshot.coverage_counts.classes} |`,
     `| Top-Level Constants | ${snapshot.coverage_counts.significant_constants} |`,
-    `| Browser Globals & Assignments | ${snapshot.coverage_counts.browser_globals_and_assignments} |`,
+    `| Browser Globals & Window Registrations | ${snapshot.coverage_counts.browser_globals_and_assignments} |`,
+    `| Confirmed Static Call Edges | ${snapshot.coverage_counts.confirmed_call_edges} |`,
+    `| Inferred Candidate Call Edges | ${snapshot.coverage_counts.inferred_call_edges} |`,
     ``,
-    `> **Type Notation**: BiteShark is plain JavaScript without TypeScript annotations. Parameter types below distinguish \`inferred_from_default\`, \`inferred_from_destructuring\`, \`inferred_from_rest\`, and \`undeclared\` (\`unknown\`). Signatures are never invented.`,
+    `> **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run \`npm run registry:locate -- <identifier>\`.`,
+    ``,
+    `## Complete Non-Truncated Symbol Catalogs by Area`,
+    ``,
+    `| Area Catalog | Modules | Indexed Symbols | Exports |`,
+    `|---|---:|---:|---:|`
+  ];
+
+  for (const grp of SYMBOL_GROUPS) {
+    const mods = snapshot.js_modules.filter(m => grp.match(m.file));
+    const symCount = mods.reduce((s, m) => s + m.symbols.length, 0);
+    const expCount = mods.reduce((s, m) => s + m.exports.length, 0);
+    lines.push(
+      `| [${grp.title}](symbols/${grp.slug}.md) | ${mods.length} | ${symCount} | ${expCount} |`
+    );
+  }
+
+  lines.push(``, `## Module Directory`, ``, `| Module | Area Catalog | Symbols | Exported / Window Globals |`, `|---|---|---:|---|`);
+  for (const grp of SYMBOL_GROUPS) {
+    for (const mod of snapshot.js_modules.filter(m => grp.match(m.file))) {
+      const expSummary = [
+        ...mod.exports.map(e => e.name),
+        ...mod.globals_assigned
+          .filter(g => g.kind === 'explicit_window_property' || g.kind === 'browser_global_reassignment')
+          .map(g => `window.${g.name}`)
+      ]
+        .slice(0, 8)
+        .map(x => `\`${escapeMdCell(x)}\``)
+        .join(', ');
+      lines.push(
+        `| ${relLinkFromGenerated(mod.file)} | [${grp.slug}.md](symbols/${grp.slug}.md) | ${mod.symbols.length} | ${expSummary || '—'} |`
+      );
+    }
+  }
+  lines.push(``);
+  return lines.join('\n');
+}
+
+export function renderSymbolAreaCatalogMarkdown(snapshot, grp) {
+  const mods = snapshot.js_modules.filter(m => grp.match(m.file));
+  const lines = [
+    buildGeneratedBanner(snapshot, `Symbol Catalog — ${grp.title}`),
+    `- [← Back to Symbol & Module Index](../SYMBOL-INDEX.md)`,
+    `- **Relationship Labels**: \`confirmed\` = resolved via lexical scope, explicit ESM/CJS import/alias, unique \`window.*\` namespace, or page-level script binding. \`candidate\` = ambiguous multi-script or unverified member call (never conflated as confirmed).`,
     ``
   ];
 
-  const groups = [
-    { title: '1. Server & Runtime Adapter (`server/`, `packages/`)', match: f => f.startsWith('server/') || f.startsWith('packages/') },
-    { title: '2. Shared Backend Libraries (`lib/`)', match: f => f.startsWith('lib/') },
-    { title: '3. Domain API Handlers (`api/`)', match: f => f.startsWith('api/') },
-    { title: '4. Browser Frontend Scripts (`public/`)', match: f => f.startsWith('public/') },
-    { title: '5. Operator & Build Scripts (`scripts/`)', match: f => f.startsWith('scripts/') }
+  for (const mod of mods) {
+    lines.push(`## ${relLinkFromGenerated(mod.file, null, 4)} (\`${mod.source_type}\`)`);
+    if (mod.imports.length) {
+      const deps = [...new Set(mod.imports.map(i => i.source))].sort(asciiCompare);
+      lines.push(`- **Imports / Dependencies**: ${deps.map(d => `\`${d}\``).join(', ')}`);
+    }
+    if (mod.exports.length) {
+      lines.push(`- **Exports**: ${mod.exports.map(e => `\`${e.name}\``).join(', ')}`);
+    }
+    const winGlobals = mod.globals_assigned.filter(
+      g => g.kind === 'explicit_window_property' || g.kind === 'browser_global_reassignment'
+    );
+    if (winGlobals.length) {
+      lines.push(
+        `- **Explicit Window / Wrapper Globals**: ${winGlobals.map(g => `\`${g.name}\` (${g.kind} @ L${g.line})`).join(', ')}`
+      );
+    }
+    if (mod.constants.length) {
+      lines.push(
+        `- **Top-Level Constants (${mod.constants.length})**: ${mod.constants.map(c => `\`${c.name}\`${c.exported ? ' *(exported)*' : ''}`).join(', ')}`
+      );
+    }
+
+    if (mod.symbols.length) {
+      lines.push(
+        ``,
+        `| Symbol | Kind | Exported | Parameters (Observed Basis) | Returns / Throws | Confirmed Callers (Inferred in italics) | Contracts | Lines |`,
+        `|---|---|---|---|---|---|---|---|`
+      );
+      for (const s of mod.symbols) {
+        const paramStr = (s.params || []).map(p => `${p.name}: ${p.observed_type}`).join(', ');
+        const retStr = `${s.async ? 'async -> ' : ''}${s.return_behavior}${s.throws.length ? ` (throws: ${s.throws.join(', ')})` : ''}`;
+        const confCallers = (s.confirmed_callers || []).slice(0, 4).map(c => `\`${escapeMdCell(c)}\``);
+        const extraConf = (s.confirmed_callers || []).length > 4 ? ` (+${s.confirmed_callers.length - 4})` : '';
+        const infCallers =
+          confCallers.length === 0 && (s.inferred_candidate_callers || []).length > 0
+            ? ` *candidate: ${(s.inferred_candidate_callers || []).slice(0, 2).map(escapeMdCell).join(', ')}*`
+            : '';
+        const callerCell = (confCallers.join(', ') + extraConf + infCallers).trim() || '—';
+        const ctrs = (s.contract_ids || []).map(cid => `[${cid}](../CONTRACTS-CATALOG.md)`).join(', ') || '—';
+        lines.push(
+          `| \`${escapeMdCell(s.name)}\` | \`${s.kind}\` | ${s.exported ? 'Yes' : 'No'} | \`(${escapeMdCell(paramStr)})\` | \`${escapeMdCell(retStr)}\` | ${callerCell} | ${ctrs} | ${relLinkFromGenerated(mod.file, s.start_line, 4)} |`
+        );
+      }
+    }
+    lines.push(``);
+  }
+
+  return lines.join('\n');
+}
+
+export function renderContractsCatalogMarkdown(snapshot) {
+  const contracts = snapshot.shared_contracts || [];
+  const lines = [
+    buildGeneratedBanner(snapshot, 'Code Registry — High-Value Shared Contracts Catalog'),
+    `Generated from the single maintained contract specification [shared-contracts.json](../contracts/shared-contracts.json) (**${contracts.length}** shared contracts). Do not duplicate these signatures, route lists, or field definitions in prose docs — link here or query \`npm run registry:locate -- <CONTRACT_ID>\`.`,
+    ``,
+    `| Contract ID | Domain | Title | Primary Implementation Symbols | HTTP Routes |`,
+    `|---|---|---|---|---|`
   ];
 
-  for (const grp of groups) {
-    const mods = snapshot.js_modules.filter(m => grp.match(m.file));
-    lines.push(`## ${grp.title}`, ``);
-    for (const mod of mods) {
-      lines.push(`### ${relLinkFromGenerated(mod.file)} (\`${mod.source_type}\`)`);
-      if (mod.imports.length) {
-        const deps = [...new Set(mod.imports.map(i => i.source))].sort();
-        lines.push(`- **Imports / Dependencies**: ${deps.map(d => `\`${d}\``).join(', ')}`);
-      }
-      if (mod.exports.length) {
-        lines.push(`- **Exports**: ${mod.exports.map(e => `\`${e.name}\``).join(', ')}`);
-      }
-      const winGlobals = mod.globals_assigned.filter(g => g.kind === 'explicit_window_property' || g.kind === 'browser_global_reassignment');
-      if (winGlobals.length) {
-        lines.push(
-          `- **Explicit Window / Reassigned Globals**: ${winGlobals.map(g => `\`${g.name}\` (${g.kind} @ L${g.line})`).join(', ')}`
-        );
-      }
-      if (mod.constants.length) {
-        const topConsts = mod.constants.slice(0, 20);
-        lines.push(
-          `- **Significant Constants**: ${topConsts.map(c => `\`${c.name}\`${c.exported ? ' *(exported)*' : ''}`).join(', ')}${mod.constants.length > 20 ? ` (+${mod.constants.length - 20} more)` : ''}`
-        );
-      }
+  for (const c of contracts) {
+    const syms = (c.implementation_symbols || []).slice(0, 3).map(s => `\`${escapeMdCell(s)}\``).join(', ');
+    const rts = (c.http_routes || []).slice(0, 4).map(r => `\`${escapeMdCell(r)}\``).join(', ') || '—';
+    lines.push(`| \`${c.contract_id}\` | \`${c.domain}\` | ${escapeMdCell(c.title)} | ${syms} | ${rts} |`);
+  }
+  lines.push(``);
 
-      const notableSyms = mod.symbols.filter(s => s.exported || s.top_level || s.kind === 'method' || s.kind === 'constructor');
-      if (notableSyms.length) {
-        lines.push(
-          ``,
-          `| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |`,
-          `|---|---|---|---|---|---|---:|`
-        );
-        for (const s of notableSyms.slice(0, 80)) {
-          const paramStr = s.params
-            .map(p => `${p.name}: ${p.observed_type}`)
-            .join(', ');
-          const retStr = `${s.async ? 'async -> ' : ''}${s.return_behavior}${s.throws.length ? ` (throws: ${s.throws.join(', ')})` : ''}`;
-          const callers = [...(callerLookup.get(s.name) || [])]
-            .filter(loc => !loc.startsWith(`${mod.file}:${s.name}`))
-            .slice(0, 4);
-          lines.push(
-            `| \`${escapeMdCell(s.name)}\` | \`${s.kind}\` | ${s.exported ? 'Yes' : 'No'} | \`(${escapeMdCell(paramStr)})\` | \`${escapeMdCell(retStr)}\` | ${callers.length ? callers.map(c => `\`${escapeMdCell(c)}\``).join(', ') : '—'} | L${s.start_line} |`
-          );
-        }
-        if (notableSyms.length > 80) {
-          lines.push(``, `*Showing first 80 of ${notableSyms.length} symbols in \`${mod.file}\`; query \`npm run registry:locate -- <name>\` for full list.*`);
-        }
-      }
-      lines.push(``);
+  for (const c of contracts) {
+    lines.push(
+      `## \`${c.contract_id}\` — ${c.title}`,
+      `- **Domain**: \`${c.domain}\` | **Shape Basis**: \`${c.shape_evidence_basis}\``,
+      `- **Purpose**: ${c.purpose}`,
+      `- **Implementation Symbols**: ${(c.implementation_symbols || []).map(s => {
+        const [f] = s.split('#');
+        return `${relLinkFromGenerated(f)} (\`#${s.split('#')[1] || 'default'}\`)`;
+      }).join(', ')}`,
+      ...(c.http_routes?.length ? [`- **HTTP Routes**: ${c.http_routes.map(r => `\`${r}\``).join(', ')}`] : []),
+      ...(c.db_tables?.length ? [`- **Database Tables / Storage**: ${c.db_tables.map(t => `\`${t}\``).join(', ')}`] : []),
+      ...(c.feature_controls?.length ? [`- **Feature Controls**: ${c.feature_controls.map(f => `\`${f}\``).join(', ')}`] : []),
+      `- **Permissions & Ownership**: ${c.permissions_and_ownership}`,
+      `- **Inputs & Validation**: ${c.inputs_and_validation}`,
+      `- **Outputs**: ${c.outputs}`,
+      `- **Error Contract**: ${c.errors}`,
+      `- **Side Effects**: ${c.side_effects}`,
+      `- **Idempotency & Concurrency**: ${c.idempotency_and_concurrency}`,
+      `- **Known Consumers**: ${(c.known_consumers || []).map(k => `\`${k}\``).join(', ')}`,
+      `- **Compatibility Expectations**: ${c.compatibility_expectations}`,
+      `- **Known Limitations**: ${c.known_limitations}`,
+      `- **Maintained Test Mappings** *(source mapping only — run suite to verify execution)*:`
+    );
+    for (const tm of c.test_mappings || []) {
+      lines.push(
+        `  - ${relLinkFromGenerated(tm.file)} — protects: ${(tm.protected_assertions || []).map(a => `\`${a}\``).join(', ')}`
+      );
     }
+    lines.push(``);
   }
 
   return lines.join('\n');
@@ -180,17 +302,48 @@ export function renderSymbolIndexMarkdown(snapshot) {
 export function renderRouteInventoryMarkdown(snapshot) {
   const lines = [
     buildGeneratedBanner(snapshot, 'Code Registry — Backend HTTP Route Inventory'),
-    `Total HTTP endpoints indexed on branch \`${snapshot.provenance.branch_or_ref}\`: **${snapshot.backend_routes.length}**`,
+    `Extracted via AST branch and registration analysis across \`server/routes.js\`, \`server/app.js\`, \`server/admin-routes.js\`, and \`server/customer-exploration-routes.js\` (**${snapshot.backend_routes.length}** indexed HTTP routes).`,
     ``,
-    `| Route Path | Methods | Dispatcher | Handler | Auth Requirement | Authorization Summary | Feature Gate | Frontend Callers | Verifying Tests |`,
+    `> **Evidence Labels**:`,
+    `> - **Methods**: \`declared_export\` (\`api/*.js\`), \`confirmed_method_guard\` (\`405\` guard), \`confirmed_method_branches\` (\`method === '...'\`), or \`manual_override\`.`,
+    `> - **Test Evidence**: \`contract:\` = maintained mapping in \`shared-contracts.json\`; \`http:\` = static HTTP call in \`tests/*.cjs\`; \`mention:\` = route string occurrence only (candidate lead, not proof of assertion coverage).`,
+    ``,
+    `| Route Path | Methods (Basis) | Dispatcher | Handler | Auth | Authorization (Evidence) | Feature Enforcement | Confirmed Frontend Callers | Test References |`,
     `|---|---|---|---|---|---|---|---|---|`
   ];
 
   for (const r of snapshot.backend_routes) {
-    const callers = (r.known_frontend_callers || []).slice(0, 3).map(c => `\`${escapeMdCell(c)}\``).join(', ') || '*(none in public/)*';
-    const tests = (r.verifying_tests || []).slice(0, 3).map(t => `\`${escapeMdCell(path.posix.basename(t))}\``).join(', ') || '—';
+    const callers =
+      (r.known_frontend_callers || []).slice(0, 3).map(c => `\`${escapeMdCell(c)}\``).join(', ') ||
+      ((r.inferred_frontend_callers || []).length
+        ? `*candidate: ${r.inferred_frontend_callers.slice(0, 2).map(escapeMdCell).join(', ')}*`
+        : '*(none in public/)*');
+
+    const feEntries = Object.entries(r.feature_enforcement_by_method || {})
+      .map(([m, rule]) => (rule ? `${m}:\`${rule.feature_key}\`(${rule.operation_kind})` : `${m}:exempt`))
+      .join(', ');
+    const feCell = r.feature_gate ? feEntries : '—';
+
+    const authzEvShort = (r.authorization_evidence || []).slice(0, 2).join(', ');
+    const authzCell = `\`${escapeMdCell(r.authorization_summary)}\`${authzEvShort ? ` *(${escapeMdCell(authzEvShort)})*` : ''}`;
+
+    const tRefs = [];
+    for (const cm of (r.test_references?.contract_mappings || []).slice(0, 2)) {
+      tRefs.push(`contract:\`${path.posix.basename(cm.file)}\``);
+    }
+    for (const sh of (r.test_references?.static_http_call_tests || []).slice(0, 2)) {
+      if (!tRefs.some(x => x.includes(path.posix.basename(sh)))) {
+        tRefs.push(`http:\`${path.posix.basename(sh)}\``);
+      }
+    }
+    if (tRefs.length === 0) {
+      for (const pm of (r.test_references?.candidate_path_mentions || []).slice(0, 2)) {
+        tRefs.push(`mention:\`${path.posix.basename(pm)}\``);
+      }
+    }
+
     lines.push(
-      `| \`${r.path}\` | \`${r.methods.join(', ')}\` | \`${r.dispatcher}\` | ${relLinkFromGenerated(r.handler_file, r.line)} | \`${r.auth_requirement}\` | \`${escapeMdCell(r.authorization_summary)}\` | ${r.feature_gate ? `\`${r.feature_gate}\`` : '—'} | ${callers} | ${tests} |`
+      `| \`${r.path}\` | \`${r.methods.join(', ')}\` *(${r.method_source})* | \`${r.dispatcher}\` | ${relLinkFromGenerated(r.handler_file, r.line)} | \`${r.auth_requirement}\` | ${authzCell} | ${feCell} | ${callers} | ${tRefs.join(', ') || '—'} |`
     );
   }
 
@@ -214,7 +367,9 @@ export function renderFrontendInventoryMarkdown(snapshot) {
         `|---|---|---|---|---:|`
       );
       for (const s of html.screens) {
-        lines.push(`| \`#${s.id || 'unnamed'}\` | \`<${s.tag}>\` | ${s.active_by_default ? 'Yes' : 'No'} | \`${escapeMdCell(s.classes.join(' '))}\` | L${s.line} |`);
+        lines.push(
+          `| \`#${s.id || 'unnamed'}\` | \`<${s.tag}>\` | ${s.active_by_default ? 'Yes' : 'No'} | \`${escapeMdCell(s.classes.join(' '))}\` | L${s.line} |`
+        );
       }
       lines.push(``);
     }
@@ -297,21 +452,22 @@ export function renderSchemaInventoryMarkdown(snapshot) {
   const db = snapshot.database;
   const lines = [
     buildGeneratedBanner(snapshot, 'Code Registry — Database Migrations, Tables, RLS & Schema Diagram'),
-    `## Schema Provenance`,
-    `- **Basis**: \`${db.schema_basis}\` (cross-validated against embedded PostgreSQL via \`node tools/code-registry/cli.mjs validate --verify-db\`)`,
+    `## Schema Provenance & Verification Scope`,
+    `- **Static Basis**: \`${db.schema_basis}\` *(reconstructed offline from \`migrations/*.sql\` and \`scripts/run-migrations.cjs\`; this static file alone does **not** prove a live database check ran)*`,
+    `- **Live PostgreSQL Catalog Verification**: Run \`node tools/code-registry/cli.mjs validate --verify-db\` (enforced in CI \`postgres-backend-hardening\`) to cross-check reconstructed tables, columns, normalized types, nullability, default presence, primary/unique/foreign-key constraints, indexes, and \`FORCE ROW LEVEL SECURITY\` policies against PostgreSQL \`pg_catalog\`.`,
     `- **Migrations Indexed**: **${db.migrations.length}**`,
     `- **Tables Indexed**: **${db.tables.length}** (**${db.tables.filter(t => t.rls_forced).length}** with \`FORCE ROW LEVEL SECURITY\`)`,
     `- **Views / Functions / Triggers**: **${db.views.length}** views, **${db.sql_functions.length}** SQL functions, **${db.triggers.length}** triggers`,
     ``,
     `## 1. Ordered SQL Migration Ledger`,
     ``,
-    `| # | Migration File | SHA-256 (First 16) | Tables Created | Tables Altered | RLS Policies Added | Seed Data? |`,
+    `| # | Migration File | SHA-256 (First 16) | Tables Created | Tables Altered | RLS Policies Added | Manual Review Flag |`,
     `|---:|---|---|---|---|---|---|`
   ];
 
   for (const m of db.migrations) {
     lines.push(
-      `| ${m.sequence_number ?? '—'} | ${relLinkFromGenerated(`migrations/${m.filename}`)} | \`${m.sha256.slice(0, 16)}\` | ${m.tables_created.map(t => `\`${t}\``).join(', ') || '—'} | ${m.tables_altered.map(t => `\`${t}\``).join(', ') || '—'} | ${m.policies_created.length} | ${m.contains_seed_data ? 'Yes' : 'No'} |`
+      `| ${m.sequence_number ?? '—'} | ${relLinkFromGenerated(`migrations/${m.filename}`)} | \`${m.sha256.slice(0, 16)}\` | ${m.tables_created.map(t => `\`${t}\``).join(', ') || '—'} | ${m.tables_altered.map(t => `\`${t}\``).join(', ') || '—'} | ${m.policies_created.length} | ${m.requires_manual_migration_review ? 'Yes' : 'No'} |`
     );
   }
 
@@ -349,8 +505,15 @@ export function renderSchemaInventoryMarkdown(snapshot) {
       lines.push(``);
     }
 
+    if (t.constraints.length) {
+      lines.push(
+        `- **Constraints (${t.constraints.length})**: ${t.constraints.map(cn => `\`${cn.name || cn.kind}\` (${cn.kind})`).join(', ')}`
+      );
+    }
     if (t.indexes.length) {
-      lines.push(`- **Indexes (${t.indexes.length})**: ${t.indexes.map(ix => `\`${ix.name}\`${ix.unique ? ' *(UNIQUE)*' : ''}`).join(', ')}`);
+      lines.push(
+        `- **Indexes (${t.indexes.length})**: ${t.indexes.map(ix => `\`${ix.name}\`${ix.unique ? ' *(UNIQUE)*' : ''}`).join(', ')}`
+      );
     }
     if (t.rls_policies.length) {
       lines.push(`- **RLS Policies (${t.rls_policies.length})**:`);
@@ -367,7 +530,9 @@ export function renderSchemaInventoryMarkdown(snapshot) {
     lines.push(`## 4. Views, SQL Functions & Triggers`, ``);
     for (const v of db.views) lines.push(`- **View**: \`${v.view_name}\` (\`${v.migration}\`)`);
     for (const fn of db.sql_functions) lines.push(`- **Function**: \`${fn.function_name}(${fn.args})\` (\`${fn.migration}\`)`);
-    for (const tr of db.triggers) lines.push(`- **Trigger**: \`${tr.trigger_name}\` (\`${tr.timing} ${tr.events} ON ${tr.table_name}\`, \`${tr.migration}\`)`);
+    for (const tr of db.triggers) {
+      lines.push(`- **Trigger**: \`${tr.trigger_name}\` (\`${tr.timing} ${tr.events} ON ${tr.table_name}\`, \`${tr.migration}\`)`);
+    }
     lines.push(``);
   }
 
@@ -379,13 +544,13 @@ export function renderDriftReportMarkdown(snapshot) {
   const suppressed = snapshot.drift_report.findings.filter(f => f.suppressed);
 
   const lines = [
-    buildGeneratedBanner(snapshot, 'Code Registry — Automated Baseline Drift & Discrepancy Report'),
-    `- **Active Findings**: **${active.length}**`,
-    `- **Scoped Suppressions Applied**: **${suppressed.length}** (configured in [suppressions.json](../../../tools/code-registry/suppressions.json))`,
+    buildGeneratedBanner(snapshot, 'Code Registry — Automated Drift & Discrepancy Report'),
+    `- **Active Findings**: **${active.length}** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during \`npm run registry:validate\`)*`,
+    `- **Scoped Intentional-Pattern Suppressions**: **${suppressed.length}** *(configured in [suppressions.json](../../../tools/code-registry/suppressions.json))*`,
     `- **Human-Curated Architectural & Cross-Branch Drift**: See [KNOWN-DRIFT.md](../KNOWN-DRIFT.md)`,
     ``,
     `> [!IMPORTANT]`,
-    `> **Zero-Deletion Invariant**: Suspected orphan or duplicate findings in this report are diagnostic evidence only. Never delete runtime routes, files, or helpers without explicit product authorization and cross-branch impact verification.`,
+    `> **Governance Separation**: Running \`npm run registry:docs\` updates this report for visibility without modifying \`drift-baseline.json\`. Any newly introduced high-confidence blocking finding fails \`npm run registry:validate\` until fixed in code or explicitly accepted with rationale via \`npm run registry:accept-drift -- --finding <ID> --reason "..."\`.`,
     ``,
     `## 1. Active Findings (${active.length})`,
     ``
@@ -418,42 +583,29 @@ export function renderDriftReportMarkdown(snapshot) {
   return lines.join('\n');
 }
 
-export function buildDriftBaselineJson(snapshot) {
-  const active = snapshot.drift_report.findings.filter(f => !f.suppressed);
-  return {
-    schema_version: DRIFT_SCHEMA_VERSION,
-    branch_at_generation: snapshot.provenance.branch_or_ref,
-    deterministic_digest_sha256: snapshot.deterministic_digest_sha256,
-    baseline_finding_ids: active.map(f => f.finding_id).sort(),
-    high_confidence_blocking_categories: [
-      'DUPLICATE_HTML_ID',
-      'UNRESOLVED_INLINE_HANDLER',
-      'UNREGISTERED_FEATURE_KEY',
-      'INVALID_WRITE_PAUSE_SCOPE',
-      'MIGRATION_SEQUENCE_COLLISION',
-      'MODULE_CYCLE',
-      'BROKEN_DOC_LINK'
-    ]
-  };
-}
-
-export function writeGeneratedDocsAndBaseline(rootDir, snapshot, { updateBaseline = true } = {}) {
+export function writeGeneratedDocs(rootDir, snapshot) {
   const absRoot = path.resolve(rootDir);
   const genDir = path.join(absRoot, 'docs', 'engineering', 'generated');
-  const schemasDir = path.join(absRoot, 'docs', 'engineering', 'schemas');
-  fs.mkdirSync(genDir, { recursive: true });
-  fs.mkdirSync(schemasDir, { recursive: true });
+  const symDir = path.join(genDir, 'symbols');
+  fs.mkdirSync(symDir, { recursive: true });
 
-  const written = [];
   const filesToWrite = [
     {
       rel: 'docs/engineering/generated/registry-summary.json',
       content: deterministicStringify(buildCompactRegistrySummary(snapshot), true)
     },
     {
-      rel: 'docs/engineering/generated/SYMBOL-INDEX.md',
-      content: renderSymbolIndexMarkdown(snapshot)
+      rel: 'docs/engineering/generated/CONTRACTS-CATALOG.md',
+      content: renderContractsCatalogMarkdown(snapshot)
     },
+    {
+      rel: 'docs/engineering/generated/SYMBOL-INDEX.md',
+      content: renderSymbolIndexOverviewMarkdown(snapshot)
+    },
+    ...SYMBOL_GROUPS.map(grp => ({
+      rel: `docs/engineering/generated/symbols/${grp.slug}.md`,
+      content: renderSymbolAreaCatalogMarkdown(snapshot, grp)
+    })),
     {
       rel: 'docs/engineering/generated/ROUTE-INVENTORY.md',
       content: renderRouteInventoryMarkdown(snapshot)
@@ -472,18 +624,11 @@ export function writeGeneratedDocsAndBaseline(rootDir, snapshot, { updateBaselin
     }
   ];
 
-  if (updateBaseline) {
-    filesToWrite.push({
-      rel: 'docs/engineering/schemas/drift-baseline.json',
-      content: deterministicStringify(buildDriftBaselineJson(snapshot), true)
-    });
-  }
-
+  const written = [];
   for (const item of filesToWrite) {
     const absPath = path.join(absRoot, item.rel);
     fs.writeFileSync(absPath, item.content, 'utf8');
     written.push(item.rel);
   }
-
   return written;
 }

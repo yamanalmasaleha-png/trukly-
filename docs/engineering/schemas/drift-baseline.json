@@ -1,21 +1,73 @@
 {
-  "baseline_finding_ids": [
-    "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
-    "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
-    "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
-    "DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range",
-    "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
-    "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/owner/bookings",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/schedule/today",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
-    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
+  "description": "Audited baseline structural/documentation debt. Never updated automatically by generate-docs; modify only via accept-drift or prune-drift with explicit review.",
+  "entries": [
+    {
+      "accepted_reason": "Historical release report docs/VPS_RELEASE_VERIFICATION_REPORT.md links to a superseded report filename; retained unaltered as historical release evidence.",
+      "category": "BROKEN_DOC_LINK",
+      "finding_id": "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
+      "reference": "docs/engineering/KNOWN-DRIFT.md#historical-release-docs"
+    },
+    {
+      "accepted_reason": "Historical release report docs/VPS_RELEASE_VERIFICATION_REPORT.md links to a superseded report filename; retained unaltered as historical release evidence.",
+      "category": "BROKEN_DOC_LINK",
+      "finding_id": "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
+      "reference": "docs/engineering/KNOWN-DRIFT.md#historical-release-docs"
+    },
+    {
+      "accepted_reason": "Known cross-script global handoff variable between public/app.js and public/guide-passport.js; documented for future scoping into window.bitesharkExploration.",
+      "category": "COMPETING_BROWSER_GLOBAL",
+      "finding_id": "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
+      "reference": "docs/engineering/KNOWN-DRIFT.md#competing-browser-globals"
+    },
+    {
+      "accepted_reason": "IIFE-encapsulated browser scripts intentionally keep small 5-entity HTML escape helpers to remain zero-build without bundler dependencies.",
+      "category": "DUPLICATE_HELPER_IMPLEMENTATION",
+      "finding_id": "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
+      "reference": "docs/engineering/contracts/canonical-components.json"
+    },
+    {
+      "accepted_reason": "Pre-existing runtime defect in api/favorites/toggle.js:L10 calling isWritePaused('favorites') (not in VALID_WRITE_PAUSE_SCOPES); documented in KNOWN-DRIFT.md for dedicated runtime fix PR.",
+      "category": "INVALID_WRITE_PAUSE_SCOPE",
+      "finding_id": "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
+      "reference": "docs/engineering/KNOWN-DRIFT.md#invalid-write-pause-scope-favorites"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/schedule/today",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    },
+    {
+      "accepted_reason": "Retained in server/routes.js to preserve REGISTERED_DOMAIN_ROUTE_COUNT === 30 runtime healthz invariant.",
+      "category": "SUSPECTED_ORPHAN_ROUTE",
+      "finding_id": "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search",
+      "reference": "docs/engineering/API-CONTRACTS.md"
+    }
   ],
-  "branch_at_generation": "integrate/customer-exploration-verified",
-  "deterministic_digest_sha256": "fd240f092594bb6aaf493f0bb656f5cdf87df1d6d32b6600f5b3cf65f2db5ed1",
   "high_confidence_blocking_categories": [
     "DUPLICATE_HTML_ID",
     "UNRESOLVED_INLINE_HANDLER",
@@ -25,5 +77,5 @@
     "MODULE_CYCLE",
     "BROKEN_DOC_LINK"
   ],
-  "schema_version": "biteshark.drift-report.v1"
+  "schema_version": "biteshark.drift-baseline.v2"
 }

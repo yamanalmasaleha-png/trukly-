@@ -1,6 +1,6 @@
 # BiteShark Standing Instructions for Developers & Coding Assistants (`AGENTS.md`)
 
-Read this file and the linked [Shared Engineering Handbook](docs/engineering/README.md) before modifying code, schema, styles, configuration, or deployment files in `https://github.com/yamanalmasaleha-png/trukly-/`.
+Read [docs/engineering/START-HERE.md](docs/engineering/START-HERE.md) and the [Shared Engineering Handbook](docs/engineering/README.md) before modifying code, schema, styles, configuration, or deployment files in `https://github.com/yamanalmasaleha-png/trukly-/`.
 
 For detailed Antigravity and GPT assistant workflows, see [docs/engineering/ASSISTANT-INSTRUCTIONS.md](docs/engineering/ASSISTANT-INSTRUCTIONS.md).
 
@@ -8,14 +8,15 @@ For detailed Antigravity and GPT assistant workflows, see [docs/engineering/ASSI
 
 ## 1. Mandatory Pre-Change Inspection Rules
 
-1. **Inspect Actual Implementation First**: Never rely on memory, screenshots alone, or older prose docs when existing docs disagree with code. Locate exact definitions and callers first:
+1. **Inspect Actual Implementation First**: Never rely on memory, screenshots alone, or older prose docs when existing docs disagree with code. Locate connected definitions, callers, contracts, and tests first:
    ```bash
-   npm run registry:locate -- <identifier|route|table|flag|dom-id>
+   npm run registry:locate -- <identifier|route|table|flag|dom-id|CTR-ID>
    ```
-2. **Use Exact Existing Identifiers**: Reuse exact symbol names, database table/column names, feature keys (`lib/feature-controls.js`), diagnostic keys (`lib/diagnostics.js`), DOM IDs, and `BITESHARK_*` configuration names. Check [NAMING-CONVENTIONS.md](docs/engineering/NAMING-CONVENTIONS.md) and [canonical-components.json](docs/engineering/contracts/canonical-components.json) before introducing any helper, route, or global.
+2. **Use Exact Existing Identifiers & Canonical Helpers**: Reuse exact symbol names, database table/column names, feature keys (`lib/feature-controls.js`), diagnostic keys (`lib/diagnostics.js`), DOM IDs, and `BITESHARK_*` configuration names. Check [NAMING-CONVENTIONS.md](docs/engineering/NAMING-CONVENTIONS.md), [canonical-components.json](docs/engineering/contracts/canonical-components.json), and [shared-contracts.json](docs/engineering/contracts/shared-contracts.json) before introducing any helper, route, or global.
 3. **Consult Shared Contracts & Cascades Before Editing**:
+   - High-value shared interfaces (`CTR-*`): [generated/CONTRACTS-CATALOG.md](docs/engineering/generated/CONTRACTS-CATALOG.md).
    - HTTP APIs & response shapes (bare payloads on `api/*.js` vs `{ ok: true, ... }` on governance/auth/exploration routes): [API-CONTRACTS.md](docs/engineering/API-CONTRACTS.md) & [shared-api-envelopes.md](docs/engineering/contracts/shared-api-envelopes.md).
-   - Frontend `<script>` load-order wrappers (`openDetail`, `applyFilters`), DOM ownership, and 16-file CSS cascade: [FRONTEND-MAP.md](docs/engineering/FRONTEND-MAP.md) & [UI-AND-CONTENT-GUIDE.md](docs/engineering/UI-AND-CONTENT-GUIDE.md).
+   - Frontend `<script>` load-order wrappers (`openDetail`, `applyFilters`), DOM ownership, and CSS cascade: [FRONTEND-MAP.md](docs/engineering/FRONTEND-MAP.md) & [UI-AND-CONTENT-GUIDE.md](docs/engineering/UI-AND-CONTENT-GUIDE.md).
    - PostgreSQL migrations, `FORCE ROW LEVEL SECURITY` `app.*` GUCs, and `withTransaction` session locking: [DATA-MODEL.md](docs/engineering/DATA-MODEL.md) & [MIGRATIONS.md](docs/engineering/MIGRATIONS.md).
    - Roles (`Admin: Top`, `Admin: Mod`, `Vendor Owner`, `Vendor Staff`, `Customer`), 14+ age policy, and CSRF: [AUTH-AND-PERMISSIONS.md](docs/engineering/AUTH-AND-PERMISSIONS.md).
 
@@ -43,13 +44,14 @@ For detailed Antigravity and GPT assistant workflows, see [docs/engineering/ASSI
      ```bash
      npm run registry:compare -- --base origin/working/biteshark-vps --head HEAD --merge-base
      ```
-2. **Update Handbook & Regenerate Inventory Alongside Code Changes**:
-   - If you add or change routes, tables, feature controls, configuration variables, canonical helpers, or domain behavior, update the relevant human-maintained file under `docs/engineering/` **and** regenerate/validate the machine-generated catalog:
+2. **Regenerate Reference Inventories Without Auto-Accepting Drift**:
+   - `npm run registry:docs` updates `docs/engineering/generated/*` **without** altering `docs/engineering/schemas/drift-baseline.json`. Never edit `drift-baseline.json` or `suppressions.json` to silence a newly introduced violation without explicit review rationale.
+   - Before review, run:
      ```bash
      npm run registry:docs
      npm run registry:validate
      npm run test:registry
      ```
 3. **Honest Verification Reporting**:
-   - Run the actual integration/browser/unit suites covering your change ([TESTING.md](docs/engineering/TESTING.md)).
-   - **Never fabricate or extrapolate test, hosted-staging, or physical-device results.** Report exact commands run, exact exit statuses, and any unverified or uncertain areas explicitly.
+   - Run the actual integration/browser/unit suites covering your change ([TESTING.md](docs/engineering/TESTING.md)). Static registry checks never prove runtime behavioral or security correctness.
+   - **Never fabricate or extrapolate test, database-verification, hosted-staging, or physical-device results.** Report exact commands run, exact exit statuses, and any unverified or uncertain areas explicitly.
