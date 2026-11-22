@@ -365,11 +365,13 @@ body{background:var(--cream);color:var(--ink)}
   padding:12px 14px;
   border:1px solid var(--trk-border);
   border-radius:12px;
-  background:#FBF7EC;
+  background:var(--trk-paper);
   color:var(--trk-green);
   text-align:left;
 }
+#detailContent .truckly-spotlight-icon.is-fries{background:#E9352F}
 #detailContent .truckly-spotlight-icon{
+  display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--trk-sage);
   font-size:22px;
   line-height:1.35;
   flex:none;

@@ -39,3 +39,7 @@ Use a local, conversational voice for discovery. â€œHeard about this taco spot?â
 - Tap a crowded group of markers and select a vendor. Confirm the name matches the detail card and that the selected state is visible without relying on color alone.
 - Navigate with a keyboard. Check visible focus, accessible names on icon buttons and focus return after closing details.
 - Check status and error messages with reduced motion enabled. Keep the status readable after any animation ends. [Accessibility guidance](ACCESSIBILITY.md)
+
+## Cuisine illustrations
+
+Give each miniature truck one oversized roof sign, a rounded cab and a few details that read at map size. Use coral for burgers, tomato for pizza, lavender for ice cream, charcoal for coffee and soft teal for ramen. Fries use a bright red carton with golden fries. Carry the red accent into the fries dish badge on vendor details. Keep the surrounding card paper, headings forest green and supporting text muted. The badge identifies the dish. The source and description explain why it is highlighted.

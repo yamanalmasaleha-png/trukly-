@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `antigravity/staging2-latest`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `18a2de280b3150808dd857dd5eb8d59b28a29c1e62ace7190d391ae3b195e6a8`
+> - **Deterministic Source Digest**: `d5d531c4e6eece077eb70dfd8dc668543c0796cf7cd5754439d04354aa5b2629`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 - **Active Findings**: **12**
@@ -128,4 +128,4 @@
 ## 2. Audited Scoped Suppressions (2)
 
 - **`DRIFT:COMPETING_BROWSER_GLOBAL:applyFilters`** (Suppression `SUPP-GLOBAL-WRAP-APPLY-FILTERS`): Intentional post-render decorator chain: public/characters.js wraps applyFilters defined in public/app.js to refresh mascot state after filtering. Documented in FRONTEND-MAP.md. — *Evidence*: Browser global "applyFilters" is defined or reassigned across multiple scripts loaded in public/index.html: public/app.js:L1391 (top_level_browser_function), public/characters.js:L14 (browser_global_reassignment).
-- **`DRIFT:COMPETING_BROWSER_GLOBAL:openDetail`** (Suppression `SUPP-GLOBAL-WRAP-OPEN-DETAIL`): Intentional post-render decorator chain: public/listing-highlights.js and public/smart.js wrap window.openDetail defined in public/app.js. Documented as a load-order invariant in FRONTEND-MAP.md. — *Evidence*: Browser global "openDetail" is defined or reassigned across multiple scripts loaded in public/index.html: public/app.js:L1579 (top_level_browser_function), public/listing-highlights.js:L91 (browser_global_reassignment), public/smart.js:L39 (browser_global_reassignment).
+- **`DRIFT:COMPETING_BROWSER_GLOBAL:openDetail`** (Suppression `SUPP-GLOBAL-WRAP-OPEN-DETAIL`): Intentional post-render decorator chain: public/listing-highlights.js and public/smart.js wrap window.openDetail defined in public/app.js. Documented as a load-order invariant in FRONTEND-MAP.md. — *Evidence*: Browser global "openDetail" is defined or reassigned across multiple scripts loaded in public/index.html: public/app.js:L1579 (top_level_browser_function), public/listing-highlights.js:L92 (browser_global_reassignment), public/smart.js:L39 (browser_global_reassignment).

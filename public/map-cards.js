@@ -37,6 +37,8 @@
   }
   function artwork(t) {
     const text = [t.name, t.cuisine, t.kind, t.listing_kind, t.emoji].join(' ').toLowerCase();
+    if (/fries|poutine|🍟/.test(text)) return 'fries';
+    if (/ramen|🍜/.test(text)) return 'ramen';
     if (/sushi|poke|🍣/.test(text)) return 'sushi';
     if (/pizza|🍕/.test(text)) return 'pizza';
     if (/coffee|boba|☕/.test(text)) return 'coffee';
@@ -54,17 +56,18 @@
     while (words.length && (result + ' ' + words[0]).length <= 14) result += ' ' + words.shift();
     return result.replace(/\s+(?:&|and|by|at)$/i, '');
   }
-  // Canva's bold flat truck direction, implemented as native vectors so the
-  // cuisine symbols remain crisp at touch-marker size and every zoom level.
+  // Oversized roof signs keep each cuisine readable at map scale.
   function truckIcon(vendor) {
     const key = artwork(vendor);
-    const colors = { taco: '#EF9864', burger: '#F2BF48', sushi: '#79AD9A', sweet: '#EE9BB3', coffee: '#BA9773', pizza: '#EB7053', hotdog: '#EBA948', bowl: '#70B8B2', market: '#9CB873' };
+    const colors = { fries: '#ED4536', ramen: '#7BBEBB', taco: '#EABD58', burger: '#EF9279', sushi: '#79AD9A', sweet: '#BEA5DA', coffee: '#535257', pizza: '#D85D4B', hotdog: '#DFAD48', bowl: '#70B8B2', market: '#9CB873' };
     const food = {
+      fries: '<path d="m34 23-4-17 6-1 4 16V3h6v17l3-19 6 1-3 20 7-17 6 2-7 19" fill="#FFC653" stroke="#CC9033" stroke-width="1.3"/><path d="m29 16 5 19q13 5 26-1l6-19q-18 13-37 1Z" fill="#EC352C"/><path d="M41 27q6 6 12-1" stroke="#FFF3C8" fill="none" stroke-width="2.8"/>',
+      ramen: '<path d="m48 15 21-13m-15 15L73 7" stroke="#AA7952" stroke-width="3"/><ellipse cx="48" cy="19" rx="22" ry="6" fill="#CE995E"/><path d="M31 18q4-9 9 0t9 0t9-1" fill="none" stroke="#FFD47B" stroke-width="4"/><circle cx="55" cy="16" r="5" fill="#FFF5D9"/><circle cx="55" cy="16" r="2" fill="#EE9DAC"/><path d="M26 19q22 9 44 0-5 18-22 18T26 19Z" fill="#FFF5DC"/>',
       pizza: '<path d="M31 4 65 12 39 34Z" fill="#FFD15A"/><path d="m31 4 34 8" stroke="#B96B32" stroke-width="7"/><circle cx="40" cy="14" r="4" fill="#D84D38"/><circle cx="52" cy="16" r="4" fill="#D84D38"/><circle cx="41" cy="25" r="3.5" fill="#D84D38"/>',
       taco: '<path d="M27 29a21 21 0 0 1 42 0Z" fill="#F6C854"/><path d="M31 22 36 15l6 3 6-7 7 7 7-2 4 9" fill="#5D9F65"/><path d="M30 27c10-9 26-9 37 0" stroke="#B76B37" stroke-width="5"/>',
       burger: '<path d="M29 16c1-17 37-17 38 0Z" fill="#EFA94C"/><path d="M29 21h38" stroke="#53945D" stroke-width="6"/><path d="M29 27h38" stroke="#754936" stroke-width="7"/><path d="M30 30h36v5H30Z" fill="#EFA94C"/><path d="m41 8 3 1m8-2 3 1" stroke="#FFF0BC" stroke-width="3"/>',
       sushi: '<path d="M30 14h35v15c0 9-35 9-35 0Z" fill="#285C4F"/><ellipse cx="47.5" cy="14" rx="17.5" ry="10" fill="#FFFAF0"/><ellipse cx="47.5" cy="14" rx="10" ry="6" fill="#EF8F70"/><path d="m43 14 5-3 5 4-5 3Z" fill="#80AD75"/>',
-      sweet: '<path d="m37 21 11 17 11-17" fill="#D69E5D"/><path d="m43 26 9 1m-5 4 5 1" stroke="#B67B43" stroke-width="2"/><path d="M33 20c-4-6 0-12 6-12 0-10 18-10 18 0 7 0 11 6 6 12Z" fill="#EEA0B8"/>',
+      sweet: '<path d="m37 21 11 17 11-17" fill="#D69E5D"/><path d="m43 26 9 1m-5 4 5 1" stroke="#B67B43" stroke-width="2"/><path d="M33 20c-4-6 0-12 6-12 0-10 18-10 18 0 7 0 11 6 6 12Z" fill="#D7B6ED"/>',
       coffee: '<path d="M31 10h28v17c0 10-28 10-28 0Z" fill="#FFFAF0"/><path d="M59 14h5c10 0 10 13 0 13h-5" fill="none" stroke="#FFFAF0" stroke-width="5"/><path d="M28 36h38" stroke="#6B5040" stroke-width="4"/><path d="M40 3v3m10-3v3" stroke="#6B5040" stroke-width="3"/>',
       hotdog: '<rect x="26" y="10" width="44" height="22" rx="11" fill="#E9BA72"/><rect x="29" y="15" width="38" height="12" rx="6" fill="#BA6048"/><path d="m34 20 5-3 5 6 5-6 5 6 7-4" fill="none" stroke="#FFDB55" stroke-width="3"/>',
       bowl: '<path d="M27 18h43c-1 13-8 19-21 19S29 31 27 18Z" fill="#FFFAF0"/><path d="M32 16c0-10 11-10 13-3 4-10 15-9 19 3" fill="#74A46A"/><path d="m48 13 5-6 7 8" fill="#EFAA5D"/><path d="m61 6 8-5" stroke="#79583E" stroke-width="3"/>',
@@ -72,14 +75,16 @@
     };
     return '<svg class="food-truck-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 76" aria-hidden="true" focusable="false">' +
       '<ellipse cx="50" cy="71" rx="42" ry="3" fill="#234B3A" opacity=".12"/>' +
-      '<g stroke="#294B3C" stroke-width="1.5" stroke-linejoin="round">' +
-      `<path d="M9 33h54l7 5h14l10 17v10H8V38q0-5 1-5Z" fill="${colors[key] || colors.bowl}"/>` +
-      '<path d="M70 42h12l7 12H70Z" fill="#DDF0E7"/><path d="M73 43v10" stroke="#FFFAF0" stroke-width="2"/>' +
-      '<path d="M15 40h42v17H15Z" fill="#FFFAF0"/><path d="M14 39h45l-3-6H17Z" fill="#FFFAF0"/>' +
-      '<path d="m21 34-2 5m13-5-1 5m13-5 1 5m8-5 2 5" stroke="#E46C4B" stroke-width="4"/>' +
-      '<path d="M13 58h47M65 40v23" stroke="#294B3C" stroke-width="2"/><path d="M91 57h4v5h-4Z" fill="#FFDF7D"/>' +
-      '<circle cx="24" cy="65" r="8" fill="#294B3C"/><circle cx="24" cy="65" r="3.5" fill="#FFFAF0"/>' +
-      '<circle cx="79" cy="65" r="8" fill="#294B3C"/><circle cx="79" cy="65" r="3.5" fill="#FFFAF0"/>' +
+      '<g stroke-linecap="round" stroke-linejoin="round">' +
+      `<path d="M9 40q0-8 9-9l48-3q7 0 11 4l12 12 6 11v8q0 5-6 6l-23 3-52-6q-6-1-6-7Z" fill="${colors[key]}"/>` +
+      '<path d="m67 31 10 3 12 12 5 11v8l-25 5Z" fill="#17392F" opacity=".18"/>' +
+      '<path d="m13 37 49-4" stroke="#FFF8EA" opacity=".65" stroke-width="2"/>' +
+      '<path d="m70 36 7 1 12 14-18 2Z" fill="#D9ECE7"/><path d="m74 38 5 1 4 5-9 5Z" fill="#FFFDF4"/>' +
+      '<path d="m17 41 39-2v15l-39 1Z" fill="#354C48"/><path d="m16 41 3-5 37-2 4 5-3 3Z" fill="#FFF2CF"/>' +
+      '<path d="m16 55 42-1" stroke="#DDD5BE" stroke-width="3"/><path d="m72 60 5-1m11-1 4-1" stroke="#FFF2B7" stroke-width="3"/>' +
+      '<path d="m78 63 8-1" stroke="#374B46" stroke-width="2"/>' +
+      '<ellipse cx="21" cy="64" rx="7" ry="9" fill="#303A39"/><ellipse cx="21" cy="64" rx="3" ry="4" fill="#CBC9B9"/>' +
+      '<ellipse cx="62" cy="67" rx="7" ry="9" fill="#303A39"/><ellipse cx="62" cy="67" rx="3" ry="4" fill="#CBC9B9"/>' +
       '<g stroke="none">' + food[key] + '</g></g></svg>';
   }
   function representative(group, selectedId) {

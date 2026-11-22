@@ -51,6 +51,7 @@
     var pick = getPick(t);
     var category = esc(t.kind || t.cuisine || "Local food");
     var represent = esc((pick && pick.icon) || t.emoji || "🍽️");
+    var iconStyle = pick && pick.icon === "🍟" ? " is-fries" : "";
     var heading = pick ? pick.heading : "Dish and photo research pending";
     var label = pick ? pick.title : category + " to explore";
     var sub = pick
@@ -62,7 +63,7 @@
         : "";
     return (
       '<section class="truckly-spotlight" aria-label="Listing research and photo provenance">' +
-      '<span class="truckly-spotlight-icon" aria-hidden="true">' + represent + "</span>" +
+      '<span class="truckly-spotlight-icon' + iconStyle + '" aria-hidden="true">' + represent + "</span>" +
       '<span class="truckly-spotlight-body"><small>' + esc(heading) + "</small><strong>" + esc(label) + "</strong>" +
       '<span class="truckly-spotlight-explainer">' + esc(sub) + "</span>" + source +
       "</span></section>"

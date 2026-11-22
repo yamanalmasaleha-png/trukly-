@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `antigravity/staging2-latest`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `18a2de280b3150808dd857dd5eb8d59b28a29c1e62ace7190d391ae3b195e6a8`
+> - **Deterministic Source Digest**: `d5d531c4e6eece077eb70dfd8dc668543c0796cf7cd5754439d04354aa5b2629`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## Coverage Summary
@@ -923,7 +923,7 @@
 | `guideUndoVisit` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/guide-passport.js:renderGuidePassport$anon_L92_16$anon_L92_17` | L114 |
 
 ### [public/listing-highlights.js](../../../public/listing-highlights.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `bitesharkListingHighlights` (explicit_window_property @ L79), `bitesharkListingHighlights` (explicit_window_property @ L82), `openDetail` (browser_global_reassignment @ L91)
+- **Explicit Window / Reassigned Globals**: `bitesharkListingHighlights` (explicit_window_property @ L80), `bitesharkListingHighlights` (explicit_window_property @ L83), `openDetail` (browser_global_reassignment @ L92)
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
