@@ -96,7 +96,9 @@
       removeGenericStockPhoto(t);
       var result = baseOpenDetail(id, triggerEl);
       var body = document.querySelector("#detailContent .detail-body");
-      if (body && t && !body.querySelector(".truckly-spotlight")) {
+      var hasPick = Boolean(getPick(t));
+      var shouldSuppressGenericPending = Boolean(!hasPick && t && t.extra && (t.special || t.source));
+      if (body && t && !body.querySelector(".truckly-spotlight") && !shouldSuppressGenericPending) {
         body.insertAdjacentHTML("beforeend", detailSpotlightMarkup(t));
       }
       return result;

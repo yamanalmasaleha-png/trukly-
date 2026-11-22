@@ -101,6 +101,10 @@ import {
   formatInvitationRowForAdmin,
   consumeGovernanceRateLimit
 } from '../lib/admin-governance.js';
+import {
+  CUSTOMER_EXPLORATION_PATHS,
+  handleCustomerExplorationRoute
+} from './customer-exploration-routes.js';
 
 export const EVIDENCE_UPLOAD_MAX_JSON_BYTES = 900 * 1024; // 900 KiB JSON envelope for <= 512 KiB base64 file
 
@@ -155,7 +159,7 @@ const GOVERNANCE_PATHS = new Set([
 
 export function isGovernanceApiPath(pathname) {
   const norm = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  return GOVERNANCE_PATHS.has(norm);
+  return GOVERNANCE_PATHS.has(norm) || CUSTOMER_EXPLORATION_PATHS.has(norm);
 }
 
 function maskEmail(email) {
@@ -920,6 +924,20 @@ export async function handleGovernanceApiRequest({
       viewpointMode
     });
     return sendJson(200, buildPublicFeatureControlsPayload(evaluated));
+  }
+
+  if (CUSTOMER_EXPLORATION_PATHS.has(normPath)) {
+    return handleCustomerExplorationRoute({
+      pathname: normPath,
+      method,
+      req,
+      query,
+      body,
+      verifiedUser: req.user || null,
+      dbAdapter,
+      sendJson,
+      rawRes
+    });
   }
 
   // =========================================================================

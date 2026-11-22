@@ -46,6 +46,7 @@ import {
   isGovernanceApiPath,
   handleGovernanceApiRequest
 } from './admin-routes.js';
+import { MAX_PHOTO_JSON_BODY_BYTES } from '../lib/photo-storage.js';
 import * as stagingGateProbe from '../scripts/staging-runtime-probe.js';
 
 const SERVER_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -82,9 +83,16 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/app.js',
   '/pager.js',
   '/community.js',
+  '/street-whispers.js',
+  '/listing-highlights.js',
+  '/coffee-club.js',
+  '/exploration-client.js',
   '/local-guides.js',
+  '/local-guides.css',
   '/guide-passport.js',
+  '/guide-passport.css',
   '/smart.js',
+  '/smart.css',
   '/theme.css',
   '/mobile-scroll-fix.css',
   '/sw.js',
@@ -821,11 +829,13 @@ export function createStandaloneServer({
         req.__bsRouteTemplate = normGovPath;
         const isUntrustedDiagReport = normGovPath === '/api/diagnostics/report';
         const bodyLimit =
-          normGovPath === '/api/onboarding/evidence' && method === 'POST'
-            ? EVIDENCE_UPLOAD_MAX_JSON_BYTES
-            : isUntrustedDiagReport
-              ? DIAGNOSTICS_REPORT_MAX_JSON_BYTES
-              : maxJsonBytes;
+          normGovPath === '/api/me/photos' && method === 'POST'
+            ? MAX_PHOTO_JSON_BODY_BYTES
+            : normGovPath === '/api/onboarding/evidence' && method === 'POST'
+              ? EVIDENCE_UPLOAD_MAX_JSON_BYTES
+              : isUntrustedDiagReport
+                ? DIAGNOSTICS_REPORT_MAX_JSON_BYTES
+                : maxJsonBytes;
 
         let parsedBody = {};
         if (MUTATING_HTTP_METHODS.has(method)) {
@@ -871,8 +881,12 @@ export function createStandaloneServer({
         req.body = parsedBody;
 
         // Central server-side feature-control gate on Governance routes (runs after auth & age checks;
-        // unauthenticated calls fall through to 401 so feature switches never mask auth requirements).
-        if (verifiedUser && matchRouteFeatureRule(normGovPath, method)) {
+        // unauthenticated calls on auth-required routes fall through to 401 so feature switches never mask
+        // auth requirements, while public read endpoints `/api/stories` and `/api/trails/suggest` enforce
+        // feature controls for anonymous callers too).
+        const isPublicFeatureGatedGovPath =
+          normGovPath === '/api/stories' || normGovPath === '/api/trails/suggest';
+        if ((verifiedUser || isPublicFeatureGatedGovPath) && matchRouteFeatureRule(normGovPath, method)) {
           const fcGate = await enforceHttpFeatureGate({
             dbAdapter,
             req,

@@ -1,2 +1,475 @@
-.smart-invite{display:flex;align-items:center;justify-content:space-between;gap:24px;background:#e0e6c7;border:1px solid #214b3b40;border-radius:16px;padding:24px;margin:0 0 26px}.smart-invite small{font-size:10px;letter-spacing:1.5px;font-weight:700}.smart-invite h2{font-size:27px;margin:8px 0}.smart-invite p{font-size:14px;margin:8px 0;color:#52604c}.smart-invite-actions{display:flex;flex-direction:column;gap:10px;min-width:200px}.smart-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0}.smart-tabs button,.smart-share{min-height:44px;border:1px solid #214b3b40;border-radius:12px;background:#fffaf0;padding:10px 14px;font-weight:700}.smart-tabs button.active{background:#214b3b;color:#fffaf0}.smart-panel{background:#fffaf0;border:1px solid #214b3b30;border-radius:20px;padding:24px}.smart-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.smart-controls label{margin:8px 0 16px}.smart-results{display:grid;gap:16px;margin-top:24px}.smart-result{background:#fffaf0;border:1px solid #214b3b30;border-radius:16px;padding:18px}.smart-result h3{font-size:23px}.smart-result p{color:var(--muted);margin:8px 0}.smart-result-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}.smart-result-actions button{min-height:44px;border:1px solid #214b3b30;border-radius:10px;padding:10px 14px;background:#dce8ce;font-weight:700}.trail-number{display:inline-grid;place-items:center;background:#f3c35c;border:1px solid #214b3b40;width:34px;height:34px;border-radius:50%;margin-bottom:12px;font-weight:700}.smart-note{font-size:13px;color:var(--muted);line-height:1.5}.promo-preview{padding:32px;background:#214b3b;color:#fff3d6;border:7px solid #f3c35c;border-radius:12px;margin:20px 0;max-width:620px}.promo-preview small{letter-spacing:2px}.promo-preview h2{color:#f3c35c;font-size:38px;margin:20px 0}.promo-preview p{overflow-wrap:anywhere}.promo-actions{display:flex;gap:10px;flex-wrap:wrap}.promo-actions button{min-height:44px;padding:12px 16px;border-radius:12px;border:1px solid #214b3b40;background:#f3c35c;font-weight:700}#promoCaption{width:100%;min-height:170px}.detail-body .smart-share{width:100%;margin:12px 0;background:#f3c35c}.smart-notice{padding:14px 18px;border-radius:14px;background:#f3d28c}#smartMessage{font-weight:700;color:#214b3b}
-@media(max-width:749px){.smart-invite{flex-direction:column;align-items:stretch;padding:20px;gap:12px}.smart-invite h2{font-size:24px}.smart-invite-actions{min-width:0}.smart-controls{grid-template-columns:1fr;gap:0}.smart-panel{padding:18px}.smart-tabs{gap:6px}.smart-tabs button{font-size:13px;padding:10px}.promo-preview{padding:22px;border-width:5px}.promo-preview h2{font-size:30px}}
+/* BiteShark Suggested Trails, Flavor Finder & Owner Promo Card styles */
+
+.suggested-trails-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  margin: 0 0 18px;
+  background: #e5efcd;
+  border: 1px solid #214b3b45;
+  border-radius: 14px;
+}
+.suggested-trails-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.suggested-trails-copy strong {
+  font-size: 15px;
+  color: #1f3c2d;
+}
+.suggested-trails-copy span {
+  font-size: 13px;
+  color: #3f503e;
+  line-height: 1.35;
+}
+.suggested-trails-bar > button {
+  width: auto;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #214b3b50;
+  background: #214b3b;
+  color: #fff8e8;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.smart-invite {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #e0e6c7;
+  border: 1px solid #214b3b40;
+  border-radius: 16px;
+  padding: 20px 22px;
+  margin: 0 0 24px;
+}
+.smart-invite small {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+  color: #264d39;
+}
+.smart-invite h2 {
+  font-size: 24px;
+  margin: 6px 0;
+  color: #1f3c2d;
+}
+.smart-invite p {
+  font-size: 14px;
+  margin: 6px 0;
+  color: #425242;
+}
+.smart-invite-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+}
+.smart-invite-actions button {
+  min-height: 44px;
+}
+
+.smart-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 18px;
+}
+.smart-tabs button,
+.smart-share {
+  min-height: 44px;
+  border: 1px solid #214b3b45;
+  border-radius: 12px;
+  background: #fffaf0;
+  color: #1f3c2d;
+  padding: 10px 16px;
+  font-weight: 700;
+}
+.smart-tabs button[hidden] {
+  display: none !important;
+}
+.smart-tabs button.active {
+  background: #214b3b;
+  color: #fffaf0;
+}
+.smart-tabs button:focus-visible,
+.smart-result-actions button:focus-visible,
+.suggested-trails-bar > button:focus-visible,
+.saved-trail-card button:focus-visible {
+  outline: 2px solid #214b3b;
+  outline-offset: 2px;
+}
+
+.smart-panel {
+  background: #fffaf0;
+  border: 1px solid #214b3b35;
+  border-radius: 18px;
+  padding: 20px 22px;
+}
+.smart-panel-head h2 {
+  font-size: 23px;
+  margin: 0 0 6px;
+  color: #1f3c2d;
+}
+.smart-panel-head p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #425242;
+}
+
+.smart-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.smart-controls label {
+  margin: 4px 0 8px;
+  font-weight: 700;
+  color: #1f3c2d;
+}
+.smart-controls select {
+  margin-top: 4px;
+  min-height: 44px;
+}
+.smart-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.smart-form-actions button {
+  width: auto;
+  min-height: 44px;
+}
+
+.smart-note {
+  font-size: 12.5px;
+  color: #425242;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.smart-results {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+.smart-saved-trails {
+  margin-top: 20px;
+}
+
+.trail-preview-header {
+  background: #f5db96;
+  border: 1px solid #214b3b40;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.trail-preview-header small {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #3a310d;
+  text-transform: uppercase;
+}
+.trail-preview-header h3 {
+  font-size: 20px;
+  margin: 2px 0 4px;
+  color: #1f3c2d;
+}
+.trail-disclaimers {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #384231;
+}
+.trail-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.trail-preview-actions button,
+.trail-preview-actions a {
+  width: auto;
+  min-height: 44px;
+  padding: 10px 16px;
+}
+.trail-title-input {
+  max-width: 260px;
+  min-height: 44px;
+  margin: 0;
+  background: #fffdf8;
+}
+
+.trail-stops-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.trail-stop-card,
+.smart-result {
+  background: #fffaf0;
+  border: 1px solid #214b3b35;
+  border-radius: 16px;
+  padding: 16px 18px;
+}
+.trail-stop-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.trail-number {
+  display: inline-grid;
+  place-items: center;
+  background: #f3c35c;
+  border: 1px solid #214b3b45;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-weight: 800;
+  color: #1f3c2d;
+  flex-shrink: 0;
+}
+.trail-stop-card h3,
+.smart-result h3 {
+  font-size: 20px;
+  margin: 0 0 3px;
+  color: #1f3c2d;
+}
+.trail-stop-card p,
+.smart-result p {
+  color: #425242;
+  margin: 4px 0;
+  font-size: 14px;
+}
+.trail-match-reason {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #ebf3df;
+  border-left: 3px solid #285c43;
+  color: #1f3c2d !important;
+  font-size: 13px !important;
+  line-height: 1.4;
+}
+.smart-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.smart-result-actions button {
+  width: auto;
+  min-height: 44px;
+  border: 1px solid #214b3b38;
+  border-radius: 10px;
+  padding: 8px 14px;
+  background: #dce8ce;
+  color: #1f3c2d;
+  font-weight: 700;
+}
+.smart-result-actions button.secondary {
+  background: #fffdf8;
+}
+
+.saved-trails-grid {
+  display: grid;
+  gap: 14px;
+}
+.saved-trail-card {
+  border: 1px solid #214b3b38;
+  border-radius: 14px;
+  padding: 16px;
+  background: #fcf6e6;
+}
+.saved-trail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.saved-trail-head h4 {
+  margin: 0 0 3px;
+  font-size: 18px;
+  color: #1f3c2d;
+}
+.saved-trail-head small {
+  font-size: 12px;
+  color: #425242;
+}
+.saved-trail-progress {
+  padding: 6px 10px;
+  border-radius: 99px;
+  background: #dcebd0;
+  border: 1px solid #285c4340;
+  color: #1f3c2d;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.saved-trail-stops {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 12px;
+  display: grid;
+  gap: 8px;
+}
+.saved-trail-stops li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fffdf8;
+  border: 1px solid #214b3b24;
+}
+.saved-stop-copy {
+  min-width: 0;
+  flex: 1;
+}
+.saved-stop-copy small {
+  display: block;
+  font-size: 12px;
+  color: #425242;
+  margin-top: 2px;
+}
+.saved-stop-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.stop-visited-badge {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 99px;
+  background: #d4ebd0;
+  color: #1d4b31;
+  font-size: 12px;
+  font-weight: 800;
+}
+.saved-trail-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.saved-trail-card button {
+  width: auto;
+  min-height: 44px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid #214b3b38;
+  background: #fffaf0;
+  color: #1f3c2d;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.owner-marketing-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #214b3b28;
+}
+.promo-preview {
+  padding: 28px;
+  background: #214b3b;
+  color: #fff3d6;
+  border: 6px solid #f3c35c;
+  border-radius: 12px;
+  margin: 16px 0;
+  max-width: 620px;
+}
+.promo-preview small {
+  letter-spacing: 2px;
+}
+.promo-preview h2 {
+  color: #f3c35c;
+  font-size: 32px;
+  margin: 14px 0;
+}
+.promo-preview p {
+  overflow-wrap: anywhere;
+}
+.promo-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.promo-actions button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #214b3b40;
+  background: #f3c35c;
+  color: #1f3c2d;
+  font-weight: 700;
+}
+#promoCaption {
+  width: 100%;
+  min-height: 150px;
+}
+.detail-body .smart-share {
+  width: 100%;
+  margin: 10px 0;
+  background: #f3c35c;
+}
+.smart-notice {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f3d28c;
+  color: #2f250b;
+}
+#smartMessage {
+  font-weight: 700;
+  color: #214b3b;
+  margin-top: 10px;
+}
+
+@media (max-width: 749px) {
+  .suggested-trails-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .suggested-trails-bar > button {
+    width: 100%;
+  }
+  .smart-invite {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 12px;
+  }
+  .smart-invite h2 { font-size: 21px; }
+  .smart-invite-actions { min-width: 0; }
+  .smart-controls { grid-template-columns: 1fr; gap: 6px; }
+  .smart-panel { padding: 16px; }
+  .smart-tabs { gap: 6px; }
+  .smart-tabs button { flex: 1 1 auto; font-size: 13.5px; padding: 9px 12px; }
+  .trail-title-input { max-width: none; width: 100%; }
+  .saved-trail-head,
+  .saved-trail-stops li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .promo-preview { padding: 20px; border-width: 4px; }
+  .promo-preview h2 { font-size: 26px; }
+}

@@ -1,7 +1,9 @@
 /* Truckly v72 spacing pass: fixes navigation/header crowding and aligns Guides without changing data or actions. */
 :root{--nav:82px}
 .bottom-nav{
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:none;
+  grid-auto-flow:column;
+  grid-auto-columns:minmax(0,1fr);
   gap:8px;
   padding:0 max(18px,calc((100% - 708px)/2)) var(--safe);
   background:#fff7e7;

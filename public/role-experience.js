@@ -3181,48 +3181,137 @@
       }
     }
 
-    // 3. Local Guides, Food Passport & Dish Notebook (`local_guides_passport`)
+    // 3. Local Guides Hub & Child Controls (`local_guides_passport`, `visit_journal`, `editorial_stories`, `private_photos`, `exploration_badges`, `weekly_challenges`)
     var guidesState = getFeatureState('local_guides_passport');
+    var visitState = guidesState === 'hidden' ? 'hidden' : getFeatureState('visit_journal');
+    var storiesState = guidesState === 'hidden' ? 'hidden' : getFeatureState('editorial_stories');
+    var photosState = guidesState === 'hidden' ? 'hidden' : getFeatureState('private_photos');
+    var badgesHidden = isFeatureHidden('exploration_badges');
+    var challengesHidden = isFeatureHidden('weekly_challenges');
+    var hubHidden =
+      guidesState === 'hidden' ||
+      (visitState === 'hidden' && storiesState === 'hidden' && photosState === 'hidden');
+
     document.querySelectorAll('.guides-launch, .guide-nav, .community-footer-links button[onclick*="openLocalGuides"]').forEach(function (el) {
-      el.hidden = guidesState === 'hidden';
+      el.hidden = hubHidden;
     });
-    var guidesScreen = document.getElementById('guidesScreen');
-    if (guidesScreen) {
-      if (guidesState === 'hidden' && guidesScreen.classList.contains('active')) {
-        if (typeof showScreen === 'function') showScreen('discover');
-        if (typeof toast === 'function') toast(getFeatureMessage('local_guides_passport'));
-      }
-      var guidesBanner = ensureInlineBanner('fcGuidesStateBanner', guidesScreen, guidesScreen.querySelector('.guides-tabs'));
-      var dishSaveBtn = document.getElementById('dishPhotoSave');
-      var passportSubmitBtn = document.querySelector('#guideVisitForm button[type="submit"]');
-      if (guidesState === 'paused') {
-        if (guidesBanner) {
-          guidesBanner.hidden = false;
-          guidesBanner.innerHTML = '<span><b>Paused:</b> ' + rxEsc(getFeatureMessage('local_guides_passport')) + '</span>';
-        }
-        if (dishSaveBtn) dishSaveBtn.disabled = true;
-        if (passportSubmitBtn) passportSubmitBtn.disabled = true;
-      } else {
-        if (guidesBanner) guidesBanner.hidden = true;
-        if (dishSaveBtn && guidesState === 'enabled') dishSaveBtn.disabled = false;
+    document.querySelectorAll('[data-guide-tab="passport"]').forEach(function (el) {
+      el.hidden = visitState === 'hidden';
+    });
+    document.querySelectorAll('[data-guide-tab="stories"]').forEach(function (el) {
+      el.hidden = storiesState === 'hidden';
+    });
+    document.querySelectorAll('[data-guide-tab="photos"]').forEach(function (el) {
+      el.hidden = photosState === 'hidden';
+    });
+    document.querySelectorAll('[data-detail-log-visit], [data-story-log-visit], [data-trail-log-visit]').forEach(function (el) {
+      el.hidden = visitState === 'hidden';
+    });
+    document.querySelectorAll('[data-detail-save-photo], [data-story-add-photo]').forEach(function (el) {
+      el.hidden = photosState === 'hidden';
+    });
+
+    var discoverStoriesStrip = document.getElementById('discoverStoriesStrip');
+    if (discoverStoriesStrip) {
+      discoverStoriesStrip.hidden = storiesState === 'hidden';
+      if (storiesState !== 'hidden' && !discoverStoriesStrip.innerHTML.trim() && typeof renderDiscoverStoriesStrip === 'function') {
+        renderDiscoverStoriesStrip();
       }
     }
 
-    // 4. Flavor Lab & Promo Card Tools (`flavor_lab_tools`)
-    var flavorHidden = isFeatureHidden('flavor_lab_tools');
-    document.querySelectorAll('.smart-invite').forEach(function (el) {
+    var achievementsPanel = document.getElementById('journalAchievementsPanel');
+    if (achievementsPanel) achievementsPanel.hidden = badgesHidden;
+    var weeklyChallengePanel = document.getElementById('journalWeeklyChallengePanel');
+    if (weeklyChallengePanel) weeklyChallengePanel.hidden = challengesHidden;
+
+    var guidesScreen = document.getElementById('guidesScreen');
+    if (guidesScreen) {
+      if (hubHidden && guidesScreen.classList.contains('active')) {
+        if (typeof showScreen === 'function') showScreen('discover');
+        if (typeof toast === 'function') toast(getFeatureMessage('local_guides_passport'));
+      } else if (guidesScreen.classList.contains('active') && typeof activeGuidesTab !== 'undefined' && typeof showGuidesTab === 'function') {
+        var activeTabBtn = guidesScreen.querySelector('[data-guide-tab="' + activeGuidesTab + '"]');
+        if (activeTabBtn && activeTabBtn.hidden) {
+          showGuidesTab(activeGuidesTab);
+        }
+      }
+      var guidesBanner = ensureInlineBanner('fcGuidesStateBanner', guidesScreen, guidesScreen.querySelector('.guides-tabs'));
+      var dishSaveBtn = document.getElementById('dishPhotoSave');
+      var passportSubmitBtn = document.getElementById('guideVisitSubmitBtn') || document.querySelector('#guideVisitForm button[type="submit"]');
+      var currentTabName = typeof activeGuidesTab !== 'undefined' ? activeGuidesTab : 'passport';
+      var activeSubKey =
+        currentTabName === 'photos'
+          ? 'private_photos'
+          : currentTabName === 'stories'
+            ? 'editorial_stories'
+            : 'visit_journal';
+      var activeSubState = guidesState === 'paused' ? 'paused' : getFeatureState(activeSubKey);
+
+      if (guidesState === 'paused' || activeSubState === 'paused') {
+        var msgKey = guidesState === 'paused' ? 'local_guides_passport' : activeSubKey;
+        if (guidesBanner) {
+          guidesBanner.hidden = false;
+          guidesBanner.innerHTML = '<span><b>Paused:</b> ' + rxEsc(getFeatureMessage(msgKey)) + '</span>';
+        }
+      } else if (guidesBanner) {
+        guidesBanner.hidden = true;
+      }
+
+      if (dishSaveBtn) dishSaveBtn.disabled = photosState !== 'enabled';
+      if (passportSubmitBtn) passportSubmitBtn.disabled = visitState !== 'enabled';
+    }
+
+    // 4. Suggested Trails (`suggested_trails`), Flavor Finder & Promo Tools (`flavor_lab_tools`), and Street Whispers (`street_whispers`)
+    var trailsState = getFeatureState('suggested_trails');
+    var trailsHidden = trailsState === 'hidden';
+    var flavorState = getFeatureState('flavor_lab_tools');
+    var flavorHidden = flavorState === 'hidden';
+
+    document.querySelectorAll('#discoverSuggestedTrailsBar, #guidesOpenTrailsBtn, #journalBrowseTrailsBtn, [data-smart-tab="trail"], .smart-invite button[onclick*="openSmart(\'trail\')"]').forEach(function (el) {
+      el.hidden = trailsHidden;
+    });
+    document.querySelectorAll('.smart-invite, [data-smart-tab="finder"]').forEach(function (el) {
       el.hidden = flavorHidden;
     });
-    document.querySelectorAll('#ownerScreen button[onclick*="openSmart"]').forEach(function (btn) {
+    var ownerMktCard = document.getElementById('ownerMarketingCard');
+    if (ownerMktCard) ownerMktCard.hidden = flavorHidden;
+    document.querySelectorAll('#ownerScreen button[onclick*="openSmart"], #ownerScreen button[onclick*="openOwnerMarketingKit"]').forEach(function (btn) {
       var card = btn.closest('.owner-card');
       if (card) card.hidden = flavorHidden;
       else btn.hidden = flavorHidden;
     });
+
     var smartScreen = document.getElementById('smartScreen');
-    if (smartScreen && flavorHidden && smartScreen.classList.contains('active')) {
-      if (typeof showScreen === 'function') showScreen('discover');
-      if (typeof toast === 'function') toast(getFeatureMessage('flavor_lab_tools'));
+    if (smartScreen) {
+      var smartBanner = ensureInlineBanner('fcSmartStateBanner', smartScreen, smartScreen.querySelector('.smart-tabs'));
+      if (smartScreen.classList.contains('active')) {
+        if (trailsHidden && flavorHidden) {
+          if (typeof showScreen === 'function') showScreen('discover');
+          if (typeof toast === 'function') toast(getFeatureMessage('suggested_trails'));
+        } else if (typeof smartMode !== 'undefined' && typeof openSmart === 'function') {
+          if (smartMode === 'trail' && trailsHidden && !flavorHidden) {
+            openSmart('finder');
+          } else if (smartMode === 'finder' && flavorHidden && !trailsHidden) {
+            openSmart('trail');
+          }
+        }
+      }
+      var saveTrailBtn = document.getElementById('saveTrailToAccountBtn');
+      if (saveTrailBtn) saveTrailBtn.disabled = trailsState !== 'enabled';
+      if (trailsState === 'paused' && (typeof smartMode === 'undefined' || smartMode === 'trail')) {
+        if (smartBanner) {
+          smartBanner.hidden = false;
+          smartBanner.innerHTML = '<span><b>Saving paused:</b> ' + rxEsc(getFeatureMessage('suggested_trails')) + '</span>';
+        }
+      } else if (smartBanner) {
+        smartBanner.hidden = true;
+      }
     }
+
+    var streetWhispersHidden = isFeatureHidden('street_whispers');
+    document.querySelectorAll('#communityScreen .street-section').forEach(function (el) {
+      el.hidden = streetWhispersHidden;
+    });
 
     // 5. Self-Service Vendor Onboarding (`vendor_onboarding`)
     var onbState = getFeatureState('vendor_onboarding');

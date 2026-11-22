@@ -32,9 +32,10 @@
     "test:email": "node tests/auth-email-delivery.integration.cjs"
   },
   "dependencies": {
-    "cookie": "1.1.1",
     "@biteshark/runtime-adapter": "file:./packages/runtime-adapter",
+    "cookie": "1.1.1",
     "otplib": "13.6.0",
-    "pg": "8.23.1"
+    "pg": "8.23.1",
+    "sharp": "0.35.5"
   }
 }
