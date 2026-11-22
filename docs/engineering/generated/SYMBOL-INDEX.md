@@ -5,20 +5,20 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `914390a6fd40c85b1790a4e4970c4b5675a8136fe1a89670b8a3edae3d520fba`
+> - **Source Analysis Digest**: `f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Coverage Summary
 
 | Metric | Count |
 |---|---:|
-| JavaScript / CJS / ESM Files Scanned | 128 |
+| JavaScript / CJS / ESM Files Scanned | 131 |
 | Parse Failures | 0 |
-| Functions, Methods & Handlers | 2662 |
+| Functions, Methods & Handlers | 2698 |
 | Classes | 19 |
-| Top-Level Constants | 648 |
+| Top-Level Constants | 663 |
 | Browser Globals & Window Registrations | 658 |
-| Confirmed Static Call Edges | 6894 |
+| Confirmed Static Call Edges | 7016 |
 | Inferred Candidate Call Edges | 33 |
 
 > **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run `npm run registry:locate -- <identifier>`.
@@ -31,7 +31,7 @@
 | [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 20 | 359 | 307 |
 | [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 61 | 91 |
 | [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 16 | 866 | 0 |
-| [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 21 | 257 | 64 |
+| [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 289 | 80 |
 
 ## Module Directory
 
@@ -130,3 +130,5 @@
 | [tools/code-registry/scanner.mjs](../../../tools/code-registry/scanner.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 3 | `CANONICAL_GENERATED_DOC_PATHS`, `scanRepositorySnapshot` |
 | [tools/code-registry/schema-validator.mjs](../../../tools/code-registry/schema-validator.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 6 | `validateAgainstJsonSchema`, `validateJsonWithSchemaFile` |
 | [tools/code-registry/schema-versions.mjs](../../../tools/code-registry/schema-versions.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 15 | `GENERATOR_NAME`, `GENERATOR_VERSION`, `REGISTRY_SCHEMA_VERSION`, `SUMMARY_SCHEMA_VERSION`, `IMPACT_SCHEMA_VERSION`, `DRIFT_BASELINE_SCHEMA_VERSION`, `SUPPRESSIONS_SCHEMA_VERSION`, `CONTRACTS_SCHEMA_VERSION` |
+| [tools/style-guide/cli.mjs](../../../tools/style-guide/cli.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 3 | — |
+| [tools/style-guide/lib.mjs](../../../tools/style-guide/lib.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 29 | `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug` |

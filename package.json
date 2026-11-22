@@ -38,7 +38,11 @@
     "registry:compare": "node tools/code-registry/cli.mjs compare",
     "registry:impact": "node tools/code-registry/cli.mjs impact",
     "registry:locate": "node tools/code-registry/cli.mjs locate",
-    "test:registry": "node tests/code-registry.test.cjs"
+    "test:registry": "node tests/code-registry.test.cjs",
+    "style-guide:generate": "node tools/style-guide/cli.mjs generate",
+    "style-guide:validate": "node tools/style-guide/cli.mjs validate",
+    "style-guide:status": "node tools/style-guide/cli.mjs status",
+    "test:style-guide": "node tests/style-guide.test.cjs"
   },
   "dependencies": {
     "@biteshark/runtime-adapter": "file:./packages/runtime-adapter",

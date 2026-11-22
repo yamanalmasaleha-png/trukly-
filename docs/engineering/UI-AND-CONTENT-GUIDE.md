@@ -1,5 +1,9 @@
 # UI Design System, Card Architecture & Truthful Content Guide
 
+> [!IMPORTANT]
+> **Observed Conventions vs. Unanswered Style-Guide Decisions**:
+> Sections 1–2 below describe **current code-level conventions** on `working/biteshark-vps` so routine maintenance stays consistent. They are **not** final approved design-system answers. Open design decisions for Matt and Yaman live in the intentionally unfilled [Design Style Guide (`style-guide/README.md`)](style-guide/README.md) and [Completion Reminder (`style-guide/COMPLETION-REMINDER.md`)](style-guide/COMPLETION-REMINDER.md). Section 3 below lists **non-negotiable truthfulness rules** that remain mandatory at all times.
+
 ---
 
 ## 1. Visual Identity & Authoritative Design Tokens (`public/color-calm.css`)

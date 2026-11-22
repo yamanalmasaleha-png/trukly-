@@ -14,6 +14,7 @@ on:
       - feature/**
       - fix/**
       - chore/**
+      - docs/**
       - antigravity/**
       - integrate/**
 
@@ -101,6 +102,10 @@ jobs:
           echo "Resolved BASE_REF=$BASE_REF (merge_base=$USE_MERGE_BASE) for HEAD=$HEAD_SHA"
       - name: Run code-registry parser, fixture, exclusion, comparison & determinism tests
         run: node tests/code-registry.test.cjs
+      - name: Run design style-guide blank-state, completion lifecycle, validation & determinism tests
+        run: node tests/style-guide.test.cjs
+      - name: Validate unfilled/partially-filled design style guide structure & reminder freshness
+        run: node tools/style-guide/cli.mjs validate
       - name: Validate handbook links, recursive schemas, freshness & trusted-baseline drift gate
         shell: bash
         env:
@@ -197,7 +202,7 @@ jobs:
             exit 0
           fi
           RUNTIME_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- api lib server packages public migrations deploy scripts package-lock.json)"
-          APP_TEST_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- tests | grep -v '^tests/code-registry\.test\.cjs$' || true)"
+          APP_TEST_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- tests | grep -v -E '^tests/(code-registry|style-guide)\.test\.cjs$' || true)"
           if [ -n "$RUNTIME_DIFF" ] || [ -n "$APP_TEST_DIFF" ]; then
             echo "Runtime or application test changes detected vs $BASE_REF:"
             echo "$RUNTIME_DIFF"

@@ -38,6 +38,7 @@ This guide documents the routine developer workflow, occasional governance comma
   - New/changed `BITESHARK_*` env var -> [contracts/configuration-keys.json](contracts/configuration-keys.json) + [CONFIGURATION.md](CONFIGURATION.md).
   - Changed high-value shared interface (`CTR-*` inputs, outputs, permissions, tables, routes, or test files) -> [contracts/shared-contracts.json](contracts/shared-contracts.json) (the single maintained contract source; `generated/CONTRACTS-CATALOG.md` updates automatically on `npm run registry:docs`).
   - Changed architectural invariant or domain workflow -> relevant page in `docs/engineering/` or `docs/engineering/domains/`.
+  - Explicitly answered/approved design style-guide decision -> `docs/engineering/style-guide/decisions.json`, then run `npm run style-guide:generate && npm run style-guide:validate` (also invoked automatically by `npm run registry:docs` and `npm run registry:validate`).
 
 ---
 
