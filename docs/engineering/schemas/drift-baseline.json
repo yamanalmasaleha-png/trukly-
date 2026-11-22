@@ -1,0 +1,28 @@
+{
+  "baseline_finding_ids": [
+    "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
+    "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
+    "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
+    "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
+    "DRIFT:MISSING_DOM_TARGET:public/role-experience.js#rxViewpointBanner",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/owner/bookings",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/schedule/today",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/_id",
+    "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
+  ],
+  "branch_at_generation": "antigravity/staging2-latest",
+  "deterministic_digest_sha256": "18a2de280b3150808dd857dd5eb8d59b28a29c1e62ace7190d391ae3b195e6a8",
+  "high_confidence_blocking_categories": [
+    "DUPLICATE_HTML_ID",
+    "UNRESOLVED_INLINE_HANDLER",
+    "UNREGISTERED_FEATURE_KEY",
+    "INVALID_WRITE_PAUSE_SCOPE",
+    "MIGRATION_SEQUENCE_COLLISION",
+    "MODULE_CYCLE",
+    "BROKEN_DOC_LINK"
+  ],
+  "schema_version": "biteshark.drift-report.v1"
+}

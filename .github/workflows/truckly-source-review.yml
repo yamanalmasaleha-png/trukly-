@@ -13,6 +13,8 @@ on:
       - testing/**
       - feature/**
       - fix/**
+      - chore/**
+      - antigravity/**
 
 permissions:
   contents: read
@@ -64,6 +66,44 @@ jobs:
       - name: Staging2 scoped helper validation, path isolation & log redaction unit suite
         run: node tests/staging2-ctl-security.test.cjs
 
+  code-registry-and-handbook:
+    name: Code registry, handbook links, determinism & change-impact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run code-registry parser, fixture, exclusion, comparison & determinism tests
+        run: node tests/code-registry.test.cjs
+      - name: Validate handbook links, schemas, determinism & structural drift gate
+        run: node tools/code-registry/cli.mjs validate
+      - name: Build timestamped registry snapshot & merge-base change-impact report
+        shell: bash
+        env:
+          PR_BASE_REF: ${{ github.base_ref }}
+        run: |
+          mkdir -p /tmp/bs-registry-artifacts
+          node tools/code-registry/cli.mjs scan --out /tmp/bs-registry-artifacts/registry-full-snapshot.json --include-timestamp
+          BASE_REF="HEAD~1"
+          if [ -n "$PR_BASE_REF" ] && git rev-parse --verify "origin/$PR_BASE_REF^{commit}" >/dev/null 2>&1; then
+            BASE_REF="origin/$PR_BASE_REF"
+          elif git rev-parse --verify "origin/working/biteshark-vps^{commit}" >/dev/null 2>&1; then
+            BASE_REF="origin/working/biteshark-vps"
+          fi
+          if git rev-parse --verify "${BASE_REF}^{commit}" >/dev/null 2>&1; then
+            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD --merge-base --format markdown --out /tmp/bs-registry-artifacts/change-impact.md
+            node tools/code-registry/cli.mjs compare --base "$BASE_REF" --head HEAD --merge-base --format json --out /tmp/bs-registry-artifacts/change-impact.json
+          fi
+      - name: Upload code-registry & change-impact artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: biteshark-code-registry-impact
+          path: /tmp/bs-registry-artifacts/
+          retention-days: 14
+
   catalog-compatibility:
     name: Reconciled catalog & UX safeguards
     runs-on: ubuntu-latest
@@ -101,6 +141,10 @@ jobs:
           node-version: '22'
       - name: Install locked dependencies via npm ci
         run: npm ci --no-audit --no-fund
+      - name: Cross-verify reconstructed SQL schema & RLS against disposable PostgreSQL 16
+        env:
+          BITESHARK_REGISTRY_VERIFY_PG_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tools/code-registry/cli.mjs validate --verify-db
       - name: Run standalone runtime, OTP auth, concurrency, CSRF & proxy integration suite
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres

@@ -1,0 +1,133 @@
+{
+  "schema_version": "biteshark.canonical-components.v1",
+  "responsibilities": [
+    {
+      "responsibility": "database_transaction_and_session_lock",
+      "status": "established",
+      "canonical_implementation": "lib/db-tx.js#withTransaction",
+      "competing_or_legacy": [
+        "packages/runtime-adapter/index.js#db.query (unpinned pool query on legacy GET handlers)"
+      ],
+      "evidence": "withTransaction pins a single pg.Client, enforces deterministic FOR SHARE locking on auth_users -> auth_sessions when requireEligibleSessionInTx is active, scopes SET LOCAL app.* GUCs, and clears verification state in finally.",
+      "direction_for_new_code": "Always use withTransaction(db, async tx => ...) for any authenticated, mutating, or RLS-protected database access."
+    },
+    {
+      "responsibility": "environment_variable_resolution",
+      "status": "established",
+      "canonical_implementation": "lib/env-compat.js#readEnvCompat",
+      "competing_or_legacy": [
+        "lib/diagnostics.js#readIntEnv",
+        "scripts/run-migrations.cjs#readCliEnvCompat",
+        "scripts/dev-server.cjs (direct process.env.TRUCKLY_PG_NODE_MODULES)"
+      ],
+      "evidence": "readEnvCompat enforces BITESHARK_* precedence over TRUCKLY_* and throws EnvAliasConflictError when securityCritical=true.",
+      "direction_for_new_code": "Use readEnvCompat / readBoolEnvCompat / readIntEnvCompat from lib/env-compat.js and register every new key in docs/engineering/contracts/configuration-keys.json."
+    },
+    {
+      "responsibility": "csrf_same_origin_mutation_check",
+      "status": "established",
+      "canonical_implementation": "lib/standalone-auth.js#verifySameOriginMutationRequest",
+      "competing_or_legacy": [
+        "lib/pager-notifications.js#verifySameOriginMutation (requires X-BiteShark-Client: web-pager-v1)"
+      ],
+      "evidence": "Enforced centrally in server/app.js on mutating auth, governance, exploration, and domain routes.",
+      "direction_for_new_code": "Rely on server/app.js verifySameOriginMutationRequest; do not invent per-route ad-hoc Origin checks."
+    },
+    {
+      "responsibility": "rbac_and_vendor_permission_check",
+      "status": "established",
+      "canonical_implementation": "lib/authz.js#authorizeVendorOperation & server/admin-routes.js#reverifyModeratorInTx / reverifyPlatformAdminInTx",
+      "competing_or_legacy": [
+        "lib/authz.js#resolveActorPermissions (legacy non-transactional helper)"
+      ],
+      "evidence": "authorizeVendorOperation and reverify*InTx enforce vendor restrictions, Act-on-Behalf support reasons, and row-locked role checks.",
+      "direction_for_new_code": "Use authorizeVendorOperation for vendor-scoped actions and reverifyPlatformAdminInTx / reverifyModeratorInTx inside withTransaction for governance routes."
+    },
+    {
+      "responsibility": "feature_control_evaluation",
+      "status": "established",
+      "canonical_implementation": "lib/feature-controls.js#enforceHttpFeatureGate (server) & public/role-experience.js#window.bitesharkFeatures (browser)",
+      "competing_or_legacy": [],
+      "evidence": "Single declarative registry in FEATURE_CONTROLS_REGISTRY + ROUTE_FEATURE_ENFORCEMENT_RULES with live 0ms-cache DB reads.",
+      "direction_for_new_code": "Register optional capabilities in FEATURE_CONTROLS_REGISTRY and ROUTE_FEATURE_ENFORCEMENT_RULES; consume window.bitesharkFeatures on the client."
+    },
+    {
+      "responsibility": "browser_http_json_client",
+      "status": "established_with_legacy_wrappers",
+      "canonical_implementation": "public/diagnostics-client.js#window.bitesharkDiagnostics.fetchJsonBounded",
+      "competing_or_legacy": [
+        "public/app.js#appFetchJson",
+        "public/role-experience.js#rxJson (throws on !ok)",
+        "public/admin.js#apiJson (throws on !ok)",
+        "public/pager.js#kitchenFetch",
+        "public/auth-client.js#postAuthJson",
+        "raw window.fetch in public/app.js and public/community.js"
+      ],
+      "evidence": "fetchJsonBounded enforces bounded timeouts, release-header observation, correlation-ID extraction, and non-recursive client diagnostics.",
+      "direction_for_new_code": "Call window.bitesharkDiagnostics.fetchJsonBounded directly or via a thin module adapter that preserves correlationId and uncertainWrite."
+    },
+    {
+      "responsibility": "browser_html_escaping",
+      "status": "established_with_12_local_copies",
+      "canonical_implementation": "public/diagnostics-client.js#window.bitesharkDiagnostics.escapeHtml",
+      "competing_or_legacy": [
+        "public/app.js#esc",
+        "public/role-experience.js#rxEsc",
+        "public/admin.js#esc",
+        "public/listing-highlights.js#esc",
+        "public/pager.js#pagerEscape",
+        "public/smart.js#smartEscape",
+        "public/local-guides.js#guidesEscape",
+        "public/guide-passport.js#guidePassportHtmlEscape",
+        "public/community.js#communityEscape",
+        "public/street-whispers.js#streetEscape",
+        "public/login.html#loginEsc"
+      ],
+      "evidence": "diagnostics-client.js loads first on index.html, login.html, and admin.html and escapes all 5 HTML special characters (&, <, >, \", ').",
+      "direction_for_new_code": "Use window.bitesharkDiagnostics.escapeHtml (or a 5-entity helper delegating to it); never write partial 3-character escape regexes."
+    },
+    {
+      "responsibility": "accessible_modal_dialog_controller",
+      "status": "established_with_partial_bypasses",
+      "canonical_implementation": "public/diagnostics-client.js#openModalDialog / closeModalDialog (via openAppModal, rxOpenModal, adminOpenModal)",
+      "competing_or_legacy": [
+        "Direct element.hidden = false assignments in public/role-experience.js and public/admin.js"
+      ],
+      "evidence": "openModalDialog manages inert background locking, Tab focus trapping, Escape dismissal, and trigger focus restoration.",
+      "direction_for_new_code": "Always open/close modals through openAppModal, rxOpenModal, or adminOpenModal rather than toggling .hidden or .show directly."
+    },
+    {
+      "responsibility": "pacific_calendar_date_resolution",
+      "status": "unresolved_multiple_canonical_helpers",
+      "canonical_implementation": "lib/dates.js#getPacificDateYYYYMMDD (bookings/schedules) & lib/age-policy.js#resolvePacificCalendarDateParts (14+ age policy)",
+      "competing_or_legacy": [
+        "lib/discovery.js#getPacificNowContext",
+        "server/admin-routes.js#pacificDateStr",
+        "public/app.js#pacificTodayISO"
+      ],
+      "evidence": "Each module implements Intl.DateTimeFormat('en-CA' / 'en-US', { timeZone: 'America/Los_Angeles' }) slightly differently (date string vs weekday+minutes vs parts).",
+      "direction_for_new_code": "Backend YYYY-MM-DD callers should import getPacificDateYYYYMMDD from lib/dates.js; do not use new Date().toISOString().slice(0, 10) (UTC bug)."
+    },
+    {
+      "responsibility": "community_moderation_api",
+      "status": "canonical_established_legacy_retained",
+      "canonical_implementation": "server/admin-routes.js (/api/admin/moderation & /api/admin/moderation/decision)",
+      "competing_or_legacy": [
+        "api/community/moderate.js (/api/community/moderate used by #ownerScreen queue in public/community.js)"
+      ],
+      "evidence": "/api/admin/moderation supports report queues, hide/restore/dismiss_reports, and private moderation_internal_note with full audit logging; /api/community/moderate is retained for 30-route parity and #ownerScreen backward compatibility.",
+      "direction_for_new_code": "Build new moderation capabilities on /api/admin/moderation*; do not expand api/community/moderate.js."
+    },
+    {
+      "responsibility": "discovery_card_rendering",
+      "status": "established",
+      "canonical_implementation": "public/app.js#cardHTML + public/color-calm.css (.truck-card)",
+      "competing_or_legacy": [
+        "public/app.js#extraCard (delegates directly to cardHTML(t, 0))",
+        "public/theme.css & public/neighborhood.css legacy .truck-card rules (overridden by color-calm.css)"
+      ],
+      "evidence": "Both primary food trucks and neighborhood spots render through cardHTML(t) using compact horizontal layout rules in color-calm.css.",
+      "direction_for_new_code": "Modify card markup in cardHTML(t) and styles in color-calm.css without appending !important override sheets."
+    }
+  ]
+}

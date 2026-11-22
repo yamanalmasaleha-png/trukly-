@@ -29,7 +29,14 @@
     "test:e2e:admin": "node tests/admin-portal-browser.e2e.cjs",
     "test:e2e:legal": "node tests/legal-readiness-browser.e2e.cjs",
     "test:platform": "node tests/vps-platform-contract.test.cjs",
-    "test:email": "node tests/auth-email-delivery.integration.cjs"
+    "test:email": "node tests/auth-email-delivery.integration.cjs",
+    "registry:scan": "node tools/code-registry/cli.mjs scan",
+    "registry:docs": "node tools/code-registry/cli.mjs generate-docs",
+    "registry:validate": "node tools/code-registry/cli.mjs validate",
+    "registry:compare": "node tools/code-registry/cli.mjs compare",
+    "registry:impact": "node tools/code-registry/cli.mjs impact",
+    "registry:locate": "node tools/code-registry/cli.mjs locate",
+    "test:registry": "node tests/code-registry.test.cjs"
   },
   "dependencies": {
     "cookie": "1.1.1",

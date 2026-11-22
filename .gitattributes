@@ -7,8 +7,10 @@ deploy/bin/* text eol=lf
 *.example text eol=lf
 *.sql text eol=lf
 *.js text eol=lf
+*.mjs text eol=lf
 *.cjs text eol=lf
 *.json text eol=lf
+*.md text eol=lf
 *.toml text eol=lf
 *.yml text eol=lf
 *.svg text eol=lf
@@ -28,6 +30,8 @@ deploy/bin/* text eol=lf
 scripts/dev-server.cjs export-ignore
 scripts/dev-workbench export-ignore
 tests export-ignore
+tools export-ignore
+docs/engineering export-ignore
 
 # Historical platform/source artifacts are not deployable application inputs.
 docs/archive export-ignore
