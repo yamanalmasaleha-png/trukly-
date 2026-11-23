@@ -36,6 +36,7 @@ This handbook is the **single, code-grounded engineering reference** for BiteSha
 - [Storage & Files (`STORAGE-AND-FILES.md`)](STORAGE-AND-FILES.md) — Browser storage, DB `BYTEA` evidence, customer photo storage (`83181ba`), persistent VPS paths, and encrypted backups.
 - [Dependencies & Licenses (`DEPENDENCIES-AND-LICENSES.md`)](DEPENDENCIES-AND-LICENSES.md) — Direct/transitive npm packages, Leaflet/Google Fonts/OSM CDN provenance, vendored `acorn`, first-party icons, and historical archives.
 - [BiteShark staging2 style guide](STYLE-GUIDE.md) — Palette, typography, component patterns, product voice and mobile review.
+- **[Design Style Guide & Decision Questionnaire (`style-guide/README.md`)](style-guide/README.md)**, **[Completion Reminder (`style-guide/COMPLETION-REMINDER.md`)](style-guide/COMPLETION-REMINDER.md)** & **[UI Element Inventory (`style-guide/ui-element-inventory.md`)](style-guide/ui-element-inventory.md)** — Structured 15-category / 29-element questionnaire (`style-guide/decisions.json`) editable in `/admin#style-guide`.
 - [UI & Content Guide (`UI-AND-CONTENT-GUIDE.md`)](UI-AND-CONTENT-GUIDE.md) — Cream/forest-green visual identity, `.truck-card` compact card architecture, cascade traps, and truthful copy rules.
 - [Accessibility (`ACCESSIBILITY.md`)](ACCESSIBILITY.md) — Skip links, `openModalDialog` focus traps, touch targets, reduced motion, and known modal bypasses.
 - [Testing (`TESTING.md`)](TESTING.md) — Unit, embedded-PostgreSQL integration, headless Chrome E2E, installer, and registry test suites.

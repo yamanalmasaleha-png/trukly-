@@ -1,20 +1,20 @@
 {
   "branch_at_generation": "testing/yaman-staging2",
   "coverage_counts": {
-    "browser_globals_and_assignments": 582,
-    "classes": 16,
-    "configuration_keys_observed": 62,
-    "css_files_scanned": 19,
+    "browser_globals_and_assignments": 584,
+    "classes": 17,
+    "configuration_keys_observed": 69,
+    "css_files_scanned": 20,
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
-    "feature_controls": 14,
-    "functions_and_methods": 2266,
-    "html_element_ids": 477,
+    "feature_controls": 15,
+    "functions_and_methods": 2505,
+    "html_element_ids": 518,
     "html_files_scanned": 12,
-    "http_routes": 85,
-    "js_files_scanned": 112,
+    "http_routes": 90,
+    "js_files_scanned": 119,
     "js_parse_failures": 0,
-    "significant_constants": 543,
+    "significant_constants": 573,
     "sql_migrations": 26,
     "sql_rls_policies": 49,
     "sql_tables": 47,
@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "634d83478237a2a6232e379cc99109a35ad0abfd2c623d0dd9293837c547fb11",
+  "deterministic_digest_sha256": "4adcb8c0e91eaa62bbb7966b43269263412c1ba6ea9c266b0988f13f16756aa2",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -408,6 +408,13 @@
     }
   ],
   "feature_controls": [
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "admin_style_guide_workspace",
+      "read_only": false
+    },
     {
       "default_audience": "all",
       "default_state": "enabled",
@@ -1082,6 +1089,16 @@
     },
     {
       "exported_symbols": [
+        "validateAgainstJsonSchema",
+        "validateJsonWithSchemaFile"
+      ],
+      "file": "lib/json-schema-lite.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 6
+    },
+    {
+      "exported_symbols": [
         "ALLOWLISTED_MAP_PROVIDERS",
         "resolveMapRuntimeConfig"
       ],
@@ -1192,6 +1209,44 @@
     },
     {
       "exported_symbols": [
+        "resolveStyleGuideReleaseRoot",
+        "resolveStyleGuideStorageDir",
+        "resolveGitHubPushConfig",
+        "loadCurrentWorkspaceSnapshot",
+        "handleAdminStyleGuideRoute"
+      ],
+      "file": "lib/style-guide-admin.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 22
+    },
+    {
+      "exported_symbols": [
+        "STYLE_GUIDE_GENERATOR_VERSION",
+        "STYLE_GUIDE_SCHEMA_REL_PATH",
+        "STYLE_GUIDE_DECISIONS_REL_PATH",
+        "STYLE_GUIDE_DIR_REL_PATH",
+        "normalizePlaceholderCandidate",
+        "isPlaceholderString",
+        "containsPlaceholderOrBlankLeaf",
+        "anchorSlug",
+        "formatDecisionValueCell",
+        "formatExpectedAnswerSummary",
+        "validateValueAgainstExpectedSpec",
+        "validateStyleGuideData",
+        "computeCompletionStats",
+        "renderStyleGuideMarkdownFiles",
+        "loadStyleGuideDecisions",
+        "generateStyleGuideDocs",
+        "validateStyleGuideWorkspace"
+      ],
+      "file": "lib/style-guide-core.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 31
+    },
+    {
+      "exported_symbols": [
         "VENDOR_SUPPORT_CATEGORIES",
         "CATEGORY_LABELS",
         "VALID_DB_CATEGORIES",
@@ -1252,6 +1307,15 @@
     },
     {
       "exported_symbols": [],
+      "file": "public/admin-style-guide.js",
+      "globals_assigned": [
+        "bitesharkAdminStyleGuide"
+      ],
+      "source_type": "script",
+      "symbol_count": 131
+    },
+    {
+      "exported_symbols": [],
       "file": "public/admin.js",
       "globals_assigned": [
         "location.href",
@@ -1264,10 +1328,11 @@
         "location.href",
         "location.href",
         "location.href",
-        "location.hash"
+        "location.hash",
+        "bitesharkAdminPortal"
       ],
       "source_type": "script",
-      "symbol_count": 198
+      "symbol_count": 199
     },
     {
       "exported_symbols": [],
@@ -2274,6 +2339,27 @@
     },
     {
       "exported_symbols": [],
+      "file": "tests/style-guide-admin-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 29
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/style-guide-admin.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 15
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/style-guide.test.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 4
+    },
+    {
+      "exported_symbols": [],
       "file": "tests/support-feedback-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
@@ -2529,7 +2615,7 @@
         "POST"
       ],
       "path": "/api/admin/features",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2541,7 +2627,7 @@
         "POST"
       ],
       "path": "/api/admin/features/update",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2715,6 +2801,71 @@
     },
     {
       "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "admin_style_guide_workspace",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/style-guide",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "admin_style_guide_workspace",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/style-guide/doc",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "admin_style_guide_workspace",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/style-guide/push",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "admin_style_guide_workspace",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/style-guide/reset",
+      "test_count": 0
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "caller_count": 0,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "admin_style_guide_workspace",
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/style-guide/save",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
       "caller_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
@@ -2795,7 +2946,7 @@
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "test_count": 13
+      "test_count": 15
     },
     {
       "auth_requirement": "public",
@@ -2807,7 +2958,7 @@
         "POST"
       ],
       "path": "/api/auth/start",
-      "test_count": 16
+      "test_count": 17
     },
     {
       "auth_requirement": "public",
@@ -2819,7 +2970,7 @@
         "POST"
       ],
       "path": "/api/auth/verify",
-      "test_count": 16
+      "test_count": 17
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3002,7 +3153,7 @@
         "GET"
       ],
       "path": "/api/healthz",
-      "test_count": 8
+      "test_count": 10
     },
     {
       "auth_requirement": "authenticated_14_plus",
