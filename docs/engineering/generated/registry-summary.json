@@ -614,7 +614,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "fbe6c3119b563db19490b23d26e75d9049f0daff2d3ee4462115788f5b5c2a33",
+  "deterministic_digest_sha256": "a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -896,7 +896,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "1917a93e60b7e56c7237d2a09dd1af4fc59e96ff5ee7d9063045ae5e4534db4f",
+  "included_files_manifest_sha256": "def2753549fc8db852ffd2acf0a3fbbdaad6a1f536f7cbf177045d7eb1d36f0a",
   "modules": [
     {
       "exported_symbols": [
@@ -6093,5 +6093,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "fbe6c3119b563db19490b23d26e75d9049f0daff2d3ee4462115788f5b5c2a33"
+  "source_analysis_digest_sha256": "a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489"
 }

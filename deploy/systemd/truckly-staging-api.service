@@ -36,7 +36,7 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 ReadOnlyPaths=/srv/truckly-staging
-ReadWritePaths=/var/lib/truckly-staging/customer-photos
+ReadWritePaths=/var/lib/truckly-staging/customer-photos -/var/lib/truckly-staging/style-guide
 
 StandardOutput=journal
 StandardError=journal
