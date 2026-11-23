@@ -61,6 +61,18 @@ async function run() {
       });
   }
 
+  await test('keeps source digests stable when ignored dependencies and local metadata appear', () => {
+    const source = { scope: { excluded_paths: [], excluded_item_count: 0 }, modules: ['public/app.js'] };
+    const localOnly = { ...source, scope: { excluded_paths: [
+      { rule_id: 'EXCL_NODE_MODULES', path: 'node_modules' },
+      { rule_id: 'EXCL_GIT_INTERNAL', path: '.git' },
+      { rule_id: 'EXCL_SECRET_AND_ENV_FILES', path: '.env.fixture' },
+      { rule_id: 'EXCL_GENERATED_REGISTRY_OUTPUTS', path: 'docs/engineering/generated' }
+    ], excluded_item_count: 4 } };
+    assert.equal(schemaMod.computePayloadDigest(source), schemaMod.computePayloadDigest(localOnly));
+    assert.notEqual(schemaMod.computePayloadDigest(source), schemaMod.computePayloadDigest({ ...source, modules: ['public/app.js', 'public/map-cards.js'] }));
+  });
+
   // 1. Symbol definitions, imports, exports, env reads & feature key lookups
   await test('extracts ESM imports/exports, inferred param types, readEnvCompat aliases, feature keys & write-pause scopes', () => {
     const sample = `

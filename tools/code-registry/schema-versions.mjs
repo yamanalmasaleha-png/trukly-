@@ -293,7 +293,13 @@ export function computePayloadDigest(payload) {
   if (clone.scope) {
     const sc = { ...clone.scope };
     if (Array.isArray(sc.excluded_paths)) {
-      sc.excluded_paths = sc.excluded_paths.filter(e => e.rule_id !== 'EXCL_GENERATED_REGISTRY_OUTPUTS');
+      sc.excluded_paths = sc.excluded_paths.filter(
+        e =>
+          e.rule_id !== 'EXCL_GENERATED_REGISTRY_OUTPUTS' &&
+          e.rule_id !== 'EXCL_NODE_MODULES' &&
+          e.rule_id !== 'EXCL_GIT_INTERNAL' &&
+          e.rule_id !== 'EXCL_SECRET_AND_ENV_FILES'
+      );
       sc.excluded_item_count = sc.excluded_paths.length;
     }
     clone.scope = sc;

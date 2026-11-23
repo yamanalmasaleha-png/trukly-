@@ -8,7 +8,7 @@
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 15,
-    "functions_and_methods": 2504,
+    "functions_and_methods": 2505,
     "html_element_ids": 518,
     "html_files_scanned": 12,
     "http_routes": 90,
@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "71028c56db6911b3ff0fdffe477c8ac0372ca070046008e90e1705f262975913",
+  "deterministic_digest_sha256": "0ec757923bb28907a803e4bee614d1d032412c27b3ccaf2cac373cc1fa7c53d8",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -2173,7 +2173,7 @@
       "file": "tests/code-registry.test.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 10
+      "symbol_count": 11
     },
     {
       "exported_symbols": [],
