@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
+> - **Source Analysis Digest**: `b0177106fca18d362982a6c2d27f7dc47b959f103824795417295fd3e5526b8e`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Coverage Summary
@@ -14,11 +14,11 @@
 |---|---:|
 | JavaScript / CJS / ESM Files Scanned | 148 |
 | Parse Failures | 0 |
-| Functions, Methods & Handlers | 3350 |
+| Functions, Methods & Handlers | 3351 |
 | Classes | 23 |
 | Top-Level Constants | 747 |
 | Browser Globals & Window Registrations | 671 |
-| Confirmed Static Call Edges | 8449 |
+| Confirmed Static Call Edges | 8452 |
 | Inferred Candidate Call Edges | 64 |
 
 > **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run `npm run registry:locate -- <identifier>`.
@@ -28,7 +28,7 @@
 | Area Catalog | Modules | Indexed Symbols | Exports |
 |---|---:|---:|---:|
 | [Server & Runtime Adapter (`server/`, `packages/`)](symbols/server-and-runtime.md) | 7 | 157 | 26 |
-| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 564 | 421 |
+| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 565 | 422 |
 | [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 63 | 91 |
 | [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 22 | 1214 | 0 |
 | [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 254 | 81 |
@@ -47,7 +47,7 @@
 | [lib/admin-governance.js](../../../lib/admin-governance.js) | [shared-libraries.md](symbols/shared-libraries.md) | 19 | `INVITATION_TTL_MS`, `MAX_EVIDENCE_BYTES`, `MAX_EVIDENCE_PER_APPLICATION`, `MAX_MOD_TEMP_RESTRICTION_HOURS`, `INVITATION_ROLE_LABELS`, `sha256Hex`, `escapeSqlLike`, `maskEmailForModerator` |
 | [lib/admin-test-customer.js](../../../lib/admin-test-customer.js) | [shared-libraries.md](symbols/shared-libraries.md) | 23 | `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_TTL_SECONDS`, `hasCustomerProfileSurface`, `isAdminTestCustomerAllowed`, `buildAdminTestCustomerCookieHeader`, `buildClearedAdminTestCustomerCookieHeader` |
 | [lib/age-policy.js](../../../lib/age-policy.js) | [shared-libraries.md](symbols/shared-libraries.md) | 9 | `PROPOSED_MIN_ACCOUNT_AGE`, `AGE_POLICY_VERSION`, `SHARING_MIN_ADULT_AGE`, `SHARING_ELIGIBILITY_POLICY_VERSION`, `AGE_BOUNDARY_TIMEZONE`, `MIN_PLAUSIBLE_BIRTH_YEAR`, `isGregorianLeapYear`, `daysInGregorianMonth` |
-| [lib/authz.js](../../../lib/authz.js) | [shared-libraries.md](symbols/shared-libraries.md) | 20 | `UUID_RE`, `ROLE_LABELS`, `normalizeAdminLevel`, `isTempRestrictionActive`, `evaluateEffectiveVendorRestrictions`, `applyPrivateNoStoreHeaders`, `VALID_WRITE_PAUSE_SCOPES`, `inspectWritePauseConfig` |
+| [lib/authz.js](../../../lib/authz.js) | [shared-libraries.md](symbols/shared-libraries.md) | 21 | `UUID_RE`, `ROLE_LABELS`, `normalizeAdminLevel`, `isTempRestrictionActive`, `evaluateEffectiveVendorRestrictions`, `parsePlatformAdminIds`, `applyPrivateNoStoreHeaders`, `VALID_WRITE_PAUSE_SCOPES` |
 | [lib/catalog.js](../../../lib/catalog.js) | [shared-libraries.md](symbols/shared-libraries.md) | 1 | `BOOKING_PACKAGES`, `CANONICAL_VENDORS`, `VENDORS_BY_ID`, `getCanonicalVendor` |
 | [lib/client-ip.js](../../../lib/client-ip.js) | [shared-libraries.md](symbols/shared-libraries.md) | 5 | `TRUSTED_CLIENT_IP_SYMBOL`, `normalizeIpAddress`, `isLoopbackIp`, `resolveTrustedClientIp`, `stampTrustedClientIp` |
 | [lib/customer-exploration.js](../../../lib/customer-exploration.js) | [shared-libraries.md](symbols/shared-libraries.md) | 58 | `EXPLORATION_TIMEZONE`, `POINTS_PER_VISIT`, `POINTS_PER_PHOTO`, `MAX_VISIT_NOTE_LENGTH`, `MAX_PHOTO_CAPTION_LENGTH`, `MAX_SAVED_TRAILS_PER_USER`, `WEEKLY_CHALLENGE_TARGET`, `NON_MONETARY_DISCLOSURE` |

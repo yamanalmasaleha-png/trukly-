@@ -3,12 +3,12 @@
     "browser_globals_and_assignments": 671,
     "classes": 23,
     "configuration_keys_observed": 66,
-    "confirmed_call_edges": 8449,
+    "confirmed_call_edges": 8452,
     "css_files_scanned": 21,
     "drift_findings_active": 10,
     "drift_findings_suppressed": 2,
     "feature_controls": 28,
-    "functions_and_methods": 3350,
+    "functions_and_methods": 3351,
     "html_element_ids": 558,
     "html_files_scanned": 12,
     "http_routes": 124,
@@ -614,7 +614,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d",
+  "deterministic_digest_sha256": "b0177106fca18d362982a6c2d27f7dc47b959f103824795417295fd3e5526b8e",
   "drift_summary": {
     "active_count": 10,
     "active_finding_ids": [
@@ -894,7 +894,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "fe9cf3a6a41fc1cb2c39d290976c6beeb1d201f6fc7d169fd44ca69ccabd4346",
+  "included_files_manifest_sha256": "d8ca3447d03543731cb39b630c4461d2faa324f42a4ccc4ddd5dbc5ce4c29e71",
   "modules": [
     {
       "exported_symbols": [
@@ -1312,6 +1312,7 @@
         "normalizeAdminLevel",
         "isTempRestrictionActive",
         "evaluateEffectiveVendorRestrictions",
+        "parsePlatformAdminIds",
         "applyPrivateNoStoreHeaders",
         "VALID_WRITE_PAUSE_SCOPES",
         "inspectWritePauseConfig",
@@ -1329,7 +1330,7 @@
       "file": "lib/authz.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 20
+      "symbol_count": 21
     },
     {
       "exported_symbols": [
@@ -6101,5 +6102,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d"
+  "source_analysis_digest_sha256": "b0177106fca18d362982a6c2d27f7dc47b959f103824795417295fd3e5526b8e"
 }
