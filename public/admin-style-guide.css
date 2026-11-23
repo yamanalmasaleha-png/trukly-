@@ -623,3 +623,96 @@
   background: var(--bg-subtle);
   font-weight: 700;
 }
+
+.sg-dec-card.is-overwrite {
+  background: #fff7ed;
+  box-shadow: inset 4px 0 0 #ea580c;
+}
+
+.sg-prev-saved-callout {
+  font-size: 12px;
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  color: #78350f;
+  padding: 7px 10px;
+  border-radius: 7px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sg-upload-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.sg-upload-metric-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sg-upload-metric-card strong {
+  font-size: 16px;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.sg-upload-metric-card span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.sg-upload-metric-card.is-accent {
+  background: var(--forest-soft);
+  border-color: var(--forest);
+}
+
+.sg-upload-metric-card.is-warn {
+  background: #fff7ed;
+  border-color: #f97316;
+}
+
+.sg-changed-items-box {
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  margin: 6px 0 8px;
+}
+
+.sg-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sg-diff-table th,
+.sg-diff-table td {
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sg-diff-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-subtle);
+  font-weight: 700;
+  z-index: 1;
+}
+
+.sg-diff-table tr:last-child td {
+  border-bottom: none;
+}

@@ -3,20 +3,20 @@
     "browser_globals_and_assignments": 671,
     "classes": 22,
     "configuration_keys_observed": 72,
-    "confirmed_call_edges": 8306,
+    "confirmed_call_edges": 8392,
     "css_files_scanned": 21,
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 28,
-    "functions_and_methods": 3290,
-    "html_element_ids": 539,
+    "functions_and_methods": 3322,
+    "html_element_ids": 558,
     "html_files_scanned": 12,
     "http_routes": 124,
     "inferred_call_edges": 60,
     "js_files_scanned": 148,
     "js_parse_failures": 0,
     "shared_contracts": 13,
-    "significant_constants": 743,
+    "significant_constants": 744,
     "sql_migrations": 29,
     "sql_rls_policies": 69,
     "sql_tables": 59,
@@ -614,7 +614,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "fca4a38a65e7b7bc1ad13642937deeb84c84d79d1a1d3fcfeaf6b04824e3c18e",
+  "deterministic_digest_sha256": "0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -896,7 +896,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "b5fcf7672e54ad41af2508212314ca63abeebb4b8291fb6f0360f229b7b6ec9c",
+  "included_files_manifest_sha256": "d0cd830e2c30848a716c78a2f1f3c3f96958d968d2486d176eb5e7dc4c607d25",
   "modules": [
     {
       "exported_symbols": [
@@ -1762,14 +1762,18 @@
       "exported_symbols": [
         "resolveStyleGuideReleaseRoot",
         "resolveStyleGuideStorageDir",
+        "inspectPersistenceHealth",
         "resolveGitHubPushConfig",
+        "hasSavedDecisionContent",
+        "summarizeDecisionValuePreview",
+        "computeStyleGuideChangeReport",
         "loadCurrentWorkspaceSnapshot",
         "handleAdminStyleGuideRoute"
       ],
       "file": "lib/style-guide-admin.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 22
+      "symbol_count": 30
     },
     {
       "exported_symbols": [
@@ -1863,7 +1867,7 @@
         "bitesharkAdminStyleGuide"
       ],
       "source_type": "script",
-      "symbol_count": 130
+      "symbol_count": 149
     },
     {
       "exported_symbols": [],
@@ -3074,7 +3078,7 @@
       "file": "tests/style-guide-admin-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 28
+      "symbol_count": 33
     },
     {
       "exported_symbols": [],
@@ -6095,5 +6099,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "fca4a38a65e7b7bc1ad13642937deeb84c84d79d1a1d3fcfeaf6b04824e3c18e"
+  "source_analysis_digest_sha256": "0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592"
 }
