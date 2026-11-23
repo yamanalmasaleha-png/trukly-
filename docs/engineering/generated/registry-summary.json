@@ -1,20 +1,20 @@
 {
   "branch_at_generation": "antigravity/staging2-latest",
   "coverage_counts": {
-    "browser_globals_and_assignments": 584,
+    "browser_globals_and_assignments": 586,
     "classes": 17,
-    "configuration_keys_observed": 69,
+    "configuration_keys_observed": 70,
     "css_files_scanned": 20,
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 15,
-    "functions_and_methods": 2505,
-    "html_element_ids": 518,
+    "functions_and_methods": 2553,
+    "html_element_ids": 526,
     "html_files_scanned": 12,
-    "http_routes": 90,
-    "js_files_scanned": 119,
+    "http_routes": 91,
+    "js_files_scanned": 121,
     "js_parse_failures": 0,
-    "significant_constants": 573,
+    "significant_constants": 589,
     "sql_migrations": 26,
     "sql_rls_policies": 49,
     "sql_tables": 47,
@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "0ec757923bb28907a803e4bee614d1d032412c27b3ccaf2cac373cc1fa7c53d8",
+  "deterministic_digest_sha256": "69fc0bbf922905857378081cafac59ede392586f11d323da529e9c7d508e377b",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -886,6 +886,29 @@
     },
     {
       "exported_symbols": [
+        "ADMIN_TEST_CUSTOMER_USER_ID",
+        "ADMIN_TEST_CUSTOMER_EMAIL",
+        "ADMIN_TEST_CUSTOMER_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_TTL_SECONDS",
+        "hasCustomerProfileSurface",
+        "isAdminTestCustomerAllowed",
+        "buildAdminTestCustomerCookieHeader",
+        "buildClearedAdminTestCustomerCookieHeader",
+        "extractRawAdminTestCustomerToken",
+        "ensureAdminTestCustomerAccountInTx",
+        "inspectAdminTestCustomerStatus",
+        "enterAdminTestCustomerSession",
+        "seedAdminTestCustomerSampleData",
+        "resetAdminTestCustomerData",
+        "exitAdminTestCustomerSession"
+      ],
+      "file": "lib/admin-test-customer.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 23
+    },
+    {
+      "exported_symbols": [
         "PROPOSED_MIN_ACCOUNT_AGE",
         "AGE_POLICY_VERSION",
         "AGE_BOUNDARY_TIMEZONE",
@@ -1157,6 +1180,9 @@
     {
       "exported_symbols": [
         "SESSION_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_USER_ID",
+        "ADMIN_TEST_CUSTOMER_EMAIL",
         "AGE_GATE_COOKIE_NAME",
         "DEFAULT_AGE_GATE_COOLDOWN_SECONDS",
         "AUTH_RATE_LIMIT_RETENTION_MS",
@@ -1205,7 +1231,7 @@
       "file": "lib/standalone-auth.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 72
+      "symbol_count": 74
     },
     {
       "exported_symbols": [
@@ -1328,11 +1354,12 @@
         "location.href",
         "location.href",
         "location.href",
+        "location.href",
         "location.hash",
         "bitesharkAdminPortal"
       ],
       "source_type": "script",
-      "symbol_count": 199
+      "symbol_count": 207
     },
     {
       "exported_symbols": [],
@@ -1928,6 +1955,7 @@
         "fetch",
         "location.href",
         "location.href",
+        "location.href",
         "bitesharkOnSignedOut",
         "location.href",
         "bitesharkOpenSupport",
@@ -1943,7 +1971,7 @@
         "bitesharkWelcome"
       ],
       "source_type": "script",
-      "symbol_count": 170
+      "symbol_count": 173
     },
     {
       "exported_symbols": [],
@@ -2105,7 +2133,7 @@
       "file": "server/admin-routes.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 81
+      "symbol_count": 82
     },
     {
       "exported_symbols": [
@@ -2151,6 +2179,13 @@
       "globals_assigned": [],
       "source_type": "script",
       "symbol_count": 34
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/admin-test-customer.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 11
     },
     {
       "exported_symbols": [],
@@ -2434,7 +2469,7 @@
         "GET"
       ],
       "path": "/api/account/context",
-      "test_count": 6
+      "test_count": 7
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2866,6 +2901,18 @@
     },
     {
       "auth_requirement": "authenticated_14_plus",
+      "caller_count": 5,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/test-customer",
+      "test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
       "caller_count": 2,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
@@ -2934,7 +2981,7 @@
         "GET"
       ],
       "path": "/api/auth/session",
-      "test_count": 5
+      "test_count": 6
     },
     {
       "auth_requirement": "internal_mailbox_secret",
@@ -2946,7 +2993,7 @@
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "test_count": 15
+      "test_count": 16
     },
     {
       "auth_requirement": "public",
@@ -2958,7 +3005,7 @@
         "POST"
       ],
       "path": "/api/auth/start",
-      "test_count": 17
+      "test_count": 18
     },
     {
       "auth_requirement": "public",
@@ -2970,7 +3017,7 @@
         "POST"
       ],
       "path": "/api/auth/verify",
-      "test_count": 17
+      "test_count": 18
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3153,7 +3200,7 @@
         "GET"
       ],
       "path": "/api/healthz",
-      "test_count": 10
+      "test_count": 11
     },
     {
       "auth_requirement": "authenticated_14_plus",

@@ -346,6 +346,73 @@
 
     var vp = rxState.viewpoint;
     var ctx = rxState.ctx;
+
+    if (ctx && ctx.authenticated && ctx.test_customer_sandbox && ctx.test_customer_sandbox.active) {
+      var tcBanner = document.createElement('div');
+      tcBanner.id = 'bitesharkViewpointBanner';
+      tcBanner.setAttribute('role', 'region');
+      tcBanner.setAttribute('aria-label', 'Testing customer sandbox banner');
+      tcBanner.className = 'biteshark-viewpoint-banner is-act-on-behalf';
+      tcBanner.innerHTML =
+        '<div><strong>🧪 Testing Customer Sandbox</strong> — Signed in as isolated test user <code>' +
+        rxEsc(ctx.test_customer_sandbox.email || 'test-customer@sandbox.biteshark.invalid') +
+        '</code>. Real customer actions stay confined to this sandbox.</div>' +
+        '<div class="vp-banner-actions">' +
+        (ctx.test_customer_sandbox.has_profile_page === false
+          ? ''
+          : '<a class="vp-banner-btn secondary" href="/profile">🧭 My BiteShark</a>') +
+        '<button type="button" class="vp-banner-btn secondary" id="tcBannerSeedBtn">✨ Seed Sample</button>' +
+        '<button type="button" class="vp-banner-btn secondary" id="tcBannerResetBtn">↺ Reset</button>' +
+        '<button type="button" class="vp-banner-btn" id="tcBannerExitBtn">🛡️ Exit to Admin Portal</button>' +
+        '</div>';
+      document.body.insertBefore(tcBanner, document.body.firstChild);
+
+      var seedBtn = document.getElementById('tcBannerSeedBtn');
+      if (seedBtn) {
+        seedBtn.onclick = async function () {
+          seedBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'seed' }
+            });
+            window.location.reload();
+          } catch (_err) {
+            seedBtn.disabled = false;
+          }
+        };
+      }
+      var resetBtn = document.getElementById('tcBannerResetBtn');
+      if (resetBtn) {
+        resetBtn.onclick = async function () {
+          resetBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'reset' }
+            });
+            window.location.reload();
+          } catch (_err) {
+            resetBtn.disabled = false;
+          }
+        };
+      }
+      var exitBtn = document.getElementById('tcBannerExitBtn');
+      if (exitBtn) {
+        exitBtn.onclick = async function () {
+          exitBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'exit' }
+            });
+          } catch (_err) {}
+          window.location.href = '/admin';
+        };
+      }
+      return;
+    }
+
     if (!vp) return;
 
     // Non-admins never retain admin viewpoint state
