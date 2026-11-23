@@ -395,6 +395,9 @@
     else if (sectionName === 'diagnostics') loadDiagnostics(1);
     else if (sectionName === 'audit') loadAudit(1);
     else if (sectionName === 'health') loadHealth();
+    else if (sectionName === 'style-guide' && window.bitesharkAdminStyleGuide) {
+      window.bitesharkAdminStyleGuide.activate();
+    }
   }
 
   // =========================================================================
@@ -4917,7 +4920,7 @@
       var initialHash = String(window.location.hash || '').replace(/^#/, '').trim();
       var initialQuerySec = new URLSearchParams(window.location.search || '').get('section') || '';
       var targetInitialSection = initialHash || initialQuerySec;
-      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'features', 'diagnostics', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
+      if (['overview', 'applications', 'vendors', 'accounts', 'moderation', 'issues', 'readiness', 'features', 'style-guide', 'diagnostics', 'audit', 'health'].indexOf(targetInitialSection) >= 0 && targetInitialSection !== 'overview') {
         switchSection(targetInitialSection);
       }
     } catch (err) {
@@ -5260,6 +5263,16 @@
   });
 
   document.getElementById('refreshHealthBtn').onclick = loadHealth;
+
+  window.bitesharkAdminPortal = {
+    apiJson: apiJson,
+    openModal: adminOpenModal,
+    closeModal: adminCloseModal,
+    showBanner: showBanner,
+    getAccessContext: function () {
+      return state.ctx;
+    }
+  };
 
   bootAdminPortal();
 })();

@@ -74,6 +74,13 @@
     { "name": "BITESHARK_DB_APP_ROLE", "aliases": ["TRUCKLY_DB_APP_ROLE"], "default": "", "secret_class": "non_secret", "fail_mode": "fail_closed_migration_cli", "restart_required": false },
     { "name": "BITESHARK_PG_NODE_MODULES", "aliases": ["TRUCKLY_PG_NODE_MODULES"], "default": "", "secret_class": "non_secret", "fail_mode": "fallback_module_lookup", "restart_required": false },
     { "name": "BITESHARK_PHOTO_STORAGE_DIR", "aliases": ["TRUCKLY_PHOTO_STORAGE_DIR"], "default": "/var/lib/truckly-staging/customer-photos", "secret_class": "non_secret", "fail_mode": "branch_83181ba_exploration_storage_root", "restart_required": true },
-    { "name": "BITESHARK_PHOTO_MIN_FREE_BYTES", "aliases": ["TRUCKLY_PHOTO_MIN_FREE_BYTES"], "default": "67108864", "secret_class": "non_secret", "fail_mode": "branch_83181ba_fail_closed_disk_headroom", "restart_required": true }
+    { "name": "BITESHARK_PHOTO_MIN_FREE_BYTES", "aliases": ["TRUCKLY_PHOTO_MIN_FREE_BYTES"], "default": "67108864", "secret_class": "non_secret", "fail_mode": "branch_83181ba_fail_closed_disk_headroom", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_STORAGE_DIR", "aliases": ["TRUCKLY_STYLE_GUIDE_STORAGE_DIR"], "default": "/var/lib/truckly-staging/style-guide", "secret_class": "non_secret", "fail_mode": "fallback_process_tmpdir", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_GITHUB_TOKEN", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_TOKEN"], "default": "", "secret_class": "secret", "fail_mode": "prompts_top_admin_one_time_token_if_unset", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_GITHUB_REPO", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_REPO"], "default": "yamanalmasaleha-png/trukly-", "secret_class": "non_secret", "fail_mode": "fail_closed_invalid_slug", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_GITHUB_BRANCH", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_BRANCH"], "default": "working/biteshark-vps", "secret_class": "non_secret", "fail_mode": "fallback_host_default_branch", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_GITHUB_API_URL", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_API_URL"], "default": "https://api.github.com", "secret_class": "security_critical_non_secret", "fail_mode": "fail_closed_https_api_github_com", "restart_required": true },
+    { "name": "BITESHARK_STYLE_GUIDE_RELEASE_ROOT", "aliases": ["TRUCKLY_STYLE_GUIDE_RELEASE_ROOT"], "default": "", "secret_class": "test_only", "fail_mode": "fallback_module_release_root", "restart_required": true },
+    { "name": "BITESHARK_SYNC_REPO_STYLE_GUIDE", "aliases": ["TRUCKLY_SYNC_REPO_STYLE_GUIDE"], "default": "0", "secret_class": "non_secret", "fail_mode": "disabled_unless_1_in_local_dev", "restart_required": true }
   ]
 }

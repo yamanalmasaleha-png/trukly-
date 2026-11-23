@@ -54,6 +54,7 @@ Effective availability (`evaluateFeatureControls`) requires **all** of the follo
 | `unlisted_collection_sharing` | `enabled` (`all`) | `enabled, paused, hidden` | `greatest_hits_collections` | `POST /api/me/sharing-eligibility`, `POST /api/me/shares/{create,update-settings,rotate}`, and live `GET /s/:token` (`404` immediately when `hidden`, preserving stored collections & `POST /api/me/shares/revoke`!) | `greatest-hits-sharing.js`, `server/customer-profile-routes.js` |
 | `shared_collection_photos` | `enabled` (`all`) | `enabled, paused, hidden` | `unlisted_collection_sharing` | `POST /api/me/collections/attach-photo` & live `GET /s/:token/photo/:attachment` (`404` & omitted from shared DTO when `hidden`, keeping text `/s/:token` live; `remove-photo` always allowed) | `greatest-hits-sharing.js`, `lib/customer-profile.js` |
 | `public_profile_discovery` | `hidden` (`all`) | `read_only: true` (`hidden` only) | — | Permanently locked off (`400 FEATURE_READ_ONLY`); no public user search, followers, or profile indexing in this release | `admin.js` (`/admin#features` disclosure) |
+| `admin_style_guide_workspace` | `enabled` (`all`) | `enabled, paused, hidden` | — | `GET /api/admin/style-guide*` (`read_when_not_hidden`), `POST /api/admin/style-guide/{save,reset,push}` (`mutation`) | `admin-style-guide.js` (`/admin#style-guide`) |
 
 ---
 

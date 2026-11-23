@@ -120,6 +120,7 @@ import {
   resetAdminTestCustomerData,
   exitAdminTestCustomerSession
 } from '../lib/admin-test-customer.js';
+import { handleAdminStyleGuideRoute } from '../lib/style-guide-admin.js';
 
 export const EVIDENCE_UPLOAD_MAX_JSON_BYTES = 900 * 1024; // 900 KiB JSON envelope for <= 512 KiB base64 file
 
@@ -170,7 +171,12 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/diagnostics/cleanup',
   '/api/admin/diagnostics/notify-tickets',
   '/api/admin/audit',
-  '/api/admin/test-customer'
+  '/api/admin/test-customer',
+  '/api/admin/style-guide',
+  '/api/admin/style-guide/doc',
+  '/api/admin/style-guide/save',
+  '/api/admin/style-guide/reset',
+  '/api/admin/style-guide/push'
 ]);
 
 export function isGovernanceApiPath(pathname) {
@@ -8267,6 +8273,54 @@ export async function handleGovernanceApiRequest({
       error: 'Action must be enter, seed, reset, or exit.',
       code: 'INVALID_TEST_CUSTOMER_ACTION'
     });
+  }
+
+  // =========================================================================
+  // Admin Style Guide Questionnaire, Hosted Section Renderer & GitHub Push
+  // =========================================================================
+  if (normPath === '/api/admin/style-guide') {
+    if (method !== 'GET') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    }
+    if (!ctx.authenticated || !ctx.user) return sendJson(401, { error: 'Sign in is required.' });
+    if (!ctx.isModAdmin) return sendJson(403, { error: 'Moderator or administrator access is required.' });
+    return handleAdminStyleGuideRoute({ normPath, method, req, query, body, ctx, dbAdapter, sendJson });
+  }
+
+  if (normPath === '/api/admin/style-guide/doc') {
+    if (method !== 'GET') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
+    }
+    if (!ctx.authenticated || !ctx.user) return sendJson(401, { error: 'Sign in is required.' });
+    if (!ctx.isModAdmin) return sendJson(403, { error: 'Moderator or administrator access is required.' });
+    return handleAdminStyleGuideRoute({ normPath, method, req, query, body, ctx, dbAdapter, sendJson });
+  }
+
+  if (normPath === '/api/admin/style-guide/save') {
+    if (method !== 'POST') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    }
+    if (!ctx.authenticated || !ctx.user) return sendJson(401, { error: 'Sign in is required.' });
+    if (!ctx.isModAdmin) return sendJson(403, { error: 'Moderator or administrator access is required.' });
+    return handleAdminStyleGuideRoute({ normPath, method, req, query, body, ctx, dbAdapter, sendJson });
+  }
+
+  if (normPath === '/api/admin/style-guide/reset') {
+    if (method !== 'POST') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    }
+    if (!ctx.authenticated || !ctx.user) return sendJson(401, { error: 'Sign in is required.' });
+    if (!ctx.isTopAdmin) return sendJson(403, { error: 'Admin: Top access is required.' });
+    return handleAdminStyleGuideRoute({ normPath, method, req, query, body, ctx, dbAdapter, sendJson });
+  }
+
+  if (normPath === '/api/admin/style-guide/push') {
+    if (method !== 'POST') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+    }
+    if (!ctx.authenticated || !ctx.user) return sendJson(401, { error: 'Sign in is required.' });
+    if (!ctx.isTopAdmin) return sendJson(403, { error: 'Admin: Top access is required.' });
+    return handleAdminStyleGuideRoute({ normPath, method, req, query, body, ctx, dbAdapter, sendJson });
   }
 
   return sendJson(404, { error: 'Not found' });

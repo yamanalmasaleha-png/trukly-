@@ -505,6 +505,13 @@
             "null"
           ]
         },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
         "approval": {
           "$ref": "#/$defs/ApprovalMetadata"
         },

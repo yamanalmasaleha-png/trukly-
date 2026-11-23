@@ -45,7 +45,9 @@
     "style-guide:generate": "node tools/style-guide/cli.mjs generate",
     "style-guide:validate": "node tools/style-guide/cli.mjs validate",
     "style-guide:status": "node tools/style-guide/cli.mjs status",
-    "test:style-guide": "node tests/style-guide.test.cjs"
+    "test:style-guide": "node tests/style-guide.test.cjs",
+    "test:style-guide-admin": "node tests/style-guide-admin.integration.cjs",
+    "test:e2e:style-guide-admin": "node tests/style-guide-admin-browser.e2e.cjs"
   },
   "dependencies": {
     "@biteshark/runtime-adapter": "file:./packages/runtime-adapter",

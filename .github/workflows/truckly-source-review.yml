@@ -367,6 +367,16 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/admin-test-customer.integration.cjs
+      - name: Run real PostgreSQL + Mock GitHub API Style Guide Admin Workspace, Hosted Section & Repo Push suite
+        if: steps.scope.outputs.runtime_changed == 'true'
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/style-guide-admin.integration.cjs
+      - name: Run real headless Chrome + PostgreSQL Style Guide Admin Workspace, Controls & Live Preview E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/style-guide-admin-browser.e2e.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         if: steps.scope.outputs.runtime_changed == 'true'
         shell: bash

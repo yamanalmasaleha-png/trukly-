@@ -154,6 +154,14 @@
       "competing_or_legacy": [],
       "evidence": "Lets verified Admin: Top operators in non-production environments (BITESHARK_ENV != production) enter, seed, reset, and exit an isolated synthetic customer sandbox (usr_sa_top_admin_test_customer / test-customer@sandbox.biteshark.invalid) via HttpOnly overlay cookie __Host-bs_admin_test_session while /admin and /api/admin/* continue honoring the primary Admin: Top session.",
       "direction_for_new_code": "Never add general customer impersonation or weaken RLS for testing; route all Top-Admin customer sandbox testing through /api/admin/test-customer."
+    },
+    {
+      "responsibility": "admin_style_guide_workspace_and_repo_sync",
+      "status": "established",
+      "canonical_implementation": "lib/style-guide-core.js + lib/style-guide-admin.js + server/admin-routes.js (/api/admin/style-guide*) + public/admin-style-guide.js + public/admin-style-guide.css",
+      "competing_or_legacy": [],
+      "evidence": "Renders all 15 categories, 29 UI elements, and 773 design questions in /admin#style-guide with type-matched input controls, optional notes, live hosted Markdown population, and atomic 19-file GitHub Git Data API push.",
+      "direction_for_new_code": "Keep lib/style-guide-core.js as the single deterministic validator/renderer shared by both CLI (tools/style-guide/lib.mjs) and Admin Portal (/api/admin/style-guide*)."
     }
   ]
 }

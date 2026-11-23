@@ -169,7 +169,12 @@
         "/api/admin/accounts/role",
         "/api/admin/accounts/status",
         "/api/admin/vendors/update",
-        "/api/admin/test-customer"
+        "/api/admin/test-customer",
+        "/api/admin/style-guide",
+        "/api/admin/style-guide/doc",
+        "/api/admin/style-guide/save",
+        "/api/admin/style-guide/reset",
+        "/api/admin/style-guide/push"
       ],
       "db_tables": [
         "platform_roles",
@@ -209,6 +214,10 @@
         {
           "file": "tests/admin-test-customer.integration.cjs",
           "protected_assertions": ["authentication", "role_restrictions", "ownership_rls", "response_shape"]
+        },
+        {
+          "file": "tests/style-guide-admin.integration.cjs",
+          "protected_assertions": ["authentication", "role_restrictions", "input_validation", "response_shape"]
         }
       ]
     },
@@ -247,7 +256,8 @@
         "greatest_hits_collections",
         "unlisted_collection_sharing",
         "shared_collection_photos",
-        "public_profile_discovery"
+        "public_profile_discovery",
+        "admin_style_guide_workspace"
       ],
       "inputs_and_validation": "POST /api/admin/features/update requires Admin: Top, expected_revision (non-negative integer), valid allowed_states / allowed_audiences, 4-500 char reason, and confirm_interrupt=true on high-impact interrupts.",
       "outputs": "GET /api/features returns caller-safe effective states { ok: true, features } with zero internal reasons/actors; /api/admin/features adds revision, dependency graph, env overrides, and history.",

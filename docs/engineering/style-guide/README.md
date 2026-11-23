@@ -85,7 +85,7 @@ Any coding assistant (Antigravity, GPT / Codex, or CLI agent) working on UI, fro
 
 ## 5. How to Record Answers & Refresh the Guide
 
-1. Edit `docs/engineering/style-guide/decisions.json` for the target `DEC-*` entry:
+1. Use the **Admin Portal -> 🎨 Style Guide** workspace (`/admin#style-guide`) to fill in answers, add optional notes, view populated hosted Markdown sections, and push directly to the repository — or edit `docs/engineering/style-guide/decisions.json` for the target `DEC-*` entry:
    - **Draft answer (awaiting sign-off)**: set `"applicability": "applicable"`, `"status": "draft"`, and `"value": <answer or "ref:DEC-...">`.
    - **Approved answer**: set `"applicability": "applicable"`, `"status": "approved"`, `"value": <answer or "ref:DEC-...">`, and `"approval": { "approved_by": "<Name>", "approved_at": "YYYY-MM-DD" }`.
    - **Explicitly not applicable**: set `"applicability": "not_applicable"`, `"status": "not_applicable"`, `"value": null`, and `"not_applicable_reason": "<clear explanation>"`.

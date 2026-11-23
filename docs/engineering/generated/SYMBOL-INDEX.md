@@ -5,20 +5,20 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20`
+> - **Source Analysis Digest**: `fbe6c3119b563db19490b23d26e75d9049f0daff2d3ee4462115788f5b5c2a33`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Coverage Summary
 
 | Metric | Count |
 |---|---:|
-| JavaScript / CJS / ESM Files Scanned | 142 |
+| JavaScript / CJS / ESM Files Scanned | 148 |
 | Parse Failures | 0 |
-| Functions, Methods & Handlers | 3090 |
-| Classes | 21 |
-| Top-Level Constants | 723 |
-| Browser Globals & Window Registrations | 668 |
-| Confirmed Static Call Edges | 7953 |
+| Functions, Methods & Handlers | 3287 |
+| Classes | 22 |
+| Top-Level Constants | 741 |
+| Browser Globals & Window Registrations | 670 |
+| Confirmed Static Call Edges | 8312 |
 | Inferred Candidate Call Edges | 60 |
 
 > **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run `npm run registry:locate -- <identifier>`.
@@ -28,10 +28,10 @@
 | Area Catalog | Modules | Indexed Symbols | Exports |
 |---|---:|---:|---:|
 | [Server & Runtime Adapter (`server/`, `packages/`)](symbols/server-and-runtime.md) | 7 | 153 | 26 |
-| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 22 | 476 | 388 |
+| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 535 | 412 |
 | [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 61 | 91 |
-| [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 21 | 1061 | 0 |
-| [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 289 | 80 |
+| [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 22 | 1192 | 0 |
+| [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 254 | 81 |
 
 ## Module Directory
 
@@ -59,11 +59,14 @@
 | [lib/editorial-stories.js](../../../lib/editorial-stories.js) | [shared-libraries.md](symbols/shared-libraries.md) | 2 | `EDITORIAL_STORIES`, `EDITORIAL_STORIES_BY_ID`, `EDITORIAL_STORIES_BY_VENDOR_ID`, `buildPublicStoriesPayload` |
 | [lib/env-compat.js](../../../lib/env-compat.js) | [shared-libraries.md](symbols/shared-libraries.md) | 4 | `EnvAliasConflictError`, `SECURITY_CRITICAL_ENV_SUFFIXES`, `readEnvCompat`, `findSecurityEnvConflicts`, `assertNoSecurityEnvConflicts` |
 | [lib/feature-controls.js](../../../lib/feature-controls.js) | [shared-libraries.md](symbols/shared-libraries.md) | 24 | `VALID_FEATURE_STATES`, `VALID_FEATURE_AUDIENCES`, `PROTECTED_ESSENTIAL_CAPABILITIES`, `FEATURE_CONTROLS_REGISTRY`, `FEATURE_CONTROLS_BY_KEY`, `assertCycleFreeFeatureRegistry`, `ROUTE_FEATURE_ENFORCEMENT_RULES`, `setSimulatedFeatureConfigFailureForTests` |
+| [lib/json-schema-lite.js](../../../lib/json-schema-lite.js) | [shared-libraries.md](symbols/shared-libraries.md) | 6 | `validateAgainstJsonSchema`, `validateJsonWithSchemaFile` |
 | [lib/map-config.js](../../../lib/map-config.js) | [shared-libraries.md](symbols/shared-libraries.md) | 5 | `ALLOWLISTED_MAP_PROVIDERS`, `resolveMapRuntimeConfig` |
 | [lib/pager-notifications.js](../../../lib/pager-notifications.js) | [shared-libraries.md](symbols/shared-libraries.md) | 35 | `MAX_ACTIVE_SUBSCRIPTIONS_PER_PAGER`, `MAX_CATCHUP_DELIVERIES_PER_EVENT`, `READY_FLAP_COOLDOWN_MS`, `WORKER_LEASE_SECONDS`, `DEFAULT_WORKER_CONCURRENCY`, `DEFAULT_PROVIDER_TIMEOUT_MS`, `DEFAULT_WORKER_EXECUTION_BUDGET_MS`, `RETRY_BACKOFF_SECONDS` |
 | [lib/photo-storage.js](../../../lib/photo-storage.js) | [shared-libraries.md](symbols/shared-libraries.md) | 15 | `MAX_PHOTO_UPLOAD_BYTES`, `MAX_PHOTO_JSON_BODY_BYTES`, `MAX_ACTIVE_PHOTOS_PER_USER`, `MAX_PHOTO_DIMENSION_PX`, `MAX_PHOTO_INPUT_PIXELS`, `DEFAULT_MIN_FREE_DISK_BYTES`, `SUPPORTED_PHOTO_MIMES`, `PhotoStorageError` |
 | [lib/request-context.js](../../../lib/request-context.js) | [shared-libraries.md](symbols/shared-libraries.md) | 2 | `runWithGovernanceContext`, `getActiveGovernanceContext` |
 | [lib/standalone-auth.js](../../../lib/standalone-auth.js) | [shared-libraries.md](symbols/shared-libraries.md) | 75 | `SESSION_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `AGE_GATE_COOKIE_NAME`, `DEFAULT_AGE_GATE_COOLDOWN_SECONDS`, `AUTH_RATE_LIMIT_RETENTION_MS`, `AUTH_TELEMETRY_RETENTION_MS` |
+| [lib/style-guide-admin.js](../../../lib/style-guide-admin.js) | [shared-libraries.md](symbols/shared-libraries.md) | 22 | `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `resolveGitHubPushConfig`, `loadCurrentWorkspaceSnapshot`, `handleAdminStyleGuideRoute` |
+| [lib/style-guide-core.js](../../../lib/style-guide-core.js) | [shared-libraries.md](symbols/shared-libraries.md) | 31 | `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug` |
 | [lib/support-tickets.js](../../../lib/support-tickets.js) | [shared-libraries.md](symbols/shared-libraries.md) | 14 | `VENDOR_SUPPORT_CATEGORIES`, `CATEGORY_LABELS`, `VALID_DB_CATEGORIES`, `CATEGORY_ALIASES`, `REPORTER_URGENCY_LABELS`, `VALID_REPORTER_URGENCIES`, `STAFF_PRIORITY_LABELS`, `VALID_STAFF_PRIORITIES` |
 | [lib/webpush-crypto.js](../../../lib/webpush-crypto.js) | [shared-libraries.md](symbols/shared-libraries.md) | 9 | `toBase64Url`, `fromBase64Url`, `generateVapidKeys`, `validateVapidKeyPair`, `createVapidHeaders`, `verifyVapidJwt`, `validateSubscriberKeys`, `encryptWebPushPayload` |
 | [api/bookings/create.js](../../../api/bookings/create.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 6 | `access`, `methods`, `formatBookingResponse`, `default` |
@@ -96,7 +99,8 @@
 | [api/trucks/availability.js](../../../api/trucks/availability.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 1 | `access`, `methods`, `default` |
 | [api/trucks/nearby.js](../../../api/trucks/nearby.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
 | [api/trucks/search.js](../../../api/trucks/search.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 3 | `access`, `methods`, `default` |
-| [public/admin.js](../../../public/admin.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 215 | `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.inviteDraftKey`, `window.inviteDraftSig` |
+| [public/admin-style-guide.js](../../../public/admin-style-guide.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 130 | `window.bitesharkAdminStyleGuide` |
+| [public/admin.js](../../../public/admin.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 216 | `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.location.href`, `window.inviteDraftKey`, `window.inviteDraftSig` |
 | [public/app.js](../../../public/app.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 179 | `window.activeKind`, `window.activeCuisine`, `window.activeCuisine`, `window.activeKind`, `window.trucks`, `window.catalogVersion`, `window.selectedTruck`, `window.activeTileLayer` |
 | [public/auth-client.js](../../../public/auth-client.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 12 | `window.bitesharkAuth`, `window.trucklyAuth`, `window.biteshark` |
 | [public/characters.js](../../../public/characters.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 3 | `window.applyFilters` |
@@ -136,7 +140,7 @@
 | [tools/code-registry/js-analyzer.mjs](../../../tools/code-registry/js-analyzer.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 32 | `parseJavaScriptSource`, `computeAstNodeFingerprint`, `analyzeJavaScriptFile`, `extractCalledIdentifiersInInlineHandler` |
 | [tools/code-registry/relationship-resolver.mjs](../../../tools/code-registry/relationship-resolver.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 5 | `resolveSymbolRelationships` |
 | [tools/code-registry/scanner.mjs](../../../tools/code-registry/scanner.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 3 | `CANONICAL_GENERATED_DOC_PATHS`, `scanRepositorySnapshot` |
-| [tools/code-registry/schema-validator.mjs](../../../tools/code-registry/schema-validator.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 6 | `validateAgainstJsonSchema`, `validateJsonWithSchemaFile` |
+| [tools/code-registry/schema-validator.mjs](../../../tools/code-registry/schema-validator.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 0 | `validateAgainstJsonSchema`, `validateJsonWithSchemaFile` |
 | [tools/code-registry/schema-versions.mjs](../../../tools/code-registry/schema-versions.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 15 | `GENERATOR_NAME`, `GENERATOR_VERSION`, `REGISTRY_SCHEMA_VERSION`, `SUMMARY_SCHEMA_VERSION`, `IMPACT_SCHEMA_VERSION`, `DRIFT_BASELINE_SCHEMA_VERSION`, `SUPPRESSIONS_SCHEMA_VERSION`, `CONTRACTS_SCHEMA_VERSION` |
 | [tools/style-guide/cli.mjs](../../../tools/style-guide/cli.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 3 | — |
-| [tools/style-guide/lib.mjs](../../../tools/style-guide/lib.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 29 | `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug` |
+| [tools/style-guide/lib.mjs](../../../tools/style-guide/lib.mjs) | [scripts-and-tooling.md](symbols/scripts-and-tooling.md) | 0 | `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug` |
