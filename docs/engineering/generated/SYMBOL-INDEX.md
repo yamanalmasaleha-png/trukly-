@@ -5,19 +5,19 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `antigravity/staging2-latest`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `d5d531c4e6eece077eb70dfd8dc668543c0796cf7cd5754439d04354aa5b2629`
+> - **Deterministic Source Digest**: `71028c56db6911b3ff0fdffe477c8ac0372ca070046008e90e1705f262975913`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## Coverage Summary
 
 | Metric | Count |
 |---|---:|
-| JavaScript / CJS / ESM Files Scanned | 112 |
+| JavaScript / CJS / ESM Files Scanned | 119 |
 | Parse Failures | 0 |
-| Named Functions, Methods & Handlers | 2265 |
-| Classes | 16 |
-| Top-Level Constants | 543 |
-| Browser Globals & Assignments | 582 |
+| Named Functions, Methods & Handlers | 2504 |
+| Classes | 17 |
+| Top-Level Constants | 573 |
+| Browser Globals & Assignments | 584 |
 
 > **Type Notation**: BiteShark is plain JavaScript without TypeScript annotations. Parameter types below distinguish `inferred_from_default`, `inferred_from_destructuring`, `inferred_from_rest`, and `undeclared` (`unknown`). Signatures are never invented.
 
@@ -42,22 +42,22 @@
 | `getUser` | `object_method` | No | `(req: unknown)` | `async -> promise` | `lib/authz.js:resolveIdentity`, `public/app.js:syncAuthAndUserData` | L122 |
 
 ### [server/admin-routes.js](../../../server/admin-routes.js) (`module`)
-- **Imports / Dependencies**: `../lib/admin-governance.js`, `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/standalone-auth.js`, `../lib/support-tickets.js`, `@biteshark/runtime-adapter`
+- **Imports / Dependencies**: `../lib/admin-governance.js`, `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/standalone-auth.js`, `../lib/style-guide-admin.js`, `../lib/support-tickets.js`, `@biteshark/runtime-adapter`
 - **Exports**: `EVIDENCE_UPLOAD_MAX_JSON_BYTES`, `isGovernanceApiPath`, `handleGovernanceApiRequest`
 - **Significant Constants**: `EVIDENCE_UPLOAD_MAX_JSON_BYTES` *(exported)*, `GOVERNANCE_PATHS`, `READINESS_STATUS_CATALOG`, `VALID_READINESS_STATUSES`, `LAUNCH_INCOMPLETE_REMINDER_TEXT`, `DEPLOYMENT_PORTAL_REMINDER_NOTE`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `isGovernanceApiPath` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L156 |
-| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4150_50$anon_L4221_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70$anon_L5495_71` | L161 |
-| `validateIsoCalendarDate` | `function` | No | `(raw: unknown, { allowFuture }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L189 |
-| `serializeReadinessItemForActor` | `function` | No | `(row: unknown, actorRole: unknown, historyRows: array)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L6547_78$anon_L6643_80`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6693_81`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6830_82` | L214 |
-| `enableAdminTxGuards` | `function` | No | `(tx: unknown, ctx: unknown)` | `async -> promise` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1920_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L257 |
-| `getRuntimeReleaseSha` | `function` | No | `()` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation`, `server/admin-routes.js:handleGovernanceApiRequest` | L269 |
-| `loadInvitationEventsMapInTx` | `function` | No | `(tx: unknown, invitationIds: unknown)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L278 |
-| `deliverAndFinalizeIssuedInvitation` | `function` | No | `({ dbAdapter, ctx, invitationId, tokenVersion, rawToken, recipientEmail, requestedRole, vendorId, vendorName, expiresAt, actorId, actorRole }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L305 |
-| `recordAndDispatchSupportNotification` | `function` | No | `({ dbAdapter, issueId, ticketNumber, recipientUserId, recipientEmail, eventKind, dedupeKey, statusLabel, isCritical }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:handleGovernanceApiRequest` | L449 |
-| `handleGovernanceApiRequest` | `function` | Yes | `({ pathname, method, req, query, body, dbAdapter, sendJson, rawRes }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L891_6$anon_L900_7` | L573 |
+| `isGovernanceApiPath` | `function` | Yes | `(pathname: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L162 |
+| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L943_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4156_50$anon_L4227_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5486_70$anon_L5501_71` | L167 |
+| `validateIsoCalendarDate` | `function` | No | `(raw: unknown, { allowFuture }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L195 |
+| `serializeReadinessItemForActor` | `function` | No | `(row: unknown, actorRole: unknown, historyRows: array)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L6553_78$anon_L6649_80`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6699_81`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6836_82` | L220 |
+| `enableAdminTxGuards` | `function` | No | `(tx: unknown, ctx: unknown)` | `async -> promise` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L342_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1061_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1926_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2879_37` | L263 |
+| `getRuntimeReleaseSha` | `function` | No | `()` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation`, `server/admin-routes.js:handleGovernanceApiRequest` | L275 |
+| `loadInvitationEventsMapInTx` | `function` | No | `(tx: unknown, invitationIds: unknown)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L342_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4536_62`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65` | L284 |
+| `deliverAndFinalizeIssuedInvitation` | `function` | No | `({ dbAdapter, ctx, invitationId, tokenVersion, rawToken, recipientEmail, requestedRole, vendorId, vendorName, expiresAt, actorId, actorRole }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L311 |
+| `recordAndDispatchSupportNotification` | `function` | No | `({ dbAdapter, issueId, ticketNumber, recipientUserId, recipientEmail, eventKind, dedupeKey, statusLabel, isCritical }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:handleGovernanceApiRequest` | L455 |
+| `handleGovernanceApiRequest` | `function` | Yes | `({ pathname, method, req, query, body, dbAdapter, sendJson, rawRes }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3$anon_L891_6$anon_L900_7` | L579 |
 
 ### [server/app.js](../../../server/app.js) (`module`)
 - **Imports / Dependencies**: `../lib/age-policy.js`, `../lib/authz.js`, `../lib/client-ip.js`, `../lib/db-tx.js`, `../lib/diagnostics.js`, `../lib/env-compat.js`, `../lib/feature-controls.js`, `../lib/pager-notifications.js`, `../lib/request-context.js`, `../lib/standalone-auth.js`, `../scripts/staging-runtime-probe.js`, `./admin-routes.js`, `./routes.js`, `@biteshark/runtime-adapter`, `node:fs`, `node:http`, `node:path`, `node:url`
@@ -110,19 +110,19 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `sha256Hex` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/pager/subscriptions.js:default`, `api/pager/subscriptions.js:default$anon_L120_2`, `lib/admin-governance.js:generateOpaqueToken`, `lib/admin-governance.js:verifyEvidenceBufferAndMime` | L24 |
-| `generateOpaqueToken` | `function` | Yes | `(byteLen: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4867_66` | L28 |
-| `normalizeEmailStrict` | `function` | Yes | `(rawEmail: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L36 |
+| `generateOpaqueToken` | `function` | Yes | `(byteLen: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L1380_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4873_66` | L28 |
+| `normalizeEmailStrict` | `function` | Yes | `(rawEmail: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L943_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65` | L36 |
 | `normalizeOptionalIdempotencyKey` | `function` | Yes | `(raw: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L49 |
 | `parseBoundedPagination` | `function` | Yes | `(query: object, defaultSize: number, maxSize: number)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L59 |
 | `sanitizeFilename` | `function` | Yes | `(rawName: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L69 |
 | `verifyEvidenceBufferAndMime` | `function` | Yes | `(buf: unknown, declaredMime: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L85 |
 | `validateOptionalHttpUrl` | `function` | Yes | `(rawUrl: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L130 |
 | `validateProposedSlug` | `function` | Yes | `(rawSlug: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L149 |
-| `computeIssueSlaDueAt` | `function` | Yes | `(severity: unknown, now: Date)` | `sync_value` | `lib/support-tickets.js:resolveInitialUrgencyAndPriority`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L156 |
-| `recordTestSafeNotificationInTx` | `function` | Yes | `(tx: unknown, { recipientUserId, recipientEmail, eventKind, subject, summary }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L3361_45`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3859_49`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L167 |
-| `consumeGovernanceRateLimit` | `function` | Yes | `(tx: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L629_6`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1632_20` | L187 |
-| `recordInvitationEventInTx` | `function` | Yes | `(tx: unknown, { invitationId, eventType, actorId, actorRole, deliveryMode, providerStatus, providerMessageId, errorCode, correlationId, releaseSha, note }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1055_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L224 |
-| `formatInvitationRowForAdmin` | `function` | Yes | `(row: unknown, { events, nowMs }: object)` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L336_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1374_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62$anon_L4586_64`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L270 |
+| `computeIssueSlaDueAt` | `function` | Yes | `(severity: unknown, now: Date)` | `sync_value` | `lib/support-tickets.js:resolveInitialUrgencyAndPriority`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5930_76` | L156 |
+| `recordTestSafeNotificationInTx` | `function` | Yes | `(tx: unknown, { recipientUserId, recipientEmail, eventKind, subject, summary }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L3367_45`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3865_49`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5930_76` | L167 |
+| `consumeGovernanceRateLimit` | `function` | Yes | `(tx: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L635_6`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1061_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1380_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1638_20` | L187 |
+| `recordInvitationEventInTx` | `function` | Yes | `(tx: unknown, { invitationId, eventType, actorId, actorRole, deliveryMode, providerStatus, providerMessageId, errorCode, correlationId, releaseSha, note }: object)` | `async -> promise (throws: thrown_value)` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L342_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1061_12`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1380_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65` | L224 |
+| `formatInvitationRowForAdmin` | `function` | Yes | `(row: unknown, { events, nowMs }: object)` | `sync_value` | `server/admin-routes.js:deliverAndFinalizeIssuedInvitation$anon_L342_3`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1380_16`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4536_62$anon_L4592_64`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65` | L270 |
 
 ### [lib/age-policy.js](../../../lib/age-policy.js) (`module`)
 - **Exports**: `PROPOSED_MIN_ACCOUNT_AGE`, `AGE_POLICY_VERSION`, `AGE_BOUNDARY_TIMEZONE`, `MIN_PLAUSIBLE_BIRTH_YEAR`, `isGregorianLeapYear`, `daysInGregorianMonth`, `resolvePacificCalendarDateParts`, `parseAndValidateDobInput`, `computeCompletedYearsOfAge`, `evaluateMinimumAgeEligibility`, `AGE_ASSESSMENT_ALLOWLIST_SPEC`, `isGovernanceRouteExemptFromAgeGate`, `buildAgeAssessmentRequiredPayload`
@@ -137,7 +137,7 @@
 | `computeCompletedYearsOfAge` | `function` | Yes | `(birthParts: unknown, refParts: unknown)` | `sync_value` | `lib/age-policy.js:evaluateMinimumAgeEligibility` | L180 |
 | `evaluateMinimumAgeEligibility` | `function` | Yes | `(input: object, now: Date)` | `sync_value` | `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:submitExistingAccountAgeAssessment` | L194 |
 | `isGovernanceRouteExemptFromAgeGate` | `function` | Yes | `(normPathname: unknown, method: unknown)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L339 |
-| `buildAgeAssessmentRequiredPayload` | `function` | Yes | `(nextPath: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2584_34`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2703_35`, `server/app.js:json` | L345 |
+| `buildAgeAssessmentRequiredPayload` | `function` | Yes | `(nextPath: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2294_32`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2590_34`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2709_35`, `server/app.js:json` | L345 |
 
 ### [lib/authz.js](../../../lib/authz.js) (`module`)
 - **Imports / Dependencies**: `./env-compat.js`, `./request-context.js`, `node:crypto`
@@ -151,7 +151,7 @@
 | `evaluateEffectiveVendorRestrictions` | `function` | Yes | `(vendorRow: unknown, nowMs: unknown)` | `sync_value` | `api/bookings/create.js:default$anon_L147_1`, `api/pager/staff.js:default$anon_L71_1`, `api/trucks/availability.js:default`, `lib/authz.js:loadAccessContext` | L71 |
 | `configuredAdminIds` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:resolveIdentity`, `lib/authz.js:queryRoleAndRevocation`, `lib/authz.js:reverifyVendorMembershipInTx`, `lib/authz.js:reverifyModeratorInTx` | L95 |
 | `applyPrivateNoStoreHeaders` | `function` | Yes | `(res: unknown)` | `void_or_implicit` | `api/bookings/create.js:default`, `api/bookings/list.js:default`, `api/community/mine.js:default`, `api/community/moderate.js:default` | L114 |
-| `inspectWritePauseConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:isWritePaused`, `lib/feature-controls.js:inspectEnvironmentFeatureOverrides`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L131 |
+| `inspectWritePauseConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/authz.js:isWritePaused`, `lib/feature-controls.js:inspectEnvironmentFeatureOverrides`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2879_37` | L131 |
 | `isWritePaused` | `function` | Yes | `(scope: unknown)` | `sync_value` | `api/bookings/create.js:default`, `api/community/moderate.js:default`, `api/community/post.js:default`, `api/favorites/toggle.js:default` | L175 |
 | `resolveIdentity` | `function` | Yes | `(req: unknown, auth: unknown)` | `async -> promise` | `api/bookings/create.js:default`, `api/bookings/list.js:default`, `api/community/mine.js:default`, `api/community/post.js:default` | L182 |
 | `queryRoleAndRevocation` | `function` | No | `(dbClient: unknown, userId: unknown, lockClause: string)` | `async -> promise (throws: thrown_value)` | `lib/authz.js:loadAccessContext`, `lib/authz.js:reverifyVendorMembershipInTx`, `lib/authz.js:reverifyModeratorInTx`, `lib/authz.js:reverifyPlatformAdminInTx` | L210 |
@@ -160,8 +160,8 @@
 | `checkStandaloneHttpActOnBehalfRequirement` | `function` | No | `(targetVendorId: unknown)` | `sync_value` | `lib/authz.js:authorizeVendorTarget`, `lib/authz.js:reverifyVendorMembershipInTx` | L344 |
 | `authorizeVendorTarget` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, requiredRole: string, dbClient: null_or_object)` | `async -> promise` | `api/owner/location.js:default`, `api/owner/profile.js:default`, `api/owner/schedule.js:default`, `api/pager/staff.js:default` | L362 |
 | `reverifyVendorMembershipInTx` | `function` | Yes | `(tx: unknown, ctx: unknown, vendorId: unknown, requiredRole: string, options: object)` | `async -> promise (throws: thrown_value)` | `api/owner/location.js:default$anon_L110_1`, `api/owner/profile.js:default$anon_L58_1`, `api/owner/requests.js:default$anon_L42_1`, `api/owner/schedule.js:default$anon_L64_1` | L504 |
-| `reverifyModeratorInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/community/moderate.js:default$anon_L27_1`, `api/community/moderate.js:default$anon_L67_2`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1791_21`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L647 |
-| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L1920_23`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L3057_39`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4267_54` | L663 |
+| `reverifyModeratorInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/community/moderate.js:default$anon_L27_1`, `api/community/moderate.js:default$anon_L67_2`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L432_2`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L494_3` | L647 |
+| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L544_5`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L756_10`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L817_11` | L663 |
 | `authorizeVendorScope` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, dbClient: null_or_object)` | `async -> promise` | `api/owner/bookings.js:default`, `api/owner/requests.js:default`, `api/owner/schedule.js:default`, `api/owner/stats.js:default` | L675 |
 | `redactPagerTargetId` | `function` | Yes | `(pagerUuid: unknown)` | `sync_value` | `api/pager/staff.js:default$anon_L71_1`, `api/pager/update.js:default$anon_L45_1` | L724 |
 | `sanitizeMetadata` | `function` | No | `(meta: unknown)` | `sync_value` | `lib/authz.js:recordAuditLog` | L729 |
@@ -183,7 +183,7 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `normalizeIpAddress` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:isLoopbackIp`, `lib/client-ip.js:extractRightmostForwardedIp`, `lib/client-ip.js:resolveTrustedClientIp` | L6 |
-| `isLoopbackIp` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L696_7`, `server/app.js:createStandaloneServer$anon_L471_3` | L30 |
+| `isLoopbackIp` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L702_7`, `server/app.js:createStandaloneServer$anon_L471_3` | L30 |
 | `extractRightmostForwardedIp` | `function` | No | `(xffHeader: unknown)` | `sync_value` | `lib/client-ip.js:resolveTrustedClientIp` | L35 |
 | `resolveTrustedClientIp` | `function` | Yes | `(req: unknown, options: object)` | `sync_value (throws: thrown_value)` | `lib/client-ip.js:stampTrustedClientIp`, `lib/pager-notifications.js:extractClientRateKey`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge` | L57 |
 | `stampTrustedClientIp` | `function` | Yes | `(req: unknown, options: object)` | `sync_value` | `server/app.js:createStandaloneServer$anon_L471_3` | L104 |
@@ -197,7 +197,7 @@
 | `pad2` | `function` | No | `(n: unknown)` | `sync_value` | `lib/dates.js:normalizeCalendarDate` | L17 |
 | `isValidCalendarDate` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `api/trucks/availability.js:default`, `lib/dates.js:normalizeCalendarDate` | L21 |
 | `normalizeCalendarDate` | `function` | Yes | `(value: unknown)` | `sync_value (throws: TypeError)` | `api/bookings/create.js:formatBookingResponse`, `api/bookings/list.js:default$anon_L29_1`, `api/owner/bookings.js:default$anon_L48_1`, `api/owner/requests.js:default$anon_L42_1` | L41 |
-| `getPacificToday` | `function` | Yes | `(now: Date)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `lib/dates.js:validateFuturePacificDate` | L77 |
+| `getPacificToday` | `function` | Yes | `(now: Date)` | `sync_value` | `api/owner/schedule.js:default`, `api/schedule/today.js:default`, `lib/dates.js:validateFuturePacificDate`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L77 |
 | `daysBetweenISO` | `function` | No | `(startIso: unknown, endIso: unknown)` | `sync_value` | `lib/dates.js:validateFuturePacificDate` | L90 |
 | `validateFuturePacificDate` | `function` | Yes | `(dateStr: unknown, now: Date)` | `sync_value` | `api/bookings/create.js:default`, `api/trucks/availability.js:default` | L102 |
 | `isValidTimeValue` | `function` | Yes | `(value: unknown)` | `sync_value` | `api/owner/location.js:default`, `api/owner/schedule.js:default` | L126 |
@@ -224,7 +224,7 @@
 |---|---|---|---|---|---|---:|
 | `__setDiagnosticsFaultInjectionForTests` | `function` | Yes | `(fnOrNull: unknown)` | `void_or_implicit` | — | L82 |
 | `readIntEnv` | `function` | No | `(env: unknown, suffix: unknown, fallback: unknown, min: unknown, max: unknown)` | `sync_value` | `lib/diagnostics.js:getDiagnosticsRetentionPolicy` | L86 |
-| `getDiagnosticsRetentionPolicy` | `function` | Yes | `(env: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7379_88` | L95 |
+| `getDiagnosticsRetentionPolicy` | `function` | Yes | `(env: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:cleanupExpiredDiagnostics`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7385_88` | L95 |
 | `generateCorrelationId` | `function` | Yes | `()` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `server/app.js:createStandaloneServer$anon_L471_3` | L107 |
 | `normalizeCorrelationId` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/support-tickets.js:sanitizeSupportContextFields` | L111 |
 | `normalizeReleaseSha` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/diagnostics.js:recordServerReleaseStartup`, `lib/diagnostics.js:recordWorkerHeartbeat`, `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:computeReleaseRelationship` | L117 |
@@ -244,7 +244,7 @@
 | `shaMatchesCandidate` | `function` | No | `(actualSha: unknown, candidateFixSha: unknown)` | `sync_value` | `lib/diagnostics.js:recordDiagnosticEvent`, `lib/diagnostics.js:recordDiagnosticEvent$anon_L594_9`, `lib/diagnostics.js:computeReleaseRelationship$anon_L899_12`, `lib/diagnostics.js:computeReleaseRelationship` | L480 |
 | `recordDiagnosticEvent` | `function` | Yes | `(db: unknown, rawEvent: object, { env, fallbackLogger }: object)` | `async -> promise` | `api/pager/worker.js:default$anon_L106_1`, `api/pager/worker.js:default`, `lib/diagnostics.js:reportDomainRouteFailure`, `lib/standalone-auth.js:recordAuthTelemetry` | L487 |
 | `reportDomainRouteFailure` | `function` | Yes | `(db: unknown, req: unknown, err: unknown, { featureKey, operationName, routeTemplate, severity, errorCode }: object)` | `async -> promise` | — | L831 |
-| `computeReleaseRelationship` | `function` | Yes | `(group: unknown, releases: array, activeServerSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L7379_88$anon_L7522_89`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7543_90` | L860 |
+| `computeReleaseRelationship` | `function` | Yes | `(group: unknown, releases: array, activeServerSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L7385_88$anon_L7528_89`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7549_90` | L860 |
 | `cleanupExpiredDiagnostics` | `function` | Yes | `(db: unknown, { env }: object)` | `async -> promise` | `api/pager/worker.js:default`, `scripts/run-pager-worker.cjs:<top_level>$anon_L89_5`, `server/admin-routes.js:handleGovernanceApiRequest` | L929 |
 
 ### [lib/discovery.js](../../../lib/discovery.js) (`module`)
@@ -298,25 +298,38 @@
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `assertCycleFreeFeatureRegistry` | `function` | Yes | `(registry: unknown)` | `sync_value` | `lib/feature-controls.js:<top_level>` | L438 |
-| `setSimulatedFeatureConfigFailureForTests` | `function` | Yes | `(mode: unknown)` | `void_or_implicit` | — | L536 |
-| `parseBoolDisableFlag` | `function` | No | `(suffix: unknown)` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L540 |
-| `inspectPushEnvironmentStatus` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L554 |
-| `inspectEnvironmentFeatureOverrides` | `function` | Yes | `()` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L604 |
-| `validatePersistedRows` | `function` | No | `(rows: unknown)` | `sync_value` | `lib/feature-controls.js:loadPersistedFeatureControls`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L702 |
-| `loadPersistedFeatureControls` | `function` | Yes | `(db: unknown, { requireTablePresent }: object)` | `async -> promise` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L735 |
-| `isCallerEligibleForStaffBeta` | `function` | Yes | `(accessCtx: unknown, viewpointMode: null_or_object)` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot` | L806 |
-| `combineStateSeverity` | `function` | No | `(stateA: unknown, stateB: unknown)` | `sync_value` | `lib/feature-controls.js:evaluateKey` | L820 |
-| `evaluateFeatureControlsSnapshot` | `function` | Yes | `({ persistedResult, accessCtx, viewpointMode, envOverrides }: object)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L827 |
-| `buildPublicFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L990 |
-| `buildAdminFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown, historyRows: array, { actorLevel }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1046 |
-| `requiresInterruptConfirmation` | `function` | Yes | `(spec: unknown, prevState: unknown, prevAudience: unknown, nextState: unknown, nextAudience: unknown)` | `sync_value` | `lib/feature-controls.js:updateFeatureControlInTx` | L1114 |
-| `updateFeatureControlInTx` | `function` | Yes | `(tx: unknown, { actorId, actorEmailMasked, actorRole, changeSource, featureKey, nextState, nextAudience, expectedRevision, reason, confirmedImpact }: object)` | `async -> promise` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7270_86` | L1125 |
-| `matchRouteFeatureRule` | `function` | Yes | `(pathname: unknown, method: unknown)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `server/app.js:createStandaloneServer$anon_L471_3` | L1322 |
-| `enforceHttpFeatureGate` | `function` | Yes | `({ dbAdapter, req, auth, pathname, method, requireTablePresent }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L1333 |
-| `isPagerPushSubscriptionFeatureEnabled` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L1431 |
-| `isPagerPushDeliveryFeatureAllowed` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L1439 |
-| `checkPagerPushDeliveryInTx` | `function` | Yes | `(tx: unknown)` | `async -> promise` | `lib/pager-notifications.js:prepareClaimForDispatch$anon_L1164_8` | L1452 |
+| `assertCycleFreeFeatureRegistry` | `function` | Yes | `(registry: unknown)` | `sync_value` | `lib/feature-controls.js:<top_level>` | L465 |
+| `setSimulatedFeatureConfigFailureForTests` | `function` | Yes | `(mode: unknown)` | `void_or_implicit` | — | L593 |
+| `parseBoolDisableFlag` | `function` | No | `(suffix: unknown)` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L597 |
+| `inspectPushEnvironmentStatus` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/feature-controls.js:inspectEnvironmentFeatureOverrides` | L611 |
+| `inspectEnvironmentFeatureOverrides` | `function` | Yes | `()` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L661 |
+| `validatePersistedRows` | `function` | No | `(rows: unknown)` | `sync_value` | `lib/feature-controls.js:loadPersistedFeatureControls`, `lib/feature-controls.js:checkPagerPushDeliveryInTx` | L759 |
+| `loadPersistedFeatureControls` | `function` | Yes | `(db: unknown, { requireTablePresent }: object)` | `async -> promise` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L792 |
+| `isCallerEligibleForStaffBeta` | `function` | Yes | `(accessCtx: unknown, viewpointMode: null_or_object)` | `sync_value` | `lib/feature-controls.js:evaluateFeatureControlsSnapshot` | L863 |
+| `combineStateSeverity` | `function` | No | `(stateA: unknown, stateB: unknown)` | `sync_value` | `lib/feature-controls.js:evaluateKey` | L877 |
+| `evaluateFeatureControlsSnapshot` | `function` | Yes | `({ persistedResult, accessCtx, viewpointMode, envOverrides }: object)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `lib/feature-controls.js:isPagerPushSubscriptionFeatureEnabled`, `lib/feature-controls.js:isPagerPushDeliveryFeatureAllowed`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1` | L884 |
+| `buildPublicFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1047 |
+| `buildAdminFeatureControlsPayload` | `function` | Yes | `(evaluated: unknown, historyRows: array, { actorLevel }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L1103 |
+| `requiresInterruptConfirmation` | `function` | Yes | `(spec: unknown, prevState: unknown, prevAudience: unknown, nextState: unknown, nextAudience: unknown)` | `sync_value` | `lib/feature-controls.js:updateFeatureControlInTx` | L1171 |
+| `updateFeatureControlInTx` | `function` | Yes | `(tx: unknown, { actorId, actorEmailMasked, actorRole, changeSource, featureKey, nextState, nextAudience, expectedRevision, reason, confirmedImpact }: object)` | `async -> promise` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7276_86` | L1182 |
+| `matchRouteFeatureRule` | `function` | Yes | `(pathname: unknown, method: unknown)` | `sync_value` | `lib/feature-controls.js:enforceHttpFeatureGate`, `server/app.js:createStandaloneServer$anon_L471_3` | L1379 |
+| `enforceHttpFeatureGate` | `function` | Yes | `({ dbAdapter, req, auth, pathname, method, requireTablePresent }: object)` | `async -> promise` | `server/app.js:createStandaloneServer$anon_L471_3` | L1390 |
+| `isPagerPushSubscriptionFeatureEnabled` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L1488 |
+| `isPagerPushDeliveryFeatureAllowed` | `function` | Yes | `(db: unknown)` | `async -> promise` | `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L1496 |
+| `checkPagerPushDeliveryInTx` | `function` | Yes | `(tx: unknown)` | `async -> promise` | `lib/pager-notifications.js:prepareClaimForDispatch$anon_L1164_8` | L1509 |
+
+### [lib/json-schema-lite.js](../../../lib/json-schema-lite.js) (`module`)
+- **Imports / Dependencies**: `node:fs`
+- **Exports**: `validateAgainstJsonSchema`, `validateJsonWithSchemaFile`
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `matchesPrimitiveType` | `function` | No | `(val: unknown, expectedType: unknown)` | `sync_value` | `lib/json-schema-lite.js:validateAgainstJsonSchema$anon_L94_3` | L8 |
+| `describeValueType` | `function` | No | `(val: unknown)` | `sync_value` | `lib/json-schema-lite.js:validateAgainstJsonSchema` | L29 |
+| `deepEqualJson` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `lib/json-schema-lite.js:validateAgainstJsonSchema`, `lib/json-schema-lite.js:validateAgainstJsonSchema$anon_L108_4` | L36 |
+| `resolveRef` | `function` | No | `(ref: unknown, rootSchema: unknown)` | `sync_value` | `lib/json-schema-lite.js:validateAgainstJsonSchema` | L40 |
+| `validateAgainstJsonSchema` | `function` | Yes | `(value: unknown, schema: unknown, { rootSchema, pointer }: object)` | `sync_value` | `lib/json-schema-lite.js:validateJsonWithSchemaFile` | L51 |
+| `validateJsonWithSchemaFile` | `function` | Yes | `(value: unknown, schemaPath: unknown)` | `sync_value` | `lib/style-guide-core.js:validateStyleGuideData` | L230 |
 
 ### [lib/map-config.js](../../../lib/map-config.js) (`module`)
 - **Imports / Dependencies**: `./env-compat.js`
@@ -346,12 +359,12 @@
 | `isSubscriptionsDisabled` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig` | L98 |
 | `isNotificationDeliveryDisabled` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/pager-notifications.js:getPushProviderConfig`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `lib/pager-notifications.js:processSingleClaimedDelivery`, `lib/pager-notifications.js:runNotificationWorkerBatch` | L109 |
 | `getPushProviderConfig` | `function` | Yes | `()` | `sync_value (throws: Error, thrown_value)` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `lib/pager-notifications.js:inspectNotificationRuntimeConfig`, `lib/pager-notifications.js:validateSubscriptionPayload` | L120 |
-| `inspectNotificationRuntimeConfig` | `function` | Yes | `()` | `sync_value` | `api/pager/telemetry.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2873_37` | L315 |
+| `inspectNotificationRuntimeConfig` | `function` | Yes | `()` | `sync_value` | `api/pager/telemetry.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2879_37` | L315 |
 | `extraAllowedPushHosts` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/pager-notifications.js:isAllowedWebPushHostname` | L371 |
 | `isAllowedWebPushHostname` | `function` | No | `(hostname: unknown)` | `sync_value` | `lib/pager-notifications.js:validateSubscriptionPayload` | L388 |
 | `validateSubscriptionPayload` | `function` | Yes | `(body: unknown)` | `sync_value (throws: thrown_value)` | `api/pager/subscriptions.js:default` | L406 |
 | `verifySameOriginMutation` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/subscriptions.js:default` | L506 |
-| `extractClientRateKey` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L629_6` | L540 |
+| `extractClientRateKey` | `function` | Yes | `(req: unknown)` | `sync_value` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L635_6` | L540 |
 | `consumePagerRateLimit` | `function` | Yes | `(db: unknown, { scope, subjectKey, maxHits, windowSeconds, now }: object)` | `async -> promise` | `api/pager/status.js:default`, `api/pager/subscriptions.js:default` | L545 |
 | `redactProviderError` | `function` | Yes | `(rawError: unknown)` | `sync_value` | `lib/pager-notifications.js:acknowledgeClaimedDelivery$anon_L1367_9` | L573 |
 | `buildPagerReadyEventSpec` | `function` | No | `(pager: unknown, seq: unknown)` | `sync_value` | `lib/pager-notifications.js:ensureReadyEventInTx` | L582 |
@@ -393,7 +406,7 @@
 | `isHostedEnvironment` | `function` | No | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:getAuthSecret`, `lib/standalone-auth.js:verifySameOriginMutationRequest` | L91 |
 | `getAuthSecret` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:deriveStagingMailboxKey`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge`, `server/index.js:validateStartupEnvironment` | L102 |
 | `inspectAuthDeliveryConfig` | `function` | Yes | `()` | `sync_value (throws: thrown_value)` | `lib/standalone-auth.js:getPublicAuthDeliveryModeSummary`, `lib/standalone-auth.js:dispatchInvitationEmail`, `lib/standalone-auth.js:dispatchSupportNotificationEmail`, `lib/standalone-auth.js:startEmailOtpChallenge` | L115 |
-| `getPublicAuthDeliveryModeSummary` | `function` | Yes | `()` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L4530_62`, `server/app.js:createStandaloneServer$anon_L471_3` | L248 |
+| `getPublicAuthDeliveryModeSummary` | `function` | Yes | `()` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L4536_62`, `server/app.js:createStandaloneServer$anon_L471_3` | L248 |
 | `parseAllowlistedDomains` | `function` | No | `()` | `sync_value` | `lib/standalone-auth.js:inspectAuthDeliveryConfig`, `lib/standalone-auth.js:hasConfiguredStagingAllowlist`, `lib/standalone-auth.js:isEmailAllowedInStagingMailbox`, `lib/standalone-auth.js:inspectAdminEmailReadiness` | L259 |
 | `parseAllowlistedEmails` | `function` | No | `()` | `sync_value` | `lib/standalone-auth.js:inspectAuthDeliveryConfig`, `lib/standalone-auth.js:hasConfiguredStagingAllowlist`, `lib/standalone-auth.js:isEmailAllowedInStagingMailbox`, `lib/standalone-auth.js:inspectAdminEmailReadiness` | L271 |
 | `hasConfiguredStagingAllowlist` | `function` | Yes | `()` | `sync_value` | `lib/standalone-auth.js:dispatchInvitationEmail`, `lib/standalone-auth.js:dispatchSupportNotificationEmail`, `lib/standalone-auth.js:startEmailOtpChallenge`, `lib/standalone-auth.js:verifyEmailOtpChallenge$anon_L2231_15` | L282 |
@@ -439,6 +452,67 @@
 | `inspectSenderDomainDns` | `function` | Yes | `(domain: unknown, resolverOverride: null_or_object)` | `async -> promise` | `lib/standalone-auth.js:inspectAdminEmailReadiness` | L2969 |
 | `inspectAdminEmailReadiness` | `function` | Yes | `(db: unknown, { dnsResolver }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest` | L3045 |
 
+### [lib/style-guide-admin.js](../../../lib/style-guide-admin.js) (`module`)
+- **Imports / Dependencies**: `./authz.js`, `./dates.js`, `./db-tx.js`, `./env-compat.js`, `./style-guide-core.js`, `node:crypto`, `node:fs`, `node:os`, `node:path`, `node:url`
+- **Exports**: `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `resolveGitHubPushConfig`, `loadCurrentWorkspaceSnapshot`, `handleAdminStyleGuideRoute`
+- **Significant Constants**: `MODULE_DIR`, `DEFAULT_RELEASE_ROOT`
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `sha256Hex` | `function` | No | `(text: unknown)` | `sync_value` | `api/pager/subscriptions.js:default`, `api/pager/subscriptions.js:default$anon_L120_2`, `lib/admin-governance.js:generateOpaqueToken`, `lib/admin-governance.js:verifyEvidenceBufferAndMime` | L39 |
+| `cloneJson` | `function` | No | `(val: unknown)` | `sync_value` | `lib/style-guide-admin.js:mergeBaselineWithOverrides`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L43 |
+| `isStaging2Runtime` | `function` | No | `()` | `sync_value` | `lib/style-guide-admin.js:resolveStyleGuideStorageDir`, `lib/style-guide-admin.js:resolveGitHubPushConfig` | L47 |
+| `resolveStyleGuideReleaseRoot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadBaselineDataAndSchema` | L58 |
+| `resolveStyleGuideStorageDir` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L67 |
+| `resolveGitHubPushConfig` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L100 |
+| `writeAtomicUtf8` | `function` | No | `(targetPath: unknown, text: unknown)` | `void_or_implicit (throws: thrown_value)` | `lib/style-guide-admin.js:materializeHostedFilesOnDisk`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L138 |
+| `loadBaselineDataAndSchema` | `function` | No | `()` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L166 |
+| `readWorkspaceState` | `function` | No | `(storageDir: unknown)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L182 |
+| `mergeBaselineWithOverrides` | `function` | No | `(baselineData: unknown, overridesById: object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L231 |
+| `materializeHostedFilesOnDisk` | `function` | No | `({ storageDir, releaseRoot, rendered }: object)` | `void_or_implicit` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L266 |
+| `getAllowedHostedFilenames` | `function` | No | `(data: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L302 |
+| `loadCurrentWorkspaceSnapshot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L315 |
+| `validateAllowedGitHubApiUrl` | `function` | No | `(apiUrl: unknown)` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L346 |
+| `githubApiJson` | `function` | No | `(baseUrl: unknown, endpointPath: unknown, token: unknown, { method, body }: object)` | `async -> promise` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L1001_13` | L368 |
+| `sanitizeGitHubErrMessage` | `function` | No | `(resObj: unknown, fallback: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L398 |
+| `handleAdminStyleGuideRoute` | `function` | Yes | `({ normPath, method, req, query, body, ctx, dbAdapter, sendJson }: object)` | `async -> promise (throws: Error)` | `server/admin-routes.js:handleGovernanceApiRequest` | L406 |
+
+### [lib/style-guide-core.js](../../../lib/style-guide-core.js) (`module`)
+- **Imports / Dependencies**: `./json-schema-lite.js`, `node:crypto`, `node:fs`, `node:path`
+- **Exports**: `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug`, `formatDecisionValueCell`, `formatExpectedAnswerSummary`, `validateValueAgainstExpectedSpec`, `validateStyleGuideData`, `computeCompletionStats`, `renderStyleGuideMarkdownFiles`, `loadStyleGuideDecisions`, `generateStyleGuideDocs`, `validateStyleGuideWorkspace`
+- **Significant Constants**: `STYLE_GUIDE_GENERATOR_VERSION` *(exported)*, `STYLE_GUIDE_SCHEMA_REL_PATH` *(exported)*, `STYLE_GUIDE_DECISIONS_REL_PATH` *(exported)*, `STYLE_GUIDE_DIR_REL_PATH` *(exported)*, `PLACEHOLDER_NORMALIZED_SET`, `ISO_DATE_OR_TIMESTAMP_RE`, `DECISION_REF_RE`
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `asciiCompare` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `lib/style-guide-core.js:computeCompletionStats$anon_L619_6`, `lib/style-guide-core.js:renderGroupedGapList$anon_L845_9`, `lib/style-guide-core.js:renderStyleGuideMarkdownFiles$anon_L1317_42` | L21 |
+| `sha256Text` | `function` | No | `(text: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L29 |
+| `normalizePlaceholderCandidate` | `function` | Yes | `(raw: unknown)` | `sync_value` | `lib/style-guide-core.js:isPlaceholderString` | L74 |
+| `isPlaceholderString` | `function` | Yes | `(val: unknown)` | `sync_value` | `lib/style-guide-core.js:containsPlaceholderOrBlankLeaf`, `lib/style-guide-core.js:containsPlaceholderOrBlankLeaf$anon_L101_2`, `lib/style-guide-core.js:validateValueAgainstExpectedSpec`, `lib/style-guide-core.js:validateStyleGuideData` | L82 |
+| `containsPlaceholderOrBlankLeaf` | `function` | Yes | `(val: unknown)` | `sync_value` | `lib/style-guide-core.js:validateValueAgainstExpectedSpec` | L89 |
+| `anchorSlug` | `function` | Yes | `(idOrText: unknown)` | `sync_value` | `lib/style-guide-core.js:renderGroupedGapList`, `lib/style-guide-core.js:renderCompletionReminderMarkdown$anon_L950_13`, `lib/style-guide-core.js:renderCompletionReminderMarkdown`, `lib/style-guide-core.js:renderComponentObservedCardLines` | L106 |
+| `escapeHtmlAnglesOutsideBackticks` | `function` | No | `(raw: unknown)` | `sync_value` | `lib/style-guide-core.js:escapeMdCell`, `lib/style-guide-core.js:renderComponentObservedCardLines`, `lib/style-guide-core.js:renderTopicMarkdown`, `lib/style-guide-core.js:renderTopicMarkdown$anon_L1258_39` | L114 |
+| `escapeMdCell` | `function` | No | `(raw: unknown)` | `sync_value` | `lib/style-guide-core.js:formatDecisionValueCell`, `lib/style-guide-core.js:formatExpectedAnswerSummary$anon_L145_4`, `lib/style-guide-core.js:formatExpectedAnswerSummary`, `lib/style-guide-core.js:renderReadmeMarkdown` | L123 |
+| `formatDecisionValueCell` | `function` | Yes | `(value: unknown)` | `sync_value` | `lib/style-guide-core.js:renderGroupedGapList`, `lib/style-guide-core.js:renderDecisionTableLines` | L129 |
+| `formatExpectedAnswerSummary` | `function` | Yes | `(expected: unknown)` | `sync_value` | `lib/style-guide-core.js:renderDecisionTableLines` | L141 |
+| `extractRepoPathFromLinkTarget` | `function` | No | `(rawLink: unknown)` | `sync_value` | `lib/style-guide-core.js:validateStyleGuideData` | L159 |
+| `loadFeatureControlKeysIfPresent` | `function` | No | `(repoRoot: unknown)` | `sync_value` | `lib/style-guide-core.js:validateStyleGuideData` | L164 |
+| `validateValueAgainstExpectedSpec` | `function` | Yes | `(value: unknown, expected: unknown, decisionId: unknown)` | `sync_value` | `lib/style-guide-core.js:validateStyleGuideData` | L176 |
+| `validateStyleGuideData` | `function` | Yes | `(data: unknown, { repoRoot, schemaPath }: object)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-core.js:generateStyleGuideDocs`, `lib/style-guide-core.js:validateStyleGuideWorkspace` | L274 |
+| `computeCompletionStats` | `function` | Yes | `(data: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L618 |
+| `toStyleGuideRelLink` | `function` | No | `(repoRelativeTarget: unknown)` | `sync_value` | `lib/style-guide-core.js:renderReadmeMarkdown$anon_L768_8`, `lib/style-guide-core.js:renderComponentObservedCardLines$anon_L1114_21`, `lib/style-guide-core.js:renderTopicMarkdown$anon_L1258_39$anon_L1261_40` | L707 |
+| `renderGeneratedBanner` | `function` | No | `(decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderReadmeMarkdown`, `lib/style-guide-core.js:renderCompletionReminderMarkdown`, `lib/style-guide-core.js:renderUiInventoryMarkdown`, `lib/style-guide-core.js:renderTopicMarkdown` | L719 |
+| `renderReadmeMarkdown` | `function` | No | `(data: unknown, stats: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L729 |
+| `renderGroupedGapList` | `function` | No | `(items: unknown, topicsBySlug: unknown, componentsById: unknown, { showDraftValue, showApplicabilityNote }: object)` | `sync_value` | `lib/style-guide-core.js:renderCompletionReminderMarkdown` | L837 |
+| `renderCompletionReminderMarkdown` | `function` | No | `(data: unknown, stats: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L893 |
+| `renderComponentObservedCardLines` | `function` | No | `(cmp: unknown, topicsBySlug: unknown, { includeQuestionnaireLink }: object)` | `sync_value` | `lib/style-guide-core.js:renderUiInventoryMarkdown`, `lib/style-guide-core.js:renderTopicMarkdown` | L1085 |
+| `renderUiInventoryMarkdown` | `function` | No | `(data: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L1121 |
+| `renderDecisionTableLines` | `function` | No | `(decisions: unknown, allDecisionsMap: unknown, topicsBySlug: unknown)` | `sync_value` | `lib/style-guide-core.js:renderTopicMarkdown` | L1180 |
+| `renderTopicMarkdown` | `function` | No | `(topic: unknown, data: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L1228 |
+| `renderStyleGuideMarkdownFiles` | `function` | Yes | `(data: unknown, rawJsonText: null_or_object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-core.js:generateStyleGuideDocs`, `lib/style-guide-core.js:validateStyleGuideWorkspace` | L1297 |
+| `loadStyleGuideDecisions` | `function` | Yes | `(repoRoot: unknown, customDecisionsPath: null_or_object)` | `sync_value` | `lib/style-guide-core.js:generateStyleGuideDocs` | L1333 |
+| `generateStyleGuideDocs` | `function` | Yes | `(repoRoot: unknown, { customDecisionsPath }: object)` | `sync_value (throws: thrown_value)` | — | L1342 |
+| `validateStyleGuideWorkspace` | `function` | Yes | `(repoRoot: unknown, { customDecisionsPath }: object)` | `sync_value` | — | L1372 |
+
 ### [lib/support-tickets.js](../../../lib/support-tickets.js) (`module`)
 - **Imports / Dependencies**: `./admin-governance.js`, `./diagnostics.js`
 - **Exports**: `VENDOR_SUPPORT_CATEGORIES`, `CATEGORY_LABELS`, `VALID_DB_CATEGORIES`, `CATEGORY_ALIASES`, `REPORTER_URGENCY_LABELS`, `VALID_REPORTER_URGENCIES`, `STAFF_PRIORITY_LABELS`, `VALID_STAFF_PRIORITIES`, `SUPPORT_STATUS_LABELS`, `VALID_SUPPORT_STATUSES`, `normalizeSupportStatusInput`, `normalizeSupportCategoryInput`, `resolveInitialUrgencyAndPriority`, `buildAutoSubjectFromDescription`, `sanitizeCoarseDeviceContext`, `sanitizeSupportContextFields`, `formatPublicTeamAuthorLabel`, `validateStaffStatusTransition`, `evaluateAssignmentMutation`, `serializeSupportTicketForReporter`, `autoSuggestDiagnosticLinksInTx`
@@ -447,16 +521,16 @@
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
 | `normalizeSupportStatusInput` | `function` | Yes | `(raw: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L92 |
-| `normalizeSupportCategoryInput` | `function` | Yes | `(rawCat: unknown, entryKind: string, affectedFeature: null_or_object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70` | L101 |
+| `normalizeSupportCategoryInput` | `function` | Yes | `(rawCat: unknown, entryKind: string, affectedFeature: null_or_object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5486_70` | L101 |
 | `resolveInitialUrgencyAndPriority` | `function` | Yes | `({ rawUrgency, rawSeverity, entryKind, category }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L117 |
 | `buildAutoSubjectFromDescription` | `function` | Yes | `(entryKind: unknown, category: unknown, description: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L147 |
 | `sanitizeCoarseDeviceContext` | `function` | Yes | `(rawInput: unknown)` | `sync_value` | `lib/support-tickets.js:sanitizeSupportContextFields` | L168 |
 | `sanitizeSupportContextFields` | `function` | Yes | `(body: object, serverReleaseSha: string)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest` | L177 |
-| `formatPublicTeamAuthorLabel` | `function` | Yes | `(role: unknown, reporterContext: string)` | `sync_value` | `lib/support-tickets.js:serializeSupportTicketForReporter$anon_L337_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6326_77`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7957_98` | L221 |
-| `validateStaffStatusTransition` | `function` | Yes | `(fromStatus: unknown, toStatus: unknown, actorRole: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L230 |
-| `evaluateAssignmentMutation` | `function` | Yes | `({ curIssue, currentAssigneeRole, currentAssigneeInactive, nextAssigneeProvided, nextAssigneeId, targetAssigneeRecord, actorUserId, actorRole, nextStatus, escalateToTop, reasonText }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5924_76` | L246 |
-| `serializeSupportTicketForReporter` | `function` | Yes | `(row: unknown, { notes, events, publicDiagnostics, viewerUserId }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2090_25$anon_L2204_29`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2703_35` | L324 |
-| `autoSuggestDiagnosticLinksInTx` | `function` | Yes | `(tx: unknown, { issueId, errorCorrelationId }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2288_32` | L417 |
+| `formatPublicTeamAuthorLabel` | `function` | Yes | `(role: unknown, reporterContext: string)` | `sync_value` | `lib/support-tickets.js:serializeSupportTicketForReporter$anon_L337_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5930_76`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L6332_77`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L7963_98` | L221 |
+| `validateStaffStatusTransition` | `function` | Yes | `(fromStatus: unknown, toStatus: unknown, actorRole: unknown)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5930_76` | L230 |
+| `evaluateAssignmentMutation` | `function` | Yes | `({ curIssue, currentAssigneeRole, currentAssigneeInactive, nextAssigneeProvided, nextAssigneeId, targetAssigneeRecord, actorUserId, actorRole, nextStatus, escalateToTop, reasonText }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L5930_76` | L246 |
+| `serializeSupportTicketForReporter` | `function` | Yes | `(row: unknown, { notes, events, publicDiagnostics, viewerUserId }: object)` | `sync_value` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2096_25$anon_L2210_29`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2294_32`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L2709_35` | L324 |
+| `autoSuggestDiagnosticLinksInTx` | `function` | Yes | `(tx: unknown, { issueId, errorCorrelationId }: object)` | `async -> promise` | `server/admin-routes.js:handleGovernanceApiRequest$anon_L2294_32` | L417 |
 
 ### [lib/webpush-crypto.js](../../../lib/webpush-crypto.js) (`module`)
 - **Imports / Dependencies**: `node:crypto`
@@ -756,8 +830,15 @@
 
 ## 4. Browser Frontend Scripts (`public/`)
 
+### [public/admin-style-guide.js](../../../public/admin-style-guide.js) (`script`)
+- **Explicit Window / Reassigned Globals**: `bitesharkAdminStyleGuide` (explicit_window_property @ L2341)
+
+| Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
+|---|---|---|---|---|---|---:|
+| `<top_level>$anon_L13_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L13 |
+
 ### [public/admin.js](../../../public/admin.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `location.href` (explicit_window_property @ L193), `location.href` (explicit_window_property @ L198), `location.href` (explicit_window_property @ L226), `location.href` (explicit_window_property @ L231), `location.href` (explicit_window_property @ L329), `location.href` (explicit_window_property @ L344), `location.href` (explicit_window_property @ L4680), `location.href` (explicit_window_property @ L4756), `location.href` (explicit_window_property @ L4778), `location.href` (explicit_window_property @ L4791), `location.hash` (explicit_window_property @ L4845)
+- **Explicit Window / Reassigned Globals**: `location.href` (explicit_window_property @ L193), `location.href` (explicit_window_property @ L198), `location.href` (explicit_window_property @ L226), `location.href` (explicit_window_property @ L231), `location.href` (explicit_window_property @ L329), `location.href` (explicit_window_property @ L344), `location.href` (explicit_window_property @ L4683), `location.href` (explicit_window_property @ L4759), `location.href` (explicit_window_property @ L4781), `location.href` (explicit_window_property @ L4794), `location.hash` (explicit_window_property @ L4848), `bitesharkAdminPortal` (explicit_window_property @ L4921)
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
@@ -782,7 +863,7 @@
 | `setInlineStatus` | `function` | No | `(elId: unknown, tone: unknown, text: unknown)` | `void_or_implicit` | `public/app.js:updateOwnerLocation`, `public/app.js:toggleOwnerOpenStatus`, `public/app.js:saveOwnerSchedule`, `public/app.js:reader.onload` | L226 |
 | `openAppModal` | `function` | No | `(modalId: unknown, opts: object)` | `void_or_implicit` | `public/app.js:extraDetail`, `public/app.js:openDetail`, `public/app.js:openDistance`, `public/app.js:openAreaPicker` | L239 |
 | `closeAppModal` | `function` | No | `(modalId: unknown)` | `void_or_implicit` | `public/app.js:closeModal`, `public/app.js:closeDistanceModal`, `public/app.js:closeAreaModal`, `public/app.js:closeBooking` | L249 |
-| `esc` | `function` | No | `(value: unknown)` | `sync_value` | `public/admin.js:fmtUtcAndLocalHtml`, `public/admin.js:statusPill`, `public/admin.js:loadVendorSelectorCatalog$anon_L304_4`, `public/admin.js:loadApplications$anon_L527_8` | L259 |
+| `esc` | `function` | No | `(value: unknown)` | `sync_value` | `public/admin.js:fmtUtcAndLocalHtml`, `public/admin.js:statusPill`, `public/admin.js:loadVendorSelectorCatalog$anon_L304_4`, `public/admin.js:loadApplications$anon_L530_8` | L259 |
 | `<top_level>$anon_L283_10` | `anonymous_function` | No | `()` | `sync_value` | — | L283 |
 | `formatUTCDateISO` | `function` | No | `(dt: unknown)` | `sync_value` | `public/app.js:addDaysISO`, `public/app.js:toCalendarDateISO` | L290 |
 | `addDaysISO` | `function` | No | `(isoDate: unknown, days: unknown)` | `sync_value` | `public/app.js:defaultEventDate`, `public/app.js:openBooking`, `public/app.js:futureDateISO` | L300 |
@@ -844,7 +925,7 @@
 | `extraDetail` | `function` | No | `(t: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:openDetail` | L1551 |
 | `selectTruck` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/app.js:openMapCluster$anon_L1325_32$anon_L1329_33`, `public/app.js:renderMapCards$anon_L1350_37$anon_L1366_40`, `public/app.js:openTruck` | L1565 |
 | `openDetail` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:openMapCluster$anon_L1325_32$anon_L1329_33`, `public/app.js:renderMapCards$anon_L1350_37$anon_L1366_40`, `public/app.js:openTruck`, `public/app.js:surpriseMe` | L1579 |
-| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/community.js:communityReviewPlace` | L1606 |
+| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/admin-style-guide.js:closeModal`, `public/admin-style-guide.js:docCloseBtn.onclick`, `public/admin-style-guide.js:pushCancelBtn.onclick`, `public/community.js:communityReviewPlace` | L1606 |
 | `initialsFromUser` | `function` | No | `(user: unknown)` | `sync_value` | `public/app.js:updateAuthUI` | L1610 |
 | `updateAuthUI` | `function` | No | `()` | `void_or_implicit` | `public/app.js:init`, `public/app.js:syncAuthAndUserData`, `public/app.js:applyConfirmedClientSignOutCleanup`, `public/app.js:toggleFav` | L1622 |
 | `syncAuthAndUserData` | `function` | No | `()` | `async -> promise` | `public/app.js:init`, `public/app.js:onRetry`, `scripts/dev-workbench/debug-admin.js:setRole` | L1656 |
@@ -1069,7 +1150,7 @@
 | `parseEnvFile` | `function` | No | `(filePath: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L16 |
 | `readCliEnvCompat` | `function` | No | `(suffix: unknown, fileEnv: object)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:requirePg`, `scripts/run-migrations.cjs:requirePg`, `scripts/run-migrations.cjs:parseArgs`, `scripts/run-pager-worker.cjs:parseArgs` | L35 |
 | `requirePg` | `function` | No | `(fileEnv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/run-migrations.cjs:<top_level>$anon_L60_1` | L44 |
-| `normalizeEmailStrict` | `function` | No | `(raw: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4613_65` | L56 |
+| `normalizeEmailStrict` | `function` | No | `(raw: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L943_11`, `server/admin-routes.js:handleGovernanceApiRequest`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4619_65` | L56 |
 | `parseArgs` | `function` | No | `(argv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/build-linux-release-tarball.cjs:<top_level>`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L64 |
 | `main` | `function` | No | `()` | `async -> promise (throws: Error, thrown_value)` | `scripts/bootstrap-top-admin.cjs:<top_level>`, `scripts/operator-read-my-otp.cjs:<top_level>`, `server/index.js:<top_level>` | L91 |
 
@@ -1119,7 +1200,7 @@
 |---|---|---|---|---|---|---:|
 | `parseEnvFile` | `function` | No | `(filePath: unknown)` | `sync_value` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L19 |
 | `requirePg` | `function` | No | `(fileEnv: object)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/run-migrations.cjs:<top_level>$anon_L60_1` | L38 |
-| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L937_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4150_50$anon_L4221_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5480_70$anon_L5495_71` | L53 |
+| `maskEmail` | `function` | No | `(email: unknown)` | `sync_value` | `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L943_11`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L4156_50$anon_L4227_51`, `server/admin-routes.js:handleGovernanceApiRequest$anon_L5486_70$anon_L5501_71` | L53 |
 | `parseArgs` | `function` | No | `(argv: unknown)` | `sync_value (throws: Error)` | `scripts/bootstrap-top-admin.cjs:main`, `scripts/build-linux-release-tarball.cjs:<top_level>`, `scripts/manage-feature-controls.cjs:<top_level>$anon_L98_1`, `scripts/operator-read-my-otp.cjs:main` | L59 |
 | `<top_level>$anon_L98_1` | `anonymous_function` | No | `()` | `async -> promise (throws: Error, thrown_value)` | — | L98 |
 

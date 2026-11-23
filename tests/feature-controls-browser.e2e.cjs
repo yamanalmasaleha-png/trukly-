@@ -483,8 +483,8 @@ class CdpClient {
         ),
       { label: 'Mod read-only Feature Controls loaded' }
     );
-    assert.equal(modFeaturesCheck.cardCount, 14);
-    assert.equal(modFeaturesCheck.switchableCount, 12);
+    assert.equal(modFeaturesCheck.cardCount, 15);
+    assert.equal(modFeaturesCheck.switchableCount, 13);
     assert.equal(modFeaturesCheck.allSelectsDisabled, true);
     assert.equal(modFeaturesCheck.allButtonsDisabled, true);
     assert.equal(modFeaturesCheck.protectedCount, 6);

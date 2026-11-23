@@ -14,7 +14,7 @@
     "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/trucks/search"
   ],
   "branch_at_generation": "antigravity/staging2-latest",
-  "deterministic_digest_sha256": "d5d531c4e6eece077eb70dfd8dc668543c0796cf7cd5754439d04354aa5b2629",
+  "deterministic_digest_sha256": "71028c56db6911b3ff0fdffe477c8ac0372ca070046008e90e1705f262975913",
   "high_confidence_blocking_categories": [
     "DUPLICATE_HTML_ID",
     "UNRESOLVED_INLINE_HANDLER",

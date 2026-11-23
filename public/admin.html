@@ -10,6 +10,7 @@
   <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/admin.css">
+  <link rel="stylesheet" href="/admin-style-guide.css">
 </head>
 <body>
   <div class="admin-shell" id="adminShell">
@@ -95,6 +96,11 @@
           <span class="nav-icon" aria-hidden="true">🎛️</span>
           <span class="nav-label">Feature Controls</span>
           <span class="nav-badge nav-badge-warn" id="badgeFeatures" hidden>0</span>
+        </button>
+        <button type="button" class="admin-nav-item" data-section="style-guide" id="navStyleGuideBtn">
+          <span class="nav-icon" aria-hidden="true">🎨</span>
+          <span class="nav-label">Style Guide</span>
+          <span class="nav-badge" id="badgeStyleGuide" hidden>0</span>
         </button>
         <button type="button" class="admin-nav-item" data-section="audit">
           <span class="nav-icon" aria-hidden="true">📜</span>
@@ -900,6 +906,44 @@
             <div class="state-box">Loading runtime health…</div>
           </div>
         </section>
+
+        <!-- 9. DESIGN STYLE GUIDE QUESTIONNAIRE & REPO SYNC -->
+        <section class="admin-section" id="sec-style-guide" aria-labelledby="heading-style-guide" hidden>
+          <div class="sec-head">
+            <div>
+              <span class="sec-kicker">15 CATEGORIES · 29 UI ELEMENTS · TRACKED COMPLETION &amp; REPO SYNC</span>
+              <h1 id="heading-style-guide">Design Style Guide Questionnaire</h1>
+              <p>Fill in BiteShark's design parameters using type-matched controls across every category and UI element. Saved answers immediately populate the hosted Style Guide Markdown sections; notes are optional on every item.</p>
+            </div>
+            <button type="button" class="admin-btn admin-btn-secondary" id="refreshStyleGuideBtn">↻ Refresh</button>
+          </div>
+
+          <div id="sgWorkspaceLoading" class="state-box">Loading Style Guide categories, UI elements, and completion status…</div>
+          <div id="sgWorkspaceError" class="state-box state-error" hidden></div>
+
+          <div id="sgWorkspaceBody" hidden>
+            <div id="sgProgressSummaryCard" class="sg-progress-card"></div>
+
+            <div class="sg-layout">
+              <aside class="sg-cat-rail" aria-label="Style guide categories">
+                <div class="sg-cat-rail-title">Categories (15)</div>
+                <div id="sgCategoryRailList"></div>
+              </aside>
+
+              <div class="sg-main-col" id="sgMainColumn"></div>
+            </div>
+
+            <div class="sg-sticky-savebar" id="sgStickySaveBar" hidden role="region" aria-label="Unsaved style guide changes">
+              <strong id="sgDirtyCountLabel">Unsaved changes</strong>
+              <div style="display:flex;gap:8px">
+                <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgDiscardAllDirtyBtn">Discard Unsaved</button>
+                <button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="sgSaveAllDirtyBtn">💾 Save &amp; Populate Hosted Style Guide</button>
+              </div>
+            </div>
+          </div>
+
+          <datalist id="sgDecisionRefDatalist"></datalist>
+        </section>
       </main>
     </div>
   </div>
@@ -974,8 +1018,78 @@
     </div>
   </div>
 
+  <!-- Hosted Style Guide Live Section Viewer Modal -->
+  <div class="admin-modal-backdrop" id="sgHostedDocModal" hidden>
+    <div class="admin-modal sg-doc-modal-wide" role="dialog" aria-modal="true" aria-labelledby="sgHostedDocTitle">
+      <span class="sec-kicker">LIVE POPULATED HOSTED REPO STYLE GUIDE</span>
+      <h2 id="sgHostedDocTitle">Hosted Style Guide Section</h2>
+      <div style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
+        <label style="font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px">Section File:
+          <select id="sgHostedDocSelect" style="padding:6px 10px;border-radius:7px;border:1px solid var(--border)"></select>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgHostedDocModeBtn">View Raw Markdown</button>
+          <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgHostedDocDownloadBtn">⬇ Download File</button>
+        </div>
+      </div>
+      <div id="sgHostedDocMeta" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+      <div id="sgHostedDocBody" class="sg-doc-preview"></div>
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="sgHostedDocCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Push Style Guide Answers to GitHub Repository Modal (Admin: Top) -->
+  <div class="admin-modal-backdrop" id="sgPushRepoModal" hidden>
+    <form class="admin-modal" id="sgPushRepoForm" role="dialog" aria-modal="true" aria-labelledby="sgPushRepoTitle">
+      <span class="sec-kicker">GITHUB REPOSITORY SYNC · ADMIN: TOP ONLY</span>
+      <h2 id="sgPushRepoTitle">Push Style Guide Answers to Repository</h2>
+      <div id="sgPushSummaryCallout" class="conflict-callout" style="margin:4px 0 8px;font-size:12.5px"></div>
+
+      <label>Target Git Branch
+        <select id="sgPushBranchSelect"></select>
+      </label>
+
+      <div id="sgPushCustomBranchWrap" hidden>
+        <label>New Branch Name (created from current host default branch)
+          <input type="text" id="sgPushCustomBranchInput" placeholder="e.g. docs/style-guide-team-answers">
+        </label>
+      </div>
+
+      <label>Commit Message
+        <input type="text" id="sgPushCommitMessage" required minlength="5" maxlength="240">
+      </label>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label>Git Author Name
+          <input type="text" id="sgPushAuthorName" value="Matt Callaway" required>
+        </label>
+        <label>Git Author Email
+          <input type="email" id="sgPushAuthorEmail" value="mattcallawaysemail@gmail.com" required>
+        </label>
+      </div>
+
+      <p id="sgPushTokenStatusNote" style="font-size:12px;color:var(--muted);margin:6px 0"></p>
+      <div id="sgPushTokenInputWrap">
+        <label>One-Time GitHub Personal Access Token (never stored on server)
+          <input type="password" id="sgPushTokenInput" autocomplete="off" placeholder="github_pat_... or ghp_... (Contents: Read &amp; Write)">
+        </label>
+      </div>
+
+      <p id="sgPushModalError" class="form-err" role="alert" hidden></p>
+      <div id="sgPushModalSuccess" class="state-box" style="background:#dcfce7;border-color:var(--ok);color:var(--ok)" hidden></div>
+
+      <div class="modal-actions">
+        <button type="button" class="admin-btn admin-btn-secondary" id="sgPushCancelBtn">Close</button>
+        <button type="submit" class="admin-btn admin-btn-primary" id="sgPushSubmitBtn">🚀 Commit &amp; Push Style Guide to Repo</button>
+      </div>
+    </form>
+  </div>
+
   <script src="/diagnostics-client.js"></script>
   <script src="/auth-client.js"></script>
   <script src="/admin.js"></script>
+  <script src="/admin-style-guide.js"></script>
 </body>
 </html>

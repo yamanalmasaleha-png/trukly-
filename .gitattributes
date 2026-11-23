@@ -31,7 +31,7 @@ scripts/dev-server.cjs export-ignore
 scripts/dev-workbench export-ignore
 tests export-ignore
 tools export-ignore
-docs/engineering export-ignore
+docs/engineering/generated export-ignore
 
 # Historical platform/source artifacts are not deployable application inputs.
 docs/archive export-ignore
