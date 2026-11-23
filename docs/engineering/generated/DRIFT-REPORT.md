@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `antigravity/staging2-latest`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `69fc0bbf922905857378081cafac59ede392586f11d323da529e9c7d508e377b`
+> - **Deterministic Source Digest**: `e3d3029e2f5906f2fa84ef3f5673aa0c706daddd7e20aef369c6f823ed86cff4`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 - **Active Findings**: **12**

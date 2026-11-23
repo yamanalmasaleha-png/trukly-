@@ -8,13 +8,13 @@
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 15,
-    "functions_and_methods": 2553,
-    "html_element_ids": 526,
+    "functions_and_methods": 2585,
+    "html_element_ids": 545,
     "html_files_scanned": 12,
     "http_routes": 91,
     "js_files_scanned": 121,
     "js_parse_failures": 0,
-    "significant_constants": 589,
+    "significant_constants": 590,
     "sql_migrations": 26,
     "sql_rls_policies": 49,
     "sql_tables": 47,
@@ -351,7 +351,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "69fc0bbf922905857378081cafac59ede392586f11d323da529e9c7d508e377b",
+  "deterministic_digest_sha256": "e3d3029e2f5906f2fa84ef3f5673aa0c706daddd7e20aef369c6f823ed86cff4",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -1237,14 +1237,18 @@
       "exported_symbols": [
         "resolveStyleGuideReleaseRoot",
         "resolveStyleGuideStorageDir",
+        "inspectPersistenceHealth",
         "resolveGitHubPushConfig",
+        "hasSavedDecisionContent",
+        "summarizeDecisionValuePreview",
+        "computeStyleGuideChangeReport",
         "loadCurrentWorkspaceSnapshot",
         "handleAdminStyleGuideRoute"
       ],
       "file": "lib/style-guide-admin.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 22
+      "symbol_count": 30
     },
     {
       "exported_symbols": [
@@ -1338,7 +1342,7 @@
         "bitesharkAdminStyleGuide"
       ],
       "source_type": "script",
-      "symbol_count": 131
+      "symbol_count": 150
     },
     {
       "exported_symbols": [],
@@ -2377,7 +2381,7 @@
       "file": "tests/style-guide-admin-browser.e2e.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 29
+      "symbol_count": 34
     },
     {
       "exported_symbols": [],

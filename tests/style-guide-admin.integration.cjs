@@ -486,8 +486,55 @@ async function startMockGitHubApiServer(expectedToken) {
       fs.existsSync(path.join(sgStorageDir, 'hosted/docs/engineering/style-guide/foundations.md')),
       'Expected foundations.md materialized in hosted storage directory'
     );
+    assert.equal(topSave.json.persistence.writable, true);
 
-    // 6. Push Style Guide answers to Mock GitHub Repository via Git Data API
+    // 5b. Overwrite Recognition & Confirm/Deny Guard:
+    // Modifying already-saved `DEC-FND-THEME-POLICY` without `confirm_overwrite` MUST return 409 OVERWRITE_CONFIRMATION_REQUIRED!
+    const unconfirmedOverwrite = await topClient.req('POST', '/api/admin/style-guide/save', {
+      expected_revision: topSave.json.revision,
+      updates: [
+        {
+          decision_id: 'DEC-FND-THEME-POLICY',
+          status: 'approved',
+          applicability: 'applicable',
+          value: 'system_prefers_color_scheme',
+          approved_by: 'Matt Callaway',
+          approved_at: '2026-11-23'
+        }
+      ]
+    });
+    assert.equal(unconfirmedOverwrite.status, 409);
+    assert.equal(unconfirmedOverwrite.json.code, 'OVERWRITE_CONFIRMATION_REQUIRED');
+    assert.equal(unconfirmedOverwrite.json.requires_confirmation, true);
+    assert.equal(unconfirmedOverwrite.json.save_diff.counts.rewritten_count, 1);
+    assert.equal(unconfirmedOverwrite.json.save_diff.overwritten_items[0].previous_preview, 'light_only');
+
+    // Confirming overwrite (`confirm_overwrite: true`) saves cleanly & archives a rolling history snapshot!
+    const confirmedOverwrite = await topClient.req('POST', '/api/admin/style-guide/save', {
+      expected_revision: topSave.json.revision,
+      confirm_overwrite: true,
+      updates: [
+        {
+          decision_id: 'DEC-FND-THEME-POLICY',
+          status: 'approved',
+          applicability: 'applicable',
+          value: 'system_prefers_color_scheme',
+          approved_by: 'Matt Callaway',
+          approved_at: '2026-11-23'
+        }
+      ]
+    });
+    assert.equal(confirmedOverwrite.status, 200, JSON.stringify(confirmedOverwrite.json));
+    assert.equal(confirmedOverwrite.json.save_diff.counts.rewritten_count, 1);
+    assert.ok(
+      confirmedOverwrite.json.persistence.history_snapshots_count >= 1,
+      'Expected rolling history snapshot before overwrite'
+    );
+    assert.equal(confirmedOverwrite.json.repo_diff.counts.newly_written_count, 5);
+    assert.equal(confirmedOverwrite.json.repo_diff.questions.done, 4);
+    assert.equal(confirmedOverwrite.json.repo_diff.questions.left_unanswered, 773 - 5); // 4 done + 1 draft = 5 filled
+
+    // 6. Push Style Guide answers to Mock GitHub Repository via Git Data API & verify rich upload_report feedback
     const pushRes = await topClient.req('POST', '/api/admin/style-guide/push', {
       branch: 'working/biteshark-vps',
       commit_message: 'docs(style-guide): record Foundations & Dialog decisions',
@@ -497,6 +544,11 @@ async function startMockGitHubApiServer(expectedToken) {
     });
     assert.equal(pushRes.status, 200, JSON.stringify(pushRes.json));
     assert.equal(pushRes.json.files_committed_count, 19);
+    assert.ok(pushRes.json.files_changed_count >= 3, 'Expected modified .json + .md files counted');
+    assert.equal(pushRes.json.upload_report.counts.newly_written_count, 5);
+    assert.equal(pushRes.json.upload_report.questions.done, 4);
+    assert.equal(pushRes.json.upload_report.questions.draft, 1);
+    assert.equal(pushRes.json.upload_report.questions.left_unanswered, 768);
     assert.equal(pushRes.json.commit_sha, 'abcdef0123456789abcdef0123456789abcdef01');
     assert.equal(pushRes.json.has_unpushed_changes, false);
 
@@ -540,6 +592,7 @@ async function startMockGitHubApiServer(expectedToken) {
     assert.equal(readWhilePaused.status, 200, 'Hosted Style Guide sections remain readable while paused');
 
     const saveWhilePaused = await topClient.req('POST', '/api/admin/style-guide/save', {
+      confirm_overwrite: true,
       updates: [{ decision_id: 'DEC-TYP-DISPLAY-FAMILY', status: 'draft', value: 'DM Sans, sans-serif' }]
     });
     assert.equal(saveWhilePaused.status, 503, 'Saves must return 503 FEATURE_PAUSED while paused');

@@ -1,5 +1,5 @@
-/* BiteShark Admin Portal — Design Style Guide Questionnaire, Completion Tracker,
- * Live Hosted Markdown Section Preview & GitHub Push (`public/admin-style-guide.js`)
+/* BiteShark Admin Portal — Design Style Guide Questionnaire, Persistent Overwrite Guard,
+ * Live Hosted Markdown Section Preview & Branch-Aware GitHub Uploader (`public/admin-style-guide.js`)
  *
  * Strictly enforces:
  *   - 5-entity HTML escaping (`&`, `<`, `>`, `"`, `'`) on all interpolated strings.
@@ -8,7 +8,8 @@
  *     `token_map` key-value + color swatch table, `structured_spec` multi-aspect or concise-rule builder,
  *     and `ref:DEC-...` upstream decision reference picker).
  *   - Optional notes on every decision (`notes`, never required).
- *   - Live sync with hosted repo Style Guide Markdown sections + Top-Admin GitHub push.
+ *   - Real-time change recognition (New vs Overwrite of saved values) + Confirm / Deny Overwrite modal.
+ *   - Persistent host storage telemetry + respective Git branch upload with written/rewritten/left feedback.
  */
 (function () {
   'use strict';
@@ -49,7 +50,8 @@
     if (!res.ok) {
       var err = new Error((json && json.error) || 'Request failed (' + res.status + ')');
       err.status = res.status;
-      err.payload = json;
+      err.code = (json && json.code) || null;
+      err.payload = json || {};
       throw err;
     }
     return json;
@@ -89,6 +91,10 @@
     pushing: false,
     revision: 1,
     hasUnpushedChanges: false,
+    persistence: null,
+    repoDiff: null,
+    activeUploadReport: null,
+    pendingOverwriteCtx: null,
     permissions: {
       can_save_draft_and_notes: true,
       can_approve: false,
@@ -120,6 +126,75 @@
       digest: ''
     }
   };
+
+  function hasSavedDecisionContentClient(dec) {
+    if (!dec) return false;
+    if (dec.status && dec.status !== 'unanswered') return true;
+    if (dec.value !== null && dec.value !== undefined) return true;
+    if (dec.not_applicable_reason && String(dec.not_applicable_reason).trim().length > 0) return true;
+    if (dec.notes && String(dec.notes).trim().length > 0) return true;
+    return false;
+  }
+
+  function formatDecisionPreviewClient(dec) {
+    if (!dec) return 'Unanswered (blank)';
+    if (dec.status === 'not_applicable') {
+      return 'N/A (' + String(dec.not_applicable_reason || '').slice(0, 80) + ')';
+    }
+    var v = dec.value;
+    if (v === null || v === undefined) {
+      if (dec.notes && String(dec.notes).trim()) {
+        return 'Unanswered [Note: ' + String(dec.notes).trim().slice(0, 65) + ']';
+      }
+      return 'Unanswered (blank)';
+    }
+    if (typeof v === 'boolean' || typeof v === 'number') return String(v);
+    if (typeof v === 'string') return v.length > 90 ? v.slice(0, 87) + '…' : v;
+    if (Array.isArray(v)) {
+      return '[' + v.length + ' item(s): ' + v.join(', ').slice(0, 75) + ']';
+    }
+    if (typeof v === 'object') {
+      var entries = Object.entries(v);
+      var pairs = entries
+        .slice(0, 3)
+        .map(function (kv) {
+          return kv[0] + ': ' + (typeof kv[1] === 'string' ? kv[1] : JSON.stringify(kv[1]));
+        })
+        .join('; ');
+      return '{' + entries.length + ' field(s): ' + pairs.slice(0, 80) + '}';
+    }
+    return String(v);
+  }
+
+  function classifyDirtyEditAgainstSaved(origDec, draftDec) {
+    if (!origDec || !draftDec) return 'none';
+    var sameCore =
+      (origDec.status || 'unanswered') === (draftDec.status || 'unanswered') &&
+      (origDec.applicability || 'applicable') === (draftDec.applicability || 'applicable') &&
+      JSON.stringify(origDec.value === undefined ? null : origDec.value) ===
+        JSON.stringify(draftDec.value === undefined ? null : draftDec.value) &&
+      (origDec.not_applicable_reason || null) === (draftDec.not_applicable_reason || null);
+    var origNote = origDec.notes ? String(origDec.notes).trim() : '';
+    var draftNote = draftDec.notes ? String(draftDec.notes).trim() : '';
+    var sameNote = origNote === draftNote;
+    var origAppBy = (origDec.approval && origDec.approval.approved_by) || null;
+    var draftAppBy = (draftDec.approval && draftDec.approval.approved_by) || null;
+    var origAppAt = (origDec.approval && origDec.approval.approved_at) || null;
+    var draftAppAt = (draftDec.approval && draftDec.approval.approved_at) || null;
+    if (sameCore && sameNote && origAppBy === draftAppBy && origAppAt === draftAppAt) {
+      return 'unchanged';
+    }
+    if (hasSavedDecisionContentClient(origDec)) {
+      if (!hasSavedDecisionContentClient(draftDec)) return 'cleared';
+      var origHadAns =
+        (origDec.status && origDec.status !== 'unanswered') ||
+        (origDec.value !== null && origDec.value !== undefined) ||
+        Boolean(origDec.not_applicable_reason);
+      if (!origHadAns && sameNote) return 'newly_written';
+      return 'overwrite';
+    }
+    return 'newly_written';
+  }
 
   function isRefString(val) {
     return typeof val === 'string' && /^ref:DEC-[A-Z0-9-]+$/.test(val.trim());
@@ -295,6 +370,14 @@
   }
 
   function computeLiveClientCounts() {
+    var dirtyNew = 0;
+    var dirtyOverwrite = 0;
+    Object.keys(sgState.dirtyById).forEach(function (decId) {
+      var kind = classifyDirtyEditAgainstSaved(sgState.decisionsById[decId], sgState.dirtyById[decId]);
+      if (kind === 'overwrite' || kind === 'cleared') dirtyOverwrite += 1;
+      else if (kind === 'newly_written') dirtyNew += 1;
+    });
+
     var totals = {
       total: 0,
       done: 0,
@@ -304,7 +387,12 @@
       unanswered: 0,
       unconfirmed: 0,
       notes: 0,
-      dirty: Object.keys(sgState.dirtyById).length
+      dirty: Object.keys(sgState.dirtyById).length,
+      dirtyNew: dirtyNew,
+      dirtyOverwrite: dirtyOverwrite,
+      elementsTotal: sgState.components.length,
+      elementsCompleted: 0,
+      elementsLeft: 0
     };
     var byTopic = {};
     sgState.topics.forEach(function (t) {
@@ -336,6 +424,22 @@
       }
     });
 
+    sgState.components.forEach(function (cmp) {
+      var cmpDecs = sgState.decisions.filter(function (orig) {
+        return orig.component_id === cmp.component_id;
+      });
+      if (!cmpDecs.length) {
+        totals.elementsCompleted += 1;
+        return;
+      }
+      var allDone = cmpDecs.every(function (orig) {
+        var wd = getWorkingDecision(orig.decision_id);
+        return wd.status === 'approved' || wd.status === 'not_applicable';
+      });
+      if (allDone) totals.elementsCompleted += 1;
+    });
+    totals.elementsLeft = Math.max(0, totals.elementsTotal - totals.elementsCompleted);
+
     return { totals: totals, byTopic: byTopic };
   }
 
@@ -358,23 +462,59 @@
     var pctDone = tot.total > 0 ? Math.round((tot.done / tot.total) * 1000) / 10 : 0;
     var pctDraft = tot.total > 0 ? Math.round((tot.draft / tot.total) * 1000) / 10 : 0;
 
+    var gh = sgState.githubPush || {};
+    var defaultBranch = gh.default_branch || 'working/biteshark-vps';
+    var repoChangedCount =
+      sgState.repoDiff && sgState.repoDiff.counts
+        ? sgState.repoDiff.counts.total_changed_decisions
+        : 0;
+
+    // Header button in `#sec-style-guide .sec-head`
+    var hdrUploadBtn = document.getElementById('sgHeaderUploadGitBtn');
+    if (hdrUploadBtn) {
+      hdrUploadBtn.hidden = false;
+      hdrUploadBtn.disabled = !sgState.permissions.can_push_repo;
+      var deltaTag = repoChangedCount > 0 ? ' · ' + repoChangedCount + ' changed' : '';
+      hdrUploadBtn.textContent =
+        '⬆️ Upload Current Version to Git (' + defaultBranch + deltaTag + ')';
+      hdrUploadBtn.title = sgState.permissions.can_push_repo
+        ? 'Upload current saved Style Guide version to ' + defaultBranch + ' on GitHub'
+        : 'Admin: Top is required to upload Style Guide commits to GitHub';
+      hdrUploadBtn.onclick = openPushToRepoModal;
+    }
+
     var summaryEl = document.getElementById('sgProgressSummaryCard');
     if (summaryEl) {
-      var gh = sgState.githubPush || {};
+      var pers = sgState.persistence || {};
+      var persistPillHtml =
+        pers.durable && pers.writable
+          ? '<span class="pill pill-ok" title="Saved answers persist across server deploys and restarts">💾 Persistent Storage Active (Rev #' +
+            sgEsc(sgState.revision) +
+            ')</span>'
+          : pers.writable
+            ? '<span class="pill pill-info">💾 Local Workspace Storage (Rev #' +
+              sgEsc(sgState.revision) +
+              ')</span>'
+            : '<span class="pill pill-danger">⚠️ Storage Not Writable</span>';
+
       var syncBadgeHtml = sgState.hasUnpushedChanges
-        ? '<span class="pill pill-warn">● Unpushed Changes Ready</span>'
-        : '<span class="pill pill-ok">✓ Synced with Repo Baseline</span>';
+        ? '<span class="pill pill-warn">● ' +
+          sgEsc(repoChangedCount) +
+          ' Unpushed Change' +
+          (repoChangedCount === 1 ? '' : 's') +
+          ' vs Git</span>'
+        : '<span class="pill pill-ok">✓ Synced with Git (' + sgEsc(defaultBranch) + ')</span>';
 
       var lastPushHtml = '';
       if (gh.last_pushed_commit_sha) {
         var shortSha = String(gh.last_pushed_commit_sha).slice(0, 10);
         lastPushHtml =
-          ' · Last push: <a href="' +
+          ' · Last Git upload: <a href="' +
           sgEsc(gh.last_pushed_commit_url || '#') +
           '" target="_blank" rel="noopener"><code>' +
           sgEsc(shortSha) +
           '</code></a> (' +
-          sgEsc(gh.last_pushed_branch || '') +
+          sgEsc(gh.last_pushed_branch || defaultBranch) +
           ')';
       }
 
@@ -387,17 +527,22 @@
         tot.total +
         ' Done (' +
         pctDone +
-        '%)</strong>' +
-        '<div style="font-size:12px;color:var(--muted)">Answers saved here immediately populate the hosted Style Guide Markdown sections. Notes are optional on every item.' +
+        '%) · ' +
+        tot.unanswered +
+        ' Left Unanswered</strong>' +
+        '<div style="font-size:12px;color:var(--muted)">Saved answers persist on the server, prompt Confirm/Deny before overwriting existing entries, and immediately populate the hosted Style Guide.' +
         lastPushHtml +
         '</div>' +
         '</div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        persistPillHtml +
         syncBadgeHtml +
-        '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgOpenReminderBtn">📋 Gap Report (COMPLETION-REMINDER.md)</button>' +
+        '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgOpenReminderBtn">📋 Gap Report</button>' +
         '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgOpenHostedDocTopBtn">📄 Hosted Style Guide Viewer</button>' +
         (sgState.permissions.can_push_repo
-          ? '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="sgPushToRepoTopBtn">🚀 Push Answers to Repo</button>'
+          ? '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" id="sgPushToRepoTopBtn">⬆️ Upload to Git (' +
+            sgEsc(defaultBranch) +
+            ')</button>'
           : '') +
         '</div>' +
         '</div>' +
@@ -423,18 +568,29 @@
         ' N/A)</span></div>' +
         '<div class="sg-stat-box"><strong>' +
         tot.unanswered +
-        '</strong><span>Unanswered (' +
+        '</strong><span>Questions Left (' +
         tot.unconfirmed +
         ' Unconfirmed)</span></div>' +
         '<div class="sg-stat-box"><strong>' +
+        tot.elementsCompleted +
+        ' / ' +
+        tot.elementsTotal +
+        '</strong><span>UI Elements Done (' +
+        tot.elementsLeft +
+        ' Left)</span></div>' +
+        '<div class="sg-stat-box"><strong>' +
         tot.draft +
-        '</strong><span>Draft (Awaiting Approval)</span></div>' +
+        '</strong><span>Draft (Filled · Awaiting Approval)</span></div>' +
         '<div class="sg-stat-box"><strong>' +
         tot.notes +
         '</strong><span>Items with Notes (Optional)</span></div>' +
         '<div class="sg-stat-box"><strong>' +
         tot.dirty +
-        '</strong><span>Unsaved Page Edits</span></div>' +
+        '</strong><span>Unsaved Edits (' +
+        tot.dirtyNew +
+        ' new · ' +
+        tot.dirtyOverwrite +
+        ' overwrite)</span></div>' +
         '</div>';
 
       var remBtn = document.getElementById('sgOpenReminderBtn');
@@ -464,11 +620,19 @@
         saveBar.hidden = false;
         var saveCountEl = document.getElementById('sgDirtyCountLabel');
         if (saveCountEl) {
+          var owNote =
+            tot.dirtyOverwrite > 0
+              ? ' (' +
+                tot.dirtyNew +
+                ' newly written, ' +
+                tot.dirtyOverwrite +
+                ' rewriting saved — will ask Confirm/Deny)'
+              : ' (' + tot.dirtyNew + ' newly written)';
           saveCountEl.textContent =
             tot.dirty +
             ' unsaved change' +
             (tot.dirty === 1 ? '' : 's') +
-            ' — Save to populate the hosted Style Guide sections';
+            owNote;
         }
       } else {
         saveBar.hidden = true;
@@ -836,7 +1000,7 @@
       );
     }
 
-    // 6. token_map & structured_spec -> Interactive Key -> Value / Aspect Builder (+ Color Swatch or Concise Rule Mode)
+    // 6. token_map & structured_spec -> Interactive Key -> Value / Aspect Builder
     var objVal = val && typeof val === 'object' && !Array.isArray(val) ? val : null;
     var objEntries = objVal ? Object.entries(objVal) : [];
     var isColorMap = exp.type === 'token_map' && isColorRelatedDecision(dec);
@@ -969,8 +1133,12 @@
     var dec = getWorkingDecision(origDec.decision_id);
     var decId = dec.decision_id;
     var isDirty = Boolean(sgState.dirtyById[decId]);
+    var editKind = isDirty ? classifyDirtyEditAgainstSaved(origDec, dec) : 'none';
+    var isOverwritingSaved = editKind === 'overwrite' || editKind === 'cleared';
+
     var cardCls = 'sg-dec-card';
-    if (isDirty) cardCls += ' is-dirty';
+    if (isOverwritingSaved) cardCls += ' is-overwrite';
+    else if (isDirty) cardCls += ' is-dirty';
     else if (dec.status === 'approved') cardCls += ' is-approved';
     else if (dec.status === 'not_applicable') cardCls += ' is-na';
 
@@ -982,6 +1150,33 @@
     var canApprove = sgState.permissions.can_approve;
     var noteText = dec.notes || '';
     var noteExpanded = Boolean(sgState.noteOpenById[decId]) || noteText.trim().length > 0;
+
+    var dirtyPillHtml = '';
+    if (isOverwritingSaved) {
+      dirtyPillHtml =
+        '<span class="pill pill-warn">⚠️ ' +
+        (editKind === 'cleared' ? 'Clears Saved Entry' : 'Overwrites Saved Entry') +
+        '</span>';
+    } else if (isDirty && editKind === 'newly_written') {
+      dirtyPillHtml = '<span class="pill pill-ok">✨ New Answer (Unsaved)</span>';
+    } else if (isDirty) {
+      dirtyPillHtml = '<span class="pill pill-warn">Unsaved edit</span>';
+    }
+
+    var prevSavedCalloutHtml = '';
+    if (isOverwritingSaved) {
+      prevSavedCalloutHtml =
+        '<div class="sg-prev-saved-callout">' +
+        '<span><strong>Currently Saved (' +
+        sgEsc((origDec.status || 'unanswered').toUpperCase()) +
+        '):</strong> <code>' +
+        sgEsc(formatDecisionPreviewClient(origDec)) +
+        '</code>' +
+        (origDec.notes ? ' · Note: <em>' + sgEsc(String(origDec.notes).slice(0, 70)) + '</em>' : '') +
+        '</span>' +
+        '<span style="font-size:11px;font-weight:700">Saving will prompt Confirm / Deny</span>' +
+        '</div>';
+    }
 
     var approvalRowHtml = '';
     if (dec.status === 'approved') {
@@ -1033,7 +1228,7 @@
       sgEsc(dec.status.toUpperCase()) +
       '</span>' +
       (noteText.trim() ? '<span class="pill pill-info">📝 Note</span>' : '') +
-      (isDirty ? '<span class="pill pill-warn">Unsaved edit</span>' : '') +
+      dirtyPillHtml +
       '</div>' +
       '<div class="sg-dec-title">' +
       sgEsc(dec.title) +
@@ -1074,6 +1269,7 @@
       '</label>' +
       '</div>' +
       '</div>' +
+      prevSavedCalloutHtml +
       unconfCalloutHtml +
       renderInputWidgetHtml(dec) +
       approvalRowHtml +
@@ -1099,7 +1295,9 @@
           '">Undo</button>' +
           '<button type="button" class="admin-btn admin-btn-primary admin-btn-sm" data-sg-save-one="' +
           sgEsc(decId) +
-          '">Save Item</button>'
+          '">' +
+          (isOverwritingSaved ? 'Save / Overwrite…' : 'Save Item') +
+          '</button>'
         : '') +
       '</div>' +
       '</div>' +
@@ -1123,7 +1321,6 @@
   }
 
   function bindDecisionCardEvents(scopeEl) {
-    // Status selector
     scopeEl.querySelectorAll('[data-sg-status]').forEach(function (sel) {
       sel.onchange = function () {
         var id = sel.getAttribute('data-sg-status');
@@ -1156,7 +1353,6 @@
       };
     });
 
-    // Reference mode toggle
     scopeEl.querySelectorAll('[data-sg-ref-toggle]').forEach(function (chk) {
       chk.onchange = function () {
         var id = chk.getAttribute('data-sg-ref-toggle');
@@ -1188,7 +1384,6 @@
       };
     });
 
-    // Not-applicable reason
     scopeEl.querySelectorAll('[data-sg-na-reason]').forEach(function (inp) {
       inp.oninput = function () {
         var id = inp.getAttribute('data-sg-na-reason');
@@ -1199,7 +1394,6 @@
       };
     });
 
-    // Enum dropdown
     scopeEl.querySelectorAll('[data-sg-enum]').forEach(function (sel) {
       sel.onchange = function () {
         var id = sel.getAttribute('data-sg-enum');
@@ -1211,7 +1405,6 @@
       };
     });
 
-    // Boolean segmented buttons
     scopeEl.querySelectorAll('[data-sg-bool]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-bool');
@@ -1224,7 +1417,6 @@
       };
     });
 
-    // Numeric input
     scopeEl.querySelectorAll('[data-sg-num]').forEach(function (inp) {
       inp.oninput = function () {
         var id = inp.getAttribute('data-sg-num');
@@ -1245,7 +1437,6 @@
       };
     });
 
-    // String & Color Picker
     scopeEl.querySelectorAll('[data-sg-color-pick]').forEach(function (pick) {
       pick.oninput = function () {
         var id = pick.getAttribute('data-sg-color-pick');
@@ -1280,7 +1471,6 @@
       };
     });
 
-    // Ordered string_list
     scopeEl.querySelectorAll('[data-sg-list-add]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-list-add');
@@ -1333,7 +1523,6 @@
       };
     });
 
-    // Structured Spec concise vs multi-aspect mode
     scopeEl.querySelectorAll('[data-sg-spec-mode]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-spec-mode');
@@ -1367,7 +1556,6 @@
       };
     });
 
-    // Token Map / Structured Spec KV rows
     scopeEl.querySelectorAll('[data-sg-kv-add]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-kv-add');
@@ -1454,7 +1642,6 @@
       };
     });
 
-    // Approval fields
     scopeEl.querySelectorAll('[data-sg-app-by]').forEach(function (inp) {
       inp.oninput = function () {
         var id = inp.getAttribute('data-sg-app-by');
@@ -1475,7 +1662,6 @@
       };
     });
 
-    // Optional Note toggle & input
     scopeEl.querySelectorAll('[data-sg-note-toggle]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-note-toggle');
@@ -1494,7 +1680,6 @@
       };
     });
 
-    // Undo / Save single item
     scopeEl.querySelectorAll('[data-sg-discard-one]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-discard-one');
@@ -1507,7 +1692,7 @@
     scopeEl.querySelectorAll('[data-sg-save-one]').forEach(function (btn) {
       btn.onclick = function () {
         var id = btn.getAttribute('data-sg-save-one');
-        saveDecisionIds([id], btn);
+        saveDecisionIds([id], btn, { confirmOverwrite: false });
       };
     });
   }
@@ -1560,7 +1745,6 @@
         })
         .join('');
 
-    // Group visible decisions: Topic-Level sections first, then Component cards
     var sysDecs = visibleDecisions.filter(function (d) {
       return d.component_id === null;
     });
@@ -1683,7 +1867,7 @@
       ' Draft</span> ' +
       '<span class="pill">' +
       topicCounts.unanswered +
-      ' Unanswered</span>' +
+      ' Left</span>' +
       '</div>' +
       '<button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgPreviewTopicMdBtn">📄 View Populated <code>' +
       sgEsc(topic.file) +
@@ -1774,8 +1958,139 @@
     bindDecisionCardEvents(colEl);
   }
 
-  async function saveDecisionIds(idsToSave, triggerBtn) {
+  function renderChangedItemsTableHtml(items, emptyText) {
+    if (!items || !items.length) {
+      return '<div style="padding:10px 12px;color:var(--muted);font-size:12.5px">' + sgEsc(emptyText || 'No differences detected.') + '</div>';
+    }
+    var rows = items
+      .map(function (it) {
+        var badge = 'pill';
+        var label = 'CHANGED';
+        if (it.change_type === 'newly_written') {
+          badge = 'pill pill-ok';
+          label = 'NEWLY WRITTEN';
+        } else if (it.change_type === 'rewritten') {
+          badge = 'pill pill-warn';
+          label = 'REWRITTEN';
+        } else if (it.change_type === 'cleared') {
+          badge = 'pill pill-danger';
+          label = 'CLEARED';
+        } else if (it.change_type === 'notes_updated') {
+          badge = 'pill pill-info';
+          label = 'NOTE UPDATED';
+        }
+        return (
+          '<tr>' +
+          '<td><code>' +
+          sgEsc(it.decision_id) +
+          '</code><br><small style="color:var(--muted)">' +
+          sgEsc(it.component_id || it.topic) +
+          '</small></td>' +
+          '<td><span class="' +
+          badge +
+          '">' +
+          label +
+          '</span><div style="font-weight:600;margin-top:2px">' +
+          sgEsc(it.title) +
+          '</div></td>' +
+          '<td><small style="color:var(--muted)">' +
+          sgEsc((it.previous_status || 'unanswered').toUpperCase()) +
+          '</small><br><code>' +
+          sgEsc(it.previous_preview || 'Unanswered') +
+          '</code></td>' +
+          '<td><small style="color:var(--forest-dark);font-weight:700">' +
+          sgEsc((it.next_status || 'unanswered').toUpperCase()) +
+          '</small><br><code>' +
+          sgEsc(it.next_preview || 'Unanswered') +
+          '</code></td>' +
+          '</tr>'
+        );
+      })
+      .join('');
+
+    return (
+      '<table class="sg-diff-table">' +
+      '<thead><tr><th>ID / Element</th><th>Change Type</th><th>Previous Saved</th><th>New / Current</th></tr></thead>' +
+      '<tbody>' +
+      rows +
+      '</tbody></table>'
+    );
+  }
+
+  function openOverwriteConfirmationModal(idsToSave, conflictPayload) {
+    var saveDiff = (conflictPayload && conflictPayload.save_diff) || {};
+    var c = saveDiff.counts || {};
+    var q = saveDiff.questions || {};
+    var isConcurrent = conflictPayload && conflictPayload.conflict_kind === 'concurrent_revision';
+
+    sgState.pendingOverwriteCtx = {
+      idsToSave: idsToSave.slice(),
+      conflictKind: conflictPayload ? conflictPayload.conflict_kind : 'existing_answers',
+      overwrittenIds: (saveDiff.overwritten_items || []).map(function (x) {
+        return x.decision_id;
+      })
+    };
+
+    var titleEl = document.getElementById('sgOverwriteModalTitle');
+    var leadEl = document.getElementById('sgOverwriteModalLead');
+    var gridEl = document.getElementById('sgOverwriteSummaryGrid');
+    var diffEl = document.getElementById('sgOverwriteDiffBox');
+    var errEl = document.getElementById('sgOverwriteModalError');
+    if (errEl) {
+      errEl.hidden = true;
+      errEl.textContent = '';
+    }
+
+    if (titleEl) {
+      titleEl.textContent = isConcurrent
+        ? 'Concurrent Update Detected — Confirm or Deny Overwrite?'
+        : 'Confirm Overwrite of ' +
+          (c.overwrite_total_count || 1) +
+          ' Saved Style Guide Entr' +
+          ((c.overwrite_total_count || 1) === 1 ? 'y?' : 'ies?');
+    }
+    if (leadEl) {
+      leadEl.textContent =
+        (conflictPayload && conflictPayload.error) ||
+        'Review the recognized changes below. Confirm to overwrite in persistent storage (an automatic revision backup will be saved), or Deny to keep existing saved values.';
+    }
+
+    if (gridEl) {
+      gridEl.innerHTML =
+        '<div class="sg-upload-metric-card is-accent"><strong>' +
+        Number(c.newly_written_count || 0) +
+        '</strong><span>Newly Written</span></div>' +
+        '<div class="sg-upload-metric-card is-warn"><strong>' +
+        Number(c.rewritten_count || 0) +
+        '</strong><span>Rewritten / Overwritten</span></div>' +
+        '<div class="sg-upload-metric-card"><strong>' +
+        Number(c.cleared_count || 0) +
+        '</strong><span>Cleared to Blank</span></div>' +
+        '<div class="sg-upload-metric-card"><strong>' +
+        Number(q.left_unanswered != null ? q.left_unanswered : 0) +
+        ' / ' +
+        Number(q.total || 773) +
+        '</strong><span>Left Unanswered After Save</span></div>';
+    }
+
+    if (diffEl) {
+      var listToShow =
+        (saveDiff.overwritten_items && saveDiff.overwritten_items.length
+          ? saveDiff.overwritten_items
+          : saveDiff.changed_items) || [];
+      diffEl.innerHTML = renderChangedItemsTableHtml(
+        listToShow,
+        'Reviewing concurrent revision differences.'
+      );
+    }
+
+    openModal('sgOverwriteConfirmModal');
+  }
+
+  async function saveDecisionIds(idsToSave, triggerBtn, opts) {
+    var confirmOverwrite = Boolean(opts && opts.confirmOverwrite);
     if (sgState.saving || !idsToSave || !idsToSave.length) return;
+
     var updates = idsToSave
       .map(function (id) {
         var d = sgState.dirtyById[id];
@@ -1806,12 +2121,15 @@
         method: 'POST',
         body: {
           expected_revision: sgState.revision,
+          confirm_overwrite: confirmOverwrite,
           updates: updates
         }
       });
 
       sgState.revision = res.revision;
       sgState.hasUnpushedChanges = Boolean(res.has_unpushed_changes);
+      sgState.persistence = res.persistence || sgState.persistence;
+      sgState.repoDiff = res.repo_diff || sgState.repoDiff;
       sgState.stats = res.stats;
 
       (res.updated_decisions || []).forEach(function (updated) {
@@ -1823,18 +2141,29 @@
         delete sgState.dirtyById[updated.decision_id];
       });
 
+      closeModal('sgOverwriteConfirmModal');
+      sgState.pendingOverwriteCtx = null;
+
+      var sd = (res.save_diff && res.save_diff.counts) || {};
+      var sq = (res.save_diff && res.save_diff.questions) || {};
       showToast(
-        'Saved ' +
-          updates.length +
-          ' Style Guide item' +
-          (updates.length === 1 ? '' : 's') +
-          ' and populated the hosted Style Guide Markdown sections.',
+        'Saved to persistent storage: ' +
+          Number(sd.newly_written_count || 0) +
+          ' newly written, ' +
+          Number(sd.rewritten_count || 0) +
+          ' rewritten, ' +
+          Number(sq.left_unanswered != null ? sq.left_unanswered : 0) +
+          ' questions left unanswered.',
         false
       );
       renderTopSummaryAndSaveBar();
       renderActiveCategoryWorkspace();
     } catch (err) {
-      showToast(err.message || 'Could not save Style Guide changes.', true);
+      if (err && err.status === 409 && err.payload && err.payload.requires_confirmation) {
+        openOverwriteConfirmationModal(idsToSave, err.payload);
+      } else {
+        showToast((err && err.message) || 'Could not save Style Guide changes.', true);
+      }
     } finally {
       sgState.saving = false;
       if (triggerBtn) {
@@ -1844,14 +2173,12 @@
     }
   }
 
-  // Simple, XSS-safe Markdown-to-HTML previewer for hosted Style Guide `.md` sections
   function renderSafeMarkdownPreview(mdText) {
     var lines = String(mdText || '').replace(/\r\n/g, '\n').split('\n');
     var html = [];
     var i = 0;
 
     function inlineFmt(raw) {
-      // Strip safe anchor tags `<a id="..."></a>` before escaping, then apply inline code/bold
       var cleaned = raw.replace(/<a id="[a-z0-9-]+"><\/a>/gi, '');
       var parts = cleaned.split(/(`[^`]+`)/g);
       return parts
@@ -1988,33 +2315,123 @@
     loadAndRenderHostedDoc(initialFile || 'COMPLETION-REMINDER.md');
   }
 
-  function openPushToRepoModal() {
-    var dirtyCount = Object.keys(sgState.dirtyById).length;
-    if (dirtyCount > 0) {
-      showToast('Save your ' + dirtyCount + ' unsaved edit(s) first before pushing to GitHub.', true);
-      return;
-    }
-
+  function renderUploadReportIntoModal(report, targetBranchLabel) {
+    sgState.activeUploadReport = report;
     var gh = sgState.githubPush || {};
-    var counts = computeLiveClientCounts().totals;
+    var c = (report && report.counts) || {};
+    var q = (report && report.questions) || {};
+    var el = (report && report.elements) || {};
+    var cat = (report && report.categories) || {};
+    var fl = (report && report.files) || {};
 
     var summaryEl = document.getElementById('sgPushSummaryCallout');
     if (summaryEl) {
       summaryEl.innerHTML =
         '<strong>Repository:</strong> <code>' +
         sgEsc(gh.repo || 'yamanalmasaleha-png/trukly-') +
-        '</code><br>' +
-        '<strong>Bundle:</strong> 19 files strictly inside <code>docs/engineering/style-guide/</code> (<code>decisions.json</code> + 18 generated Markdown questionnaires &amp; <code>COMPLETION-REMINDER.md</code>)<br>' +
-        '<strong>Tracked State:</strong> ' +
-        counts.approved +
-        ' approved · ' +
-        counts.draft +
-        ' draft · ' +
-        counts.not_applicable +
-        ' N/A · ' +
-        counts.notes +
-        ' with notes';
+        '</code> · <strong>Target Branch:</strong> <code>' +
+        sgEsc(targetBranchLabel || gh.default_branch || 'working/biteshark-vps') +
+        '</code> · <strong>Compared Against:</strong> ' +
+        sgEsc((report && report.reference_label) || 'deployed repo baseline');
     }
+
+    var gridEl = document.getElementById('sgPushMetricsGrid');
+    if (gridEl) {
+      gridEl.innerHTML =
+        '<div class="sg-upload-metric-card is-accent"><strong>' +
+        Number(c.newly_written_count || 0) +
+        '</strong><span>Newly Written Questions</span></div>' +
+        '<div class="sg-upload-metric-card' +
+        (Number(c.rewritten_count || 0) > 0 ? ' is-warn' : '') +
+        '"><strong>' +
+        Number(c.rewritten_count || 0) +
+        '</strong><span>Rewritten / Modified (' +
+        Number(c.cleared_count || 0) +
+        ' cleared · ' +
+        Number(c.notes_changed_total_count || 0) +
+        ' notes)</span></div>' +
+        '<div class="sg-upload-metric-card"><strong>' +
+        Number(el.touched_count || 0) +
+        ' / ' +
+        Number(el.total || 29) +
+        '</strong><span>UI Elements Touched (' +
+        Number(el.completed_count || 0) +
+        ' done · ' +
+        Number(el.left_count != null ? el.left_count : 29) +
+        ' left)</span></div>' +
+        '<div class="sg-upload-metric-card"><strong>' +
+        Number(q.done || 0) +
+        ' / ' +
+        Number(q.total || 773) +
+        ' (' +
+        Number(q.completion_percent || 0) +
+        '%)</strong><span>Done (' +
+        Number(q.draft || 0) +
+        ' Draft · ' +
+        Number(q.with_notes || 0) +
+        ' Notes)</span></div>' +
+        '<div class="sg-upload-metric-card is-warn"><strong>' +
+        Number(q.left_unanswered != null ? q.left_unanswered : 773) +
+        ' / ' +
+        Number(q.total || 773) +
+        '</strong><span>Questions Left Unanswered (' +
+        Number(cat.left_count != null ? cat.left_count : 15) +
+        '/' +
+        Number(cat.total || 15) +
+        ' categories left)</span></div>' +
+        '<div class="sg-upload-metric-card"><strong>' +
+        Number(fl.changed_count || 0) +
+        ' / ' +
+        Number(fl.bundle_total || 19) +
+        '</strong><span>Repo Style-Guide Files Modified</span></div>';
+    }
+
+    var changedWrap = document.getElementById('sgPushChangedItemsWrap');
+    if (changedWrap) {
+      var items = (report && report.changed_items) || [];
+      changedWrap.hidden = false;
+      changedWrap.innerHTML = renderChangedItemsTableHtml(
+        items,
+        '0 Style Guide decisions differ from the compared baseline yet (uploading will re-sync all 19 Style Guide files on the target branch).'
+      );
+    }
+
+    var msgInput = document.getElementById('sgPushCommitMessage');
+    if (msgInput) {
+      msgInput.value =
+        'docs(style-guide): sync style guide (' +
+        Number(c.newly_written_count || 0) +
+        ' written, ' +
+        Number(c.rewritten_count || 0) +
+        ' rewritten, ' +
+        Number(q.left_unanswered != null ? q.left_unanswered : 773) +
+        ' left)';
+    }
+  }
+
+  function getSelectedUploadBranchInfo() {
+    var branchSel = document.getElementById('sgPushBranchSelect');
+    var customInp = document.getElementById('sgPushCustomBranchInput');
+    var isCustom = branchSel && branchSel.value === '__custom__';
+    var targetBranch = isCustom
+      ? customInp
+        ? customInp.value.trim()
+        : ''
+      : branchSel
+        ? branchSel.value
+        : '';
+    return { isCustom: Boolean(isCustom), targetBranch: targetBranch };
+  }
+
+  function openPushToRepoModal() {
+    var dirtyCount = Object.keys(sgState.dirtyById).length;
+    if (dirtyCount > 0) {
+      showToast('Save your ' + dirtyCount + ' unsaved edit(s) first before uploading to Git.', true);
+      return;
+    }
+
+    var gh = sgState.githubPush || {};
+    var defaultBranch = gh.default_branch || 'working/biteshark-vps';
 
     var branchSel = document.getElementById('sgPushBranchSelect');
     if (branchSel) {
@@ -2030,10 +2447,10 @@
               '<option value="' +
               sgEsc(b) +
               '"' +
-              (b === gh.default_branch ? ' selected' : '') +
+              (b === defaultBranch ? ' selected' : '') +
               '>' +
               sgEsc(b) +
-              (b === gh.default_branch ? ' (default for this host)' : '') +
+              (b === defaultBranch ? ' (respective branch for this server)' : '') +
               '</option>'
             );
           })
@@ -2043,17 +2460,10 @@
     var customWrap = document.getElementById('sgPushCustomBranchWrap');
     if (customWrap) customWrap.hidden = true;
 
-    var msgInput = document.getElementById('sgPushCommitMessage');
-    if (msgInput) {
-      msgInput.value =
-        'docs(style-guide): update style guide answers (' +
-        counts.approved +
-        ' approved, ' +
-        counts.draft +
-        ' draft, ' +
-        counts.not_applicable +
-        ' N/A)';
-    }
+    var remBanner = document.getElementById('sgPushRemoteOverwriteBanner');
+    if (remBanner) remBanner.hidden = true;
+
+    renderUploadReportIntoModal(sgState.repoDiff || null, defaultBranch);
 
     var tokenNote = document.getElementById('sgPushTokenStatusNote');
     var tokenInputWrap = document.getElementById('sgPushTokenInputWrap');
@@ -2062,7 +2472,9 @@
     if (gh.server_token_configured) {
       if (tokenNote) {
         tokenNote.innerHTML =
-          '✓ <strong>Server GitHub token is configured</strong> (<code>BITESHARK_STYLE_GUIDE_GITHUB_TOKEN</code>). Ready for 1-click push.';
+          '✓ <strong>Server GitHub token is configured</strong> (<code>BITESHARK_STYLE_GUIDE_GITHUB_TOKEN</code>). Ready for 1-click upload to <code>' +
+          sgEsc(defaultBranch) +
+          '</code>.';
       }
       if (tokenInputWrap) tokenInputWrap.hidden = true;
     } else {
@@ -2070,7 +2482,7 @@
         tokenNote.innerHTML =
           'Enter a fine-grained GitHub Personal Access Token with <code>Contents: Read &amp; Write</code> on <code>' +
           sgEsc(gh.repo || 'yamanalmasaleha-png/trukly-') +
-          '</code> (used once in memory for this HTTPS push and never stored), or configure <code>BITESHARK_STYLE_GUIDE_GITHUB_TOKEN</code> in <code>staging.env</code>.';
+          '</code> (used once in memory for this HTTPS upload and never stored), or configure <code>BITESHARK_STYLE_GUIDE_GITHUB_TOKEN</code> in <code>staging.env</code>.';
       }
       if (tokenInputWrap) tokenInputWrap.hidden = false;
     }
@@ -2087,28 +2499,76 @@
     }
 
     openModal('sgPushRepoModal');
+    if (gh.server_token_configured) {
+      inspectLiveRemoteDiff(true);
+    }
   }
 
-  async function submitPushToRepo(e) {
-    e.preventDefault();
+  async function inspectLiveRemoteDiff(silentIfMissingToken) {
+    var bInfo = getSelectedUploadBranchInfo();
+    if (!bInfo.targetBranch) return;
+    var gh = sgState.githubPush || {};
+    var tokenInp = document.getElementById('sgPushTokenInput');
+    var tokenVal = tokenInp ? tokenInp.value.trim() : '';
+    if (!gh.server_token_configured && !tokenVal) {
+      if (!silentIfMissingToken) {
+        var errEl = document.getElementById('sgPushModalError');
+        if (errEl) {
+          errEl.hidden = false;
+          errEl.textContent = 'Enter a GitHub token first to inspect the live remote branch diff.';
+        }
+      }
+      return;
+    }
+
+    var btn = document.getElementById('sgPushInspectRemoteBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Checking remote branch…';
+    }
+    try {
+      var res = await sgApiJson('/api/admin/style-guide/push', {
+        method: 'POST',
+        body: {
+          dry_run: true,
+          branch: bInfo.targetBranch,
+          create_branch: bInfo.isCustom,
+          base_branch: gh.default_branch || 'working/biteshark-vps',
+          github_token: tokenVal
+        }
+      });
+      if (res && res.upload_report) {
+        renderUploadReportIntoModal(res.upload_report, bInfo.targetBranch);
+      }
+    } catch (err) {
+      if (!silentIfMissingToken) {
+        var errEl2 = document.getElementById('sgPushModalError');
+        if (errEl2) {
+          errEl2.hidden = false;
+          errEl2.textContent = err.message || 'Remote branch diff check failed.';
+        }
+      }
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🔍 Check Live Remote Diff';
+      }
+    }
+  }
+
+  async function executePushToRepo(confirmRemoteOverwrite) {
     if (sgState.pushing) return;
 
     var errEl = document.getElementById('sgPushModalError');
     var okEl = document.getElementById('sgPushModalSuccess');
+    var remBanner = document.getElementById('sgPushRemoteOverwriteBanner');
     var submitBtn = document.getElementById('sgPushSubmitBtn');
     if (errEl) errEl.hidden = true;
     if (okEl) okEl.hidden = true;
+    if (remBanner && confirmRemoteOverwrite) remBanner.hidden = true;
 
-    var branchSel = document.getElementById('sgPushBranchSelect');
-    var customInp = document.getElementById('sgPushCustomBranchInput');
-    var isCustom = branchSel && branchSel.value === '__custom__';
-    var targetBranch = isCustom
-      ? (customInp ? customInp.value.trim() : '')
-      : branchSel
-        ? branchSel.value
-        : '';
-
-    if (!targetBranch) {
+    var bInfo = getSelectedUploadBranchInfo();
+    if (!bInfo.targetBranch) {
       if (errEl) {
         errEl.hidden = false;
         errEl.textContent = 'Enter a valid target branch name.';
@@ -2124,7 +2584,7 @@
     sgState.pushing = true;
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Pushing 19 Style Guide files to GitHub…';
+      submitBtn.textContent = 'Uploading Style Guide to ' + bInfo.targetBranch + '…';
     }
 
     try {
@@ -2132,9 +2592,10 @@
       var res = await sgApiJson('/api/admin/style-guide/push', {
         method: 'POST',
         body: {
-          branch: targetBranch,
-          create_branch: isCustom,
+          branch: bInfo.targetBranch,
+          create_branch: bInfo.isCustom,
           base_branch: gh.default_branch || 'working/biteshark-vps',
+          confirm_overwrite: Boolean(confirmRemoteOverwrite),
           commit_message: msgInput ? msgInput.value.trim() : '',
           author_name: authorNameInp ? authorNameInp.value.trim() : 'Matt Callaway',
           author_email: authorEmailInp ? authorEmailInp.value.trim() : 'mattcallawaysemail@gmail.com',
@@ -2144,39 +2605,98 @@
 
       if (tokenInp) tokenInp.value = '';
       sgState.hasUnpushedChanges = false;
+      if (res.repo_diff) {
+        sgState.repoDiff = res.repo_diff;
+      }
       if (sgState.githubPush) {
         sgState.githubPush.last_pushed_commit_sha = res.commit_sha;
         sgState.githubPush.last_pushed_commit_url = res.commit_url;
         sgState.githubPush.last_pushed_branch = res.branch;
         sgState.githubPush.last_pushed_at = res.pushed_at;
       }
+      if (remBanner) remBanner.hidden = true;
+
+      var rep = res.upload_report || sgState.activeUploadReport || {};
+      var rc = rep.counts || {};
+      var rq = rep.questions || {};
+      var rel = rep.elements || {};
+      var rfl = rep.files || {};
 
       if (okEl) {
         okEl.hidden = false;
         okEl.innerHTML =
-          '✓ Pushed <strong>' +
-          res.files_committed_count +
-          '</strong> Style Guide files to <code>' +
+          '<div><strong>✓ Uploaded Current Version to <code>' +
           sgEsc(res.branch) +
-          '</code>: <a href="' +
+          '</code></strong> — Commit <a href="' +
           sgEsc(res.commit_url) +
           '" target="_blank" rel="noopener"><code>' +
           sgEsc(String(res.commit_sha).slice(0, 12)) +
-          '</code> ↗</a>';
+          '</code> ↗</a></div>' +
+          '<div style="margin-top:6px;font-size:12.5px">' +
+          '<strong>Written / Rewritten Summary:</strong> ' +
+          Number(rc.newly_written_count || 0) +
+          ' newly written · ' +
+          Number(rc.rewritten_count || 0) +
+          ' rewritten · ' +
+          Number(rc.cleared_count || 0) +
+          ' cleared · ' +
+          Number(rel.touched_count || 0) +
+          '/' +
+          Number(rel.total || 29) +
+          ' UI elements touched · ' +
+          Number(rfl.changed_count != null ? rfl.changed_count : res.files_changed_count || 0) +
+          '/' +
+          Number(res.files_committed_count || 19) +
+          ' repo files modified.<br>' +
+          '<strong>Remaining Work:</strong> <strong>' +
+          Number(rq.left_unanswered != null ? rq.left_unanswered : 0) +
+          ' / ' +
+          Number(rq.total || 773) +
+          '</strong> questions left unanswered (' +
+          Number(rq.done || 0) +
+          ' done · ' +
+          Number(rq.draft || 0) +
+          ' draft · <strong>' +
+          Number(rel.left_count != null ? rel.left_count : 0) +
+          ' / ' +
+          Number(rel.total || 29) +
+          '</strong> UI elements still have open questions).' +
+          '</div>';
       }
       renderTopSummaryAndSaveBar();
     } catch (err) {
-      if (errEl) {
+      if (
+        err &&
+        err.status === 409 &&
+        err.payload &&
+        err.payload.code === 'REMOTE_OVERWRITE_CONFIRMATION_REQUIRED'
+      ) {
+        if (err.payload.upload_report) {
+          renderUploadReportIntoModal(err.payload.upload_report, bInfo.targetBranch);
+        }
+        var rbBody = document.getElementById('sgPushRemoteOverwriteBody');
+        if (rbBody) {
+          rbBody.textContent =
+            err.payload.error ||
+            'Remote branch contains saved Style Guide entries that would be rewritten by this upload.';
+        }
+        if (remBanner) remBanner.hidden = false;
+      } else if (errEl) {
         errEl.hidden = false;
-        errEl.textContent = err.message || 'Push to GitHub failed.';
+        errEl.textContent = (err && err.message) || 'Upload to GitHub failed.';
       }
     } finally {
       sgState.pushing = false;
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = '🚀 Commit & Push Style Guide to Repo';
+        submitBtn.textContent = '⬆️ Upload Current Version to Git';
       }
     }
+  }
+
+  function submitPushToRepo(e) {
+    e.preventDefault();
+    executePushToRepo(false);
   }
 
   async function loadStyleGuideWorkspace(forceReload) {
@@ -2199,6 +2719,8 @@
       var data = await sgApiJson('/api/admin/style-guide');
       sgState.revision = data.revision || 1;
       sgState.hasUnpushedChanges = Boolean(data.has_unpushed_changes);
+      sgState.persistence = data.persistence || null;
+      sgState.repoDiff = data.repo_diff || null;
       sgState.permissions = data.permissions || sgState.permissions;
       sgState.githubPush = data.github_push || {};
       sgState.stats = data.stats || {};
@@ -2254,7 +2776,7 @@
     var saveAllBtn = document.getElementById('sgSaveAllDirtyBtn');
     if (saveAllBtn) {
       saveAllBtn.onclick = function () {
-        saveDecisionIds(Object.keys(sgState.dirtyById), saveAllBtn);
+        saveDecisionIds(Object.keys(sgState.dirtyById), saveAllBtn, { confirmOverwrite: false });
       };
     }
 
@@ -2265,6 +2787,74 @@
         sgState.refModeById = {};
         renderTopSummaryAndSaveBar();
         renderActiveCategoryWorkspace();
+      };
+    }
+
+    // Overwrite Confirm / Deny modal controls
+    var owConfirmBtn = document.getElementById('sgOverwriteConfirmBtn');
+    if (owConfirmBtn) {
+      owConfirmBtn.onclick = function () {
+        var ctx = sgState.pendingOverwriteCtx;
+        if (!ctx || !ctx.idsToSave || !ctx.idsToSave.length) {
+          closeModal('sgOverwriteConfirmModal');
+          return;
+        }
+        saveDecisionIds(ctx.idsToSave, owConfirmBtn, { confirmOverwrite: true });
+      };
+    }
+
+    var owDenyBtn = document.getElementById('sgOverwriteDenyBtn');
+    if (owDenyBtn) {
+      owDenyBtn.onclick = function () {
+        var ctx = sgState.pendingOverwriteCtx;
+        closeModal('sgOverwriteConfirmModal');
+        sgState.pendingOverwriteCtx = null;
+        if (!ctx) return;
+
+        if (ctx.conflictKind === 'concurrent_revision') {
+          showToast('Denied overwrite — reloading latest Style Guide state saved on server.', false);
+          loadStyleGuideWorkspace(true);
+          return;
+        }
+
+        var owSet = new Set(ctx.overwrittenIds || []);
+        var revertedCount = 0;
+        var keptNewIds = [];
+        (ctx.idsToSave || []).forEach(function (id) {
+          if (owSet.has(id)) {
+            delete sgState.dirtyById[id];
+            delete sgState.refModeById[id];
+            revertedCount += 1;
+          } else if (sgState.dirtyById[id]) {
+            keptNewIds.push(id);
+          }
+        });
+        renderTopSummaryAndSaveBar();
+        renderActiveCategoryWorkspace();
+
+        if (keptNewIds.length > 0) {
+          showToast(
+            'Denied overwrite of ' +
+              revertedCount +
+              ' saved item(s) — saving ' +
+              keptNewIds.length +
+              ' brand-new item(s) only.',
+            false
+          );
+          saveDecisionIds(keptNewIds, null, { confirmOverwrite: false });
+        } else {
+          showToast(
+            'Denied overwrite — kept existing saved values for ' + revertedCount + ' item(s).',
+            false
+          );
+        }
+      };
+    }
+
+    var owCancelBtn = document.getElementById('sgOverwriteCancelBtn');
+    if (owCancelBtn) {
+      owCancelBtn.onclick = function () {
+        closeModal('sgOverwriteConfirmModal');
       };
     }
 
@@ -2316,6 +2906,34 @@
       pushBranchSel.onchange = function () {
         var wrap = document.getElementById('sgPushCustomBranchWrap');
         if (wrap) wrap.hidden = pushBranchSel.value !== '__custom__';
+        var bInfo = getSelectedUploadBranchInfo();
+        renderUploadReportIntoModal(sgState.repoDiff || null, bInfo.targetBranch);
+        var remBanner = document.getElementById('sgPushRemoteOverwriteBanner');
+        if (remBanner) remBanner.hidden = true;
+      };
+    }
+
+    var inspectBtn = document.getElementById('sgPushInspectRemoteBtn');
+    if (inspectBtn) {
+      inspectBtn.onclick = function () {
+        inspectLiveRemoteDiff(false);
+      };
+    }
+
+    var remConfirmBtn = document.getElementById('sgPushRemoteConfirmBtn');
+    if (remConfirmBtn) {
+      remConfirmBtn.onclick = function () {
+        executePushToRepo(true);
+      };
+    }
+
+    var remDenyBtn = document.getElementById('sgPushRemoteDenyBtn');
+    if (remDenyBtn) {
+      remDenyBtn.onclick = function () {
+        var remBanner = document.getElementById('sgPushRemoteOverwriteBanner');
+        if (remBanner) remBanner.hidden = true;
+        closeModal('sgPushRepoModal');
+        showToast('Denied remote branch overwrite — GitHub branch left untouched.', false);
       };
     }
 

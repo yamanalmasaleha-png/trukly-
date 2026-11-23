@@ -501,11 +501,88 @@ async function startMockGitHubApiServer(expectedToken) {
     );
     await cdp.eval(sessionId, `document.getElementById('sgHostedDocCloseBtn').click(); true;`);
 
-    // 5. Click Push Answers to Repo and verify GitHub commit confirmation
-    await cdp.eval(sessionId, `document.getElementById('sgPushToRepoTopBtn').click(); true;`);
+    // 4b. Test Overwrite Recognition & Confirm / Deny flow in browser!
+    // Edit already-saved `DEC-FND-THEME-POLICY` -> card flags overwrite -> Save opens Confirm/Deny modal -> Deny reverts!
+    await cdp.eval(
+      sessionId,
+      `(() => {
+        const sel = document.querySelector('[data-sg-enum="DEC-FND-THEME-POLICY"]');
+        sel.value = 'system_prefers_color_scheme';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`
+    );
     await waitForCondition(
-      () => cdp.eval(sessionId, `!document.getElementById('sgPushRepoModal').hidden`),
-      { label: 'Push to Repo modal opened' }
+      () =>
+        cdp.eval(
+          sessionId,
+          `document.getElementById('sg-card-DEC-FND-THEME-POLICY')?.textContent.includes('Overwrites Saved Entry') &&
+           document.getElementById('sg-card-DEC-FND-THEME-POLICY')?.textContent.includes('Currently Saved (APPROVED):')`
+        ),
+      { label: 'Card recognized modification of saved entry' }
+    );
+
+    await cdp.eval(sessionId, `document.getElementById('sgSaveAllDirtyBtn').click(); true;`);
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          sessionId,
+          `!document.getElementById('sgOverwriteConfirmModal').hidden &&
+           document.getElementById('sgOverwriteDiffBox').textContent.includes('REWRITTEN')`
+        ),
+      { label: 'Confirm/Deny Overwrite modal opened with REWRITTEN diff' }
+    );
+
+    // Click Deny Overwrite -> reverts to `light_only`!
+    await cdp.eval(sessionId, `document.getElementById('sgOverwriteDenyBtn').click(); true;`);
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          sessionId,
+          `document.getElementById('sgOverwriteConfirmModal').hidden === true &&
+           document.querySelector('[data-sg-enum="DEC-FND-THEME-POLICY"]')?.value === 'light_only'`
+        ),
+      { label: 'Deny Overwrite kept existing saved value light_only' }
+    );
+
+    // Now edit again and Confirm Overwrite -> saves `system_prefers_color_scheme`!
+    await cdp.eval(
+      sessionId,
+      `(() => {
+        const sel = document.querySelector('[data-sg-enum="DEC-FND-THEME-POLICY"]');
+        sel.value = 'system_prefers_color_scheme';
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`
+    );
+    await cdp.eval(sessionId, `document.getElementById('sgSaveAllDirtyBtn').click(); true;`);
+    await waitForCondition(
+      () => cdp.eval(sessionId, `!document.getElementById('sgOverwriteConfirmModal').hidden`),
+      { label: 'Confirm/Deny modal reopened' }
+    );
+    await cdp.eval(sessionId, `document.getElementById('sgOverwriteConfirmBtn').click(); true;`);
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          sessionId,
+          `document.getElementById('sgOverwriteConfirmModal').hidden === true &&
+           document.getElementById('sgStickySaveBar').hidden === true &&
+           document.querySelector('[data-sg-enum="DEC-FND-THEME-POLICY"]')?.value === 'system_prefers_color_scheme'`
+        ),
+      { label: 'Confirm Overwrite persisted system_prefers_color_scheme' }
+    );
+
+    // 5. Click Header Upload Current Version to Git button and verify written/rewritten/left feedback + commit SHA
+    await cdp.eval(sessionId, `document.getElementById('sgHeaderUploadGitBtn').click(); true;`);
+    await waitForCondition(
+      () =>
+        cdp.eval(
+          sessionId,
+          `!document.getElementById('sgPushRepoModal').hidden &&
+           document.getElementById('sgPushMetricsGrid').textContent.includes('Newly Written Questions') &&
+           document.getElementById('sgPushMetricsGrid').textContent.includes('772 / 773')`
+        ),
+      { label: 'Upload to Git modal opened with Newly Written & Questions Left metrics' }
     );
     await cdp.eval(sessionId, `document.getElementById('sgPushSubmitBtn').click(); true;`);
     await waitForCondition(
@@ -513,9 +590,10 @@ async function startMockGitHubApiServer(expectedToken) {
         cdp.eval(
           sessionId,
           `!document.getElementById('sgPushModalSuccess').hidden &&
-           document.getElementById('sgPushModalSuccess').textContent.includes('dddd4444dddd')`
+           document.getElementById('sgPushModalSuccess').textContent.includes('dddd4444dddd') &&
+           document.getElementById('sgPushModalSuccess').textContent.includes('772 / 773')`
         ),
-      { label: 'Push to Repo modal reported new GitHub commit SHA' }
+      { label: 'Upload to Git modal reported new GitHub commit SHA and remaining question count' }
     );
     assert.equal(mockGh.getCommitCount(), 1);
 

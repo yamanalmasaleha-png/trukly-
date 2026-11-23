@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `antigravity/staging2-latest`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `69fc0bbf922905857378081cafac59ede392586f11d323da529e9c7d508e377b`
+> - **Deterministic Source Digest**: `e3d3029e2f5906f2fa84ef3f5673aa0c706daddd7e20aef369c6f823ed86cff4`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 ## Coverage Summary
@@ -14,9 +14,9 @@
 |---|---:|
 | JavaScript / CJS / ESM Files Scanned | 121 |
 | Parse Failures | 0 |
-| Named Functions, Methods & Handlers | 2553 |
+| Named Functions, Methods & Handlers | 2585 |
 | Classes | 17 |
-| Top-Level Constants | 589 |
+| Top-Level Constants | 590 |
 | Browser Globals & Assignments | 586 |
 
 > **Type Notation**: BiteShark is plain JavaScript without TypeScript annotations. Parameter types below distinguish `inferred_from_default`, `inferred_from_destructuring`, `inferred_from_rest`, and `undeclared` (`unknown`). Signatures are never invented.
@@ -184,7 +184,7 @@
 | `authorizeVendorTarget` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, requiredRole: string, dbClient: null_or_object)` | `async -> promise` | `api/owner/location.js:default`, `api/owner/profile.js:default`, `api/owner/schedule.js:default`, `api/pager/staff.js:default` | L362 |
 | `reverifyVendorMembershipInTx` | `function` | Yes | `(tx: unknown, ctx: unknown, vendorId: unknown, requiredRole: string, options: object)` | `async -> promise (throws: thrown_value)` | `api/owner/location.js:default$anon_L110_1`, `api/owner/profile.js:default$anon_L58_1`, `api/owner/requests.js:default$anon_L42_1`, `api/owner/schedule.js:default$anon_L64_1` | L504 |
 | `reverifyModeratorInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/community/moderate.js:default$anon_L27_1`, `api/community/moderate.js:default$anon_L67_2`, `lib/admin-test-customer.js:inspectAdminTestCustomerStatus$anon_L208_2`, `lib/admin-test-customer.js:enterAdminTestCustomerSession$anon_L276_3` | L647 |
-| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L544_5`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L756_10`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L817_11` | L663 |
+| `reverifyPlatformAdminInTx` | `function` | Yes | `(tx: unknown, ctx: unknown)` | `async -> promise` | `api/pager/telemetry.js:default$anon_L33_1`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L960_13`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L1224_18`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L1296_19` | L663 |
 | `authorizeVendorScope` | `function` | Yes | `(ctx: unknown, requestedVendorId: unknown, dbClient: null_or_object)` | `async -> promise` | `api/owner/bookings.js:default`, `api/owner/requests.js:default`, `api/owner/schedule.js:default`, `api/owner/stats.js:default` | L675 |
 | `redactPagerTargetId` | `function` | Yes | `(pagerUuid: unknown)` | `sync_value` | `api/pager/staff.js:default$anon_L71_1`, `api/pager/update.js:default$anon_L45_1` | L724 |
 | `sanitizeMetadata` | `function` | No | `(meta: unknown)` | `sync_value` | `lib/authz.js:recordAuditLog` | L729 |
@@ -479,28 +479,36 @@
 
 ### [lib/style-guide-admin.js](../../../lib/style-guide-admin.js) (`module`)
 - **Imports / Dependencies**: `./authz.js`, `./dates.js`, `./db-tx.js`, `./env-compat.js`, `./style-guide-core.js`, `node:crypto`, `node:fs`, `node:os`, `node:path`, `node:url`
-- **Exports**: `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `resolveGitHubPushConfig`, `loadCurrentWorkspaceSnapshot`, `handleAdminStyleGuideRoute`
-- **Significant Constants**: `MODULE_DIR`, `DEFAULT_RELEASE_ROOT`
+- **Exports**: `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `inspectPersistenceHealth`, `resolveGitHubPushConfig`, `hasSavedDecisionContent`, `summarizeDecisionValuePreview`, `computeStyleGuideChangeReport`, `loadCurrentWorkspaceSnapshot`, `handleAdminStyleGuideRoute`
+- **Significant Constants**: `MODULE_DIR`, `DEFAULT_RELEASE_ROOT`, `MAX_HISTORY_SNAPSHOTS`
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `sha256Hex` | `function` | No | `(text: unknown)` | `sync_value` | `api/pager/subscriptions.js:default`, `api/pager/subscriptions.js:default$anon_L120_2`, `lib/admin-governance.js:generateOpaqueToken`, `lib/admin-governance.js:verifyEvidenceBufferAndMime` | L39 |
-| `cloneJson` | `function` | No | `(val: unknown)` | `sync_value` | `lib/style-guide-admin.js:mergeBaselineWithOverrides`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L43 |
-| `isStaging2Runtime` | `function` | No | `()` | `sync_value` | `lib/style-guide-admin.js:resolveStyleGuideStorageDir`, `lib/style-guide-admin.js:resolveGitHubPushConfig` | L47 |
-| `resolveStyleGuideReleaseRoot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadBaselineDataAndSchema` | L58 |
-| `resolveStyleGuideStorageDir` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L67 |
-| `resolveGitHubPushConfig` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L100 |
-| `writeAtomicUtf8` | `function` | No | `(targetPath: unknown, text: unknown)` | `void_or_implicit (throws: thrown_value)` | `lib/style-guide-admin.js:materializeHostedFilesOnDisk`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L138 |
-| `loadBaselineDataAndSchema` | `function` | No | `()` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L166 |
-| `readWorkspaceState` | `function` | No | `(storageDir: unknown)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L182 |
-| `mergeBaselineWithOverrides` | `function` | No | `(baselineData: unknown, overridesById: object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L231 |
-| `materializeHostedFilesOnDisk` | `function` | No | `({ storageDir, releaseRoot, rendered }: object)` | `void_or_implicit` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L266 |
-| `getAllowedHostedFilenames` | `function` | No | `(data: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L302 |
-| `loadCurrentWorkspaceSnapshot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L315 |
-| `validateAllowedGitHubApiUrl` | `function` | No | `(apiUrl: unknown)` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L346 |
-| `githubApiJson` | `function` | No | `(baseUrl: unknown, endpointPath: unknown, token: unknown, { method, body }: object)` | `async -> promise` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L1001_13` | L368 |
-| `sanitizeGitHubErrMessage` | `function` | No | `(resObj: unknown, fallback: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L398 |
-| `handleAdminStyleGuideRoute` | `function` | Yes | `({ normPath, method, req, query, body, ctx, dbAdapter, sendJson }: object)` | `async -> promise (throws: Error)` | `server/admin-routes.js:handleGovernanceApiRequest` | L406 |
+| `sha256Hex` | `function` | No | `(text: unknown)` | `sync_value` | `api/pager/subscriptions.js:default`, `api/pager/subscriptions.js:default$anon_L120_2`, `lib/admin-governance.js:generateOpaqueToken`, `lib/admin-governance.js:verifyEvidenceBufferAndMime` | L46 |
+| `cloneJson` | `function` | No | `(val: unknown)` | `sync_value` | `lib/style-guide-admin.js:mergeBaselineWithOverrides`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L50 |
+| `isStaging2Runtime` | `function` | No | `()` | `sync_value` | `lib/style-guide-admin.js:resolveStyleGuideStorageDir`, `lib/style-guide-admin.js:inspectPersistenceHealth`, `lib/style-guide-admin.js:resolveGitHubPushConfig` | L54 |
+| `resolveStyleGuideReleaseRoot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadBaselineDataAndSchema` | L70 |
+| `resolveStyleGuideStorageDir` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L79 |
+| `inspectPersistenceHealth` | `function` | Yes | `(storageDir: unknown, wsState: null_or_object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L118 |
+| `resolveGitHubPushConfig` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L168 |
+| `writeAtomicUtf8` | `function` | No | `(targetPath: unknown, text: unknown)` | `void_or_implicit (throws: thrown_value)` | `lib/style-guide-admin.js:saveHistorySnapshotBeforeChange`, `lib/style-guide-admin.js:materializeHostedFilesOnDisk`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L207 |
+| `saveHistorySnapshotBeforeChange` | `function` | No | `(storageDir: unknown, prevWsState: unknown, reasonLabel: unknown)` | `void_or_implicit` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L235 |
+| `loadBaselineDataAndSchema` | `function` | No | `()` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L274 |
+| `readWorkspaceState` | `function` | No | `(storageDir: unknown)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot` | L290 |
+| `mergeBaselineWithOverrides` | `function` | No | `(baselineData: unknown, overridesById: object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L334 |
+| `hasSavedDecisionContent` | `function` | Yes | `(dec: unknown)` | `sync_value` | `lib/style-guide-admin.js:computeStyleGuideChangeReport` | L369 |
+| `summarizeDecisionValuePreview` | `function` | Yes | `(dec: unknown)` | `sync_value` | `lib/style-guide-admin.js:computeStyleGuideChangeReport` | L380 |
+| `decisionsCoreAnswerEqual` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `lib/style-guide-admin.js:computeStyleGuideChangeReport` | L413 |
+| `decisionsNotesEqual` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `lib/style-guide-admin.js:computeStyleGuideChangeReport` | L422 |
+| `computeStyleGuideChangeReport` | `function` | Yes | `({ referenceData, candidateData, referenceRendered, candidateRendered, referenceLabel }: object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L428 |
+| `materializeHostedFilesOnDisk` | `function` | No | `({ storageDir, releaseRoot, rendered }: object)` | `void_or_implicit` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L642 |
+| `getAllowedHostedFilenames` | `function` | No | `(data: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L678 |
+| `loadCurrentWorkspaceSnapshot` | `function` | Yes | `()` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L691 |
+| `validateAllowedGitHubApiUrl` | `function` | No | `(apiUrl: unknown)` | `sync_value (throws: Error)` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L739 |
+| `githubApiJson` | `function` | No | `(baseUrl: unknown, endpointPath: unknown, token: unknown, { method, body }: object)` | `async -> promise` | `lib/style-guide-admin.js:fetchRemoteBranchDecisionsIfAvailable`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute$anon_L1532_21` | L761 |
+| `sanitizeGitHubErrMessage` | `function` | No | `(resObj: unknown, fallback: unknown)` | `sync_value` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L791 |
+| `fetchRemoteBranchDecisionsIfAvailable` | `function` | No | `(apiBase: unknown, repo: unknown, commitSha: unknown, token: unknown)` | `async -> promise` | `lib/style-guide-admin.js:handleAdminStyleGuideRoute` | L799 |
+| `handleAdminStyleGuideRoute` | `function` | Yes | `({ normPath, method, req, query, body, ctx, dbAdapter, sendJson }: object)` | `async -> promise (throws: Error)` | `server/admin-routes.js:handleGovernanceApiRequest` | L821 |
 
 ### [lib/style-guide-core.js](../../../lib/style-guide-core.js) (`module`)
 - **Imports / Dependencies**: `./json-schema-lite.js`, `node:crypto`, `node:fs`, `node:path`
@@ -533,7 +541,7 @@
 | `renderUiInventoryMarkdown` | `function` | No | `(data: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L1121 |
 | `renderDecisionTableLines` | `function` | No | `(decisions: unknown, allDecisionsMap: unknown, topicsBySlug: unknown)` | `sync_value` | `lib/style-guide-core.js:renderTopicMarkdown` | L1180 |
 | `renderTopicMarkdown` | `function` | No | `(topic: unknown, data: unknown, decisionsDigest: unknown)` | `sync_value` | `lib/style-guide-core.js:renderStyleGuideMarkdownFiles` | L1228 |
-| `renderStyleGuideMarkdownFiles` | `function` | Yes | `(data: unknown, rawJsonText: null_or_object)` | `sync_value` | `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-core.js:generateStyleGuideDocs`, `lib/style-guide-core.js:validateStyleGuideWorkspace` | L1297 |
+| `renderStyleGuideMarkdownFiles` | `function` | Yes | `(data: unknown, rawJsonText: null_or_object)` | `sync_value` | `lib/style-guide-admin.js:computeStyleGuideChangeReport`, `lib/style-guide-admin.js:loadCurrentWorkspaceSnapshot`, `lib/style-guide-admin.js:handleAdminStyleGuideRoute`, `lib/style-guide-core.js:generateStyleGuideDocs` | L1297 |
 | `loadStyleGuideDecisions` | `function` | Yes | `(repoRoot: unknown, customDecisionsPath: null_or_object)` | `sync_value` | `lib/style-guide-core.js:generateStyleGuideDocs` | L1333 |
 | `generateStyleGuideDocs` | `function` | Yes | `(repoRoot: unknown, { customDecisionsPath }: object)` | `sync_value (throws: thrown_value)` | — | L1342 |
 | `validateStyleGuideWorkspace` | `function` | Yes | `(repoRoot: unknown, { customDecisionsPath }: object)` | `sync_value` | — | L1372 |
@@ -856,11 +864,11 @@
 ## 4. Browser Frontend Scripts (`public/`)
 
 ### [public/admin-style-guide.js](../../../public/admin-style-guide.js) (`script`)
-- **Explicit Window / Reassigned Globals**: `bitesharkAdminStyleGuide` (explicit_window_property @ L2341)
+- **Explicit Window / Reassigned Globals**: `bitesharkAdminStyleGuide` (explicit_window_property @ L2959)
 
 | Symbol | Kind | Exported | Parameters (Observed Type) | Returns / Throws | Observed Callers (Sample) | Line |
 |---|---|---|---|---|---|---:|
-| `<top_level>$anon_L13_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L13 |
+| `<top_level>$anon_L14_1` | `anonymous_function` | No | `()` | `void_or_implicit` | — | L14 |
 
 ### [public/admin.js](../../../public/admin.js) (`script`)
 - **Explicit Window / Reassigned Globals**: `location.href` (explicit_window_property @ L194), `location.href` (explicit_window_property @ L199), `location.href` (explicit_window_property @ L227), `location.href` (explicit_window_property @ L232), `location.href` (explicit_window_property @ L330), `location.href` (explicit_window_property @ L345), `location.href` (explicit_window_property @ L4684), `location.href` (explicit_window_property @ L4790), `location.href` (explicit_window_property @ L4897), `location.href` (explicit_window_property @ L4919), `location.href` (explicit_window_property @ L4932), `location.hash` (explicit_window_property @ L4986), `bitesharkAdminPortal` (explicit_window_property @ L5059)
@@ -950,7 +958,7 @@
 | `extraDetail` | `function` | No | `(t: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:openDetail` | L1551 |
 | `selectTruck` | `function` | No | `(id: unknown)` | `void_or_implicit` | `public/app.js:openMapCluster$anon_L1325_32$anon_L1329_33`, `public/app.js:renderMapCards$anon_L1350_37$anon_L1366_40`, `public/app.js:openTruck` | L1565 |
 | `openDetail` | `function` | No | `(id: unknown, triggerEl: unknown)` | `void_or_implicit` | `public/app.js:openMapCluster$anon_L1325_32$anon_L1329_33`, `public/app.js:renderMapCards$anon_L1350_37$anon_L1366_40`, `public/app.js:openTruck`, `public/app.js:surpriseMe` | L1579 |
-| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/admin-style-guide.js:closeModal`, `public/admin-style-guide.js:docCloseBtn.onclick`, `public/admin-style-guide.js:pushCancelBtn.onclick`, `public/community.js:communityReviewPlace` | L1606 |
+| `closeModal` | `function` | No | `()` | `void_or_implicit` | `public/admin-style-guide.js:closeModal`, `public/admin-style-guide.js:saveDecisionIds`, `public/admin-style-guide.js:owConfirmBtn.onclick`, `public/admin-style-guide.js:owDenyBtn.onclick` | L1606 |
 | `initialsFromUser` | `function` | No | `(user: unknown)` | `sync_value` | `public/app.js:updateAuthUI` | L1610 |
 | `updateAuthUI` | `function` | No | `()` | `void_or_implicit` | `public/app.js:init`, `public/app.js:syncAuthAndUserData`, `public/app.js:applyConfirmedClientSignOutCleanup`, `public/app.js:toggleFav` | L1622 |
 | `syncAuthAndUserData` | `function` | No | `()` | `async -> promise` | `public/app.js:init`, `public/app.js:onRetry`, `scripts/dev-workbench/debug-admin.js:setRole` | L1656 |
