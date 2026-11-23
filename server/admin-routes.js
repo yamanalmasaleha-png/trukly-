@@ -105,7 +105,21 @@ import {
   CUSTOMER_EXPLORATION_PATHS,
   handleCustomerExplorationRoute
 } from './customer-exploration-routes.js';
+import {
+  CUSTOMER_PROFILE_PATHS,
+  handleCustomerProfileRoute
+} from './customer-profile-routes.js';
 import { reconcilePhotoStorage } from '../lib/customer-exploration.js';
+import {
+  ADMIN_TEST_CUSTOMER_USER_ID,
+  ADMIN_TEST_CUSTOMER_EMAIL,
+  isAdminTestCustomerAllowed,
+  inspectAdminTestCustomerStatus,
+  enterAdminTestCustomerSession,
+  seedAdminTestCustomerSampleData,
+  resetAdminTestCustomerData,
+  exitAdminTestCustomerSession
+} from '../lib/admin-test-customer.js';
 
 export const EVIDENCE_UPLOAD_MAX_JSON_BYTES = 900 * 1024; // 900 KiB JSON envelope for <= 512 KiB base64 file
 
@@ -155,12 +169,17 @@ const GOVERNANCE_PATHS = new Set([
   '/api/admin/diagnostics/synthetic-test',
   '/api/admin/diagnostics/cleanup',
   '/api/admin/diagnostics/notify-tickets',
-  '/api/admin/audit'
+  '/api/admin/audit',
+  '/api/admin/test-customer'
 ]);
 
 export function isGovernanceApiPath(pathname) {
   const norm = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
-  return GOVERNANCE_PATHS.has(norm) || CUSTOMER_EXPLORATION_PATHS.has(norm);
+  return (
+    GOVERNANCE_PATHS.has(norm) ||
+    CUSTOMER_EXPLORATION_PATHS.has(norm) ||
+    CUSTOMER_PROFILE_PATHS.has(norm)
+  );
 }
 
 function maskEmail(email) {
@@ -902,6 +921,18 @@ export async function handleGovernanceApiRequest({
       my_applications_count: myAppsCount,
       my_open_issues_count: myIssuesCount,
       unread_support_count: unreadSupportCount,
+      test_customer_sandbox:
+        (ctx.user?.is_admin_test_customer || ctx.user?.id === ADMIN_TEST_CUSTOMER_USER_ID) &&
+        isAdminTestCustomerAllowed()
+          ? {
+              active: true,
+              email: ADMIN_TEST_CUSTOMER_EMAIL,
+              return_admin_url: '/admin'
+            }
+          : {
+              active: false,
+              available_for_top_admin: Boolean(ctx.isTopAdmin && isAdminTestCustomerAllowed())
+            },
       coarse_area: coarseArea
     });
   }
@@ -929,6 +960,20 @@ export async function handleGovernanceApiRequest({
 
   if (CUSTOMER_EXPLORATION_PATHS.has(normPath)) {
     return handleCustomerExplorationRoute({
+      pathname: normPath,
+      method,
+      req,
+      query,
+      body,
+      verifiedUser: req.user || null,
+      dbAdapter,
+      sendJson,
+      rawRes
+    });
+  }
+
+  if (CUSTOMER_PROFILE_PATHS.has(normPath)) {
+    return handleCustomerProfileRoute({
       pathname: normPath,
       method,
       req,
@@ -8161,6 +8206,66 @@ export async function handleGovernanceApiRequest({
       already_sent_count: txRes.alreadySentCount || 0,
       excluded_inactive_count: txRes.excludedInactiveCount || 0,
       deliveries: deliverySummaries
+    });
+  }
+
+  // =========================================================================
+  // Top-Admin Isolated Testing Customer Sandbox (`GET|POST /api/admin/test-customer`)
+  // =========================================================================
+  if (normPath === '/api/admin/test-customer') {
+    if (method !== 'GET' && method !== 'POST') {
+      return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET, POST' });
+    }
+    if (!ctx.authenticated || !ctx.user) {
+      return sendJson(401, { error: 'Sign in is required.' });
+    }
+
+    const appendRawCookie = cookieStr => {
+      if (!rawRes || !cookieStr) return;
+      const prev = rawRes.getHeader('Set-Cookie');
+      if (!prev) rawRes.setHeader('Set-Cookie', [cookieStr]);
+      else if (Array.isArray(prev)) rawRes.setHeader('Set-Cookie', [...prev, cookieStr]);
+      else rawRes.setHeader('Set-Cookie', [String(prev), cookieStr]);
+    };
+
+    if (method === 'GET') {
+      const out = await inspectAdminTestCustomerStatus(dbAdapter, req, ctx);
+      if (!out.ok) return sendJson(out.status, { error: out.error, code: out.code || null });
+      return sendJson(200, out.body);
+    }
+
+    const action = String(body?.action || '').trim().toLowerCase();
+    if (action === 'exit') {
+      const out = await exitAdminTestCustomerSession(dbAdapter, req, ctx);
+      if (out.clearCookieHeader) appendRawCookie(out.clearCookieHeader);
+      return sendJson(200, out.body);
+    }
+    if (!ctx.isTopAdmin) {
+      return sendJson(403, { error: 'Admin: Top access is required.' });
+    }
+
+    if (action === 'enter') {
+      const out = await enterAdminTestCustomerSession(dbAdapter, req, ctx, {
+        seedSample: Boolean(body?.seed_sample)
+      });
+      if (!out.ok) return sendJson(out.status, { error: out.error, code: out.code || null });
+      if (out.setCookieHeader) appendRawCookie(out.setCookieHeader);
+      return sendJson(200, out.body);
+    }
+    if (action === 'seed') {
+      const out = await seedAdminTestCustomerSampleData(dbAdapter, ctx);
+      if (!out.ok) return sendJson(out.status, { error: out.error, code: out.code || null });
+      return sendJson(200, out.body);
+    }
+    if (action === 'reset') {
+      const out = await resetAdminTestCustomerData(dbAdapter, ctx);
+      if (!out.ok) return sendJson(out.status, { error: out.error, code: out.code || null });
+      return sendJson(200, out.body);
+    }
+
+    return sendJson(400, {
+      error: 'Action must be enter, seed, reset, or exit.',
+      code: 'INVALID_TEST_CUSTOMER_ACTION'
     });
   }
 

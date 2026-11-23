@@ -352,6 +352,21 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
         run: node tests/customer-exploration-browser.e2e.cjs
+      - name: Run real PostgreSQL + Sharp BiteShark Customer Profile, Greatest Hits, Unlisted Sharing & Moderation Integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/customer-profile-sharing.integration.cjs
+      - name: Run real headless Chrome + PostgreSQL BiteShark Customer Profile, Greatest Hits & Unlisted Sharing E2E suite
+        if: steps.scope.outputs.runtime_changed == 'true'
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/customer-profile-browser.e2e.cjs
+      - name: Run real PostgreSQL Top-Admin Testing Customer Sandbox RBAC, Isolation & Audit Integration suite
+        if: steps.scope.outputs.runtime_changed == 'true'
+        env:
+          DATABASE_URL: postgres://postgres:postgres_ci_password@127.0.0.1:5432/postgres
+        run: node tests/admin-test-customer.integration.cjs
       - name: Verify clean Linux release archive installation, startup, BiteShark assets & SIGTERM shutdown
         if: steps.scope.outputs.runtime_changed == 'true'
         shell: bash

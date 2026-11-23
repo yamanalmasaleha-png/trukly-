@@ -5,14 +5,14 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313`
+> - **Source Analysis Digest**: `83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Schema Provenance & Verification Scope
 - **Static Basis**: `reconstructed_from_repository_migrations` *(reconstructed offline from `migrations/*.sql` and `scripts/run-migrations.cjs`; this static file alone does **not** prove a live database check ran)*
 - **Live PostgreSQL Catalog Verification**: Run `node tools/code-registry/cli.mjs validate --verify-db` (enforced in CI `postgres-backend-hardening`) to cross-check reconstructed tables, columns, normalized types, nullability, default presence, primary/unique/foreign-key constraints, indexes, and `FORCE ROW LEVEL SECURITY` policies against PostgreSQL `pg_catalog`.
-- **Migrations Indexed**: **28**
-- **Tables Indexed**: **51** (**36** with `FORCE ROW LEVEL SECURITY`)
+- **Migrations Indexed**: **29**
+- **Tables Indexed**: **59** (**44** with `FORCE ROW LEVEL SECURITY`)
 - **Views / Functions / Triggers**: **1** views, **9** SQL functions, **7** triggers
 
 ## 1. Ordered SQL Migration Ledger
@@ -47,6 +47,7 @@
 | 26 | [migrations/026_urgent_pilot_security_hardening.sql](../../../migrations/026_urgent_pilot_security_hardening.sql) | `cd46081cd0193e2d` | — | — | 0 | No |
 | 27 | [migrations/027_customer_exploration_foundation.sql](../../../migrations/027_customer_exploration_foundation.sql) | `ccc2eaeea5e00cac` | `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` | `customer_photos`, `customer_saved_trail_stops`, `customer_saved_trails`, `customer_visits` | 4 | No |
 | 28 | [migrations/028_exploration_photo_reconciliation.sql](../../../migrations/028_exploration_photo_reconciliation.sql) | `0393c64b9001f398` | — | — | 2 | No |
+| 29 | [migrations/029_customer_profiles_collections_and_sharing.sql](../../../migrations/029_customer_profiles_collections_and_sharing.sql) | `5047db23f7a39e79` | `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events` | `customer_collection_entries`, `customer_collection_photo_attachments`, `customer_collection_shares`, `customer_collections`, `customer_profiles`, `customer_share_moderation_events`, `customer_share_reports`, `customer_sharing_eligibility` | 18 | No |
 
 ## 2. Entity-Relationship Diagram (Generated from Foreign Keys)
 
@@ -260,6 +261,69 @@ erDiagram
     boolean implemented_recorded
     boolean tested_recorded
   }
+  customer_collection_entries {
+    text id PK
+    text collection_id FK
+    text user_id FK
+    smallint position
+    text vendor_id FK
+    text recorded_vendor_id
+    text vendor_name_snapshot
+    text vendor_town_snapshot
+    text vendor_cuisine_snapshot
+    text recommendation
+    text photo_attachment_id FK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  customer_collection_photo_attachments {
+    text id PK
+    text collection_id FK
+    text user_id FK
+    text source_photo_id FK
+    text recorded_source_photo_id
+    text shared_rel_path
+    text mime_type
+    integer byte_size
+    integer width
+    integer height
+    text sha256_hex
+    boolean share_consent_confirmed
+    timestamptz consented_at
+    text moderation_status
+  }
+  customer_collection_shares {
+    text id PK
+    text collection_id FK
+    text user_id FK
+    text token_sha256
+    text masked_token_hint
+    boolean include_display_name
+    boolean include_bio
+    boolean include_preferred_area
+    boolean include_achievements
+    boolean include_shared_photos
+    timestamptz expires_at
+    text status
+    text replaced_by_share_id FK
+    timestamptz revoked_at
+  }
+  customer_collections {
+    text id PK
+    text user_id FK
+    text title
+    text intro
+    text visibility_mode
+    text moderation_status
+    timestamptz suppressed_at
+    text suppressed_by
+    text suppression_authority
+    text suppression_reason
+    text suppressed_content_sha256
+    integer revision
+    text idempotency_key
+    timestamptz created_at
+  }
   customer_photos {
     text id PK
     text user_id FK
@@ -275,6 +339,21 @@ erDiagram
     text sha256_hex
     text storage_rel_path
     text thumb_rel_path
+  }
+  customer_profiles {
+    text user_id PK
+    text public_profile_id
+    text display_name
+    text bio
+    text avatar_style
+    text preferred_town
+    text food_interests
+    boolean communication_product_updates_opt_in
+    text visibility_mode
+    boolean allow_public_indexing
+    integer revision
+    timestamptz created_at
+    timestamptz updated_at
   }
   customer_saved_trail_stops {
     text trail_id PK
@@ -295,6 +374,39 @@ erDiagram
     text idempotency_key
     timestamptz created_at
     timestamptz deleted_at
+  }
+  customer_share_moderation_events {
+    bigserial id PK
+    text collection_id FK
+    text share_id FK
+    text attachment_id FK
+    text actor_user_id
+    text actor_authority
+    text action
+    text reason
+    timestamptz created_at
+  }
+  customer_share_reports {
+    text id PK
+    text share_id FK
+    text collection_id FK
+    text attachment_id FK
+    text reporter_user_id FK
+    text reporter_ip_hash
+    text reason
+    text details
+    text status
+    text reviewed_by
+    timestamptz reviewed_at
+    timestamptz created_at
+  }
+  customer_sharing_eligibility {
+    text user_id PK
+    text eligibility_status
+    text policy_version
+    text assessment_basis
+    timestamptz assessed_at
+    timestamptz updated_at
   }
   customer_visits {
     text id PK
@@ -676,12 +788,32 @@ erDiagram
   community_reviews ||--o{ community_moderation_history : "post_id"
   community_reviews ||--o{ community_reports : "post_id"
   compliance_readiness_items ||--o{ compliance_readiness_history : "item_key"
+  customer_collections ||--o{ customer_collection_entries : "collection_id"
+  auth_users ||--o{ customer_collection_entries : "user_id"
+  vendors ||--o{ customer_collection_entries : "vendor_id"
+  customer_collection_photo_attachments ||--o{ customer_collection_entries : "photo_attachment_id"
+  customer_collections ||--o{ customer_collection_photo_attachments : "collection_id"
+  auth_users ||--o{ customer_collection_photo_attachments : "user_id"
+  customer_photos ||--o{ customer_collection_photo_attachments : "source_photo_id"
+  customer_collections ||--o{ customer_collection_shares : "collection_id"
+  auth_users ||--o{ customer_collection_shares : "user_id"
+  customer_collection_shares ||--o{ customer_collection_shares : "replaced_by_share_id"
+  auth_users ||--o{ customer_collections : "user_id"
   auth_users ||--o{ customer_photos : "user_id"
   vendors ||--o{ customer_photos : "vendor_id"
+  auth_users ||--o{ customer_profiles : "user_id"
   customer_saved_trails ||--o{ customer_saved_trail_stops : "trail_id"
   auth_users ||--o{ customer_saved_trail_stops : "user_id"
   vendors ||--o{ customer_saved_trail_stops : "vendor_id"
   auth_users ||--o{ customer_saved_trails : "user_id"
+  customer_collections ||--o{ customer_share_moderation_events : "collection_id"
+  customer_collection_shares ||--o{ customer_share_moderation_events : "share_id"
+  customer_collection_photo_attachments ||--o{ customer_share_moderation_events : "attachment_id"
+  customer_collection_shares ||--o{ customer_share_reports : "share_id"
+  customer_collections ||--o{ customer_share_reports : "collection_id"
+  customer_collection_photo_attachments ||--o{ customer_share_reports : "attachment_id"
+  auth_users ||--o{ customer_share_reports : "reporter_user_id"
+  auth_users ||--o{ customer_sharing_eligibility : "user_id"
   auth_users ||--o{ customer_visits : "user_id"
   vendors ||--o{ customer_visits : "vendor_id"
   diagnostic_incident_groups ||--o{ diagnostic_event_samples : "group_id"
@@ -710,7 +842,7 @@ erDiagram
   vendors ||--o{ vendor_status_history : "vendor_id"
 ```
 
-## 3. Reconstructed Table & RLS Catalog (51 Tables)
+## 3. Reconstructed Table & RLS Catalog (59 Tables)
 
 ### Table `account_invitation_events`
 - **Created in**: `023_invitation_delivery_and_lifecycle.sql`
@@ -1138,6 +1270,134 @@ erDiagram
 - **RLS Policies (1)**:
   - `compliance_items_admin_portal_all` (`FOR ALL`, GUCs: `app.admin_portal`) — `019_age_eligibility_and_compliance_readiness.sql`
 
+### Table `customer_collection_entries`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `collection_id` | `TEXT` | — | Yes | — | `customer_collections(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `position` | `SMALLINT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `vendor_id` | `TEXT` | — | No | — | `vendors(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `recorded_vendor_id` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `vendor_name_snapshot` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `vendor_town_snapshot` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `vendor_cuisine_snapshot` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `recommendation` | `TEXT` | — | Yes | `''` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `photo_attachment_id` | `TEXT` | — | No | — | `customer_collection_photo_attachments(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (10)**: `customer_collection_entries_pkey` (PRIMARY KEY), `customer_collection_entries_id_check` (CHECK), `customer_collection_entries_position_check` (CHECK), `customer_collection_entries_recorded_vendor_id_check` (CHECK), `customer_collection_entries_vendor_name_snapshot_check` (CHECK), `customer_collection_entries_vendor_town_snapshot_check` (CHECK), `customer_collection_entries_vendor_cuisine_snapshot_check` (CHECK), `customer_collection_entries_recommendation_check` (CHECK), `customer_collection_entries_unique_position` (UNIQUE), `customer_collection_entries_unique_vendor` (UNIQUE)
+- **Indexes (1)**: `idx_customer_collection_entries_collection_pos`
+- **RLS Policies (2)**:
+  - `customer_collection_entries_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_entries_share_or_mod_select` (`FOR SELECT`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_lookup`, `app.share_moderation`) — `029_customer_profiles_collections_and_sharing.sql`
+
+### Table `customer_collection_photo_attachments`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `collection_id` | `TEXT` | — | Yes | — | `customer_collections(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `source_photo_id` | `TEXT` | — | No | — | `customer_photos(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `recorded_source_photo_id` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `shared_rel_path` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `mime_type` | `TEXT` | — | Yes | `'image/webp'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `byte_size` | `INTEGER` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `width` | `INTEGER` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `height` | `INTEGER` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `sha256_hex` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `share_consent_confirmed` | `BOOLEAN` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `consented_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_status` | `TEXT` | — | Yes | `'active'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppressed_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppressed_by` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppression_authority` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppression_reason` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `revoked_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `files_purged_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (13)**: `customer_collection_photo_attachments_pkey` (PRIMARY KEY), `customer_collection_photo_attachments_id_check` (CHECK), `customer_collection_photo_attachments_recorded_source_photo_id_check` (CHECK), `customer_collection_photo_attachments_shared_rel_path_check` (CHECK), `customer_collection_photo_attachments_mime_type_check` (CHECK), `customer_collection_photo_attachments_byte_size_check` (CHECK), `customer_collection_photo_attachments_width_check` (CHECK), `customer_collection_photo_attachments_height_check` (CHECK), `customer_collection_photo_attachments_sha256_hex_check` (CHECK), `customer_collection_photo_attachments_share_consent_confirmed_check` (CHECK), `customer_collection_photo_attachments_moderation_status_check` (CHECK), `customer_collection_photo_attachments_suppression_authority_check` (CHECK), `customer_collection_photo_attachments_suppression_reason_check` (CHECK)
+- **Indexes (3)**: `idx_collection_photo_attachments_collection`, `idx_collection_photo_attachments_source_photo`, `idx_collection_photo_attachments_pending_purge`
+- **RLS Policies (4)**:
+  - `customer_collection_photos_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_photos_share_lookup_select` (`FOR SELECT`, GUCs: `app.share_lookup`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_photos_moderation_access` (`FOR ALL`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_moderation`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_photos_maintenance_all` (`FOR ALL`, GUCs: `app.photo_maintenance`) — `029_customer_profiles_collections_and_sharing.sql`
+
+### Table `customer_collection_shares`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `collection_id` | `TEXT` | — | Yes | — | `customer_collections(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `token_sha256` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `masked_token_hint` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `include_display_name` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `include_bio` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `include_preferred_area` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `include_achievements` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `include_shared_photos` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `expires_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `status` | `TEXT` | — | Yes | `'active'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `replaced_by_share_id` | `TEXT` | — | No | — | `customer_collection_shares(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `revoked_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `revoke_reason` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_suppressed_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_suppressed_by` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_authority` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_reason` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `idempotency_key` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (10)**: `customer_collection_shares_pkey` (PRIMARY KEY), `customer_collection_shares_id_check` (CHECK), `customer_collection_shares_token_sha256_key` (UNIQUE), `customer_collection_shares_token_sha256_check` (CHECK), `customer_collection_shares_masked_token_hint_check` (CHECK), `customer_collection_shares_status_check` (CHECK), `customer_collection_shares_revoke_reason_check` (CHECK), `customer_collection_shares_moderation_authority_check` (CHECK), `customer_collection_shares_moderation_reason_check` (CHECK), `customer_collection_shares_idempotency_key_check` (CHECK)
+- **Indexes (3)**: `idx_customer_collection_shares_collection_status`, `idx_customer_collection_shares_user_status`, `idx_customer_collection_shares_user_idem` *(UNIQUE)*
+- **RLS Policies (3)**:
+  - `customer_collection_shares_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_shares_share_lookup_select` (`FOR SELECT`, GUCs: `app.share_lookup`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collection_shares_moderation_access` (`FOR ALL`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_moderation`) — `029_customer_profiles_collections_and_sharing.sql`
+
+### Table `customer_collections`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `user_id` | `TEXT` | — | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `title` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `intro` | `TEXT` | — | Yes | `''` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `visibility_mode` | `TEXT` | — | Yes | `'private'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `moderation_status` | `TEXT` | — | Yes | `'active'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppressed_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppressed_by` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppression_authority` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppression_reason` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `suppressed_content_sha256` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `revision` | `INTEGER` | — | Yes | `1` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `idempotency_key` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `deleted_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (11)**: `customer_collections_pkey` (PRIMARY KEY), `customer_collections_id_check` (CHECK), `customer_collections_title_check` (CHECK), `customer_collections_intro_check` (CHECK), `customer_collections_visibility_mode_check` (CHECK), `customer_collections_moderation_status_check` (CHECK), `customer_collections_suppression_authority_check` (CHECK), `customer_collections_suppression_reason_check` (CHECK), `customer_collections_suppressed_content_sha256_check` (CHECK), `customer_collections_revision_check` (CHECK), `customer_collections_idempotency_key_check` (CHECK)
+- **Indexes (2)**: `idx_customer_collections_user_active`, `idx_customer_collections_user_idem` *(UNIQUE)*
+- **RLS Policies (3)**:
+  - `customer_collections_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collections_share_lookup_select` (`FOR SELECT`, GUCs: `app.share_lookup`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_collections_moderation_access` (`FOR ALL`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_moderation`) — `029_customer_profiles_collections_and_sharing.sql`
+
 ### Table `customer_photos`
 - **Created in**: `027_customer_exploration_foundation.sql`
 - **Row-Level Security**: Enabled = `true`, Forced = `true`
@@ -1171,6 +1431,31 @@ erDiagram
   - `customer_photos_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
   - `customer_photos_maintenance_select` (`FOR SELECT`, GUCs: `app.photo_maintenance`) — `028_exploration_photo_reconciliation.sql`
   - `customer_photos_maintenance_mark_purged` (`FOR UPDATE`, GUCs: `app.photo_maintenance`) — `028_exploration_photo_reconciliation.sql`
+
+### Table `customer_profiles`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `user_id` | `TEXT` | PK | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `public_profile_id` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `display_name` | `TEXT` | — | Yes | `''` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `bio` | `TEXT` | — | Yes | `''` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `avatar_style` | `TEXT` | — | Yes | `'initials_fern'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `preferred_town` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `food_interests` | `TEXT[]` | — | Yes | `'{}'::text[]` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `communication_product_updates_opt_in` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `visibility_mode` | `TEXT` | — | Yes | `'private'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `allow_public_indexing` | `BOOLEAN` | — | Yes | `false` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `revision` | `INTEGER` | — | Yes | `1` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (11)**: `customer_profiles_pkey` (PRIMARY KEY), `customer_profiles_public_profile_id_key` (UNIQUE), `customer_profiles_public_profile_id_check` (CHECK), `customer_profiles_display_name_check` (CHECK), `customer_profiles_bio_check` (CHECK), `customer_profiles_avatar_style_check` (CHECK), `customer_profiles_preferred_town_check` (CHECK), `customer_profiles_food_interests_check` (CHECK), `customer_profiles_visibility_mode_check` (CHECK), `customer_profiles_allow_public_indexing_check` (CHECK), `customer_profiles_revision_check` (CHECK)
+- **RLS Policies (2)**:
+  - `customer_profiles_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_profiles_share_lookup_select` (`FOR SELECT`, GUCs: `app.share_lookup`) — `029_customer_profiles_collections_and_sharing.sql`
 
 ### Table `customer_saved_trail_stops`
 - **Created in**: `027_customer_exploration_foundation.sql`
@@ -1211,6 +1496,69 @@ erDiagram
 - **Indexes (2)**: `idx_customer_saved_trails_user_idempotency` *(UNIQUE)*, `idx_customer_saved_trails_user_active`
 - **RLS Policies (1)**:
   - `customer_saved_trails_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `027_customer_exploration_foundation.sql`
+
+### Table `customer_share_moderation_events`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true` | **Runtime Role Revokes**: `REVOKE UPDATE, DELETE`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `BIGSERIAL` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `collection_id` | `TEXT` | — | Yes | — | `customer_collections(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `share_id` | `TEXT` | — | No | — | `customer_collection_shares(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `attachment_id` | `TEXT` | — | No | — | `customer_collection_photo_attachments(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `actor_user_id` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `actor_authority` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `action` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `reason` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (4)**: `customer_share_moderation_events_pkey` (PRIMARY KEY), `customer_share_moderation_events_actor_authority_check` (CHECK), `customer_share_moderation_events_action_check` (CHECK), `customer_share_moderation_events_reason_check` (CHECK)
+- **Indexes (1)**: `idx_customer_share_mod_events_collection`
+- **RLS Policies (1)**:
+  - `customer_share_mod_events_access` (`FOR ALL`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_moderation`) — `029_customer_profiles_collections_and_sharing.sql`
+
+### Table `customer_share_reports`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `id` | `TEXT` | PK | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `share_id` | `TEXT` | — | Yes | — | `customer_collection_shares(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `collection_id` | `TEXT` | — | Yes | — | `customer_collections(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `attachment_id` | `TEXT` | — | No | — | `customer_collection_photo_attachments(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `reporter_user_id` | `TEXT` | — | No | — | `auth_users(id)` (SET NULL) | `029_customer_profiles_collections_and_sharing.sql` |
+| `reporter_ip_hash` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `reason` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `details` | `TEXT` | — | Yes | `''` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `status` | `TEXT` | — | Yes | `'open'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `reviewed_by` | `TEXT` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `reviewed_at` | `TIMESTAMPTZ` | — | No | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (6)**: `customer_share_reports_pkey` (PRIMARY KEY), `customer_share_reports_id_check` (CHECK), `customer_share_reports_reporter_ip_hash_check` (CHECK), `customer_share_reports_reason_check` (CHECK), `customer_share_reports_details_check` (CHECK), `customer_share_reports_status_check` (CHECK)
+- **Indexes (2)**: `idx_customer_share_reports_status_created`, `idx_customer_share_reports_collection`
+- **RLS Policies (1)**:
+  - `customer_share_reports_intake` (`FOR ALL`, GUCs: `app.can_moderate`, `app.is_platform_admin`, `app.share_moderation`, `app.share_report_intake`) — `029_customer_profiles_collections_and_sharing.sql`
+
+### Table `customer_sharing_eligibility`
+- **Created in**: `029_customer_profiles_collections_and_sharing.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
+
+| Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
+|---|---|---|---|---|---|---|
+| `user_id` | `TEXT` | PK | Yes | — | `auth_users(id)` (CASCADE) | `029_customer_profiles_collections_and_sharing.sql` |
+| `eligibility_status` | `TEXT` | — | Yes | `'unknown'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `policy_version` | `TEXT` | — | Yes | — | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `assessment_basis` | `TEXT` | — | Yes | `'self_attested_calendar_dob'` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `assessed_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+| `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `029_customer_profiles_collections_and_sharing.sql` |
+
+- **Constraints (4)**: `customer_sharing_eligibility_pkey` (PRIMARY KEY), `customer_sharing_eligibility_eligibility_status_check` (CHECK), `customer_sharing_eligibility_policy_version_check` (CHECK), `customer_sharing_eligibility_assessment_basis_check` (CHECK)
+- **RLS Policies (2)**:
+  - `customer_sharing_eligibility_owner_all` (`FOR ALL`, GUCs: `app.user_id`) — `029_customer_profiles_collections_and_sharing.sql`
+  - `customer_sharing_eligibility_share_lookup_select` (`FOR SELECT`, GUCs: `app.share_lookup`) — `029_customer_profiles_collections_and_sharing.sql`
 
 ### Table `customer_visits`
 - **Created in**: `027_customer_exploration_foundation.sql`

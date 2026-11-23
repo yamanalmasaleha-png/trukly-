@@ -38,6 +38,7 @@ function unwrapObjectFreeze(node) {
 
 function getMemberChain(node) {
   if (!node) return null;
+  if (node.type === 'ChainExpression') return getMemberChain(node.expression);
   if (node.type === 'Identifier') return node.name;
   if (node.type === 'ThisExpression') return 'this';
   if (node.type === 'MemberExpression' && !node.computed) {
@@ -410,12 +411,40 @@ function collectPermissionSignalsFromAst(subtree, intraFileHelperSignals = new M
           'saveUserTrail',
           'deleteUserSavedTrail',
           'importLegacyDeviceVisits',
-          'exportUserExplorationData'
+          'exportUserExplorationData',
+          'getPrivateOwnerProfile',
+          'updatePrivateOwnerProfile',
+          'updateCustomerPreferences',
+          'exportCustomerProfileAndExplorationArchive',
+          'clearCustomerProfileAndCollectionsData',
+          'listOwnerCollections',
+          'getOwnerCollectionDetail',
+          'createOwnerCollection',
+          'updateOwnerCollection',
+          'deleteOwnerCollection',
+          'previewOwnerSharedCollection',
+          'submitAdultSharingEligibility',
+          'listOwnerShares',
+          'createCollectionShareLink',
+          'updateCollectionShareSettings',
+          'rotateCollectionShareLink',
+          'revokeCollectionShareLink',
+          'attachPhotoToCollectionEntry',
+          'removePhotoFromCollectionEntry'
         ].includes(ch)
       ) {
         signals.userRlsGuc = true;
         signals.selfUserCheck = true;
         signals.evidenceList.add(`${ch}(userId + FORCE_RLS)`);
+      } else if (
+        [
+          'listAdminSharedModerationQueue',
+          'applyAdminSharedModerationDecision',
+          'readAdminReportedSharedPhoto'
+        ].includes(ch)
+      ) {
+        signals.modAdminTx = true;
+        signals.evidenceList.add(`${ch}(reverifyModeratorInTx)`);
       } else if (intraFileHelperSignals.has(ch)) {
         const sub = intraFileHelperSignals.get(ch);
         if (sub.topAdminTx) {
@@ -452,21 +481,34 @@ function collectPermissionSignalsFromAst(subtree, intraFileHelperSignals = new M
 
     if (node.type === 'MemberExpression') {
       const ch = getMemberChain(node);
-      if (ch === 'ctx.isPlatformAdmin' || ch === 'ctx.isTopAdmin') {
+      if (ch === 'ctx.isPlatformAdmin' || ch === 'ctx.isTopAdmin' || ch === 'accessCtx.isTopAdmin') {
         signals.topAdminGuard = true;
         signals.evidenceList.add(ch);
-      } else if (ch === 'ctx.isModerator' || ch === 'ctx.isModAdmin') {
+      } else if (
+        ch === 'ctx.isModerator' ||
+        ch === 'ctx.isModAdmin' ||
+        ch === 'accessCtx.isModAdmin'
+      ) {
         signals.modAdminGuard = true;
         signals.evidenceList.add(ch);
-      } else if (ch === 'ctx.authenticated') {
+      } else if (ch === 'ctx.authenticated' || ch === 'accessCtx.authenticated') {
         signals.requiresAuthGuard = true;
-        signals.evidenceList.add('ctx.authenticated');
+        signals.evidenceList.add(ch);
       } else if (ch === 'user.id' || ch === 'ctx.user.id' || ch === 'verifiedUser.id') {
         signals.selfUserCheck = true;
       } else if (ch === 'process.env.NOTIFICATION_WORKER_SECRET') {
         signals.workerSecret = true;
         signals.evidenceList.add('NOTIFICATION_WORKER_SECRET');
       }
+    }
+
+    if (
+      node.type === 'UnaryExpression' &&
+      node.operator === '!' &&
+      getMemberChain(node.argument) === 'verifiedUser.id'
+    ) {
+      signals.requiresAuthGuard = true;
+      signals.evidenceList.add('verifiedUser.id');
     }
 
     if (
@@ -1041,8 +1083,12 @@ export function extractBackendRoutes({
     }
   }
 
-  // 3. `server/admin-routes.js` & `server/customer-exploration-routes.js` (AST statement-sequential & branch-bounded)
-  for (const routerFile of ['server/admin-routes.js', 'server/customer-exploration-routes.js']) {
+  // 3. `server/admin-routes.js`, `server/customer-exploration-routes.js` & `server/customer-profile-routes.js`
+  for (const routerFile of [
+    'server/admin-routes.js',
+    'server/customer-exploration-routes.js',
+    'server/customer-profile-routes.js'
+  ]) {
     const src = fileContentsByPath.get(routerFile);
     if (!src) continue;
     const parsed = parseJavaScriptSource(src, { filePath: routerFile });
@@ -1052,7 +1098,9 @@ export function extractBackendRoutes({
     const handlerSym =
       routerFile === 'server/customer-exploration-routes.js'
         ? 'handleCustomerExplorationRoute'
-        : 'handleGovernanceApiRequest';
+        : routerFile === 'server/customer-profile-routes.js'
+          ? 'handleCustomerProfileRoute'
+          : 'handleGovernanceApiRequest';
 
     // Find exported router functions and walk their top-level statement blocks sequentially
     for (const topStmt of parsed.ast.body) {
@@ -1062,7 +1110,16 @@ export function extractBackendRoutes({
       let activeRouterAuth = null; // { level, evidence }
       let activeRouterAuthz = null; // { level, evidence }
 
-      for (const stmt of decl.body.body) {
+      const topBodyStmts = [];
+      for (const rawS of decl.body.body) {
+        if (rawS.type === 'TryStatement' && rawS.block?.body) {
+          topBodyStmts.push(...rawS.block.body);
+        } else {
+          topBodyStmts.push(rawS);
+        }
+      }
+
+      for (const stmt of topBodyStmts) {
         if (stmt.type !== 'IfStatement') continue;
         const matchedRoutePaths = extractRoutePathsFromTestExpr(stmt.test);
 

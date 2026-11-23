@@ -146,6 +146,7 @@ function assertSafeIdentifier(ident, label) {
       await client.query(`REVOKE UPDATE, DELETE ON support_issue_notes FROM ${safeRole}`);
       await client.query(`REVOKE UPDATE, DELETE ON support_issue_events FROM ${safeRole}`);
       await client.query(`REVOKE DELETE ON support_issues FROM ${safeRole}`);
+      await client.query(`REVOKE UPDATE, DELETE ON customer_share_moderation_events FROM ${safeRole}`);
       await client.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${safeRole}`);
       console.log(JSON.stringify({ event: 'app_role_grants_verified', app_role: safeRole }));
     }

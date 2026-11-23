@@ -22,11 +22,11 @@ This handbook provides **code-grounded engineering documentation and static anal
 - [Naming Conventions & Canonical Components (`NAMING-CONVENTIONS.md`)](NAMING-CONVENTIONS.md) — Canonical helpers vs competing legacy copies ([canonical-components.json](contracts/canonical-components.json)).
 
 ### Architecture, Code Maps & Maintained Contracts
-- [High-Value Shared Contracts (`contracts/shared-contracts.json`)](contracts/shared-contracts.json) & [Rendered Contracts Catalog (`generated/CONTRACTS-CATALOG.md`)](generated/CONTRACTS-CATALOG.md) — Single maintained specification for `CTR-DB-TX-SESSION`, `CTR-AUTH-SESSION-OTP`, `CTR-AGE-ELIGIBILITY`, `CTR-AUTHZ-RBAC-VENDOR`, `CTR-FEATURE-CONTROLS`, `CTR-DIAGNOSTICS-PIPELINE`, `CTR-DISCOVERY-CATALOG`, `CTR-CUSTOMER-EXPLORATION`, `CTR-PRIVATE-PHOTO-STORAGE`, `CTR-SUPPORT-TICKETS`, `CTR-PAGER-WEBPUSH`, and `CTR-RELEASE-MIGRATION-DEPLOY`.
+- [High-Value Shared Contracts (`contracts/shared-contracts.json`)](contracts/shared-contracts.json) & [Rendered Contracts Catalog (`generated/CONTRACTS-CATALOG.md`)](generated/CONTRACTS-CATALOG.md) — Single maintained specification for `CTR-DB-TX-SESSION`, `CTR-AUTH-SESSION-OTP`, `CTR-AGE-ELIGIBILITY`, `CTR-AUTHZ-RBAC-VENDOR`, `CTR-FEATURE-CONTROLS`, `CTR-DIAGNOSTICS-PIPELINE`, `CTR-DISCOVERY-CATALOG`, `CTR-CUSTOMER-EXPLORATION`, `CTR-PRIVATE-PHOTO-STORAGE`, `CTR-SUPPORT-TICKETS`, `CTR-PAGER-WEBPUSH`, `CTR-RELEASE-MIGRATION-DEPLOY`, and `CTR-CUSTOMER-PROFILE-SHARING`.
 - [System Architecture (`ARCHITECTURE.md`)](ARCHITECTURE.md) — Request lifecycle, process boundaries, security invariants, and Mermaid flow diagrams.
-- [Repository Map (`REPOSITORY-MAP.md`)](REPOSITORY-MAP.md) — Directory ownership and release-tarball inclusion rules.
-- [Frontend Map (`FRONTEND-MAP.md`)](FRONTEND-MAP.md) — HTML entrypoints, `<script>` load order, `window.*` namespaces, modal controllers, storage, SW, and CSS cascade.
-- [Backend Map (`BACKEND-MAP.md`)](BACKEND-MAP.md) — `server/index.js`, `server/app.js` pipeline, `server/routes.js` (30 domain handlers), `server/admin-routes.js`, `server/customer-exploration-routes.js`, and `lib/db-tx.js`.
+- [Repository Map (`REPOSITORY-MAP.md`)](REPOSITORY-MAP.md) — Directory-by-directory ownership and release-tarball inclusion rules.
+- [Frontend Map (`FRONTEND-MAP.md`)](FRONTEND-MAP.md) — HTML entrypoints, `<script>` load order, `window.*` namespaces, modal controllers, hash routes, storage, SW, and CSS cascade.
+- [Backend Map (`BACKEND-MAP.md`)](BACKEND-MAP.md) — `server/index.js`, `server/app.js` pipeline, `server/routes.js` (30 domain handlers), `server/admin-routes.js`, `server/customer-exploration-routes.js`, `server/customer-profile-routes.js`, and `lib/db-tx.js`.
 - [Data Model (`DATA-MODEL.md`)](DATA-MODEL.md) — Reconstructed PostgreSQL tables (cross-verifiable against live PostgreSQL `pg_catalog` via `validate --verify-db`), `FORCE ROW LEVEL SECURITY` `app.*` GUCs, triggers, and roles.
 - [API Contracts (`API-CONTRACTS.md`)](API-CONTRACTS.md) & [Shared API Envelopes (`contracts/shared-api-envelopes.md`)](contracts/shared-api-envelopes.md) — Route groups, request/response envelopes, headers, status/error codes, and idempotency rules.
 - [Authentication, Roles & Ownership (`AUTH-AND-PERMISSIONS.md`)](AUTH-AND-PERMISSIONS.md) — Email OTP, session cookies, 14+ age policy, RBAC matrix, Act-on-Behalf, and UI-vs-backend boundaries.
@@ -68,12 +68,13 @@ This handbook provides **code-grounded engineering documentation and static anal
 15. [Suggested Trails](domains/suggested-trails.md) (`CTR-CUSTOMER-EXPLORATION`)
 16. [Pickup Pagers & Web Push Notifications](domains/pager-and-notifications.md) (`CTR-PAGER-WEBPUSH`)
 17. [Legal Disclosures & Launch Readiness](domains/legal-and-readiness.md) (`CTR-AGE-ELIGIBILITY`)
+18. [Customer Profile, Greatest Hits & Unlisted Sharing](domains/customer-profile-and-collections.md) (`CTR-CUSTOMER-PROFILE-SHARING`)
 
 ---
 
 ## 3. Machine-Generated Reference Catalogs (`docs/engineering/generated/`)
 
-- [CONTRACTS-CATALOG.md](generated/CONTRACTS-CATALOG.md) — Rendered reference of all 12 high-value shared contracts (`CTR-*`).
+- [CONTRACTS-CATALOG.md](generated/CONTRACTS-CATALOG.md) — Rendered reference of all 13 high-value shared contracts (`CTR-*`).
 - [SYMBOL-INDEX.md](generated/SYMBOL-INDEX.md) — Module directory + links to the 5 complete, **non-truncated** area symbol catalogs:
   - [symbols/server-and-runtime.md](generated/symbols/server-and-runtime.md) (`server/`, `packages/`)
   - [symbols/shared-libraries.md](generated/symbols/shared-libraries.md) (`lib/`)

@@ -9,7 +9,7 @@ For the full column-by-column table ledger and generated Mermaid `erDiagram`, se
 ## 1. Schema Provenance Levels
 
 Per [SCOPE-AND-EVIDENCE.md](SCOPE-AND-EVIDENCE.md), distinguish three levels of schema evidence:
-1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed offline from `migrations/001_create_bookings.sql` through `028_exploration_photo_reconciliation.sql` (`51` tables, `51` active RLS policies on `working/biteshark-vps`; `47` tables through `026` on `staging2` branches). Static reconstruction alone does not prove a live database check ran.
+1. **Reconstructed from Repository Migrations** ([SCHEMA-INVENTORY.md](generated/SCHEMA-INVENTORY.md)): Deterministically parsed offline from `migrations/001_create_bookings.sql` through `029_customer_profiles_collections_and_sharing.sql` (`59` tables on `working/biteshark-vps`; `47` tables through `026` on `staging2` branches). Static reconstruction alone does not prove a live database check ran.
 2. **Verified Against Disposable PostgreSQL `pg_catalog`**: Executed when `node tools/code-registry/cli.mjs validate --verify-db` runs (`status: "VERIFIED"`), comparing tables, columns, normalized types, nullability, default presence, PK/FK constraints, explicit indexes, and `FORCE ROW LEVEL SECURITY` policies against a live migrated UTF-8 disposable database.
 3. **Deployed Schema**: Never run experimental discovery DDL against `staging.biteshark.live` (`truckly_staging`) or `staging2.biteshark.live` (`biteshark_staging2`). Deployed migration state is tracked exclusively in `public.schema_migrations`.
 
@@ -28,8 +28,8 @@ Defined in [bootstrap-staging-roles.sql.template](../../deploy/postgres/bootstra
 
 ## 3. `FORCE ROW LEVEL SECURITY` vs Non-RLS Tables
 
-### A. 38 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY` (`working/biteshark-vps`)
-Every table added from Migration `013` onward (`community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops`) enforces `FORCE ROW LEVEL SECURITY`.
+### A. 46 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY`
+Every table added from Migration `013` onward (`community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops`, `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events`) enforces `FORCE ROW LEVEL SECURITY`.
 
 Transactions **must** set the required transaction-local GUC via `SELECT set_config('app.<key>', $1, true)` inside `withTransaction(db, async tx => ...)`:
 
@@ -46,6 +46,7 @@ Transactions **must** set the required transaction-local GUC via `SELECT set_con
 | `app.is_notification_worker` | `'true'` inside `/api/pager/worker` outbox batch processor | `pager_notification_subscriptions`, `pager_notification_events`, `pager_notification_deliveries` |
 | `app.pager_lookup_id` / `app.subscription_lookup_id` / `app.vendor_id` | Capability UUID or authorized `vendor_id` | `pager_notification_subscriptions`, `pager_notification_events`, `pager_notification_deliveries` |
 | `app.diagnostics_internal` | `'true'` inside `lib/diagnostics.js` | `diagnostic_releases`, `diagnostic_incident_groups`, `diagnostic_event_samples`, `diagnostic_incident_notes`, `worker_runtime_heartbeats` *(note: `024` also lists `app.worker_internal`, which is unused in Node)* |
+| `app.share_lookup` / `app.share_report_intake` / `app.share_moderation` | Scoped Guards in `lib/customer-profile.js` (`029`): public `/s/<token>` read lookup, signed-out report intake, and scoped `Mod`/`Top` review (keeping `app.user_id` bound to the moderator so private visits/photos stay RLS-isolated) | `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events` |
 
 ### B. 13 Legacy / Directory Tables Without PostgreSQL RLS (Rely on Handler SQL `WHERE` Clauses!)
 `schema_migrations`, `bookings`, `favorites`, `truck_settings`, `owner_profiles`, `owner_schedule`, `notification_settings`, `pickup_pagers`, `vendors`, `vendor_memberships`, `platform_roles`, `audit_logs`, and `pager_rate_limits` do **not** have RLS enabled. Any query against these tables **must** filter explicitly by verified `user.id` / `vendor_id` in SQL (`WHERE requester_id = $1`, `WHERE user_id = $1`, `WHERE truck_id = $1`).
@@ -57,7 +58,7 @@ Transactions **must** set the required transaction-local GUC via `SELECT set_con
 1. **Last-Top-Admin Protection (`migrations/018` + `026`)**:
    - `trg_protect_last_top_admin` on `platform_roles` and `trg_protect_last_top_admin_on_auth_users` on `auth_users` serialize under `pg_advisory_xact_lock(hashtext('biteshark_platform_roles_mutation'))` and block demoting, deleting, suspending, or age-disabling the last active `eligible_14_plus` `Admin: Top` account.
 2. **Append-Only History Enforcement (`prevent_append_only_mutation` + `REVOKE UPDATE, DELETE`)**:
-   - Blocks `UPDATE` and `DELETE` on `audit_logs`, `vendor_status_history`, `community_moderation_history`, `admin_bootstrap_grants`, `compliance_readiness_history`, `feature_control_history`, `diagnostic_incident_notes`, `support_issue_events`, and `account_invitation_events`.
+   - Blocks `UPDATE` and `DELETE` on `audit_logs`, `vendor_status_history`, `community_moderation_history`, `admin_bootstrap_grants`, `compliance_readiness_history`, `feature_control_history`, `diagnostic_incident_notes`, `support_issue_events`, `account_invitation_events`, and `customer_share_moderation_events`.
 3. **User Column-Bound Triggers (`migrations/026`)**:
    - `trg_guard_user_onboarding_app_bounds` prevents non-admin updates on `vendor_applications` from forging `status = 'approved'` or reviewer fields.
    - `trg_guard_user_support_issue_bounds` prevents non-admin updates on `support_issues` from altering `severity`, `assigned_to`, `escalated_to_top`, `sla_due_at`, or `ticket_number`.

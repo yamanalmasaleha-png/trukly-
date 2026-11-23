@@ -36,6 +36,7 @@
         <span class="vp-label">Viewpoint:</span>
         <button type="button" class="vp-btn active" aria-current="page">🛡️ Admin Portal</button>
         <button type="button" class="vp-btn" id="vpCustomerPreviewBtn" title="Open BiteShark in read-only Customer Preview">🧭 Customer Preview</button>
+        <button type="button" class="vp-btn vp-btn-act" id="vpTestCustomerBtn" hidden title="Switch into an isolated sandbox Customer account for live testing &amp; debugging (Admin: Top only)">🧪 Test Customer</button>
         <div class="vp-vendor-group">
           <select id="vpVendorSelect" aria-label="Select vendor for preview or support">
             <option value="">Select vendor…</option>
@@ -327,6 +328,23 @@
             <button type="button" class="admin-btn admin-btn-secondary" id="refreshAccountsBtn">↻ Refresh</button>
           </div>
 
+          <div class="card-panel" id="testCustomerSandboxPanel" hidden>
+            <h2>🧪 Testing Customer Account Sandbox (Admin: Top Only)</h2>
+            <p class="record-meta" style="margin:6px 0 10px">
+              Switch into an isolated synthetic customer account (<code>test-customer@sandbox.biteshark.invalid</code>) to test and debug <strong>My BiteShark (/profile)</strong>, Greatest Hits collections, unlisted sharing, Visit Journal, private photos, bookings, and support flows without signing out of your Top Admin session or touching any real customer data.
+            </p>
+            <div id="testCustomerStatusLine" class="policy-callout" style="margin-bottom:12px">
+              Checking testing customer sandbox status…
+            </div>
+            <div class="action-row" style="display:flex;flex-wrap:wrap;gap:8px">
+              <button type="button" class="admin-btn admin-btn-primary" id="tcOpenProfileBtn">🧭 Open My BiteShark (/profile)</button>
+              <button type="button" class="admin-btn admin-btn-secondary" id="tcOpenDiscoverBtn">🗺️ Open Discover (/)</button>
+              <button type="button" class="admin-btn admin-btn-secondary" id="tcSeedSampleBtn">✨ Seed Sample Activity</button>
+              <button type="button" class="admin-btn admin-btn-warn" id="tcResetDataBtn">↺ Reset Sandbox Data</button>
+              <button type="button" class="admin-btn admin-btn-secondary" id="tcExitSessionBtn" hidden>🛡️ Exit Active Sandbox Cookie</button>
+            </div>
+          </div>
+
           <div class="card-panel invite-composer">
             <h2>Initiate Account Invitation</h2>
             <form id="inviteCreateForm" class="invite-form-grid">
@@ -450,6 +468,7 @@
             <button type="button" class="subtab active" data-mod-queue="pending">Pending Submissions</button>
             <button type="button" class="subtab" data-mod-queue="reported">User-Reported Content</button>
             <button type="button" class="subtab" data-mod-queue="history">Approved / Rejected / Hidden History</button>
+            <button type="button" class="subtab" data-mod-queue="shared_pages">Reported Shared Pages</button>
           </div>
 
           <form class="filter-bar" id="modFilterForm">

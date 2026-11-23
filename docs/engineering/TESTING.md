@@ -63,13 +63,15 @@ Require `DATABASE_URL` pointing to a disposable local PostgreSQL server with dat
 - `node tests/support-feedback.integration.cjs` — `BS-001001` tickets, sharing scope, incident links (`CTR-SUPPORT-TICKETS`).
 - `node tests/urgent-pilot-security.integration.cjs` — Last-Top `auth_users` trigger (`026`), column-bound triggers, lock races.
 - `node tests/customer-exploration.integration.cjs` — `027`+`028` RLS & ownership, Pacific visits, trails, EXIF-stripped private photos & reconciliation (`CTR-CUSTOMER-EXPLORATION`, `CTR-PRIVATE-PHOTO-STORAGE`).
+- `node tests/customer-profile-sharing.integration.cjs` (`npm run test:profile`) — `029` RLS & ownership across 8 tables, canonical exploration/favorites/notification reuse, Greatest Hits ordering/limits/concurrency, 18+ sharing eligibility without DOB persistence, hashed `/s/<token>` links, preview parity, EXIF-stripped `sha_*` derivatives, abuse reporting, and scoped `Mod`/`Top` suppression.
+- `node tests/admin-test-customer.integration.cjs` (`npm run test:admin-test-customer`) — Top-Admin-only Testing Customer Sandbox (`usr_sa_top_admin_test_customer`), RBAC denials (`401`/`403` for anon, customer, Vendor Owner, and `Admin: Mod`), production environment fail-closed block, `/admin` portal isolation during active overlay session, sample seeding/resetting, primary-session revocation invalidation, and clean overlay exit without revoking the underlying `Admin: Top` session.
 
 ---
 
 ## 5. Headless Chrome Browser E2E Suites (`tests/*browser.e2e.cjs`)
 
 Require disposable PostgreSQL + Chrome/Chromium (`CHROME_BIN` or system browser):
-- `discovery-browser.e2e.cjs`, `discovery-cards-ux-browser.e2e.cjs`, `pager-notifications-browser.e2e.cjs`, `admin-portal-browser.e2e.cjs`, `legal-readiness-browser.e2e.cjs`, `feature-controls-browser.e2e.cjs`, `map-resilience-browser.e2e.cjs`, `invitation-workflow-browser.e2e.cjs`, `reliability-accessibility-browser.e2e.cjs`, `support-feedback-browser.e2e.cjs`, `welcome-experience-browser.e2e.cjs`, `urgent-pilot-security-browser.e2e.cjs`, `customer-exploration-browser.e2e.cjs`.
+- `discovery-browser.e2e.cjs`, `discovery-cards-ux-browser.e2e.cjs`, `pager-notifications-browser.e2e.cjs`, `admin-portal-browser.e2e.cjs`, `legal-readiness-browser.e2e.cjs`, `feature-controls-browser.e2e.cjs`, `map-resilience-browser.e2e.cjs`, `invitation-workflow-browser.e2e.cjs`, `reliability-accessibility-browser.e2e.cjs`, `support-feedback-browser.e2e.cjs`, `welcome-experience-browser.e2e.cjs`, `urgent-pilot-security-browser.e2e.cjs`, `customer-exploration-browser.e2e.cjs`, `customer-profile-browser.e2e.cjs` (`npm run test:e2e:profile`).
 
 ---
 

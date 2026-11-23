@@ -5,17 +5,17 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313`
+> - **Source Analysis Digest**: `83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
-- **Active Findings**: **11** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*
+- **Active Findings**: **12** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*
 - **Scoped Intentional-Pattern Suppressions**: **2** *(configured in [suppressions.json](../../../tools/code-registry/suppressions.json))*
 - **Human-Curated Architectural & Cross-Branch Drift**: See [KNOWN-DRIFT.md](../KNOWN-DRIFT.md)
 
 > [!IMPORTANT]
 > **Governance Separation**: Running `npm run registry:docs` updates this report for visibility without modifying `drift-baseline.json`. Any newly introduced high-confidence blocking finding fails `npm run registry:validate` until fixed in code or explicitly accepted with rationale via `npm run registry:accept-drift -- --finding <ID> --reason "..."`.
 
-## 1. Active Findings (11)
+## 1. Active Findings (12)
 
 ### `DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md`
 - **Category**: `BROKEN_DOC_LINK` | **Severity**: `high` | **Confidence**: `high` (`parsed_markdown`)
@@ -44,10 +44,19 @@
 - **Proposed Remediation**: Preserve documented load order or migrate post-render hooks to explicit event/callback registration in future refactors.
 - **False-Positive Considerations**: Intentional post-render decorator wrappers (such as openDetail) are load-order-sensitive design patterns rather than accidental bugs.
 
+### `DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range`
+- **Category**: `DOC_CODE_MISMATCH` | **Severity**: `medium` | **Confidence**: `high` (`parsed_docs_vs_migrations`)
+- **Affected Objects**: `README.md`, `migrations/`
+- **Evidence**: README.md states migrations run 001 through 028, whereas migrations/ currently contains 001 through 029.
+- **Potential Impact**: Operators or assistants reading top-level docs underestimate active schema tables.
+- **Suggested Verification**: Compare README.md against migrations/ directory.
+- **Proposed Remediation**: Refer to docs/engineering/MIGRATIONS.md or update range in README.md.
+- **False-Positive Considerations**: None.
+
 ### `DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers`
 - **Category**: `DUPLICATE_HELPER_IMPLEMENTATION` | **Severity**: `low` | **Confidence**: `high` (`parsed_ast`)
-- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L724`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L114`
-- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L724, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L114.
+- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L725`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L126`
+- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L725, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L126.
 - **Potential Impact**: Inconsistent character escaping (e.g., omitting single-quote &#39; or null coercion) can introduce XSS or display bugs if a weaker variant is copied.
 - **Suggested Verification**: Inspect each escape helper to confirm all 5 characters (&, <, >, ", ') and nullish inputs are handled.
 - **Proposed Remediation**: Retain existing helpers to avoid churn; for new frontend modules, reuse a single canonical 5-entity escape helper.

@@ -5,10 +5,10 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313`
+> - **Source Analysis Digest**: `83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
-Generated from the single maintained contract specification [shared-contracts.json](../contracts/shared-contracts.json) (**12** shared contracts). Do not duplicate these signatures, route lists, or field definitions in prose docs — link here or query `npm run registry:locate -- <CONTRACT_ID>`.
+Generated from the single maintained contract specification [shared-contracts.json](../contracts/shared-contracts.json) (**13** shared contracts). Do not duplicate these signatures, route lists, or field definitions in prose docs — link here or query `npm run registry:locate -- <CONTRACT_ID>`.
 
 | Contract ID | Domain | Title | Primary Implementation Symbols | HTTP Routes |
 |---|---|---|---|---|
@@ -24,6 +24,7 @@ Generated from the single maintained contract specification [shared-contracts.js
 | `CTR-SUPPORT-TICKETS` | `support-and-feedback` | Support & Feedback Tickets, Sharing Scope & Connected Incident Links | `lib/support-tickets.js#serializeSupportTicketForReporter`, `lib/support-tickets.js#validateStaffStatusTransition`, `lib/support-tickets.js#autoSuggestDiagnosticLinksInTx` | `/api/issues`, `/api/issues/reply`, `/api/issues/reopen`, `/api/issues/read` |
 | `CTR-PAGER-WEBPUSH` | `pager-and-notifications` | Pickup Pagers, Web Push Subscriptions & Lease-Fenced Outbox Worker | `lib/pager-notifications.js#handlePagerTransitionNotificationsInTx`, `lib/pager-notifications.js#runNotificationWorkerBatch`, `lib/pager-notifications.js#verifySameOriginMutation` | `/api/pager/staff`, `/api/pager/status`, `/api/pager/subscriptions`, `/api/pager/update` |
 | `CTR-RELEASE-MIGRATION-DEPLOY` | `release-and-deploy` | Immutable SQL Migration Checksums, Release Tarball Packaging & Atomic Staging Installer | `scripts/run-migrations.cjs#parseArgs`, `scripts/build-linux-release-tarball.cjs#parseArgs` | `/api/healthz` |
+| `CTR-CUSTOMER-PROFILE-SHARING` | `customer-profile-and-sharing` | Private Customer Profile Dashboard, Greatest Hits Collections & Revocable Unlisted Sharing | `lib/customer-profile.js#getPrivateOwnerProfile`, `lib/customer-profile.js#updatePrivateOwnerProfile`, `lib/customer-profile.js#createOwnerCollection` | `/api/me/profile`, `/api/me/preferences`, `/api/me/profile/privacy`, `/api/me/profile/delete-data` |
 
 ## `CTR-DB-TX-SESSION` — Pinned PostgreSQL Transaction, Session Row-Locking & Local GUC Context
 - **Domain**: `backend-foundation` | **Shape Basis**: `declared_exports_and_runtime_guards`
@@ -86,7 +87,7 @@ Generated from the single maintained contract specification [shared-contracts.js
 - **Domain**: `vendor-onboarding-and-admin` | **Shape Basis**: `validated_runtime_checks_and_sql_schema`
 - **Purpose**: Enforces Customer, Vendor Staff, Vendor Owner, Admin: Mod, and Admin: Top permissions, live row-locked re-verification inside transactions, Top-only Act-on-Behalf support reasons, and redacted audit_logs entries.
 - **Implementation Symbols**: [lib/authz.js](../../../lib/authz.js) (`#loadAccessContext`), [lib/authz.js](../../../lib/authz.js) (`#authorizeVendorTarget`), [lib/authz.js](../../../lib/authz.js) (`#authorizeVendorScope`), [lib/authz.js](../../../lib/authz.js) (`#reverifyVendorMembershipInTx`), [lib/authz.js](../../../lib/authz.js) (`#reverifyModeratorInTx`), [lib/authz.js](../../../lib/authz.js) (`#reverifyPlatformAdminInTx`), [lib/authz.js](../../../lib/authz.js) (`#recordAuditLog`)
-- **HTTP Routes**: `/api/account/context`, `/api/vendor/members`, `/api/vendor/staff-invitations`, `/api/admin/accounts`, `/api/admin/accounts/role`, `/api/admin/accounts/status`, `/api/admin/vendors/update`
+- **HTTP Routes**: `/api/account/context`, `/api/vendor/members`, `/api/vendor/staff-invitations`, `/api/admin/accounts`, `/api/admin/accounts/role`, `/api/admin/accounts/status`, `/api/admin/vendors/update`, `/api/admin/test-customer`
 - **Database Tables / Storage**: `platform_roles`, `vendor_memberships`, `vendors`, `account_invitations`, `audit_logs`
 - **Feature Controls**: `vendor_onboarding`
 - **Permissions & Ownership**: Admin: Mod can triage/recommend but cannot grant roles, approve vendor onboarding finalization, or mutate feature controls; last eligible Admin: Top cannot be removed or suspended.
@@ -101,6 +102,7 @@ Generated from the single maintained contract specification [shared-contracts.js
 - **Maintained Test Mappings** *(source mapping only — run suite to verify execution)*:
   - [tests/admin-governance.integration.cjs](../../../tests/admin-governance.integration.cjs) — protects: `authentication`, `role_restrictions`, `ownership_rls`, `concurrency_locking`
   - [tests/invitation-workflow.integration.cjs](../../../tests/invitation-workflow.integration.cjs) — protects: `authentication`, `role_restrictions`, `idempotency`, `input_validation`
+  - [tests/admin-test-customer.integration.cjs](../../../tests/admin-test-customer.integration.cjs) — protects: `authentication`, `role_restrictions`, `ownership_rls`, `response_shape`
 
 ## `CTR-FEATURE-CONTROLS` — Runtime Feature Controls DAG, HTTP Route Gate & Browser Sync
 - **Domain**: `feature-controls` | **Shape Basis**: `validated_runtime_checks_and_sql_schema`
@@ -108,7 +110,7 @@ Generated from the single maintained contract specification [shared-contracts.js
 - **Implementation Symbols**: [lib/feature-controls.js](../../../lib/feature-controls.js) (`#evaluateFeatureControlsSnapshot`), [lib/feature-controls.js](../../../lib/feature-controls.js) (`#enforceHttpFeatureGate`), [lib/feature-controls.js](../../../lib/feature-controls.js) (`#updateFeatureControlInTx`), [public/role-experience.js](../../../public/role-experience.js) (`#isFeatureAvailable`), [public/role-experience.js](../../../public/role-experience.js) (`#isFeatureHidden`)
 - **HTTP Routes**: `/api/features`, `/api/admin/features`, `/api/admin/features/update`
 - **Database Tables / Storage**: `feature_controls`, `feature_control_history`
-- **Feature Controls**: `event_inquiries`, `community_hub`, `community_submissions`, `local_guides_passport`, `editorial_stories`, `visit_journal`, `private_photos`, `exploration_badges`, `weekly_challenges`, `suggested_trails`
+- **Feature Controls**: `event_inquiries`, `community_hub`, `community_submissions`, `local_guides_passport`, `editorial_stories`, `visit_journal`, `private_photos`, `exploration_badges`, `weekly_challenges`, `suggested_trails`, `customer_profile`, `customer_profile_editing`, `greatest_hits_collections`, `unlisted_collection_sharing`, `shared_collection_photos`, `public_profile_discovery`
 - **Permissions & Ownership**: Public caller projection on GET /api/features; Admin: Mod or Top read on GET /api/admin/features; Admin: Top only on POST /api/admin/features/update (blocked during Viewpoint Preview).
 - **Inputs & Validation**: POST /api/admin/features/update requires Admin: Top, expected_revision (non-negative integer), valid allowed_states / allowed_audiences, 4-500 char reason, and confirm_interrupt=true on high-impact interrupts.
 - **Outputs**: GET /api/features returns caller-safe effective states { ok: true, features } with zero internal reasons/actors; /api/admin/features adds revision, dependency graph, env overrides, and history.
@@ -259,3 +261,23 @@ Generated from the single maintained contract specification [shared-contracts.js
   - [tests/install-staging-release.test.cjs](../../../tests/install-staging-release.test.cjs) — protects: `input_validation`, `rollback_and_recovery`, `concurrency_locking`
   - [tests/staging2-ctl-security.test.cjs](../../../tests/staging2-ctl-security.test.cjs) — protects: `role_restrictions`, `input_validation`
   - [tests/vps-platform-contract.test.cjs](../../../tests/vps-platform-contract.test.cjs) — protects: `response_shape`, `input_validation`
+
+## `CTR-CUSTOMER-PROFILE-SHARING` — Private Customer Profile Dashboard, Greatest Hits Collections & Revocable Unlisted Sharing
+- **Domain**: `customer-profile-and-sharing` | **Shape Basis**: `validated_runtime_checks_and_sql_schema`
+- **Purpose**: Provides private account dashboard (/profile), coarse Sonoma preferences, curated Greatest Hits collections (<= 5/user, <= 20 entries/collection), 18+ self-attested sharing eligibility without DOB storage, 256-bit SHA-256 hashed unlisted share links (/s/<token>), consented EXIF-stripped sha_* WebP derivatives, signed-out abuse reporting, and scoped Mod/Top moderation.
+- **Implementation Symbols**: [lib/customer-profile.js](../../../lib/customer-profile.js) (`#getPrivateOwnerProfile`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#updatePrivateOwnerProfile`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#createOwnerCollection`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#createCollectionShareLink`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#revokeCollectionShareLink`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#resolveLiveSharedCollectionByToken`), [lib/customer-profile.js](../../../lib/customer-profile.js) (`#applyAdminSharedModerationDecision`), [lib/age-policy.js](../../../lib/age-policy.js) (`#evaluateAdultSharingEligibility`), [lib/photo-storage.js](../../../lib/photo-storage.js) (`#createSharedPhotoDerivative`)
+- **HTTP Routes**: `/api/me/profile`, `/api/me/preferences`, `/api/me/profile/privacy`, `/api/me/profile/delete-data`, `/api/me/collections`, `/api/me/collections/detail`, `/api/me/collections/update`, `/api/me/collections/delete`, `/api/me/collections/preview`, `/api/me/collections/attach-photo`, `/api/me/collections/remove-photo`, `/api/me/sharing-eligibility`, `/api/me/shares`, `/api/me/shares/create`, `/api/me/shares/update-settings`, `/api/me/shares/rotate`, `/api/me/shares/revoke`, `/api/shared/report`, `/api/admin/shared-moderation`, `/api/admin/shared-moderation/decision`, `/api/admin/shared-moderation/photo`
+- **Database Tables / Storage**: `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_entries`, `customer_collection_photo_attachments`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events`
+- **Feature Controls**: `customer_profile`, `customer_profile_editing`, `greatest_hits_collections`, `unlisted_collection_sharing`, `shared_collection_photos`, `public_profile_discovery`
+- **Permissions & Ownership**: Private owner routes require 14+-eligible session + app.user_id RLS; unlisted share creation requires 18+ attestation; /api/admin/shared-moderation* scopes Mod/Top to reported or shared items only.
+- **Inputs & Validation**: Enforces expected_revision optimistic concurrency on profiles/collections, 18+ Pacific civil-date attestation on share creation without storing raw DOB, explicit share_consent_confirmed per attached photo, and Referrer-Policy: no-referrer + X-Robots-Tag: noindex on /s/<token>.
+- **Outputs**: Allowlisted DTO envelopes via buildPrivateOwnerProfileDto, buildPrivateOwnerCollectionDto, buildSharedCollectionPublicDto, and buildAdminShareModerationDto.
+- **Error Contract**: 401 unauthenticated, 403 ADULT_SHARING_ELIGIBILITY_REQUIRED / FEATURE_UNAVAILABLE, 404 uniform non-enumerable share response for unknown/revoked/expired/suppressed tokens, 409 REVISION_CONFLICT.
+- **Side Effects**: Writes FORCE ROW LEVEL SECURITY rows in 029 tables, writes EXIF-stripped sha_* WebP derivatives to persistent photo storage, and purges shared derivatives on revoke/delete/suppress.
+- **Idempotency & Concurrency**: Supports client idempotency_key on collection/share creation and expected_revision optimistic concurrency.
+- **Known Consumers**: `server/customer-profile-routes.js`, `public/profile-client.js`, `public/customer-profile.js`, `public/greatest-hits.js`, `public/greatest-hits-sharing.js`, `public/shared-collection.html`, `public/admin.js`
+- **Compatibility Expectations**: public_collection_sharing remains hidden by default; /api/me/profile-data/export, /api/me/profile-data/clear, and /api/me/shares/:shareId/revoke remain exempt even when feature controls are paused or hidden.
+- **Known Limitations**: Public directory/handle discovery is intentionally deferred and non-indexable.
+- **Maintained Test Mappings** *(source mapping only — run suite to verify execution)*:
+  - [tests/customer-profile-sharing.integration.cjs](../../../tests/customer-profile-sharing.integration.cjs) — protects: `authentication`, `ownership_rls`, `role_restrictions`, `input_validation`, `response_shape`, `feature_disabled`, `idempotency`, `concurrency_locking`
+  - [tests/customer-profile-browser.e2e.cjs](../../../tests/customer-profile-browser.e2e.cjs) — protects: `authentication`, `response_shape`, `input_validation`

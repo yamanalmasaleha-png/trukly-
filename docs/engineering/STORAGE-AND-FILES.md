@@ -21,6 +21,7 @@
 | **`sessionStorage`** | `bs_support_draft_v1` | `role-experience.js` | Preserves unsent support-ticket text across sign-in redirect. |
 | **`IndexedDB`** | `truckly-dish-notebook-v1` (v1, store `photos`) | `public/local-guides.js` | Up to 12 local blobs (`<= 5 MB`) at `a4e9f53` *(migrated to account-backed `customer_photos` + disk storage on `83181ba`)*. |
 | **Service Worker** | `public/sw.js` | Web Push runtime | Uses **zero `CacheStorage` caches** and intercepts **zero `fetch` requests**; handles `push` and `notificationclick` only. |
+| **In-Memory Only** | `window.bitesharkProfile` | `public/profile-client.js` | Stores active customer profile/collections state strictly in JS memory scoped to `user.id` (never written to `localStorage`/`IndexedDB`; purged immediately on sign-out or account switch). |
 
 ---
 
@@ -30,9 +31,10 @@
    - Accepted via `POST /api/onboarding/evidence` (`900 KiB` JSON envelope cap; `<= 512 KiB` decoded file bytes, max `5` files per application).
    - Validated by magic bytes (`verifyEvidenceBufferAndMime`: `%PDF-`, PNG, JPEG, RIFF/WEBP) — never trusting client `Content-Type` or file extension.
    - Stored outside `public/` inside PostgreSQL `vendor_application_evidence.file_bytes` (`BYTEA`, `FORCE ROW LEVEL SECURITY`, 90-day retention metadata) and served with `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff`.
-2. **Customer Exploration Private Photos (`lib/photo-storage.js` + `migrations/027` & `028`)**:
+2. **Customer Exploration Private Photos & Consented Shared Derivatives (`lib/photo-storage.js` + `migrations/027`, `028`, `029`)**:
    - Accepted via `POST /api/me/photos` (`8 MiB` JSON cap; `<= 5 MiB` decoded image, max `12` active photos/user in app layer, `<= 6000x6000` px, `<= 25M` pixels).
-   - Decoded and re-encoded from scratch via `sharp@0.35.5` (`sharp.cache(false); sharp.concurrency(1)` — stripping EXIF/GPS metadata and neutralizing polyglot payloads; raw originals are never stored) into normalized `<2hex>/pht_*_main.<jpg|png|webp>` + `<2hex>/pht_*_thumb.webp` derivatives written atomically outside `public/` under `BITESHARK_PHOTO_STORAGE_DIR` (`/var/lib/truckly-staging/customer-photos`), streamed only to the authenticated owner via `GET /api/me/photos/file` (`Cache-Control: private, no-store`, optional `&download=1` attachment), reconciled via `reconcilePhotoStorage()` (`files_purged_at` retries + stale `.tmp-*` / aged orphan cleanup), and encrypted in `deploy/backup/truckly-staging-backup.sh` (`truckly_staging-photos-<STAMP>.tar.gz.gpg`).
+   - Decoded and re-encoded from scratch via `sharp@0.35.5` (`sharp.cache(false); sharp.concurrency(1)` — stripping EXIF/GPS metadata and neutralizing polyglot payloads; raw originals are never stored) into normalized `<2hex>/pht_*_main.<jpg|png|webp>` + `<2hex>/pht_*_thumb.webp` derivatives written atomically outside `public/` under `BITESHARK_PHOTO_STORAGE_DIR` (`/var/lib/truckly-staging/customer-photos`), streamed only to the authenticated owner via `GET /api/me/photos/file` (`Cache-Control: private, no-store`, optional `&download=1` attachment).
+   - **Consented Shared Collection Derivatives (`createSharedPhotoDerivative`, `029`)**: When an owner explicitly consents (`share_consent_confirmed: true`) on `POST /api/me/collections/attach-photo`, `sharp` re-encodes a separate EXIF-stripped `<2hex>/sha_*_shared.webp` derivative (`<= 1280x1280`). Live delivery at `GET /s/:token/photo/:attachment` re-validates active token hash, `include_shared_photos`, attachment status, active source photo, and `shared_collection_photos` feature state on every request (`Cache-Control: no-store, max-age=0`). Deleting the source private photo (`POST /api/me/photos/delete`) immediately revokes all referencing `customer_collection_photo_attachments` rows and unlinks `<2hex>/sha_*_shared.webp` from disk (`reconcilePhotoStorage()` also retries failed unlinks and sweeps aged orphan `sha_*` files). Note: encrypted host backups (`truckly_staging-photos-<STAMP>.tar.gz.gpg`) age out under the standard `7`-day backup retention window.
 
 ---
 

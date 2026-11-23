@@ -1,25 +1,25 @@
 {
   "coverage_counts": {
-    "browser_globals_and_assignments": 658,
-    "classes": 19,
+    "browser_globals_and_assignments": 668,
+    "classes": 21,
     "configuration_keys_observed": 64,
-    "confirmed_call_edges": 7016,
-    "css_files_scanned": 18,
-    "drift_findings_active": 11,
+    "confirmed_call_edges": 7953,
+    "css_files_scanned": 20,
+    "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
-    "feature_controls": 21,
-    "functions_and_methods": 2698,
-    "html_element_ids": 488,
+    "feature_controls": 27,
+    "functions_and_methods": 3090,
+    "html_element_ids": 498,
     "html_files_scanned": 12,
-    "http_routes": 97,
-    "inferred_call_edges": 33,
-    "js_files_scanned": 131,
+    "http_routes": 119,
+    "inferred_call_edges": 60,
+    "js_files_scanned": 142,
     "js_parse_failures": 0,
-    "shared_contracts": 12,
-    "significant_constants": 663,
-    "sql_migrations": 28,
-    "sql_rls_policies": 51,
-    "sql_tables": 51,
+    "shared_contracts": 13,
+    "significant_constants": 723,
+    "sql_migrations": 29,
+    "sql_rls_policies": 69,
+    "sql_tables": 59,
     "storage_keys_observed": 19
   },
   "database_tables": [
@@ -194,6 +194,46 @@
       "table_name": "compliance_readiness_items"
     },
     {
+      "column_count": 13,
+      "constraint_count": 10,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 1,
+      "policy_count": 2,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_collection_entries"
+    },
+    {
+      "column_count": 21,
+      "constraint_count": 13,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 3,
+      "policy_count": 4,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_collection_photo_attachments"
+    },
+    {
+      "column_count": 22,
+      "constraint_count": 10,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 3,
+      "policy_count": 3,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_collection_shares"
+    },
+    {
+      "column_count": 16,
+      "constraint_count": 11,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 2,
+      "policy_count": 3,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_collections"
+    },
+    {
       "column_count": 20,
       "constraint_count": 15,
       "created_in_migration": "027_customer_exploration_foundation.sql",
@@ -202,6 +242,16 @@
       "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_photos"
+    },
+    {
+      "column_count": 13,
+      "constraint_count": 11,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 0,
+      "policy_count": 2,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_profiles"
     },
     {
       "column_count": 7,
@@ -222,6 +272,36 @@
       "rls_enabled": true,
       "rls_forced": true,
       "table_name": "customer_saved_trails"
+    },
+    {
+      "column_count": 9,
+      "constraint_count": 4,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 1,
+      "policy_count": 1,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_share_moderation_events"
+    },
+    {
+      "column_count": 12,
+      "constraint_count": 6,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 2,
+      "policy_count": 1,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_share_reports"
+    },
+    {
+      "column_count": 6,
+      "constraint_count": 4,
+      "created_in_migration": "029_customer_profiles_collections_and_sharing.sql",
+      "index_count": 0,
+      "policy_count": 2,
+      "rls_enabled": true,
+      "rls_forced": true,
+      "table_name": "customer_sharing_eligibility"
     },
     {
       "column_count": 15,
@@ -534,13 +614,14 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313",
+  "deterministic_digest_sha256": "83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20",
   "drift_summary": {
-    "active_count": 11,
+    "active_count": 12,
     "active_finding_ids": [
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
+      "DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range",
       "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
       "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
@@ -609,6 +690,22 @@
     {
       "default_audience": "all",
       "default_state": "enabled",
+      "depends_on": [],
+      "key": "customer_profile",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "customer_profile"
+      ],
+      "key": "customer_profile_editing",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
       "depends_on": [
         "local_guides_passport"
       ],
@@ -636,6 +733,13 @@
       "default_state": "enabled",
       "depends_on": [],
       "key": "flavor_lab_tools",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [],
+      "key": "greatest_hits_collections",
       "read_only": false
     },
     {
@@ -714,6 +818,22 @@
     },
     {
       "default_audience": "all",
+      "default_state": "hidden",
+      "depends_on": [],
+      "key": "public_profile_discovery",
+      "read_only": true
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "unlisted_collection_sharing"
+      ],
+      "key": "shared_collection_photos",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
       "default_state": "enabled",
       "depends_on": [
         "community_hub"
@@ -726,6 +846,15 @@
       "default_state": "enabled",
       "depends_on": [],
       "key": "suggested_trails",
+      "read_only": false
+    },
+    {
+      "default_audience": "all",
+      "default_state": "enabled",
+      "depends_on": [
+        "greatest_hits_collections"
+      ],
+      "key": "unlisted_collection_sharing",
       "read_only": false
     },
     {
@@ -760,7 +889,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "6dec8db4ffdb7cded3b6ec1075bc52bc401065e37eb5023e2bc15160818c042f",
+  "included_files_manifest_sha256": "5985f913e4be3d78fc884d0accf4ce16fe7b9d67c7d57d19662535fe2bd80553",
   "modules": [
     {
       "exported_symbols": [
@@ -1123,8 +1252,32 @@
     },
     {
       "exported_symbols": [
+        "ADMIN_TEST_CUSTOMER_USER_ID",
+        "ADMIN_TEST_CUSTOMER_EMAIL",
+        "ADMIN_TEST_CUSTOMER_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_TTL_SECONDS",
+        "isAdminTestCustomerAllowed",
+        "buildAdminTestCustomerCookieHeader",
+        "buildClearedAdminTestCustomerCookieHeader",
+        "extractRawAdminTestCustomerToken",
+        "ensureAdminTestCustomerAccountInTx",
+        "inspectAdminTestCustomerStatus",
+        "enterAdminTestCustomerSession",
+        "seedAdminTestCustomerSampleData",
+        "resetAdminTestCustomerData",
+        "exitAdminTestCustomerSession"
+      ],
+      "file": "lib/admin-test-customer.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 20
+    },
+    {
+      "exported_symbols": [
         "PROPOSED_MIN_ACCOUNT_AGE",
         "AGE_POLICY_VERSION",
+        "SHARING_MIN_ADULT_AGE",
+        "SHARING_ELIGIBILITY_POLICY_VERSION",
         "AGE_BOUNDARY_TIMEZONE",
         "MIN_PLAUSIBLE_BIRTH_YEAR",
         "isGregorianLeapYear",
@@ -1133,6 +1286,7 @@
         "parseAndValidateDobInput",
         "computeCompletedYearsOfAge",
         "evaluateMinimumAgeEligibility",
+        "evaluateAdultSharingEligibility",
         "AGE_ASSESSMENT_ALLOWLIST_SPEC",
         "isGovernanceRouteExemptFromAgeGate",
         "buildAgeAssessmentRequiredPayload"
@@ -1140,7 +1294,7 @@
       "file": "lib/age-policy.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 8
+      "symbol_count": 9
     },
     {
       "exported_symbols": [
@@ -1234,6 +1388,74 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 58
+    },
+    {
+      "exported_symbols": [
+        "MAX_COLLECTIONS_PER_USER",
+        "MAX_ENTRIES_PER_COLLECTION",
+        "MAX_COLLECTION_TITLE_LENGTH",
+        "MAX_COLLECTION_INTRO_LENGTH",
+        "MAX_ENTRY_RECOMMENDATION_LENGTH",
+        "MAX_ACTIVE_SHARES_PER_COLLECTION",
+        "MAX_DISPLAY_NAME_LENGTH",
+        "MAX_BIO_LENGTH",
+        "MAX_FOOD_INTERESTS",
+        "ALLOWED_AVATAR_STYLES",
+        "SUPPORTED_SONOMA_TOWNS",
+        "SUPPORTED_FOOD_INTERESTS",
+        "FORBIDDEN_CLIENT_PROFILE_WRITE_FIELDS",
+        "ALLOWED_SHARE_REPORT_REASONS",
+        "CustomerProfileDomainError",
+        "generateOpaqueId",
+        "assertNoForbiddenClientWriteFields",
+        "sanitizePlainText",
+        "computeSafeInitials",
+        "validatePreferredTown",
+        "validateFoodInterests",
+        "validateAvatarStyle",
+        "setOwnerProfileRlsInTx",
+        "ensureOrLoadCustomerProfileRowInTx",
+        "loadCustomerSharingEligibilityInTx",
+        "buildPrivateOwnerProfileDto",
+        "buildPrivateOwnerCollectionDto",
+        "buildSharedCollectionPublicDto",
+        "buildAdminShareModerationDto",
+        "getPrivateOwnerProfile",
+        "exportCustomerProfileAndExplorationArchive",
+        "clearCustomerProfileAndCollectionsData",
+        "updatePrivateOwnerProfile",
+        "updateCustomerPreferences",
+        "computeCollectionContentDigest",
+        "loadCollectionHydratedInTx",
+        "listOwnerCollections",
+        "getOwnerCollectionDetail",
+        "createOwnerCollection",
+        "updateOwnerCollection",
+        "deleteOwnerCollection",
+        "generateShareTokenMaterial",
+        "hashRawShareToken",
+        "submitAdultSharingEligibility",
+        "previewOwnerSharedCollection",
+        "listOwnerShares",
+        "createCollectionShareLink",
+        "updateCollectionShareSettings",
+        "rotateCollectionShareLink",
+        "revokeCollectionShareLink",
+        "resolveLiveSharedCollectionByToken",
+        "renderSharedUnavailableHtmlPage",
+        "renderSharedCollectionHtmlPage",
+        "submitPublicSharedPageReport",
+        "listAdminSharedModerationQueue",
+        "applyAdminSharedModerationDecision",
+        "attachPhotoToCollectionEntry",
+        "removePhotoFromCollectionEntry",
+        "readSharedCollectionPhotoByToken",
+        "readAdminReportedSharedPhoto"
+      ],
+      "file": "lib/customer-profile.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 92
     },
     {
       "exported_symbols": [
@@ -1444,12 +1666,13 @@
         "deletePhotoFilesSafely",
         "readPhotoDerivativeSafely",
         "scanPhotoStorageFiles",
-        "unlinkConfinedPhotoArtifact"
+        "unlinkConfinedPhotoArtifact",
+        "createSharedPhotoDerivative"
       ],
       "file": "lib/photo-storage.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 14
+      "symbol_count": 15
     },
     {
       "exported_symbols": [
@@ -1464,6 +1687,9 @@
     {
       "exported_symbols": [
         "SESSION_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_COOKIE_NAME",
+        "ADMIN_TEST_CUSTOMER_USER_ID",
+        "ADMIN_TEST_CUSTOMER_EMAIL",
         "AGE_GATE_COOKIE_NAME",
         "DEFAULT_AGE_GATE_COOLDOWN_SECONDS",
         "AUTH_RATE_LIMIT_RETENTION_MS",
@@ -1512,7 +1738,7 @@
       "file": "lib/standalone-auth.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 72
+      "symbol_count": 75
     },
     {
       "exported_symbols": [
@@ -1598,10 +1824,11 @@
         "location.href",
         "location.href",
         "location.href",
+        "location.href",
         "location.hash"
       ],
       "source_type": "script",
-      "symbol_count": 197
+      "symbol_count": 215
     },
     {
       "exported_symbols": [],
@@ -2007,6 +2234,19 @@
     },
     {
       "exported_symbols": [],
+      "file": "public/customer-profile.js",
+      "globals_assigned": [
+        "openCustomerProfile",
+        "bitesharkOpenCustomerProfile",
+        "bitesharkResetProfileUiOnAuthChange",
+        "bitesharkRegisterProfileAuthResetListener",
+        "bitesharkRegisterCollectionsRenderer"
+      ],
+      "source_type": "script",
+      "symbol_count": 52
+    },
+    {
+      "exported_symbols": [],
       "file": "public/diagnostics-client.js",
       "globals_assigned": [
         "loadedServerReleaseSha",
@@ -2027,6 +2267,22 @@
       ],
       "source_type": "script",
       "symbol_count": 55
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/greatest-hits-sharing.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 32
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/greatest-hits.js",
+      "globals_assigned": [
+        "bitesharkGreatestHitsHooks"
+      ],
+      "source_type": "script",
+      "symbol_count": 60
     },
     {
       "exported_symbols": [],
@@ -2219,10 +2475,21 @@
     },
     {
       "exported_symbols": [],
+      "file": "public/profile-client.js",
+      "globals_assigned": [
+        "bitesharkProfile",
+        "bitesharkProfile"
+      ],
+      "source_type": "script",
+      "symbol_count": 23
+    },
+    {
+      "exported_symbols": [],
       "file": "public/role-experience.js",
       "globals_assigned": [
         "resolveInitialFeatures",
         "fetch",
+        "location.href",
         "location.href",
         "location.href",
         "rxAuthEpoch",
@@ -2261,7 +2528,14 @@
         "bitesharkWelcome"
       ],
       "source_type": "script",
-      "symbol_count": 185
+      "symbol_count": 189
+    },
+    {
+      "exported_symbols": [],
+      "file": "public/shared-collection-page.js",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 6
     },
     {
       "exported_symbols": [],
@@ -2442,7 +2716,7 @@
       "file": "server/admin-routes.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 81
+      "symbol_count": 82
     },
     {
       "exported_symbols": [
@@ -2454,7 +2728,7 @@
       "file": "server/app.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 34
+      "symbol_count": 37
     },
     {
       "exported_symbols": [
@@ -2465,6 +2739,21 @@
       "globals_assigned": [],
       "source_type": "module",
       "symbol_count": 6
+    },
+    {
+      "exported_symbols": [
+        "CUSTOMER_PROFILE_PATHS",
+        "resolveCallerProfileFeatureFlags",
+        "recordProfileDiagnostic",
+        "handleCustomerProfileRoute",
+        "applyUnlistedSharedSecurityHeaders",
+        "handlePublicSharedPageRequest",
+        "handlePublicSharedPhotoRequest"
+      ],
+      "file": "server/customer-profile-routes.js",
+      "globals_assigned": [],
+      "source_type": "module",
+      "symbol_count": 8
     },
     {
       "exported_symbols": [],
@@ -2498,6 +2787,13 @@
       "globals_assigned": [],
       "source_type": "script",
       "symbol_count": 33
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/admin-test-customer.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 10
     },
     {
       "exported_symbols": [],
@@ -2535,6 +2831,20 @@
       "globals_assigned": [],
       "source_type": "script",
       "symbol_count": 15
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-profile-browser.e2e.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 40
+    },
+    {
+      "exported_symbols": [],
+      "file": "tests/customer-profile-sharing.integration.cjs",
+      "globals_assigned": [],
+      "source_type": "script",
+      "symbol_count": 18
     },
     {
       "exported_symbols": [],
@@ -2953,13 +3263,13 @@
       "auth_requirement": "authenticated_age_exempt_support",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 6,
+      "candidate_test_mention_count": 8,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-AGE-ELIGIBILITY",
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 4,
+      "contract_test_count": 5,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -2968,7 +3278,7 @@
         "GET"
       ],
       "path": "/api/account/context",
-      "static_http_test_count": 4
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -2979,7 +3289,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -2999,7 +3309,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -3019,7 +3329,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -3248,7 +3558,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "admin_mod_or_top",
-      "candidate_test_mention_count": 4,
+      "candidate_test_mention_count": 6,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-FEATURE-CONTROLS"
@@ -3262,13 +3572,13 @@
         "GET"
       ],
       "path": "/api/admin/features",
-      "static_http_test_count": 5
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "admin_top_only",
-      "candidate_test_mention_count": 5,
+      "candidate_test_mention_count": 7,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-FEATURE-CONTROLS"
@@ -3282,7 +3592,7 @@
         "POST"
       ],
       "path": "/api/admin/features/update",
-      "static_http_test_count": 7
+      "static_http_test_count": 8
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3529,6 +3839,87 @@
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "admin_mod_or_top",
       "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/shared-moderation",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/admin/shared-moderation/decision",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/admin/shared-moderation/photo",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "method_specific(GET:admin_mod_or_top, POST:admin_top_only)",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 5,
+      "contract_ids": [
+        "CTR-AUTHZ-RBAC-VENDOR"
+      ],
+      "contract_test_count": 3,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/admin-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/admin/test-customer",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "admin_mod_or_top",
+      "candidate_test_mention_count": 1,
       "confirmed_caller_count": 2,
       "contract_ids": [],
       "contract_test_count": 0,
@@ -3569,7 +3960,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -3642,7 +4033,7 @@
       "auth_requirement": "public_or_session",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "session_cookie_inspection",
-      "candidate_test_mention_count": 4,
+      "candidate_test_mention_count": 5,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-AUTH-SESSION-OTP"
@@ -3656,13 +4047,13 @@
         "GET"
       ],
       "path": "/api/auth/session",
-      "static_http_test_count": 3
+      "static_http_test_count": 4
     },
     {
       "auth_requirement": "internal_mailbox_secret",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "staging_loopback_operator_secret_only",
-      "candidate_test_mention_count": 7,
+      "candidate_test_mention_count": 9,
       "confirmed_caller_count": 0,
       "contract_ids": [
         "CTR-AUTH-SESSION-OTP"
@@ -3676,13 +4067,13 @@
         "POST"
       ],
       "path": "/api/auth/staging-mailbox",
-      "static_http_test_count": 15
+      "static_http_test_count": 18
     },
     {
       "auth_requirement": "public",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "csrf_client_header_and_rate_limit",
-      "candidate_test_mention_count": 11,
+      "candidate_test_mention_count": 13,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-AUTH-SESSION-OTP"
@@ -3696,13 +4087,13 @@
         "POST"
       ],
       "path": "/api/auth/start",
-      "static_http_test_count": 17
+      "static_http_test_count": 19
     },
     {
       "auth_requirement": "public",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "otp_verification_and_rate_limit",
-      "candidate_test_mention_count": 10,
+      "candidate_test_mention_count": 12,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-AUTH-SESSION-OTP"
@@ -3716,7 +4107,7 @@
         "POST"
       ],
       "path": "/api/auth/verify",
-      "static_http_test_count": 16
+      "static_http_test_count": 18
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -3941,8 +4332,8 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 5,
-      "confirmed_caller_count": 3,
+      "candidate_test_mention_count": 7,
+      "confirmed_caller_count": 4,
       "contract_ids": [],
       "contract_test_count": 0,
       "dispatcher": "server/routes.js",
@@ -3953,7 +4344,7 @@
         "POST"
       ],
       "path": "/api/favorites/toggle",
-      "static_http_test_count": 5
+      "static_http_test_count": 6
     },
     {
       "auth_requirement": "authenticated_age_exempt_support",
@@ -3993,7 +4384,7 @@
         "GET"
       ],
       "path": "/api/healthz",
-      "static_http_test_count": 7
+      "static_http_test_count": 9
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4117,7 +4508,148 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 2,
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/collections",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "shared_collection_photos",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/collections/attach-photo",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/collections/delete",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/me/collections/detail",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/collections/preview",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/collections/remove-photo",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "greatest_hits_collections",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/collections/update",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 3,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-CUSTOMER-EXPLORATION"
@@ -4131,7 +4663,7 @@
         "GET"
       ],
       "path": "/api/me/exploration",
-      "static_http_test_count": 2
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4177,7 +4709,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 2,
+      "candidate_test_mention_count": 4,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-PRIVATE-PHOTO-STORAGE"
@@ -4192,13 +4724,13 @@
         "POST"
       ],
       "path": "/api/me/photos",
-      "static_http_test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 2,
+      "candidate_test_mention_count": 3,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-PRIVATE-PHOTO-STORAGE"
@@ -4212,7 +4744,7 @@
         "POST"
       ],
       "path": "/api/me/photos/delete",
-      "static_http_test_count": 2
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4239,6 +4771,207 @@
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
       "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "customer_profile_editing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/preferences",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "customer_profile,customer_profile_editing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "path": "/api/me/profile",
+      "static_http_test_count": 2
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/profile/delete-data",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/me/profile/privacy",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "GET"
+      ],
+      "path": "/api/me/shares",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/shares/create",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/shares/revoke",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/shares/rotate",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/shares/update-settings",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 0,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": "unlisted_collection_sharing",
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/me/sharing-eligibility",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "authenticated_14_plus",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "authenticated_self_owner_rls",
+      "candidate_test_mention_count": 2,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-CUSTOMER-EXPLORATION"
@@ -4253,7 +4986,7 @@
         "POST"
       ],
       "path": "/api/me/trails",
-      "static_http_test_count": 1
+      "static_http_test_count": 2
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4279,7 +5012,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 1,
+      "candidate_test_mention_count": 3,
       "confirmed_caller_count": 2,
       "contract_ids": [
         "CTR-CUSTOMER-EXPLORATION"
@@ -4294,7 +5027,7 @@
         "POST"
       ],
       "path": "/api/me/visits",
-      "static_http_test_count": 1
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4320,7 +5053,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "authenticated_self_owner_rls",
-      "candidate_test_mention_count": 5,
+      "candidate_test_mention_count": 6,
       "confirmed_caller_count": 2,
       "contract_ids": [],
       "contract_test_count": 0,
@@ -4333,7 +5066,7 @@
         "POST"
       ],
       "path": "/api/notifications/settings",
-      "static_http_test_count": 2
+      "static_http_test_count": 3
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4631,6 +5364,26 @@
       "auth_requirement": "public",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "public_read",
+      "candidate_test_mention_count": 1,
+      "confirmed_caller_count": 1,
+      "contract_ids": [
+        "CTR-CUSTOMER-PROFILE-SHARING"
+      ],
+      "contract_test_count": 2,
+      "dispatcher": "server/admin-routes.js",
+      "feature_gate": null,
+      "handler_file": "server/customer-profile-routes.js",
+      "method_source": "confirmed_method_guard",
+      "methods": [
+        "POST"
+      ],
+      "path": "/api/shared/report",
+      "static_http_test_count": 1
+    },
+    {
+      "auth_requirement": "public",
+      "authorization_confidence": "confirmed_static",
+      "authorization_summary": "public_read",
       "candidate_test_mention_count": 2,
       "confirmed_caller_count": 1,
       "contract_ids": [
@@ -4671,7 +5424,7 @@
       "auth_requirement": "public",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "public_read",
-      "candidate_test_mention_count": 8,
+      "candidate_test_mention_count": 9,
       "confirmed_caller_count": 1,
       "contract_ids": [
         "CTR-DISCOVERY-CATALOG"
@@ -4685,7 +5438,7 @@
         "GET"
       ],
       "path": "/api/trucks",
-      "static_http_test_count": 11
+      "static_http_test_count": 12
     },
     {
       "auth_requirement": "public",
@@ -4776,7 +5529,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -4797,7 +5550,7 @@
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
       ],
-      "contract_test_count": 2,
+      "contract_test_count": 3,
       "dispatcher": "server/admin-routes.js",
       "feature_gate": null,
       "handler_file": "server/admin-routes.js",
@@ -4890,7 +5643,8 @@
         "/api/admin/accounts",
         "/api/admin/accounts/role",
         "/api/admin/accounts/status",
-        "/api/admin/vendors/update"
+        "/api/admin/vendors/update",
+        "/api/admin/test-customer"
       ],
       "implementation_symbols": [
         "lib/authz.js#loadAccessContext",
@@ -5102,8 +5856,57 @@
         "scripts/build-linux-release-tarball.cjs#parseArgs"
       ],
       "title": "Immutable SQL Migration Checksums, Release Tarball Packaging & Atomic Staging Installer"
+    },
+    {
+      "contract_id": "CTR-CUSTOMER-PROFILE-SHARING",
+      "db_tables": [
+        "customer_profiles",
+        "customer_sharing_eligibility",
+        "customer_collections",
+        "customer_collection_entries",
+        "customer_collection_photo_attachments",
+        "customer_collection_shares",
+        "customer_share_reports",
+        "customer_share_moderation_events"
+      ],
+      "domain": "customer-profile-and-sharing",
+      "http_routes": [
+        "/api/me/profile",
+        "/api/me/preferences",
+        "/api/me/profile/privacy",
+        "/api/me/profile/delete-data",
+        "/api/me/collections",
+        "/api/me/collections/detail",
+        "/api/me/collections/update",
+        "/api/me/collections/delete",
+        "/api/me/collections/preview",
+        "/api/me/collections/attach-photo",
+        "/api/me/collections/remove-photo",
+        "/api/me/sharing-eligibility",
+        "/api/me/shares",
+        "/api/me/shares/create",
+        "/api/me/shares/update-settings",
+        "/api/me/shares/rotate",
+        "/api/me/shares/revoke",
+        "/api/shared/report",
+        "/api/admin/shared-moderation",
+        "/api/admin/shared-moderation/decision",
+        "/api/admin/shared-moderation/photo"
+      ],
+      "implementation_symbols": [
+        "lib/customer-profile.js#getPrivateOwnerProfile",
+        "lib/customer-profile.js#updatePrivateOwnerProfile",
+        "lib/customer-profile.js#createOwnerCollection",
+        "lib/customer-profile.js#createCollectionShareLink",
+        "lib/customer-profile.js#revokeCollectionShareLink",
+        "lib/customer-profile.js#resolveLiveSharedCollectionByToken",
+        "lib/customer-profile.js#applyAdminSharedModerationDecision",
+        "lib/age-policy.js#evaluateAdultSharingEligibility",
+        "lib/photo-storage.js#createSharedPhotoDerivative"
+      ],
+      "title": "Private Customer Profile Dashboard, Greatest Hits Collections & Revocable Unlisted Sharing"
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "f351b1839a541309ff92af2238561630479a3c834950d41044168088bcc5e313"
+  "source_analysis_digest_sha256": "83af83f9b4eaab27410a8f676064af9ae54aa5ef700bb9025620190caaabcc20"
 }

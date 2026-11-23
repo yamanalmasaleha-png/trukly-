@@ -346,6 +346,72 @@
 
     var vp = rxState.viewpoint;
     var ctx = rxState.ctx;
+
+    // Top-Admin Isolated Testing Customer Sandbox Banner (takes precedence when active)
+    if (ctx && ctx.authenticated && ctx.test_customer_sandbox && ctx.test_customer_sandbox.active) {
+      var tcBanner = document.createElement('div');
+      tcBanner.id = 'bitesharkViewpointBanner';
+      tcBanner.setAttribute('role', 'region');
+      tcBanner.setAttribute('aria-label', 'Testing customer sandbox banner');
+      tcBanner.className = 'biteshark-viewpoint-banner is-act-on-behalf';
+      tcBanner.innerHTML =
+        '<div><strong>🧪 Testing Customer Sandbox</strong> — Signed in as isolated test user <code>' +
+        rxEsc(ctx.test_customer_sandbox.email || 'test-customer@sandbox.biteshark.invalid') +
+        '</code>. Real customer actions stay confined to this sandbox.</div>' +
+        '<div class="vp-banner-actions">' +
+        '<a class="vp-banner-btn secondary" href="/profile">🧭 My BiteShark</a>' +
+        '<button type="button" class="vp-banner-btn secondary" id="tcBannerSeedBtn">✨ Seed Sample</button>' +
+        '<button type="button" class="vp-banner-btn secondary" id="tcBannerResetBtn">↺ Reset</button>' +
+        '<button type="button" class="vp-banner-btn" id="tcBannerExitBtn">🛡️ Exit to Admin Portal</button>' +
+        '</div>';
+      document.body.insertBefore(tcBanner, document.body.firstChild);
+
+      var seedBtn = document.getElementById('tcBannerSeedBtn');
+      if (seedBtn) {
+        seedBtn.onclick = async function () {
+          seedBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'seed' }
+            });
+            window.location.reload();
+          } catch (_err) {
+            seedBtn.disabled = false;
+          }
+        };
+      }
+      var resetBtn = document.getElementById('tcBannerResetBtn');
+      if (resetBtn) {
+        resetBtn.onclick = async function () {
+          resetBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'reset' }
+            });
+            window.location.reload();
+          } catch (_err) {
+            resetBtn.disabled = false;
+          }
+        };
+      }
+      var exitBtn = document.getElementById('tcBannerExitBtn');
+      if (exitBtn) {
+        exitBtn.onclick = async function () {
+          exitBtn.disabled = true;
+          try {
+            await rxFetchJson('/api/admin/test-customer', {
+              method: 'POST',
+              body: { action: 'exit' }
+            });
+          } catch (_err) {}
+          window.location.href = '/admin';
+        };
+      }
+      return;
+    }
+
     if (!vp) return;
 
     // Non-admins never retain admin viewpoint state
@@ -560,6 +626,26 @@
       policiesLink.style.cssText = 'display:block;padding:8px 10px;border-radius:10px;text-decoration:none;color:inherit;font-size:14px;font-weight:600';
       policiesLink.textContent = '📄 Policy & legal drafts';
 
+      var myProfileBtn = document.createElement('button');
+      myProfileBtn.type = 'button';
+      myProfileBtn.id = 'rxMyProfileBtn';
+      myProfileBtn.hidden = true;
+      myProfileBtn.textContent = '🧭 My BiteShark';
+      myProfileBtn.onclick = function () {
+        document.getElementById('profileMenu').open = false;
+        if (typeof window.openCustomerProfile === 'function') {
+          window.openCustomerProfile('overview');
+        } else if (typeof showScreen === 'function') {
+          showScreen('profile');
+        }
+      };
+
+      var firstMenuAction = dropdown.querySelector('button');
+      if (firstMenuAction) {
+        dropdown.insertBefore(myProfileBtn, firstMenuAction);
+      } else {
+        dropdown.insertBefore(myProfileBtn, signOutBtn);
+      }
       dropdown.insertBefore(adminLink, signOutBtn);
       dropdown.insertBefore(vendorHubBtn, signOutBtn);
       dropdown.insertBefore(applyVendorBtn, signOutBtn);
@@ -1335,19 +1421,19 @@
     try {
       if (kind === 'photo') {
         if (window.bitesharkExploration && window.bitesharkExploration.deletePhoto) {
-          await window.bitesharkExploration.deletePhoto(itemId);
+          await window.bitesharkExploration.deletePhoto({ photoId: itemId });
         } else {
           await rxJson('/api/me/photos/delete', { method: 'POST', body: { photo_id: itemId } });
         }
       } else if (kind === 'visit') {
         if (window.bitesharkExploration && window.bitesharkExploration.deleteVisit) {
-          await window.bitesharkExploration.deleteVisit(itemId);
+          await window.bitesharkExploration.deleteVisit({ visitId: itemId });
         } else {
           await rxJson('/api/me/visits/delete', { method: 'POST', body: { visit_id: itemId } });
         }
       } else if (kind === 'trail') {
         if (window.bitesharkExploration && window.bitesharkExploration.deleteSavedTrail) {
-          await window.bitesharkExploration.deleteSavedTrail(itemId);
+          await window.bitesharkExploration.deleteSavedTrail({ trailId: itemId });
         } else {
           await rxJson('/api/me/trails/delete', { method: 'POST', body: { trail_id: itemId } });
         }
@@ -1436,6 +1522,10 @@
         if (vendorHubBtn) {
           vendorHubBtn.hidden = !(Array.isArray(ctx.memberships) && ctx.memberships.length > 0);
         }
+        var myProfileBtnEl = document.getElementById('rxMyProfileBtn');
+        if (myProfileBtnEl) {
+          myProfileBtnEl.hidden = Boolean(ctx.requires_age_assessment) || isFeatureHidden('customer_profile');
+        }
         if (expPrivacyBtn) {
           expPrivacyBtn.hidden = Boolean(ctx.requires_age_assessment);
         }
@@ -1454,6 +1544,8 @@
         if (adminLink) adminLink.hidden = true;
         if (vendorHubBtn) vendorHubBtn.hidden = true;
         if (expPrivacyBtn) expPrivacyBtn.hidden = true;
+        var myProfileGuestEl = document.getElementById('rxMyProfileBtn');
+        if (myProfileGuestEl) myProfileGuestEl.hidden = true;
         var ageModalGuest = document.getElementById('rxAgeAssessmentModal');
         if (ageModalGuest) ageModalGuest.hidden = true;
       }
@@ -3748,9 +3840,16 @@
       try { window.bitesharkSyncInteractiveMapControl(); } catch (_e) {}
     }
 
-    // 9. Re-render active real pager push box if open
+    // 9.Re-render active real pager push box if open
     if (typeof pagerCurrentRendered !== 'undefined' && pagerCurrentRendered && typeof renderPager === 'function' && typeof pagerToken !== 'undefined' && pagerToken) {
       try { renderPager(pagerCurrentRendered); } catch (_e) {}
+    }
+
+    // 10. Customer Profile (`customer_profile`) menu & screen visibility
+    var myProfBtn = document.getElementById('rxMyProfileBtn');
+    if (myProfBtn) {
+      var signedInEligible = Boolean(rxState.ctx && rxState.ctx.authenticated && !rxState.ctx.requires_age_assessment);
+      myProfBtn.hidden = !signedInEligible || isFeatureHidden('customer_profile');
     }
   }
 
@@ -4264,6 +4363,28 @@
         if (typeof showScreen === 'function') showScreen('owner');
       } else if (rxState.ctx && rxState.ctx.authenticated && typeof toast === 'function') {
         toast('Signed in — no approved vendor membership is linked yet. Use Claim or apply as vendor in your account menu.');
+      }
+      return;
+    }
+
+    // 1B. `/profile` dynamic path or `#profile*` / `#my-biteshark` / `#greatest-hits` deep link
+    var arrivalPathLower = String(INITIAL_ARRIVAL_PATH || window.location.pathname || '/').toLowerCase();
+    var arrivalHashLower = rawHash.toLowerCase();
+    if (
+      arrivalPathLower === '/profile' ||
+      arrivalPathLower === '/profile/' ||
+      arrivalHashLower.indexOf('#profile') === 0 ||
+      arrivalHashLower === '#my-biteshark' ||
+      arrivalHashLower === '#greatest-hits'
+    ) {
+      if (typeof window.openCustomerProfile === 'function') {
+        var tabHint = 'overview';
+        if (arrivalHashLower === '#profile-activity') tabHint = 'activity';
+        else if (arrivalHashLower === '#profile-progress') tabHint = 'progress';
+        else if (arrivalHashLower === '#profile-collections' || arrivalHashLower === '#greatest-hits') tabHint = 'collections';
+        else if (arrivalHashLower === '#profile-preferences') tabHint = 'preferences';
+        else if (arrivalHashLower === '#profile-privacy') tabHint = 'privacy';
+        window.openCustomerProfile(tabHint);
       }
       return;
     }

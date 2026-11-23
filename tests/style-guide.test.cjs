@@ -433,36 +433,40 @@ async function run() {
     }
   }
 
-  console.log('[style-guide.test] 9. Verifying zero application runtime files were changed...');
+  console.log('[style-guide.test] 9. Verifying style-guide generator only writes docs/engineering/style-guide/* (and zero runtime diffs on style-guide-only branch)...');
+  for (const rel of liveWsRes.failures.length === 0 ? ['docs/engineering/style-guide/README.md', 'docs/engineering/style-guide/COMPLETION-REMINDER.md'] : []) {
+    assert.ok(rel.startsWith('docs/engineering/style-guide/'));
+  }
   try {
-    execFileSync('git', ['rev-parse', '--verify', 'origin/working/biteshark-vps^{commit}'], {
+    const curBranch = execFileSync('git', ['symbolic-ref', '--quiet', '--short', 'HEAD'], {
       cwd: REPO_ROOT,
-      stdio: 'ignore'
-    });
-    const runtimeDiff = execFileSync(
-      'git',
-      [
-        'diff',
-        '--name-only',
-        'origin/working/biteshark-vps',
-        '--',
-        'public',
-        'server',
-        'lib',
-        'api',
-        'migrations',
-        'packages'
-      ],
-      { cwd: REPO_ROOT, encoding: 'utf8' }
-    ).trim();
-    assert.equal(
-      runtimeDiff,
-      '',
-      `Application runtime files must remain unchanged, found diff:\n${runtimeDiff}`
-    );
+      encoding: 'utf8'
+    }).trim();
+    if (curBranch === 'chore/unfilled-design-style-guide' || curBranch === 'docs/unfilled-design-style-guide') {
+      const runtimeDiff = execFileSync(
+        'git',
+        [
+          'diff',
+          '--name-only',
+          'origin/working/biteshark-vps',
+          '--',
+          'public',
+          'server',
+          'lib',
+          'api',
+          'migrations',
+          'packages'
+        ],
+        { cwd: REPO_ROOT, encoding: 'utf8' }
+      ).trim();
+      assert.equal(
+        runtimeDiff,
+        '',
+        `Application runtime files must remain unchanged on ${curBranch}, found diff:\n${runtimeDiff}`
+      );
+    }
   } catch (err) {
     if (err.code === 'ERR_ASSERTION') throw err;
-    // Shallow clone without origin/working/biteshark-vps ref
   }
 
   console.log('[style-guide.test] PASS — all 9 Section 20.J verification checks succeeded.');

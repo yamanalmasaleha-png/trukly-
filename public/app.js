@@ -1669,6 +1669,12 @@ async function syncAuthAndUserData() {
         window.bitesharkResetExplorationUiOnAuthChange();
       }
     }
+    if (window.bitesharkProfile) {
+      const profChanged = window.bitesharkProfile.syncActiveUserScope(currentUser);
+      if (profChanged && typeof window.bitesharkResetProfileUiOnAuthChange === 'function') {
+        window.bitesharkResetProfileUiOnAuthChange();
+      }
+    }
     updateAuthUI();
     applyFilters();
     renderFavorites();
@@ -1715,6 +1721,12 @@ async function syncAuthAndUserData() {
     const expChanged = window.bitesharkExploration.syncActiveUserScope(null);
     if (expChanged && typeof window.bitesharkResetExplorationUiOnAuthChange === 'function') {
       window.bitesharkResetExplorationUiOnAuthChange();
+    }
+  }
+  if (window.bitesharkProfile) {
+    const profChanged = window.bitesharkProfile.syncActiveUserScope(null);
+    if (profChanged && typeof window.bitesharkResetProfileUiOnAuthChange === 'function') {
+      window.bitesharkResetProfileUiOnAuthChange();
     }
   }
   try {
@@ -1801,7 +1813,11 @@ function applyConfirmedClientSignOutCleanup(opts = {}) {
   } catch {}
 
   const ownerScreenEl = document.getElementById('ownerScreen');
-  if (ownerScreenEl && ownerScreenEl.classList.contains('active')) {
+  const profileScreenEl = document.getElementById('profileScreen');
+  if (
+    (ownerScreenEl && ownerScreenEl.classList.contains('active')) ||
+    (profileScreenEl && profileScreenEl.classList.contains('active'))
+  ) {
     ensureDiscoverScreenActive();
   }
 
@@ -1820,6 +1836,12 @@ function applyConfirmedClientSignOutCleanup(opts = {}) {
   }
   if (typeof window !== 'undefined' && typeof window.bitesharkResetExplorationUiOnAuthChange === 'function') {
     window.bitesharkResetExplorationUiOnAuthChange();
+  }
+  if (window.bitesharkProfile) {
+    window.bitesharkProfile.syncActiveUserScope(null);
+  }
+  if (typeof window !== 'undefined' && typeof window.bitesharkResetProfileUiOnAuthChange === 'function') {
+    window.bitesharkResetProfileUiOnAuthChange();
   }
 
   if (typeof window !== 'undefined' && typeof window.bitesharkOnSignedOut === 'function') {
