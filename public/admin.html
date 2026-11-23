@@ -929,11 +929,14 @@
         <section class="admin-section" id="sec-style-guide" aria-labelledby="heading-style-guide" hidden>
           <div class="sec-head">
             <div>
-              <span class="sec-kicker">15 CATEGORIES · 29 UI ELEMENTS · TRACKED COMPLETION &amp; REPO SYNC</span>
+              <span class="sec-kicker">15 CATEGORIES · 29 UI ELEMENTS · PERSISTENT STORAGE &amp; GIT BRANCH UPLOAD</span>
               <h1 id="heading-style-guide">Design Style Guide Questionnaire</h1>
-              <p>Fill in BiteShark's design parameters using type-matched controls across every category and UI element. Saved answers immediately populate the hosted Style Guide Markdown sections; notes are optional on every item.</p>
+              <p>Fill in BiteShark's design parameters using type-matched controls across every category and UI element. Saved answers persist across deploys, recognize overwrites with Confirm/Deny, and populate the hosted Style Guide sections immediately.</p>
             </div>
-            <button type="button" class="admin-btn admin-btn-secondary" id="refreshStyleGuideBtn">↻ Refresh</button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <button type="button" class="admin-btn admin-btn-primary" id="sgHeaderUploadGitBtn" hidden>⬆️ Upload Current Version to Git</button>
+              <button type="button" class="admin-btn admin-btn-secondary" id="refreshStyleGuideBtn">↻ Refresh</button>
+            </div>
           </div>
 
           <div id="sgWorkspaceLoading" class="state-box">Loading Style Guide categories, UI elements, and completion status…</div>
@@ -1058,26 +1061,57 @@
     </div>
   </div>
 
-  <!-- Push Style Guide Answers to GitHub Repository Modal (Admin: Top) -->
-  <div class="admin-modal-backdrop" id="sgPushRepoModal" hidden>
-    <form class="admin-modal" id="sgPushRepoForm" role="dialog" aria-modal="true" aria-labelledby="sgPushRepoTitle">
-      <span class="sec-kicker">GITHUB REPOSITORY SYNC · ADMIN: TOP ONLY</span>
-      <h2 id="sgPushRepoTitle">Push Style Guide Answers to Repository</h2>
-      <div id="sgPushSummaryCallout" class="conflict-callout" style="margin:4px 0 8px;font-size:12.5px"></div>
+  <!-- Style Guide Overwrite / Concurrent Change Confirm or Deny Modal -->
+  <div class="admin-modal-backdrop" id="sgOverwriteConfirmModal" hidden>
+    <div class="admin-modal sg-doc-modal-wide" role="dialog" aria-modal="true" aria-labelledby="sgOverwriteModalTitle" aria-describedby="sgOverwriteModalLead">
+      <span class="sec-kicker" id="sgOverwriteModalKicker">CHANGE RECOGNITION · CONFIRM OR DENY OVERWRITE</span>
+      <h2 id="sgOverwriteModalTitle">Confirm Overwrite of Existing Saved Style Guide Entries?</h2>
+      <p id="sgOverwriteModalLead">One or more Style Guide items already have saved answers or notes in persistent storage. Review the recognized changes below and choose whether to Confirm or Deny overwriting them.</p>
+      <div id="sgOverwriteSummaryGrid" class="sg-upload-metrics-grid"></div>
+      <div id="sgOverwriteDiffBox" class="sg-changed-items-box"></div>
+      <p id="sgOverwriteModalError" class="form-err" role="alert" hidden></p>
+      <div class="modal-actions" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="admin-btn admin-btn-secondary" id="sgOverwriteCancelBtn">← Back to Editing</button>
+          <button type="button" class="admin-btn admin-btn-warn" id="sgOverwriteDenyBtn">✕ Deny Overwrite (Keep Existing Saved Values)</button>
+        </div>
+        <button type="button" class="admin-btn admin-btn-danger" id="sgOverwriteConfirmBtn">✓ Confirm &amp; Overwrite Saved Entries</button>
+      </div>
+    </div>
+  </div>
 
-      <label>Target Git Branch
-        <select id="sgPushBranchSelect"></select>
-      </label>
+  <!-- Push / Upload Style Guide Answers to Respective GitHub Branch Modal (Admin: Top) -->
+  <div class="admin-modal-backdrop" id="sgPushRepoModal" hidden>
+    <form class="admin-modal sg-doc-modal-wide" id="sgPushRepoForm" role="dialog" aria-modal="true" aria-labelledby="sgPushRepoTitle">
+      <span class="sec-kicker">GIT BRANCH UPLOAD · WRITE / REWRITE / REMAINING SUMMARY</span>
+      <h2 id="sgPushRepoTitle">Upload Current Style Guide Version to Git</h2>
+      <div id="sgPushSummaryCallout" class="conflict-callout" style="margin:4px 0 8px;font-size:12.5px"></div>
+      <div id="sgPushMetricsGrid" class="sg-upload-metrics-grid"></div>
+      <div id="sgPushChangedItemsWrap" class="sg-changed-items-box" hidden></div>
+
+      <div id="sgPushRemoteOverwriteBanner" class="conflict-callout" style="background:#fff7ed;border-color:var(--warn);margin:8px 0" hidden>
+        <strong id="sgPushRemoteOverwriteTitle" style="color:#9a3412">⚠️ Remote Branch Has Saved Entries That Will Be Overwritten</strong>
+        <p id="sgPushRemoteOverwriteBody" style="margin:4px 0 8px;font-size:12.5px;color:#7c2d12"></p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" class="admin-btn admin-btn-secondary admin-btn-sm" id="sgPushRemoteDenyBtn">✕ Deny Remote Overwrite (Cancel Upload)</button>
+          <button type="button" class="admin-btn admin-btn-danger admin-btn-sm" id="sgPushRemoteConfirmBtn">✓ Confirm Overwrite &amp; Upload to Branch</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:6px">
+        <label>Target Git Branch (Respective Server Default Selected)
+          <select id="sgPushBranchSelect"></select>
+        </label>
+        <label>Commit Message
+          <input type="text" id="sgPushCommitMessage" required minlength="5" maxlength="240">
+        </label>
+      </div>
 
       <div id="sgPushCustomBranchWrap" hidden>
         <label>New Branch Name (created from current host default branch)
           <input type="text" id="sgPushCustomBranchInput" placeholder="e.g. docs/style-guide-team-answers">
         </label>
       </div>
-
-      <label>Commit Message
-        <input type="text" id="sgPushCommitMessage" required minlength="5" maxlength="240">
-      </label>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <label>Git Author Name
@@ -1096,11 +1130,12 @@
       </div>
 
       <p id="sgPushModalError" class="form-err" role="alert" hidden></p>
-      <div id="sgPushModalSuccess" class="state-box" style="background:#dcfce7;border-color:var(--ok);color:var(--ok)" hidden></div>
+      <div id="sgPushModalSuccess" class="state-box" style="background:#dcfce7;border-color:var(--ok);color:#14532d" hidden></div>
 
       <div class="modal-actions">
         <button type="button" class="admin-btn admin-btn-secondary" id="sgPushCancelBtn">Close</button>
-        <button type="submit" class="admin-btn admin-btn-primary" id="sgPushSubmitBtn">🚀 Commit &amp; Push Style Guide to Repo</button>
+        <button type="button" class="admin-btn admin-btn-secondary" id="sgPushInspectRemoteBtn">🔍 Check Live Remote Diff</button>
+        <button type="submit" class="admin-btn admin-btn-primary" id="sgPushSubmitBtn">⬆️ Upload Current Version to Git</button>
       </div>
     </form>
   </div>

@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `testing/yaman-staging2`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `e2366f1378644f89df4d9af78e3937662f9ec4f497107eda8bb714c8e1d39852`
+> - **Deterministic Source Digest**: `1280151cb7667601ac2537570b50da7b300e6cd1c8ea15c16666cbd9fabcdedd`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 - **Active Findings**: **12**
