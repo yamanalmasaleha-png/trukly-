@@ -174,6 +174,7 @@
       },
       opts || {}
     );
+    options.headers = Object.assign({ 'X-BiteShark-Admin-Portal': '1' }, options.headers || {});
     var method = String(options.method || 'GET').toUpperCase();
     var isWrite = method !== 'GET' && method !== 'HEAD';
     var d = adminDiag();
@@ -4695,6 +4696,11 @@
       badge.classList.toggle('role-mod', !state.isTop);
 
       document.getElementById('vpActOnBehalfBtn').hidden = !state.isTop;
+      var vpTcBtn = document.getElementById('vpTestCustomerBtn');
+      if (vpTcBtn) vpTcBtn.hidden = false;
+      var tcPanel = document.getElementById('testCustomerSandboxPanel');
+      if (tcPanel) tcPanel.hidden = false;
+      loadTestCustomerSandboxStatus();
       document.getElementById('overviewRoleDescription').textContent = state.isTop
         ? 'Signed in with full Admin: Top governance authority. All operations remain explicit, bounded, and audited.'
         : 'Signed in as Admin: Mod. You have full access to review queues, moderation, issue triage, temporary safety holds, and invitation initiation; final vendor approvals and administrative elevations require Admin: Top.';
@@ -4730,9 +4736,141 @@
     });
   });
 
+  var testCustomerDefaultTarget = '/';
+
+  async function loadTestCustomerSandboxStatus() {
+    var statusEl = document.getElementById('testCustomerStatusLine');
+    var exitBtn = document.getElementById('tcExitSessionBtn');
+    var vpBtn = document.getElementById('vpTestCustomerBtn');
+    var profBtn = document.getElementById('tcOpenProfileBtn');
+    try {
+      var res = await apiJson('/api/admin/test-customer');
+      if (!res || !res.available) {
+        if (statusEl) statusEl.textContent = 'Testing customer sandbox is disabled in this environment.';
+        return;
+      }
+      var hasProf = res.has_profile_page !== false;
+      testCustomerDefaultTarget = hasProf ? '/profile' : '/';
+      if (profBtn) profBtn.hidden = !hasProf;
+      var c = res.counts || {};
+      var activeTxt = res.active_in_browser
+        ? 'Active in this browser (customer tabs run as ' + res.test_user.email + ')'
+        : 'Ready (inactive in customer tabs)';
+      if (statusEl) {
+        statusEl.innerHTML =
+          '<strong>Status:</strong> ' +
+          esc(activeTxt) +
+          ' · <strong>Sandbox Records:</strong> ' +
+          Number(c.favorites || 0) +
+          ' saved spot(s), ' +
+          Number(c.visits || 0) +
+          ' visit(s), ' +
+          Number(c.collections || 0) +
+          ' Greatest Hits collection(s).';
+      }
+      if (exitBtn) exitBtn.hidden = !res.active_in_browser;
+      if (vpBtn) {
+        vpBtn.textContent = res.active_in_browser ? '🧪 Test Customer (Active)' : '🧪 Test Customer';
+      }
+    } catch (err) {
+      if (statusEl) statusEl.textContent = 'Could not inspect sandbox status: ' + (err.message || 'error');
+    }
+  }
+
+  async function launchTestCustomerSandbox(targetUrl, seedFirst) {
+    try {
+      saveViewpointSession(null);
+      var enterRes = await apiJson('/api/admin/test-customer', {
+        method: 'POST',
+        body: { action: 'enter', seed_sample: Boolean(seedFirst) },
+        operationName: 'admin_test_customer_enter'
+      });
+      var resolvedTarget =
+        targetUrl || (enterRes && enterRes.has_profile_page === false ? '/' : testCustomerDefaultTarget);
+      window.location.href = resolvedTarget;
+    } catch (err) {
+      showBanner(err.message || 'Could not enter Testing Customer Sandbox.', true);
+    }
+  }
+
   document.getElementById('vpCustomerPreviewBtn').onclick = launchCustomerPreview;
   document.getElementById('vpVendorPreviewBtn').onclick = function () { launchVendorPreview(); };
   document.getElementById('vpActOnBehalfBtn').onclick = function () { openActOnBehalfModal(); };
+  var vpTcEl = document.getElementById('vpTestCustomerBtn');
+  if (vpTcEl) {
+    vpTcEl.onclick = function () {
+      launchTestCustomerSandbox(null, false);
+    };
+  }
+  var tcProfEl = document.getElementById('tcOpenProfileBtn');
+  if (tcProfEl) {
+    tcProfEl.onclick = function () {
+      launchTestCustomerSandbox('/profile', false);
+    };
+  }
+  var tcDiscEl = document.getElementById('tcOpenDiscoverBtn');
+  if (tcDiscEl) {
+    tcDiscEl.onclick = function () {
+      launchTestCustomerSandbox('/', false);
+    };
+  }
+  var tcSeedEl = document.getElementById('tcSeedSampleBtn');
+  if (tcSeedEl) {
+    tcSeedEl.onclick = async function () {
+      tcSeedEl.disabled = true;
+      try {
+        await apiJson('/api/admin/test-customer', {
+          method: 'POST',
+          body: { action: 'seed' },
+          operationName: 'admin_test_customer_seed'
+        });
+        showBanner('Seeded sample Sonoma County activity for the Test Customer account.', false);
+        await loadTestCustomerSandboxStatus();
+      } catch (err) {
+        showBanner(err.message || 'Could not seed sample data.', true);
+      } finally {
+        tcSeedEl.disabled = false;
+      }
+    };
+  }
+  var tcResetEl = document.getElementById('tcResetDataBtn');
+  if (tcResetEl) {
+    tcResetEl.onclick = async function () {
+      tcResetEl.disabled = true;
+      try {
+        await apiJson('/api/admin/test-customer', {
+          method: 'POST',
+          body: { action: 'reset' },
+          operationName: 'admin_test_customer_reset'
+        });
+        showBanner('Reset all Testing Customer Sandbox data back to a clean empty account.', false);
+        await loadTestCustomerSandboxStatus();
+      } catch (err) {
+        showBanner(err.message || 'Could not reset sandbox data.', true);
+      } finally {
+        tcResetEl.disabled = false;
+      }
+    };
+  }
+  var tcExitEl = document.getElementById('tcExitSessionBtn');
+  if (tcExitEl) {
+    tcExitEl.onclick = async function () {
+      tcExitEl.disabled = true;
+      try {
+        await apiJson('/api/admin/test-customer', {
+          method: 'POST',
+          body: { action: 'exit' },
+          operationName: 'admin_test_customer_exit'
+        });
+        showBanner('Exited Testing Customer Sandbox in this browser.', false);
+        await loadTestCustomerSandboxStatus();
+      } catch (err) {
+        showBanner(err.message || 'Could not exit sandbox.', true);
+      } finally {
+        tcExitEl.disabled = false;
+      }
+    };
+  }
 
   document.getElementById('aobCancelBtn').onclick = function () {
     adminCloseModal('aobModal');

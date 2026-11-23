@@ -603,7 +603,9 @@ export function createStandaloneServer({
           if (method !== 'GET') {
             return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET' });
           }
-          const sess = await resolveSessionFromRequest(dbAdapter, req);
+          const sess = await resolveSessionFromRequest(dbAdapter, req, {
+            bypassTestCustomerOverlay: String(req.headers?.['x-biteshark-admin-portal'] || '') === '1'
+          });
           if (sess.refreshedCookieHeader) {
             appendSetCookie(res, sess.refreshedCookieHeader);
           }
@@ -835,9 +837,16 @@ export function createStandaloneServer({
         }
 
         // Browser diagnostic reports are explicitly untrusted: never resolve or refresh session cookies on them.
+        // `/api/admin/*` routes and explicit Admin Portal client requests (`X-BiteShark-Admin-Portal: 1`)
+        // always resolve the underlying administrator session (`bypassTestCustomerOverlay: true`).
+        const isAdminPortalScopedReq =
+          normGovPath.startsWith('/api/admin/') ||
+          String(req.headers?.['x-biteshark-admin-portal'] || '') === '1';
         const sess = isUntrustedDiagReport
           ? { authenticated: false, user: null, sessionId: null, refreshedCookieHeader: null }
-          : await resolveSessionFromRequest(dbAdapter, req);
+          : await resolveSessionFromRequest(dbAdapter, req, {
+              bypassTestCustomerOverlay: isAdminPortalScopedReq
+            });
         if (sess.refreshedCookieHeader) {
           appendSetCookie(res, sess.refreshedCookieHeader);
         }
@@ -1079,7 +1088,9 @@ export function createStandaloneServer({
           return sendJsonResponse(res, 405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
         }
 
-        const sess = await resolveSessionFromRequest(dbAdapter, req);
+        const sess = await resolveSessionFromRequest(dbAdapter, req, {
+          bypassTestCustomerOverlay: true
+        });
         if (sess.refreshedCookieHeader) {
           appendSetCookie(res, sess.refreshedCookieHeader);
         }

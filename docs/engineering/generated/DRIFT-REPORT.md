@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Branch / Ref at Generation**: `testing/yaman-staging2`
 > - **Generator**: `biteshark-code-registry@1.0.0` (`biteshark.code-registry.v1`)
-> - **Deterministic Source Digest**: `4adcb8c0e91eaa62bbb7966b43269263412c1ba6ea9c266b0988f13f16756aa2`
+> - **Deterministic Source Digest**: `e2366f1378644f89df4d9af78e3937662f9ec4f497107eda8bb714c8e1d39852`
 > - **Analysis Basis**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Dynamic string concatenation, computed property lookups, and runtime reflection are labeled as dynamic/unresolved rather than assumed complete.
 
 - **Active Findings**: **12**
@@ -55,8 +55,8 @@
 
 ### `DRIFT:MISSING_DOM_TARGET:public/role-experience.js#rxViewpointBanner`
 - **Category**: `MISSING_DOM_TARGET` | **Severity**: `medium` | **Confidence**: `medium` (`parsed_ast_vs_html`)
-- **Affected Objects**: `public/role-experience.js:L1051`, `#rxViewpointBanner`
-- **Evidence**: public/role-experience.js:L1051 (resetRoleExperienceSignedOutState) calls getElementById('rxViewpointBanner'), which does not appear in static public/*.html or detected innerHTML templates.
+- **Affected Objects**: `public/role-experience.js:L1118`, `#rxViewpointBanner`
+- **Evidence**: public/role-experience.js:L1118 (resetRoleExperienceSignedOutState) calls getElementById('rxViewpointBanner'), which does not appear in static public/*.html or detected innerHTML templates.
 - **Potential Impact**: Null return value; if unguarded, causes TypeError or dead UI wiring.
 - **Suggested Verification**: Search public/ for "rxViewpointBanner" and check whether public/role-experience.js guards for null or dynamically creates the element via createElement().
 - **Proposed Remediation**: Keep explicit null guard if optional/dynamically created via createElement(), or remove obsolete DOM lookup.
