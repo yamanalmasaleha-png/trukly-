@@ -81,6 +81,7 @@
     { "name": "BITESHARK_STYLE_GUIDE_GITHUB_BRANCH", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_BRANCH"], "default": "working/biteshark-vps", "secret_class": "non_secret", "fail_mode": "fallback_host_default_branch", "restart_required": true },
     { "name": "BITESHARK_STYLE_GUIDE_GITHUB_API_URL", "aliases": ["TRUCKLY_STYLE_GUIDE_GITHUB_API_URL"], "default": "https://api.github.com", "secret_class": "security_critical_non_secret", "fail_mode": "fail_closed_https_api_github_com", "restart_required": true },
     { "name": "BITESHARK_STYLE_GUIDE_RELEASE_ROOT", "aliases": ["TRUCKLY_STYLE_GUIDE_RELEASE_ROOT"], "default": "", "secret_class": "test_only", "fail_mode": "fallback_module_release_root", "restart_required": true },
-    { "name": "BITESHARK_SYNC_REPO_STYLE_GUIDE", "aliases": ["TRUCKLY_SYNC_REPO_STYLE_GUIDE"], "default": "0", "secret_class": "non_secret", "fail_mode": "disabled_unless_1_in_local_dev", "restart_required": true }
+    { "name": "BITESHARK_SYNC_REPO_STYLE_GUIDE", "aliases": ["TRUCKLY_SYNC_REPO_STYLE_GUIDE"], "default": "0", "secret_class": "non_secret", "fail_mode": "disabled_unless_1_in_local_dev", "restart_required": true },
+    { "name": "BITESHARK_ENABLE_ADMIN_TEST_CUSTOMER", "aliases": ["TRUCKLY_ENABLE_ADMIN_TEST_CUSTOMER"], "default": "true", "secret_class": "non_secret", "fail_mode": "enabled_unless_explicit_false", "restart_required": true }
   ]
 }

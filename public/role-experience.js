@@ -359,7 +359,9 @@
         rxEsc(ctx.test_customer_sandbox.email || 'test-customer@sandbox.biteshark.invalid') +
         '</code>. Real customer actions stay confined to this sandbox.</div>' +
         '<div class="vp-banner-actions">' +
-        '<a class="vp-banner-btn secondary" href="/profile">🧭 My BiteShark</a>' +
+        (ctx.test_customer_sandbox.has_profile_page === false
+          ? ''
+          : '<a class="vp-banner-btn secondary" href="/profile">🧭 My BiteShark</a>') +
         '<button type="button" class="vp-banner-btn secondary" id="tcBannerSeedBtn">✨ Seed Sample</button>' +
         '<button type="button" class="vp-banner-btn secondary" id="tcBannerResetBtn">↺ Reset</button>' +
         '<button type="button" class="vp-banner-btn" id="tcBannerExitBtn">🛡️ Exit to Admin Portal</button>' +

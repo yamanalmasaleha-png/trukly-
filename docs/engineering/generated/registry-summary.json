@@ -1,14 +1,14 @@
 {
   "coverage_counts": {
-    "browser_globals_and_assignments": 670,
+    "browser_globals_and_assignments": 671,
     "classes": 22,
-    "configuration_keys_observed": 71,
-    "confirmed_call_edges": 8312,
+    "configuration_keys_observed": 72,
+    "confirmed_call_edges": 8306,
     "css_files_scanned": 21,
     "drift_findings_active": 12,
     "drift_findings_suppressed": 2,
     "feature_controls": 28,
-    "functions_and_methods": 3287,
+    "functions_and_methods": 3290,
     "html_element_ids": 539,
     "html_files_scanned": 12,
     "http_routes": 124,
@@ -16,7 +16,7 @@
     "js_files_scanned": 148,
     "js_parse_failures": 0,
     "shared_contracts": 13,
-    "significant_constants": 741,
+    "significant_constants": 743,
     "sql_migrations": 29,
     "sql_rls_policies": 69,
     "sql_tables": 59,
@@ -614,7 +614,7 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489",
+  "deterministic_digest_sha256": "c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08",
   "drift_summary": {
     "active_count": 12,
     "active_finding_ids": [
@@ -896,7 +896,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "def2753549fc8db852ffd2acf0a3fbbdaad6a1f536f7cbf177045d7eb1d36f0a",
+  "included_files_manifest_sha256": "5b476c77dd46fdda9360d2196d3eaff6ebe1a26a4ef179e2338df58d939d82df",
   "modules": [
     {
       "exported_symbols": [
@@ -1263,6 +1263,7 @@
         "ADMIN_TEST_CUSTOMER_EMAIL",
         "ADMIN_TEST_CUSTOMER_COOKIE_NAME",
         "ADMIN_TEST_CUSTOMER_TTL_SECONDS",
+        "hasCustomerProfileSurface",
         "isAdminTestCustomerAllowed",
         "buildAdminTestCustomerCookieHeader",
         "buildClearedAdminTestCustomerCookieHeader",
@@ -1277,7 +1278,7 @@
       "file": "lib/admin-test-customer.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 20
+      "symbol_count": 23
     },
     {
       "exported_symbols": [
@@ -1885,6 +1886,7 @@
         "lastInviteTriggerEl",
         "lastInviteTriggerEl",
         "location.href",
+        "testCustomerDefaultTarget",
         "location.href",
         "location.href",
         "location.href",
@@ -4077,7 +4079,7 @@
     {
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
-      "authorization_summary": "method_specific(GET:admin_mod_or_top, POST:admin_top_only)",
+      "authorization_summary": "admin_mod_or_top",
       "candidate_test_mention_count": 1,
       "confirmed_caller_count": 5,
       "contract_ids": [
@@ -6093,5 +6095,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489"
+  "source_analysis_digest_sha256": "c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08"
 }

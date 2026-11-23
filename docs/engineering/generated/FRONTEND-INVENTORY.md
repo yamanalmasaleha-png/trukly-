@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489`
+> - **Source Analysis Digest**: `c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## HTML Document: [public/admin.html](../../../public/admin.html)
@@ -340,9 +340,9 @@
 | `localStorage` | `truckly_owner_schedule` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1812`, `public/app.js:L2926`, `public/app.js:L3594`, `public/auth-client.js:L30` |
 | `localStorage` | `truckly_owner_truck_id` | `getItem, removeItem, setItem` | `public/app.js:L1810`, `public/app.js:L2911`, `public/app.js:L3096`, `public/auth-client.js:L28` |
 | `localStorage` | `truckly_pager_subs_v1` | `getItem, setItem` | `public/pager.js:L21`, `public/pager.js:L42` |
-| `sessionStorage` | `biteshark_admin_viewpoint_v1` | `getItem, removeItem, setItem` | `public/admin.js:L319`, `public/admin.js:L320`, `public/auth-client.js:L23`, `public/role-experience.js:L1163` |
-| `sessionStorage` | `biteshark_pending_invite_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5118`, `public/role-experience.js:L100`, `public/role-experience.js:L92`, `public/role-experience.js:L96` |
-| `sessionStorage` | `bs_support_draft_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5117`, `public/auth-client.js:L22`, `public/role-experience.js:L106`, `public/role-experience.js:L109` |
+| `sessionStorage` | `biteshark_admin_viewpoint_v1` | `getItem, removeItem, setItem` | `public/admin.js:L319`, `public/admin.js:L320`, `public/auth-client.js:L23`, `public/role-experience.js:L1165` |
+| `sessionStorage` | `biteshark_pending_invite_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5119`, `public/role-experience.js:L100`, `public/role-experience.js:L92`, `public/role-experience.js:L96` |
+| `sessionStorage` | `bs_support_draft_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5118`, `public/auth-client.js:L22`, `public/role-experience.js:L106`, `public/role-experience.js:L109` |
 
 ## CSS Stylesheets, Custom Properties & Responsive Breakpoints (21)
 

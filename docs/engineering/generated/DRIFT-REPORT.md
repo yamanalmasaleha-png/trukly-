@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489`
+> - **Source Analysis Digest**: `c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 - **Active Findings**: **12** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*

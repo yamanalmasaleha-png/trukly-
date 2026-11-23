@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `a902f78074bed0c1c5024b6a85c270377212440769b0ddcfd2ac3c07c0c5b489`
+> - **Source Analysis Digest**: `c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Coverage Summary
@@ -14,11 +14,11 @@
 |---|---:|
 | JavaScript / CJS / ESM Files Scanned | 148 |
 | Parse Failures | 0 |
-| Functions, Methods & Handlers | 3287 |
+| Functions, Methods & Handlers | 3290 |
 | Classes | 22 |
-| Top-Level Constants | 741 |
-| Browser Globals & Window Registrations | 670 |
-| Confirmed Static Call Edges | 8312 |
+| Top-Level Constants | 743 |
+| Browser Globals & Window Registrations | 671 |
+| Confirmed Static Call Edges | 8306 |
 | Inferred Candidate Call Edges | 60 |
 
 > **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run `npm run registry:locate -- <identifier>`.
@@ -28,7 +28,7 @@
 | Area Catalog | Modules | Indexed Symbols | Exports |
 |---|---:|---:|---:|
 | [Server & Runtime Adapter (`server/`, `packages/`)](symbols/server-and-runtime.md) | 7 | 153 | 26 |
-| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 535 | 412 |
+| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 538 | 413 |
 | [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 61 | 91 |
 | [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 22 | 1192 | 0 |
 | [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 254 | 81 |
@@ -45,7 +45,7 @@
 | [server/index.js](../../../server/index.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 8 | — |
 | [server/routes.js](../../../server/routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 2 | `STATIC_API_ROUTES`, `DYNAMIC_TRUCK_BY_ID_ROUTE`, `REGISTERED_DOMAIN_ROUTE_COUNT`, `matchDomainApiRoute` |
 | [lib/admin-governance.js](../../../lib/admin-governance.js) | [shared-libraries.md](symbols/shared-libraries.md) | 15 | `INVITATION_TTL_MS`, `MAX_EVIDENCE_BYTES`, `MAX_EVIDENCE_PER_APPLICATION`, `MAX_MOD_TEMP_RESTRICTION_HOURS`, `INVITATION_ROLE_LABELS`, `sha256Hex`, `generateOpaqueToken`, `normalizeEmailStrict` |
-| [lib/admin-test-customer.js](../../../lib/admin-test-customer.js) | [shared-libraries.md](symbols/shared-libraries.md) | 20 | `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_TTL_SECONDS`, `isAdminTestCustomerAllowed`, `buildAdminTestCustomerCookieHeader`, `buildClearedAdminTestCustomerCookieHeader`, `extractRawAdminTestCustomerToken` |
+| [lib/admin-test-customer.js](../../../lib/admin-test-customer.js) | [shared-libraries.md](symbols/shared-libraries.md) | 23 | `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_TTL_SECONDS`, `hasCustomerProfileSurface`, `isAdminTestCustomerAllowed`, `buildAdminTestCustomerCookieHeader`, `buildClearedAdminTestCustomerCookieHeader` |
 | [lib/age-policy.js](../../../lib/age-policy.js) | [shared-libraries.md](symbols/shared-libraries.md) | 9 | `PROPOSED_MIN_ACCOUNT_AGE`, `AGE_POLICY_VERSION`, `SHARING_MIN_ADULT_AGE`, `SHARING_ELIGIBILITY_POLICY_VERSION`, `AGE_BOUNDARY_TIMEZONE`, `MIN_PLAUSIBLE_BIRTH_YEAR`, `isGregorianLeapYear`, `daysInGregorianMonth` |
 | [lib/authz.js](../../../lib/authz.js) | [shared-libraries.md](symbols/shared-libraries.md) | 20 | `UUID_RE`, `ROLE_LABELS`, `normalizeAdminLevel`, `isTempRestrictionActive`, `evaluateEffectiveVendorRestrictions`, `applyPrivateNoStoreHeaders`, `VALID_WRITE_PAUSE_SCOPES`, `inspectWritePauseConfig` |
 | [lib/catalog.js](../../../lib/catalog.js) | [shared-libraries.md](symbols/shared-libraries.md) | 1 | `BOOKING_PACKAGES`, `CANONICAL_VENDORS`, `VENDORS_BY_ID`, `getCanonicalVendor` |

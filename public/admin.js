@@ -4900,12 +4900,10 @@
 
       document.getElementById('vpActOnBehalfBtn').hidden = !state.isTop;
       var vpTcBtn = document.getElementById('vpTestCustomerBtn');
-      if (vpTcBtn) vpTcBtn.hidden = !state.isTop;
+      if (vpTcBtn) vpTcBtn.hidden = false;
       var tcPanel = document.getElementById('testCustomerSandboxPanel');
-      if (tcPanel) tcPanel.hidden = !state.isTop;
-      if (state.isTop) {
-        loadTestCustomerSandboxStatus();
-      }
+      if (tcPanel) tcPanel.hidden = false;
+      loadTestCustomerSandboxStatus();
       document.getElementById('overviewRoleDescription').textContent = state.isTop
         ? 'Signed in with full Admin: Top governance authority. All operations remain explicit, bounded, and audited.'
         : 'Signed in as Admin: Mod. You have full access to review queues, moderation, issue triage, temporary safety holds, and invitation initiation; final vendor approvals and administrative elevations require Admin: Top.';
@@ -4941,17 +4939,22 @@
     });
   });
 
+  var testCustomerDefaultTarget = '/profile';
+
   async function loadTestCustomerSandboxStatus() {
-    if (!state.isTop) return;
     var statusEl = document.getElementById('testCustomerStatusLine');
     var exitBtn = document.getElementById('tcExitSessionBtn');
     var vpBtn = document.getElementById('vpTestCustomerBtn');
+    var profBtn = document.getElementById('tcOpenProfileBtn');
     try {
       var res = await apiJson('/api/admin/test-customer');
       if (!res || !res.available) {
         if (statusEl) statusEl.textContent = 'Testing customer sandbox is disabled in this environment.';
         return;
       }
+      var hasProf = res.has_profile_page !== false;
+      testCustomerDefaultTarget = hasProf ? '/profile' : '/';
+      if (profBtn) profBtn.hidden = !hasProf;
       var c = res.counts || {};
       var activeTxt = res.active_in_browser
         ? 'Active in this browser (customer tabs run as ' + res.test_user.email + ')'
@@ -4984,18 +4987,16 @@
   }
 
   async function launchTestCustomerSandbox(targetUrl, seedFirst) {
-    if (!state.isTop) {
-      showBanner('Only Admin: Top may use the Testing Customer Sandbox.', true);
-      return;
-    }
     try {
       saveViewpointSession(null);
-      await apiJson('/api/admin/test-customer', {
+      var enterRes = await apiJson('/api/admin/test-customer', {
         method: 'POST',
         body: { action: 'enter', seed_sample: Boolean(seedFirst) },
         operationName: 'admin_test_customer_enter'
       });
-      window.location.href = targetUrl || '/profile';
+      var resolvedTarget =
+        targetUrl || (enterRes && enterRes.has_profile_page === false ? '/' : testCustomerDefaultTarget);
+      window.location.href = resolvedTarget;
     } catch (err) {
       showBanner(err.message || 'Could not enter Testing Customer Sandbox.', true);
     }
@@ -5007,7 +5008,7 @@
   var vpTcEl = document.getElementById('vpTestCustomerBtn');
   if (vpTcEl) {
     vpTcEl.onclick = function () {
-      launchTestCustomerSandbox('/profile', false);
+      launchTestCustomerSandbox(null, false);
     };
   }
   var tcProfEl = document.getElementById('tcOpenProfileBtn');

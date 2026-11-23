@@ -210,6 +210,7 @@ function createCookieJarClient(baseUrl) {
     const mailboxSecret = 'tcmbx_' + crypto.randomBytes(16).toString('hex');
     const childEnv = {
       ...process.env,
+      NODE_ENV: 'production',
       HOST: '127.0.0.1',
       PORT: String(port),
       DATABASE_URL: appDbUrl,
@@ -274,23 +275,34 @@ function createCookieJarClient(baseUrl) {
       [modUser.id, topUser.id]
     );
 
-    // Give real customer 1 visit to confirm sandbox reset never touches real customers
-    const custVisit = await custClient.req('POST', '/api/me/visits', {
-      vendor_id: 'mitote',
-      private_note: 'Real customer visit — must remain untouched'
-    });
-    assert.equal(custVisit.status, 201);
+    const hasProfile = fs.existsSync(path.join(ROOT, 'public', 'profile.html'));
 
-    // 1. Anonymous, Customer, and Admin: Mod are rejected
+    // Give real customer 1 saved spot (and 1 visit when exploration is present) to confirm sandbox reset never touches real customers
+    await migratorPool.query(
+      `INSERT INTO favorites (user_id, truck_id) VALUES ($1, 'mitote') ON CONFLICT DO NOTHING`,
+      [custUser.id]
+    );
+    if (hasProfile) {
+      const custVisit = await custClient.req('POST', '/api/me/visits', {
+        vendor_id: 'mitote',
+        private_note: 'Real customer visit — must remain untouched'
+      });
+      assert.equal(custVisit.status, 201);
+    }
+
+    // 1. Anonymous and regular Customer are rejected; Admin: Mod and Admin: Top are allowed!
     assert.equal((await anonClient.req('GET', '/api/admin/test-customer')).status, 401);
     assert.equal((await custClient.req('GET', '/api/admin/test-customer')).status, 403);
-    assert.equal((await modClient.req('GET', '/api/admin/test-customer')).status, 403);
     assert.equal(
-      (await modClient.req('POST', '/api/admin/test-customer', { action: 'enter' })).status,
+      (await custClient.req('POST', '/api/admin/test-customer', { action: 'enter' })).status,
       403
     );
 
-    // 2. Admin: Top enters Test Customer Sandbox & seeds sample data
+    const modStatusCheck = await modClient.req('GET', '/api/admin/test-customer');
+    assert.equal(modStatusCheck.status, 200);
+    assert.equal(modStatusCheck.json.available, true);
+
+    // 2. Admin: Top enters Test Customer Sandbox & seeds sample data (with NODE_ENV=production!)
     const enterRes = await topClient.req('POST', '/api/admin/test-customer', {
       action: 'enter',
       seed_sample: true
@@ -300,8 +312,11 @@ function createCookieJarClient(baseUrl) {
     assert.equal(enterRes.json.test_user.id, 'usr_sa_top_admin_test_customer');
     assert.ok(topClient.cookies.has('__Host-truckly_session'), 'Top Admin session cookie preserved');
     assert.ok(topClient.cookies.has('__Host-bs_admin_test_session'), 'Sandbox overlay cookie set');
-    assert.equal(enterRes.json.counts.visits, 2);
-    assert.equal(enterRes.json.counts.collections, 1);
+    assert.ok(enterRes.json.counts.favorites >= 2, 'Seeded sandbox saved spots');
+    if (hasProfile) {
+      assert.equal(enterRes.json.counts.visits, 2);
+      assert.equal(enterRes.json.counts.collections, 1);
+    }
 
     // 3. Customer endpoints resolve to sandbox user while Admin Portal endpoints stay Admin: Top!
     const appSession = await topClient.req('GET', '/api/auth/session');
@@ -322,34 +337,61 @@ function createCookieJarClient(baseUrl) {
     const adminHtmlRes = await topClient.req('GET', '/admin');
     assert.equal(adminHtmlRes.status, 200);
 
-    const profRes = await topClient.req('GET', '/api/me/profile');
-    assert.equal(profRes.status, 200);
-    assert.equal(profRes.json.profile.display_name, 'Top Admin Test Customer');
-    assert.equal(profRes.json.progress.counts.total_visits, 2);
+    if (hasProfile) {
+      const profRes = await topClient.req('GET', '/api/me/profile');
+      assert.equal(profRes.status, 200);
+      assert.equal(profRes.json.profile.display_name, 'Admin Test Customer');
+      assert.equal(profRes.json.progress.counts.total_visits, 2);
 
-    // Verify Top Admin's personal account was NOT polluted with the sandbox visits
-    const topOwnVisits = await migratorPool.query(
-      'SELECT count(*)::int AS c FROM customer_visits WHERE user_id = $1',
-      [topUser.id]
-    );
-    assert.equal(topOwnVisits.rows[0].c, 0, 'Top Admin personal account remains completely clean');
+      // Verify Top Admin's personal account was NOT polluted with the sandbox visits
+      const topOwnVisits = await migratorPool.query(
+        'SELECT count(*)::int AS c FROM customer_visits WHERE user_id = $1',
+        [topUser.id]
+      );
+      assert.equal(topOwnVisits.rows[0].c, 0, 'Top Admin personal account remains completely clean');
+    }
 
     // 4. Reset wipes ONLY sandbox records
     const resetRes = await topClient.req('POST', '/api/admin/test-customer', { action: 'reset' });
     assert.equal(resetRes.status, 200);
-    assert.equal(resetRes.json.counts.visits, 0);
-    assert.equal(resetRes.json.counts.collections, 0);
+    assert.equal(resetRes.json.counts.favorites, 0);
+    if (hasProfile) {
+      assert.equal(resetRes.json.counts.visits, 0);
+      assert.equal(resetRes.json.counts.collections, 0);
+      const realCustVisits = await custClient.req('GET', '/api/me/visits');
+      assert.equal(realCustVisits.json.visits.length, 1, 'Real customer visits untouched by sandbox reset');
+    }
+    const realCustFavs = await migratorPool.query(
+      'SELECT count(*)::int AS c FROM favorites WHERE user_id = $1',
+      [custUser.id]
+    );
+    assert.equal(realCustFavs.rows[0].c, 1, 'Real customer favorites untouched by sandbox reset');
 
-    const realCustVisits = await custClient.req('GET', '/api/me/visits');
-    assert.equal(realCustVisits.json.visits.length, 1, 'Real customer visits untouched by sandbox reset');
-
-    // 5. Copying the overlay cookie onto a non-Top session (`Mod` or `Customer`) does NOT grant sandbox access
+    // 5. Copying the overlay cookie onto a non-Admin session (`Customer`) does NOT grant sandbox access
     const overlayToken = topClient.cookies.get('__Host-bs_admin_test_session');
-    modClient.cookies.set('__Host-bs_admin_test_session', overlayToken);
-    const modSess = await modClient.req('GET', '/api/auth/session');
-    assert.equal(modSess.json.user.id, modUser.id, 'Mod cannot ride Top Admin sandbox overlay cookie');
+    custClient.cookies.set('__Host-bs_admin_test_session', overlayToken);
+    const custSess = await custClient.req('GET', '/api/auth/session');
+    assert.equal(custSess.json.user.id, custUser.id, 'Regular customer cannot ride Admin sandbox overlay cookie');
 
-    // 6. Exit clears the sandbox cookie & audits all actions
+    // 6. Admin: Mod can ALSO enter, use, and exit the Test Customer Sandbox cleanly!
+    const modEnter = await modClient.req('POST', '/api/admin/test-customer', {
+      action: 'enter',
+      seed_sample: true
+    });
+    assert.equal(modEnter.status, 200);
+    assert.equal(modEnter.json.active_in_browser, true);
+    const modOverlaySess = await modClient.req('GET', '/api/auth/session');
+    assert.equal(modOverlaySess.json.user.id, 'usr_sa_top_admin_test_customer');
+    const modAdminPortalCtx = await modClient.req('GET', '/api/account/context', undefined, {
+      'X-BiteShark-Admin-Portal': '1'
+    });
+    assert.equal(modAdminPortalCtx.json.user.id, modUser.id);
+    assert.equal(modAdminPortalCtx.json.capabilities.can_access_admin_portal, true);
+    const modExit = await modClient.req('POST', '/api/admin/test-customer', { action: 'exit' });
+    assert.equal(modExit.status, 200);
+    assert.equal((await modClient.req('GET', '/api/auth/session')).json.user.id, modUser.id);
+
+    // 7. Top Admin exit clears the sandbox cookie & audits all actions (both Top and Mod)
     const exitRes = await topClient.req('POST', '/api/admin/test-customer', { action: 'exit' });
     assert.equal(exitRes.status, 200);
     assert.ok(!topClient.cookies.has('__Host-bs_admin_test_session'));
@@ -358,15 +400,17 @@ function createCookieJarClient(baseUrl) {
     assert.equal(postExitSess.json.user.id, topUser.id);
 
     const auditRows = await migratorPool.query(
-      `SELECT action FROM audit_logs WHERE target_id = 'usr_sa_top_admin_test_customer' ORDER BY id ASC`
+      `SELECT actor_role, action FROM audit_logs WHERE target_id = 'usr_sa_top_admin_test_customer' ORDER BY id ASC`
     );
     const actions = auditRows.rows.map(r => r.action);
+    const roles = new Set(auditRows.rows.map(r => r.actor_role));
     assert.ok(actions.includes('test_customer_session_entered'));
     assert.ok(actions.includes('test_customer_sample_seeded'));
     assert.ok(actions.includes('test_customer_data_reset'));
     assert.ok(actions.includes('test_customer_session_exited'));
+    assert.ok(roles.has('top') && roles.has('mod'), 'Both Top and Mod admin actions audited');
 
-    console.log('[admin-test-customer.integration] PASS — all Top-Admin sandbox RBAC, isolation, seed/reset & exit checks succeeded.');
+    console.log('[admin-test-customer.integration] PASS — all Platform-Admin (Top + Mod) sandbox RBAC, NODE_ENV=production support, isolation, seed/reset & exit checks succeeded.');
   } finally {
     if (serverProc) {
       try {

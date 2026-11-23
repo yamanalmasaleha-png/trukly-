@@ -152,8 +152,8 @@
       "status": "established",
       "canonical_implementation": "lib/admin-test-customer.js + server/admin-routes.js (/api/admin/test-customer) + lib/standalone-auth.js#resolveSessionFromRequest + public/admin.js + public/role-experience.js",
       "competing_or_legacy": [],
-      "evidence": "Lets verified Admin: Top operators in non-production environments (BITESHARK_ENV != production) enter, seed, reset, and exit an isolated synthetic customer sandbox (usr_sa_top_admin_test_customer / test-customer@sandbox.biteshark.invalid) via HttpOnly overlay cookie __Host-bs_admin_test_session while /admin and /api/admin/* continue honoring the primary Admin: Top session.",
-      "direction_for_new_code": "Never add general customer impersonation or weaken RLS for testing; route all Top-Admin customer sandbox testing through /api/admin/test-customer."
+      "evidence": "Lets verified platform administrators (Admin: Top and Admin: Mod) across all Admin consoles enter, seed, reset, and exit an isolated synthetic customer sandbox (usr_sa_top_admin_test_customer / test-customer@sandbox.biteshark.invalid) via HttpOnly overlay cookie __Host-bs_admin_test_session while /admin and /api/admin/* continue honoring the primary Admin session.",
+      "direction_for_new_code": "Never add general customer impersonation or weaken RLS for testing; route all Admin customer sandbox testing through /api/admin/test-customer."
     },
     {
       "responsibility": "admin_style_guide_workspace_and_repo_sync",

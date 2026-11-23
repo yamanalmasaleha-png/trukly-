@@ -113,6 +113,7 @@ import { reconcilePhotoStorage } from '../lib/customer-exploration.js';
 import {
   ADMIN_TEST_CUSTOMER_USER_ID,
   ADMIN_TEST_CUSTOMER_EMAIL,
+  hasCustomerProfileSurface,
   isAdminTestCustomerAllowed,
   inspectAdminTestCustomerStatus,
   enterAdminTestCustomerSession,
@@ -933,11 +934,14 @@ export async function handleGovernanceApiRequest({
           ? {
               active: true,
               email: ADMIN_TEST_CUSTOMER_EMAIL,
+              has_profile_page: hasCustomerProfileSurface(),
               return_admin_url: '/admin'
             }
           : {
               active: false,
-              available_for_top_admin: Boolean(ctx.isTopAdmin && isAdminTestCustomerAllowed())
+              has_profile_page: hasCustomerProfileSurface(),
+              available_for_admin: Boolean(ctx.isModAdmin && isAdminTestCustomerAllowed()),
+              available_for_top_admin: Boolean(ctx.isModAdmin && isAdminTestCustomerAllowed())
             },
       coarse_area: coarseArea
     });
@@ -8246,8 +8250,8 @@ export async function handleGovernanceApiRequest({
       if (out.clearCookieHeader) appendRawCookie(out.clearCookieHeader);
       return sendJson(200, out.body);
     }
-    if (!ctx.isTopAdmin) {
-      return sendJson(403, { error: 'Admin: Top access is required.' });
+    if (!ctx.isModAdmin) {
+      return sendJson(403, { error: 'Moderator or administrator access is required.' });
     }
 
     if (action === 'enter') {
