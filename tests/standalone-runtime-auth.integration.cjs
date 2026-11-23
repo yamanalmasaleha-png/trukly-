@@ -190,7 +190,7 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRun1.code, 0, `First migration run failed: ${migRun1.stderr}`);
-    assert(migRun1.stdout.includes('"newly_applied":29'), 'Expected all 29 migrations applied on fresh DB');
+    assert(migRun1.stdout.includes('"newly_applied":30'), 'Expected all 30 migrations applied on fresh DB');
 
     // Second run must be a zero-op idempotent checksum verification
     const migRun2 = await runChildExpectExit(
@@ -227,7 +227,16 @@ function runChildExpectExit(args, env, timeoutMs = 8000) {
         { ...process.env, MIGRATION_DATABASE_URL: upgUrl }
       );
       assert.equal(upgRun.code, 0, `Upgrade migration 001..016 -> 018 failed: ${upgRun.stderr}`);
-      const preservedFav = await upgPool.query("SELECT count(*)::int AS c FROM favorites WHERE user_id = 'usr_pre_017'");
+      const upgChk = await upgPool.connect();
+      let preservedFav;
+      try {
+        await upgChk.query('BEGIN');
+        await upgChk.query("SELECT set_config('app.user_id', 'usr_pre_017', true)");
+        preservedFav = await upgChk.query("SELECT count(*)::int AS c FROM favorites WHERE user_id = 'usr_pre_017'");
+        await upgChk.query('COMMIT');
+      } finally {
+        upgChk.release();
+      }
       assert.equal(preservedFav.rows[0].c, 1, 'Pre-existing data must be preserved across 017+018 upgrade');
       const upgradedRoles = await upgPool.query("SELECT user_id, role FROM platform_roles WHERE user_id IN ('usr_legacy_padmin', 'usr_legacy_mod') ORDER BY user_id");
       assert.deepEqual(

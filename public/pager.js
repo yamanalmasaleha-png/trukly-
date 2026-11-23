@@ -227,10 +227,12 @@ function renderPager(p){
   panel.className='food-pager pager-stage-'+p.status+(p.status==='ready'?' ready':'')+(pagerDemo?' pager-demo-active':'');
   const steps=['Cooking','Almost there','Ready!','Picked up'];
   const icons=['🍳','🥙','🔔','🙌'];
+  const activeStepIdx=state.step-1;
   const tracker='<ol class="pager-roadmap" aria-label="Pickup progress">'+steps.map(function(label,i){
-    const cls=i<state.step?'complete':i===state.step?'current':'waiting';
-    const srStep=i<state.step?' (completed)':i===state.step?' (current step)':' (upcoming)';
-    return '<li class="'+cls+'"'+(i===state.step?' aria-current="step"':'')+'><span class="pager-roadmap-dot" aria-hidden="true">'+icons[i]+'</span><span>'+label+'<span class="sr-only">'+srStep+'</span></span></li>';
+    const isCollectedDone=p.status==='collected'&&i<=activeStepIdx;
+    const cls=(isCollectedDone||i<activeStepIdx)?'complete':i===activeStepIdx?'current':'waiting';
+    const srStep=(isCollectedDone||i<activeStepIdx)?' (completed)':i===activeStepIdx?' (current step)':' (upcoming)';
+    return '<li class="'+cls+'"'+(!isCollectedDone&&i===activeStepIdx?' aria-current="step"':'')+'><span class="pager-roadmap-dot" aria-hidden="true">'+icons[i]+'</span><span>'+label+'<span class="sr-only">'+srStep+'</span></span></li>';
   }).join('')+'</ol>';
   const meal=pagerDemo?'<div class="pager-demo-ticket"><span>🍔 SAMPLE ORDER · NO CHARGE</span><b>2 smash burgers + crispy fries</b></div>':'';
   const next=pagerDemoStages[pagerDemoStages.indexOf(p.status)+1];

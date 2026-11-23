@@ -97,8 +97,8 @@
       business_available: true,
       clue: Object.freeze({
         icon: '🎉',
-        kicker: 'SHARED TABLES',
-        headline: 'Multiple kitchens, one courtyard',
+        kicker: 'ROSES & ROTATING TRUCKS',
+        headline: 'Shared tables, multiple kitchens',
         question: 'This Santa Rosa food park reopened at 100 Sebastopol Rd with rotating trucks and communal outdoor seating. Which venue?',
         fact: 'Mitote Food Park relocated to 100 Sebastopol Rd in Santa Rosa with rotating food trucks and shared outdoor seating.'
       })
@@ -304,17 +304,35 @@
       fetchInit.body = JSON.stringify(options.body || {});
     }
 
+    var timeoutMs = Number(options.timeoutMs) > 0 ? Number(options.timeoutMs) : 15000;
+    var abortCtrl = typeof AbortController === 'function' ? new AbortController() : null;
+    var timeoutHandle = null;
+    if (abortCtrl && !options.signal) {
+      fetchInit.signal = abortCtrl.signal;
+      timeoutHandle = setTimeout(function () {
+        try {
+          abortCtrl.abort();
+        } catch {}
+      }, timeoutMs);
+    } else if (options.signal) {
+      fetchInit.signal = options.signal;
+    }
+
     var res;
     try {
       res = await fetch(url, fetchInit);
     } catch (netErr) {
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      var timedOut = Boolean(abortCtrl && abortCtrl.signal && abortCtrl.signal.aborted && (!options.signal || !options.signal.aborted));
       var offline = typeof navigator !== 'undefined' && navigator.onLine === false;
       var err = new Error(
         offline
           ? 'You appear to be offline. Reconnect and try again.'
-          : 'Could not reach BiteShark right now. Check your connection and retry.'
+          : timedOut
+            ? 'BiteShark took too long to respond. Please try again.'
+            : 'Could not reach BiteShark right now. Check your connection and retry.'
       );
-      err.code = offline ? 'CLIENT_OFFLINE' : 'NETWORK_UNREACHABLE';
+      err.code = offline ? 'CLIENT_OFFLINE' : timedOut ? 'REQUEST_TIMEOUT' : 'NETWORK_UNREACHABLE';
       err.retryable = true;
       err.correlationId = corrId;
       if (d && typeof d.reportClientDiagnostic === 'function' && options.featureKey) {
@@ -333,6 +351,7 @@
       }
       throw err;
     }
+    if (timeoutHandle) clearTimeout(timeoutHandle);
 
     var respCorr = res.headers.get('x-correlation-id') || corrId;
     var data = null;

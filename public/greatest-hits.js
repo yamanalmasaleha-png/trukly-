@@ -51,9 +51,12 @@
     return [];
   }
 
-  function triggerRerender() {
+  function triggerRerender(opts) {
     var root = document.getElementById('ghCollectionsHost');
     if (root && ghState.lastHelpers) {
+      if (!(opts && opts.skipDomSync) && ghState.mode === 'edit') {
+        syncDraftFieldsFromDom(root);
+      }
       root.innerHTML = renderInnerContent(ghState.lastHelpers.profileData);
       bindGreatestHitsEvents(root, ghState.lastHelpers);
     }
@@ -121,7 +124,7 @@
       });
       ghState.dirty = false;
       ghState.mode = 'edit';
-      triggerRerender();
+      triggerRerender({ skipDomSync: true });
       hydrateVisitNotesForHelper();
     } catch (err) {
       ghState.editorMsg = { text: err.message || 'Could not load collection.', isError: true };
@@ -755,7 +758,7 @@
           ghState.requireSharedUpdateConfirm = false;
           ghState.sharedUpdateConfirmed = false;
           ghState.editorMsg = { text: 'Saved "' + out.collection.title + '" (revision ' + out.collection.revision + ').', isError: false };
-          triggerRerender();
+          triggerRerender({ skipDomSync: true });
           if (helpers && helpers.announcePolite) {
             helpers.announcePolite('Saved Greatest Hits collection.');
           }

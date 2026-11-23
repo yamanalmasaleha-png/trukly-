@@ -28,11 +28,15 @@ export default async function(req, res) {
       return res.json(row);
     }
 
-    const { rows } = await db.query(
-      "SELECT nearby_enabled, radius_miles, updated_at FROM notification_settings WHERE user_id = $1",
-      [user.id]
-    );
-    return res.json(rows[0] || { nearby_enabled: true, radius_miles: 3 });
+    const row = await withTransaction(db, async tx => {
+      await tx.query("SELECT set_config('app.user_id', $1, true)", [user.id]);
+      const { rows } = await tx.query(
+        "SELECT nearby_enabled, radius_miles, updated_at FROM notification_settings WHERE user_id = $1",
+        [user.id]
+      );
+      return rows[0] || { nearby_enabled: true, radius_miles: 3 };
+    });
+    return res.json(row);
   } catch (err) {
     if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Notification settings are temporarily unavailable." });

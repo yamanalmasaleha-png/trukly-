@@ -597,6 +597,27 @@ async function startMockGitHubApiServer(expectedToken) {
     });
     assert.equal(saveWhilePaused.status, 503, 'Saves must return 503 FEATURE_PAUSED while paused');
 
+    // Re-enable workspace and verify `/api/admin/style-guide/reset` RBAC (`Mod` 403, `Top` 200 + `confirm_reset` guard)
+    const resumeFc = await topClient.req('POST', '/api/admin/features/update', {
+      feature_key: 'admin_style_guide_workspace',
+      configured_state: 'enabled',
+      audience: 'all',
+      expected_revision: pauseFc.json.control.revision,
+      reason: 'Resume Style Guide workspace for reset verification'
+    });
+    assert.equal(resumeFc.status, 200);
+
+    const modResetDenied = await modClient.req('POST', '/api/admin/style-guide/reset', { confirm_reset: true });
+    assert.equal(modResetDenied.status, 403, 'Admin: Mod must not reset Style Guide workspace');
+
+    const unconfirmedReset = await topClient.req('POST', '/api/admin/style-guide/reset', { confirm_reset: false });
+    assert.equal(unconfirmedReset.status, 400);
+
+    const topResetOk = await topClient.req('POST', '/api/admin/style-guide/reset', { confirm_reset: true });
+    assert.equal(topResetOk.status, 200, JSON.stringify(topResetOk.json));
+    assert.equal(topResetOk.json.stats.totals.approved, 0);
+    assert.equal(topResetOk.json.has_unpushed_changes, false);
+
     console.log('[style-guide-admin.integration] PASS — all RBAC, completion tracking, optional notes, live hosted Markdown population & GitHub push checks succeeded.');
   } finally {
     if (serverProc) {

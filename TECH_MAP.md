@@ -21,7 +21,8 @@ Only the VPS runtime is supported. No filesystem-to-serverless-route discovery o
 | Process startup, restricted DB role, shutdown | `server/index.js` |
 | HTTP bounds, origin/CSRF checks, sessions, static confinement | `server/app.js` |
 | Explicit domain route and method/access manifest | `server/routes.js` |
-| Admin routes, review, accounts, readiness | `server/admin-routes.js` |
+| Admin routes, review, accounts, readiness | `server/admin-routes.js`, `lib/style-guide-admin.js`, `lib/admin-test-customer.js` |
+| Customer exploration, private photos, profiles & unlisted sharing | `server/customer-exploration-routes.js`, `server/customer-profile-routes.js`, `lib/customer-exploration.js`, `lib/customer-profile.js`, `lib/photo-storage.js` |
 | PostgreSQL/request identity adapter | `packages/runtime-adapter/index.js` |
 | OTP/session/email and diagnostics | `lib/standalone-auth.js` |
 | Vendor permissions and audit | `lib/authz.js`, `lib/admin-governance.js` |
@@ -32,7 +33,7 @@ Only the VPS runtime is supported. No filesystem-to-serverless-route discovery o
 | Frontend and same-origin auth bridge | `public/app.js`, `public/auth-client.js`, `public/login.html` |
 | Admin frontend | `public/admin.html`, `public/admin.js`, `public/role-experience.js` |
 | Pickup PWA | `public/pager.js`, `public/sw.js`, `public/manifest.json` |
-| Database evolution | `migrations/001` through `021` |
+| Database evolution | `migrations/001` through `030` |
 | Migration runner / role separation | `scripts/run-migrations.cjs` |
 | Linux release build and verified install/rollback | `scripts/build-linux-release-tarball.cjs`, `deploy/install-staging-release.sh` |
 | Nginx, systemd, backup, environment | `deploy/` |

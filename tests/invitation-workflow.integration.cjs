@@ -186,7 +186,7 @@ async function main() {
 
     const migRes = await runMigrationsCli(migratorUrl, appRole);
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":29'), `Expected 29 migrations applied: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":30'), `Expected 30 migrations applied: ${migRes.stdout}`);
 
     migratorPool = new Pool({ connectionString: migratorUrl, max: 4 });
     appPool = new Pool({ connectionString: appUrl, max: 8 });
@@ -908,6 +908,29 @@ async function main() {
       body: { token: newRotatedToken }
     });
     assert.equal(newTokInspect.status, 200);
+
+    // Direct `/api/admin/invitations/resend` endpoint enforces cooldown cleanly (`429 INVITATION_RESEND_COOLDOWN`)
+    // and rotates to `gen3` once the cooldown window elapses
+    const cooldownResend = await apiCall('/api/admin/invitations/resend', {
+      method: 'POST',
+      cookie: top1.cookie,
+      body: { invitation_id: failCreate.json.invitation.id, reason: 'Immediate resend within cooldown' }
+    });
+    assert.equal(cooldownResend.status, 429);
+    assert.equal(cooldownResend.json.code, 'INVITATION_RESEND_COOLDOWN');
+
+    await privQuery(
+      `UPDATE account_invitations SET last_delivery_attempt_at = now() - interval '2 minutes' WHERE id = $1`,
+      [failCreate.json.invitation.id]
+    );
+    const directResend = await apiCall('/api/admin/invitations/resend', {
+      method: 'POST',
+      cookie: top1.cookie,
+      body: { invitation_id: failCreate.json.invitation.id, reason: 'Direct resend after cooldown' }
+    });
+    assert.equal(directResend.status, 200);
+    assert.equal(directResend.json.invitation.token_version, 3);
+    assert.equal(directResend.json.delivery.status, 'provider_accepted');
 
     // 8c. Persistent timeout -> `delivery_uncertain` (max 2 bounded attempts, no storm!)
     nextInviteBehavior = { mode: 'always_timeout' };

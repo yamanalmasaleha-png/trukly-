@@ -129,6 +129,19 @@
       uiState.loadError = null;
       renderProfileScreen();
     } catch (err) {
+      if (err && err.code === 'FEATURE_DISABLED' && typeof window.bitesharkProfile.listShares === 'function') {
+        try {
+          var shRes = await window.bitesharkProfile.listShares();
+          var activeItems = ((shRes && shRes.shares) || []).filter(function (s) {
+            return s && s.status === 'active';
+          });
+          uiState.fallbackSharesData = { active_shares_summary: { items: activeItems } };
+        } catch (_shErr) {
+          uiState.fallbackSharesData = null;
+        }
+      } else {
+        uiState.fallbackSharesData = null;
+      }
       uiState.loading = false;
       uiState.loadError = err;
       renderProfileScreen();
@@ -159,7 +172,7 @@
       '<h2>Profile view is temporarily unavailable</h2>' +
       '<p class="cp-panel-lead">' + cpEsc(msg) + '</p>' +
       '<div class="cp-note-box">Your saved records remain intact. Privacy export, private photo downloads, data deletion, share-link revocation, and Help &amp; feedback remain available below.</div>' +
-      renderStandalonePrivacyToolsCard(null) +
+      renderStandalonePrivacyToolsCard(uiState.fallbackSharesData || null) +
       '</section>'
     );
   }
@@ -387,7 +400,7 @@
       '<p class="cp-panel-lead">Recent self-reported visits and private tasting notes.</p>' +
       visitsHtml +
       (visitsState !== 'hidden'
-        ? '<div class="cp-btn-row"><button type="button" class="cp-inline-btn is-primary" data-cp-jump="journal">View all &amp; edit notes in Visit Journal →</button></div>'
+        ? '<div class="cp-btn-row"><button type="button" class="cp-inline-btn is-primary" data-cp-jump="journal">View all &amp; log or remove visits in Visit Journal →</button></div>'
         : '') +
       '</section>' +
       '<section class="cp-panel">' +

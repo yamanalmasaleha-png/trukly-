@@ -1770,7 +1770,7 @@ export function analyzeMigrationsAndSchema({ migrationFiles, runMigrationsSource
 
     // 5. CREATE [UNIQUE] INDEX ...
     const idxRe =
-      /CREATE\s+(UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?([A-Za-z0-9_]+)"?\s+ON\s+(?:public\.)?"?([A-Za-z0-9_]+)"?\s+([^;]+);/gi;
+      /CREATE\s+(UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?(?:IF\s+NOT\s+EXISTS\s+)?"?([A-Za-z0-9_]+)"?\s+ON\s+(?:public\.)?"?([A-Za-z0-9_]+)"?(?:\s+|(?=\())([^;]+);/gi;
     let im;
     while ((im = idxRe.exec(clean)) !== null) {
       const isUnique = Boolean(im[1]);

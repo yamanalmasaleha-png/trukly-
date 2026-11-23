@@ -26,12 +26,13 @@ Start here before changing routes, database schema, browser globals, CSS cascade
 - https://biteshark.live remains a holding page until production launch is separately approved.
 - `server/index.js` starts the application; `server/app.js` handles authentication, administration and static assets; `server/routes.js` explicitly registers domain handlers in `api/`.
 - `@biteshark/runtime-adapter` is a repository-owned package in `packages/runtime-adapter`, backed by PostgreSQL and server-verified sessions. It does not call a hosted SDK.
-- Apply additive migrations `001`–`028` (see [MIGRATIONS.md](docs/engineering/MIGRATIONS.md) for exact branch sequence) using the separate migrator role. Never edit applied migrations.
+- Apply additive migrations `001`–`030` (see [MIGRATIONS.md](docs/engineering/MIGRATIONS.md) for exact branch sequence) using the separate migrator role. Never edit applied migrations.
 
 ## Development and verification
 
 ```bash
 npm ci
+npm run test:unit
 npm run test:smoke
 npm run test:parity
 # Use a disposable PostgreSQL admin connection, never staging or production data:

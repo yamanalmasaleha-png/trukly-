@@ -1688,6 +1688,9 @@ async function syncAuthAndUserData() {
     if (window.bitesharkExploration) {
       window.bitesharkExploration.syncActiveUserScope(isSignedIn ? currentUser : null);
     }
+    if (window.bitesharkProfile) {
+      window.bitesharkProfile.syncActiveUserScope(isSignedIn ? currentUser : null);
+    }
     updateAuthUI();
     renderNotificationUI();
     return;
@@ -1698,6 +1701,9 @@ async function syncAuthAndUserData() {
     accountSyncState = 'degraded';
     if (window.bitesharkExploration) {
       window.bitesharkExploration.syncActiveUserScope(currentUser);
+    }
+    if (window.bitesharkProfile) {
+      window.bitesharkProfile.syncActiveUserScope(currentUser);
     }
     updateAuthUI();
     renderNotificationUI();

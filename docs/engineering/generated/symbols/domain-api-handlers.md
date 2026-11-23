@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 - [← Back to Symbol & Module Index](../SYMBOL-INDEX.md)
@@ -101,13 +101,14 @@
 | `default>anon@L72C46` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise` | — | — | [api/community/post.js:L72](../../../../api/community/post.js#L72) |
 
 ## [api/favorites/list.js](../../../../api/favorites/list.js) (`module`)
-- **Imports / Dependencies**: `../../lib/authz.js`, `@biteshark/runtime-adapter`
+- **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
 - **Exports**: `access`, `methods`, `default`
 - **Top-Level Constants (2)**: `access` *(exported)*, `methods` *(exported)*
 
 | Symbol | Kind | Exported | Parameters (Observed Basis) | Returns / Throws | Confirmed Callers (Inferred in italics) | Contracts | Lines |
 |---|---|---|---|---|---|---|---|
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | — | — | [api/favorites/list.js:L7](../../../../api/favorites/list.js#L7) |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | — | — | [api/favorites/list.js:L8](../../../../api/favorites/list.js#L8) |
+| `default>anon@L14C43` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise` | — | — | [api/favorites/list.js:L14](../../../../api/favorites/list.js#L14) |
 
 ## [api/favorites/toggle.js](../../../../api/favorites/toggle.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/db-tx.js`, `@biteshark/runtime-adapter`
@@ -128,6 +129,7 @@
 |---|---|---|---|---|---|---|---|
 | `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise` | — | — | [api/notifications/settings.js:L8](../../../../api/notifications/settings.js#L8) |
 | `default>anon@L20C44` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise` | — | — | [api/notifications/settings.js:L20](../../../../api/notifications/settings.js#L20) |
+| `default>anon@L31C42` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise` | — | — | [api/notifications/settings.js:L31](../../../../api/notifications/settings.js#L31) |
 
 ## [api/owner/bookings.js](../../../../api/owner/bookings.js) (`module`)
 - **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/dates.js`, `@biteshark/runtime-adapter`
@@ -241,16 +243,16 @@
 | `default>anon@L45C46` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise (throws: Error)` | — | — | [api/pager/update.js:L45](../../../../api/pager/update.js#L45) |
 
 ## [api/pager/worker.js](../../../../api/pager/worker.js) (`module`)
-- **Imports / Dependencies**: `../../lib/authz.js`, `../../lib/customer-exploration.js`, `../../lib/diagnostics.js`, `../../lib/env-compat.js`, `../../lib/pager-notifications.js`, `../../lib/standalone-auth.js`, `@biteshark/runtime-adapter`, `node:crypto`
+- **Imports / Dependencies**: `../../lib/admin-governance.js`, `../../lib/authz.js`, `../../lib/customer-exploration.js`, `../../lib/diagnostics.js`, `../../lib/env-compat.js`, `../../lib/pager-notifications.js`, `../../lib/standalone-auth.js`, `@biteshark/runtime-adapter`, `node:crypto`
 - **Exports**: `access`, `methods`, `default`
 - **Top-Level Constants (2)**: `access` *(exported)*, `methods` *(exported)*
 
 | Symbol | Kind | Exported | Parameters (Observed Basis) | Returns / Throws | Confirmed Callers (Inferred in italics) | Contracts | Lines |
 |---|---|---|---|---|---|---|---|
-| `extractWorkerToken` | `function` | No | `(req: unknown)` | `sync_value` | `api/pager/worker.js:default` | — | [api/pager/worker.js:L23](../../../../api/pager/worker.js#L23) |
-| `timingSafeSecretEqual` | `function` | No | `(expected: unknown, supplied: unknown)` | `sync_value` | `api/pager/worker.js:default` | — | [api/pager/worker.js:L32](../../../../api/pager/worker.js#L32) |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | — | — | [api/pager/worker.js:L38](../../../../api/pager/worker.js#L38) |
-| `default>anon@L108C90` | `anonymous_function` | No | `(err: unknown)` | `async -> promise` | — | — | [api/pager/worker.js:L108](../../../../api/pager/worker.js#L108) |
+| `extractWorkerToken` | `function` | No | `(req: unknown)` | `sync_value` | `api/pager/worker.js:default` | — | [api/pager/worker.js:L24](../../../../api/pager/worker.js#L24) |
+| `timingSafeSecretEqual` | `function` | No | `(expected: unknown, supplied: unknown)` | `sync_value` | `api/pager/worker.js:default` | — | [api/pager/worker.js:L33](../../../../api/pager/worker.js#L33) |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | — | — | [api/pager/worker.js:L39](../../../../api/pager/worker.js#L39) |
+| `default>anon@L110C90` | `anonymous_function` | No | `(err: unknown)` | `async -> promise` | — | — | [api/pager/worker.js:L110](../../../../api/pager/worker.js#L110) |
 
 ## [api/schedule/today.js](../../../../api/schedule/today.js) (`module`)
 - **Imports / Dependencies**: `../../lib/dates.js`, `../../lib/discovery.js`, `@biteshark/runtime-adapter`, `node:crypto`

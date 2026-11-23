@@ -12,7 +12,7 @@ EnvironmentFile=/etc/truckly-staging/staging.env
 ExecStart=/opt/nodejs/node-v22-lts/bin/node --max-old-space-size=96 /srv/truckly-staging/current/scripts/run-pager-worker.cjs --continuous --interval-ms 10000 --batch-size 15
 Restart=always
 RestartSec=5
-TimeoutStopSec=15
+TimeoutStopSec=35
 
 # Resource bounds protecting co-tenant workloads on 1 vCPU / 961 MiB VPS
 MemoryAccounting=true

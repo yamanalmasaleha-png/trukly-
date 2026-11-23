@@ -43,6 +43,7 @@ function parseArgs(argv) {
 function main() {
   const { command, flags } = parseArgs(process.argv.slice(2));
   const repoRoot = flags.root ? path.resolve(String(flags.root)) : DEFAULT_REPO_ROOT;
+  const customDecisionsPath = typeof flags.decisions === 'string' && flags.decisions ? flags.decisions : null;
 
   if (command === 'help' || flags.help) {
     console.log(
@@ -50,9 +51,9 @@ function main() {
         'BiteShark Design Style Guide & Completion Tracker CLI',
         '',
         'Commands:',
-        '  generate [--root <dir>]   Generate questionnaires, inventory & COMPLETION-REMINDER.md from decisions.json',
-        '  validate [--root <dir>]   Validate schema, rules, references & generated Markdown freshness',
-        '  status   [--root <dir>]   Print JSON completion summary by topic'
+        '  generate [--root <dir>] [--decisions <path>]   Generate questionnaires, inventory & COMPLETION-REMINDER.md',
+        '  validate [--root <dir>] [--decisions <path>]   Validate schema, rules, references & generated Markdown freshness',
+        '  status   [--root <dir>] [--decisions <path>]   Print JSON completion summary by topic'
       ].join('\n')
     );
     return;
@@ -60,7 +61,7 @@ function main() {
 
   if (command === 'generate') {
     try {
-      const res = generateStyleGuideDocs(repoRoot);
+      const res = generateStyleGuideDocs(repoRoot, { customDecisionsPath });
       console.log(JSON.stringify(res, null, 2));
     } catch (err) {
       console.error(`[style-guide] ${err.message}`);
@@ -70,7 +71,7 @@ function main() {
   }
 
   if (command === 'validate') {
-    const res = validateStyleGuideWorkspace(repoRoot);
+    const res = validateStyleGuideWorkspace(repoRoot, { customDecisionsPath });
     console.log(JSON.stringify(res, null, 2));
     if (!res.ok) {
       process.exit(1);
@@ -79,7 +80,7 @@ function main() {
   }
 
   if (command === 'status') {
-    const { data } = loadStyleGuideDecisions(repoRoot);
+    const { data } = loadStyleGuideDecisions(repoRoot, customDecisionsPath);
     const stats = computeCompletionStats(data);
     console.log(
       JSON.stringify(

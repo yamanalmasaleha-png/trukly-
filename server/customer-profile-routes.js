@@ -2,8 +2,9 @@
 // Curated Greatest Hits Collections, Revocable Unlisted Sharing & Moderation
 // (`server/customer-profile-routes.js`)
 
-import { auth } from '@biteshark/runtime-adapter';
+import { auth, bindVerifiedRequestUser } from '@biteshark/runtime-adapter';
 import { loadAccessContext } from '../lib/authz.js';
+import { SessionEligibilityError } from '../lib/db-tx.js';
 import { readEnvCompat } from '../lib/env-compat.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
 import {
@@ -14,7 +15,7 @@ import {
   recordDiagnosticEvent,
   sanitizeDiagnosticText
 } from '../lib/diagnostics.js';
-import { resolvePhotoStorageRoot } from '../lib/photo-storage.js';
+import { resolvePhotoStorageRoot, PhotoStorageError } from '../lib/photo-storage.js';
 import {
   CustomerProfileDomainError,
   assertNoForbiddenClientWriteFields,
@@ -167,16 +168,17 @@ export async function recordProfileDiagnostic(
 }
 
 function sendProfileError(sendJson, req, err) {
-  if (err instanceof CustomerProfileDomainError) {
+  if (err instanceof CustomerProfileDomainError || err instanceof PhotoStorageError) {
+    const status = err.status || 400;
     const payload = {
       ok: false,
       error: err.message,
-      code: err.code,
+      code: err.code || 'PROFILE_REQUEST_INVALID',
       retryable: Boolean(err.retryable),
       ...(err.details ? { details: err.details } : {}),
-      ...(err.status >= 500 && req.__bsCorrelationId ? { correlation_id: req.__bsCorrelationId } : {})
+      ...(status >= 500 && req.__bsCorrelationId ? { correlation_id: req.__bsCorrelationId } : {})
     };
-    return sendJson(err.status, payload);
+    return sendJson(status, payload);
   }
   return sendJson(500, {
     ok: false,
@@ -663,7 +665,13 @@ export async function handleCustomerProfileRoute({
 
     return sendJson(404, { ok: false, error: 'Profile endpoint not found.', code: 'NOT_FOUND' });
   } catch (err) {
-    const status = err instanceof CustomerProfileDomainError ? err.status : 500;
+    if (err instanceof SessionEligibilityError) {
+      throw err;
+    }
+    const status =
+      err instanceof CustomerProfileDomainError || err instanceof PhotoStorageError
+        ? err.status || 400
+        : 500;
     if (status >= 500) {
       await recordProfileDiagnostic(dbAdapter, req, {
         featureKey: pathname.includes('/collections')
@@ -710,7 +718,8 @@ export async function handlePublicSharedPageRequest({
   req,
   res,
   dbAdapter,
-  viewerAuthenticated = false
+  viewerAuthenticated = false,
+  viewerUser = null
 }) {
   applyUnlistedSharedSecurityHeaders(res);
   req.__bsRouteTemplate = '/s/:token';
@@ -724,7 +733,12 @@ export async function handlePublicSharedPageRequest({
   }
 
   try {
-    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, null);
+    let gateReq = req;
+    if (viewerUser) {
+      gateReq = Object.create(req);
+      bindVerifiedRequestUser(gateReq, viewerUser);
+    }
+    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, gateReq, viewerUser);
     const resolved = await resolveLiveSharedCollectionByToken(dbAdapter, {
       rawToken,
       systemFeatureStates: featureStates
@@ -782,7 +796,8 @@ export async function handlePublicSharedPhotoRequest({
   method,
   req,
   res,
-  dbAdapter
+  dbAdapter,
+  viewerUser = null
 }) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
   res.setHeader('Pragma', 'no-cache');
@@ -801,7 +816,12 @@ export async function handlePublicSharedPhotoRequest({
   }
 
   try {
-    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, req, null);
+    let gateReq = req;
+    if (viewerUser) {
+      gateReq = Object.create(req);
+      bindVerifiedRequestUser(gateReq, viewerUser);
+    }
+    const { featureStates } = await resolveCallerProfileFeatureFlags(dbAdapter, gateReq, viewerUser);
     const resolved = await readSharedCollectionPhotoByToken(dbAdapter, {
       rawToken,
       attachmentId,

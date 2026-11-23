@@ -36,7 +36,7 @@ self.addEventListener('push', event => {
     : 'Your food order is ready at the pickup counter.';
 
   const subscriptionId = typeof data.subscription_id === 'string' ? data.subscription_id : null;
-  const openUrl = typeof data.open_url === 'string' && data.open_url.startsWith('/')
+  const openUrl = typeof data.open_url === 'string' && data.open_url.startsWith('/') && !data.open_url.startsWith('//')
     ? data.open_url
     : (subscriptionId ? `/#pager-ref=${encodeURIComponent(subscriptionId)}` : '/#pager-ready');
 
@@ -61,7 +61,7 @@ self.addEventListener('notificationclick', event => {
   event.notification.close();
   const notifData = event.notification.data || {};
   const subscriptionId = notifData.subscription_id || null;
-  const targetRelUrl = typeof notifData.open_url === 'string' && notifData.open_url.startsWith('/')
+  const targetRelUrl = typeof notifData.open_url === 'string' && notifData.open_url.startsWith('/') && !notifData.open_url.startsWith('//')
     ? notifData.open_url
     : '/';
 

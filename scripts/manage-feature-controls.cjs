@@ -167,14 +167,27 @@ function parseArgs(argv) {
       await client.query("SELECT set_config('app.can_moderate', 'true', true)");
       await client.query("SELECT set_config('app.feature_controls_read', 'true', true)");
 
+      const rawEnvAdmins = String(
+        process.env.BITESHARK_PLATFORM_ADMIN_IDS || process.env.TRUCKLY_PLATFORM_ADMIN_IDS || ''
+      )
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
       const { rows: topRows } = await client.query(
         `SELECT u.id, u.email_normalized, u.disabled_at
          FROM auth_users u
-         JOIN platform_roles pr ON pr.user_id = u.id
+         LEFT JOIN platform_roles pr ON pr.user_id = u.id
          WHERE u.email_normalized = $1
-           AND pr.role IN ('top', 'platform_admin')
-         FOR SHARE OF u, pr`,
-        [emailNorm]
+           AND (
+             pr.role IN ('top', 'platform_admin')
+             OR (
+               pr.role IS NULL
+               AND u.id = ANY($2::text[])
+               AND NOT EXISTS (SELECT 1 FROM platform_role_revocations r WHERE r.user_id = u.id)
+             )
+           )
+         FOR SHARE OF u`,
+        [emailNorm, rawEnvAdmins]
       );
       if (!topRows.length || topRows[0].disabled_at) {
         throw new Error('Unauthorized: --actor-email must belong to an active, non-disabled Admin: Top account.');

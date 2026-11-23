@@ -16,6 +16,7 @@ import {
   recordWorkerHeartbeat
 } from "../../lib/diagnostics.js";
 import { reconcilePhotoStorage } from "../../lib/customer-exploration.js";
+import { cleanupExpiredGovernanceRecords } from "../../lib/admin-governance.js";
 
 export const access = "public";
 export const methods = ["POST"];
@@ -35,7 +36,7 @@ function timingSafeSecretEqual(expected, supplied) {
   return crypto.timingSafeEqual(Buffer.from(expected, "utf8"), Buffer.from(supplied, "utf8"));
 }
 
-export default async function(req, res) {
+export default async function (req, res) {
   applyPrivateNoStoreHeaders(res);
 
   let expectedSecret = "";
@@ -104,6 +105,7 @@ export default async function(req, res) {
     let authCleanup = null;
     let diagnosticsCleanup = null;
     let photoReconciliation = null;
+    let governanceCleanup = null;
     if (runCleanup) {
       authCleanup = await cleanupExpiredAuthRecords(db, { now: now || new Date() }).catch(async err => {
         await recordDiagnosticEvent(db, {
@@ -122,9 +124,11 @@ export default async function(req, res) {
       });
       diagnosticsCleanup = await cleanupExpiredDiagnostics(db).catch(() => null);
       photoReconciliation = await reconcilePhotoStorage(db, { now: now || new Date() }).catch(() => null);
+      governanceCleanup = await cleanupExpiredGovernanceRecords(db, { now: now || new Date() }).catch(() => null);
     }
 
-    if ((result.failed || 0) > 0) {
+    const failedCount = Number(result.failed_permanent || result.failed || 0);
+    if (failedCount > 0) {
       await recordDiagnosticEvent(db, {
         component: "worker",
         featureKey: "push_delivery",
@@ -132,20 +136,20 @@ export default async function(req, res) {
         routeTemplate: "/api/pager/worker",
         severity: "warning",
         errorCode: "PUSH_DELIVERY_BATCH_FAILURE",
-        message: `Pager notification worker marked ${result.failed} delivery item(s) failed during batch.`,
+        message: `Pager notification worker marked ${failedCount} delivery item(s) permanently failed during batch.`,
         serverReleaseSha: releaseSha,
         retryable: false,
         outcomeState: "partial_success",
         safeContext: {
           queue_depth: Number(result.claimed || 0),
-          attempt: Number(result.failed || 0)
+          attempt: failedCount
         }
       });
     }
 
     await recordWorkerHeartbeat(db, {
       workerName: "pager_notifications",
-      status: (result.failed || 0) > 0 ? "degraded" : "ok",
+      status: failedCount > 0 ? "degraded" : "ok",
       releaseSha,
       correlationId: req?.__bsCorrelationId || null,
       summary: {
@@ -160,7 +164,8 @@ export default async function(req, res) {
       ...result,
       ...(authCleanup ? { auth_cleanup: authCleanup } : {}),
       ...(diagnosticsCleanup?.ok ? { diagnostics_cleanup: diagnosticsCleanup } : {}),
-      ...(photoReconciliation?.ok ? { photo_reconciliation: photoReconciliation } : {})
+      ...(photoReconciliation?.ok ? { photo_reconciliation: photoReconciliation } : {}),
+      ...(governanceCleanup?.ok ? { governance_cleanup: governanceCleanup } : {})
     });
   } catch (err) {
     await recordWorkerHeartbeat(db, {

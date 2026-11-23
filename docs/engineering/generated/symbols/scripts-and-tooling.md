@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 - [← Back to Symbol & Module Index](../SYMBOL-INDEX.md)
@@ -35,34 +35,34 @@
 
 ## [scripts/dev-server.cjs](../../../../scripts/dev-server.cjs) (`script`)
 - **Imports / Dependencies**: `./seed-sql-reader.cjs`, `<dynamic_expr>`, `<dynamic_require>`, `node:async_hooks`, `node:crypto`, `node:fs`, `node:http`, `node:module`, `node:path`, `node:url`, `pg`
-- **Explicit Window / Wrapper Globals**: `__BITESHARK_RUNTIME__` (explicit_window_property @ L647)
+- **Explicit Window / Wrapper Globals**: `__BITESHARK_RUNTIME__` (explicit_window_property @ L659)
 - **Top-Level Constants (16)**: `http`, `fs`, `path`, `crypto`, `ROOT`, `PUBLIC_DIR`, `API_DIR`, `PORT`, `MIME`, `ROLE_USERS`, `requestAls`, `mockDb`, `mockAuth`, `extraNodeModules`, `loaderCode`, `routeCache`
 
 | Symbol | Kind | Exported | Parameters (Observed Basis) | Returns / Throws | Confirmed Callers (Inferred in italics) | Contracts | Lines |
 |---|---|---|---|---|---|---|---|
-| `createInitialStore` | `function` | No | `()` | `sync_value` | `scripts/dev-server.cjs:<iife_top>`, `scripts/dev-server.cjs:top>anon@L698C35` | — | [scripts/dev-server.cjs:L46](../../../../scripts/dev-server.cjs#L46) |
-| `createInitialStore>anon@L49C17` | `anonymous_function` | No | `(v: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L49](../../../../scripts/dev-server.cjs#L49) |
-| `parseCookies` | `function` | No | `(cookieHeader: unknown)` | `sync_value` | `scripts/dev-server.cjs:getRequestRole` | — | [scripts/dev-server.cjs:L82](../../../../scripts/dev-server.cjs#L82) |
-| `getRequestRole` | `function` | No | `(req: unknown)` | `sync_value` | `scripts/dev-server.cjs:top>anon@L698C35` | — | [scripts/dev-server.cjs:L94](../../../../scripts/dev-server.cjs#L94) |
-| `vendorDisplayName` | `function` | No | `(vendorId: unknown)` | `sync_value` | `scripts/dev-server.cjs:mockDb.query`, `scripts/dev-server.cjs:mockDb.query>anon@L145C13`, `scripts/dev-server.cjs:mockDb.query>anon@L462C13` | — | [scripts/dev-server.cjs:L103](../../../../scripts/dev-server.cjs#L103) |
-| `mockDb.transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L110](../../../../scripts/dev-server.cjs#L110) |
-| `mockDb.query` | `object_method` | No | `(sql: unknown, params: array)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L113](../../../../scripts/dev-server.cjs#L113) |
-| `mockDb.query>anon@L145C13` | `anonymous_function` | No | `(m: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L145](../../../../scripts/dev-server.cjs#L145) |
-| `mockDb.query>anon@L341C13` | `anonymous_function` | No | `(v: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L341](../../../../scripts/dev-server.cjs#L341) |
-| `mockDb.query>anon@L462C13` | `anonymous_function` | No | `(x: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L462](../../../../scripts/dev-server.cjs#L462) |
-| `mockAuth.getUser` | `object_method` | No | `()` | `async -> promise` | — | — | [scripts/dev-server.cjs:L615](../../../../scripts/dev-server.cjs#L615) |
-| `activeDb.query` | `object_method` | No | `(text: unknown, params: unknown)` | `sync_value` | `scripts/dev-server.cjs:query` | — | [scripts/dev-server.cjs:L629](../../../../scripts/dev-server.cjs#L629) |
-| `activeDb.transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `scripts/dev-server.cjs:transaction` | — | [scripts/dev-server.cjs:L630](../../../../scripts/dev-server.cjs#L630) |
-| `query` | `object_method` | No | `(...args: array)` | `sync_value` | — | — | [scripts/dev-server.cjs:L649](../../../../scripts/dev-server.cjs#L649) |
-| `transaction` | `object_method` | No | `(fn: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L650](../../../../scripts/dev-server.cjs#L650) |
-| `loadRoute` | `function` | No | `(filePath: unknown)` | `async -> promise` | `scripts/dev-server.cjs:top>anon@L698C35` | — | [scripts/dev-server.cjs:L668](../../../../scripts/dev-server.cjs#L668) |
-| `resolveApiRoute` | `function` | No | `(pathname: unknown)` | `sync_value` | `scripts/dev-server.cjs:top>anon@L698C35` | — | [scripts/dev-server.cjs:L680](../../../../scripts/dev-server.cjs#L680) |
-| `top>anon@L698C35` | `anonymous_function` | No | `(req: unknown, res: unknown)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L698](../../../../scripts/dev-server.cjs#L698) |
-| `top>anon@L698C35>anon@L734C50` | `anonymous_function` | No | `(p: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L734](../../../../scripts/dev-server.cjs#L734) |
-| `mockRes.setHeader` | `object_method` | No | `(k: unknown, v: unknown)` | `void_or_implicit` | — | — | [scripts/dev-server.cjs:L782](../../../../scripts/dev-server.cjs#L782) |
-| `mockRes.status` | `object_method` | No | `(code: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L783](../../../../scripts/dev-server.cjs#L783) |
-| `mockRes.end` | `object_method` | No | `(body: string)` | `sync_value` | — | — | [scripts/dev-server.cjs:L784](../../../../scripts/dev-server.cjs#L784) |
-| `mockRes.json` | `object_method` | No | `(payload: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L791](../../../../scripts/dev-server.cjs#L791) |
+| `createInitialStore` | `function` | No | `()` | `sync_value` | `scripts/dev-server.cjs:<iife_top>`, `scripts/dev-server.cjs:top>anon@L710C35` | — | [scripts/dev-server.cjs:L49](../../../../scripts/dev-server.cjs#L49) |
+| `createInitialStore>anon@L52C17` | `anonymous_function` | No | `(v: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L52](../../../../scripts/dev-server.cjs#L52) |
+| `parseCookies` | `function` | No | `(cookieHeader: unknown)` | `sync_value` | `scripts/dev-server.cjs:getRequestRole` | — | [scripts/dev-server.cjs:L85](../../../../scripts/dev-server.cjs#L85) |
+| `getRequestRole` | `function` | No | `(req: unknown)` | `sync_value` | `scripts/dev-server.cjs:top>anon@L710C35` | — | [scripts/dev-server.cjs:L97](../../../../scripts/dev-server.cjs#L97) |
+| `vendorDisplayName` | `function` | No | `(vendorId: unknown)` | `sync_value` | `scripts/dev-server.cjs:mockDb.query`, `scripts/dev-server.cjs:mockDb.query>anon@L148C13`, `scripts/dev-server.cjs:mockDb.query>anon@L474C13` | — | [scripts/dev-server.cjs:L106](../../../../scripts/dev-server.cjs#L106) |
+| `mockDb.transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L113](../../../../scripts/dev-server.cjs#L113) |
+| `mockDb.query` | `object_method` | No | `(sql: unknown, params: array)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L116](../../../../scripts/dev-server.cjs#L116) |
+| `mockDb.query>anon@L148C13` | `anonymous_function` | No | `(m: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L148](../../../../scripts/dev-server.cjs#L148) |
+| `mockDb.query>anon@L353C13` | `anonymous_function` | No | `(v: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L353](../../../../scripts/dev-server.cjs#L353) |
+| `mockDb.query>anon@L474C13` | `anonymous_function` | No | `(x: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L474](../../../../scripts/dev-server.cjs#L474) |
+| `mockAuth.getUser` | `object_method` | No | `()` | `async -> promise` | — | — | [scripts/dev-server.cjs:L627](../../../../scripts/dev-server.cjs#L627) |
+| `activeDb.query` | `object_method` | No | `(text: unknown, params: unknown)` | `sync_value` | `scripts/dev-server.cjs:query` | — | [scripts/dev-server.cjs:L641](../../../../scripts/dev-server.cjs#L641) |
+| `activeDb.transaction` | `object_method` | No | `(fn: unknown)` | `async -> promise (throws: thrown_value)` | `scripts/dev-server.cjs:transaction` | — | [scripts/dev-server.cjs:L642](../../../../scripts/dev-server.cjs#L642) |
+| `query` | `object_method` | No | `(...args: array)` | `sync_value` | — | — | [scripts/dev-server.cjs:L661](../../../../scripts/dev-server.cjs#L661) |
+| `transaction` | `object_method` | No | `(fn: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L662](../../../../scripts/dev-server.cjs#L662) |
+| `loadRoute` | `function` | No | `(filePath: unknown)` | `async -> promise` | `scripts/dev-server.cjs:top>anon@L710C35` | — | [scripts/dev-server.cjs:L680](../../../../scripts/dev-server.cjs#L680) |
+| `resolveApiRoute` | `function` | No | `(pathname: unknown)` | `sync_value` | `scripts/dev-server.cjs:top>anon@L710C35` | — | [scripts/dev-server.cjs:L692](../../../../scripts/dev-server.cjs#L692) |
+| `top>anon@L710C35` | `anonymous_function` | No | `(req: unknown, res: unknown)` | `async -> promise` | — | — | [scripts/dev-server.cjs:L710](../../../../scripts/dev-server.cjs#L710) |
+| `top>anon@L710C35>anon@L746C50` | `anonymous_function` | No | `(p: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L746](../../../../scripts/dev-server.cjs#L746) |
+| `mockRes.setHeader` | `object_method` | No | `(k: unknown, v: unknown)` | `void_or_implicit` | — | — | [scripts/dev-server.cjs:L794](../../../../scripts/dev-server.cjs#L794) |
+| `mockRes.status` | `object_method` | No | `(code: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L795](../../../../scripts/dev-server.cjs#L795) |
+| `mockRes.end` | `object_method` | No | `(body: string)` | `sync_value` | — | — | [scripts/dev-server.cjs:L796](../../../../scripts/dev-server.cjs#L796) |
+| `mockRes.json` | `object_method` | No | `(payload: unknown)` | `sync_value` | — | — | [scripts/dev-server.cjs:L803](../../../../scripts/dev-server.cjs#L803) |
 
 ## [scripts/dev-workbench/debug-admin.js](../../../../scripts/dev-workbench/debug-admin.js) (`module`)
 - **Explicit Window / Wrapper Globals**: `__BITESHARK__` (explicit_window_property @ L125), `__BITESHARK__.user` (explicit_window_property @ L126), `__trucklyFetchWrapped` (explicit_window_property @ L132), `fetch` (explicit_window_property @ L134), `trucklyDebug` (explicit_window_property @ L716)
@@ -75,7 +75,7 @@
 | `dbgEsc` | `function` | No | `(v: unknown)` | `sync_value` | `scripts/dev-workbench/debug-admin.js:renderDrawer`, `scripts/dev-workbench/debug-admin.js:renderDrawer>anon@L567C24`, `scripts/dev-workbench/debug-admin.js:renderLogsAndStats>anon@L533C25`, `scripts/dev-workbench/debug-admin.js:updateLaunchButton` | — | [scripts/dev-workbench/debug-admin.js:L24](../../../../scripts/dev-workbench/debug-admin.js#L24) |
 | `redactDebugPath` | `function` | No | `(rawUrl: unknown)` | `sync_value` | `scripts/dev-workbench/debug-admin.js:fetch` | — | [scripts/dev-workbench/debug-admin.js:L30](../../../../scripts/dev-workbench/debug-admin.js#L30) |
 | `syncRoleCookieAndWindow` | `function` | No | `()` | `void_or_implicit` | `scripts/dev-workbench/debug-admin.js:mountUI`, `scripts/dev-workbench/debug-admin.js:resetAll`, `scripts/dev-workbench/debug-admin.js:setRole` | — | [scripts/dev-workbench/debug-admin.js:L120](../../../../scripts/dev-workbench/debug-admin.js#L120) |
-| `fetch` | `function` | No | `(input: unknown, init: unknown)` | `async -> promise (throws: thrown_value)` | *candidate: public/profile-client.js:requestJson, public/role-experience.js:refreshFeatureControls>anon@L3860C30* | — | [scripts/dev-workbench/debug-admin.js:L134](../../../../scripts/dev-workbench/debug-admin.js#L134) |
+| `fetch` | `function` | No | `(input: unknown, init: unknown)` | `async -> promise (throws: thrown_value)` | *candidate: public/profile-client.js:requestJson, public/role-experience.js:refreshFeatureControls>anon@L3866C30* | — | [scripts/dev-workbench/debug-admin.js:L134](../../../../scripts/dev-workbench/debug-admin.js#L134) |
 | `refreshServerDebugState` | `function` | No | `()` | `async -> promise` | `scripts/dev-workbench/debug-admin.js:mountUI`, `scripts/dev-workbench/debug-admin.js:openDrawer`, `scripts/dev-workbench/debug-admin.js:seedBooking`, `scripts/dev-workbench/debug-admin.js:seedWhisper` (+4) | — | [scripts/dev-workbench/debug-admin.js:L180](../../../../scripts/dev-workbench/debug-admin.js#L180) |
 | `updateLaunchButton` | `function` | No | `()` | `void_or_implicit` | `scripts/dev-workbench/debug-admin.js:mountUI`, `scripts/dev-workbench/debug-admin.js:mountUI>anon@L698C37`, `scripts/dev-workbench/debug-admin.js:openDrawer`, `scripts/dev-workbench/debug-admin.js:setRole` | — | [scripts/dev-workbench/debug-admin.js:L195](../../../../scripts/dev-workbench/debug-admin.js#L195) |
 | `setRole` | `function` | No | `(role: unknown)` | `async -> promise` | `scripts/dev-workbench/debug-admin.js:jumpProvider`, `scripts/dev-workbench/debug-admin.js:mountUI>anon@L698C37>anon@L701C42` | — | [scripts/dev-workbench/debug-admin.js:L206](../../../../scripts/dev-workbench/debug-admin.js#L206) |
@@ -170,7 +170,7 @@
 |---|---|---|---|---|---|---|---|
 | `timingSafeMatch` | `function` | No | `(a: unknown, b: unknown)` | `sync_value` | `scripts/staging-runtime-probe.js:default` | — | [scripts/staging-runtime-probe.js:L22](../../../../scripts/staging-runtime-probe.js#L22) |
 | `runWebPushCryptoSelfTest` | `function` | No | `()` | `sync_value` | `scripts/staging-runtime-probe.js:default` | — | [scripts/staging-runtime-probe.js:L29](../../../../scripts/staging-runtime-probe.js#L29) |
-| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer>anon@L546C35>anon@L875C72>anon@L876C50` | — | [scripts/staging-runtime-probe.js:L56](../../../../scripts/staging-runtime-probe.js#L56) |
+| `default` | `function` | Yes | `(req: unknown, res: unknown)` | `async -> promise (throws: thrown_value)` | `server/app.js:createStandaloneServer>anon@L558C35>anon@L889C72>anon@L890C50` | — | [scripts/staging-runtime-probe.js:L56](../../../../scripts/staging-runtime-probe.js#L56) |
 | `default>anon@L93C42` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise` | — | — | [scripts/staging-runtime-probe.js:L93](../../../../scripts/staging-runtime-probe.js#L93) |
 | `default>anon@L117C30` | `anonymous_function` | No | `(tx: unknown)` | `async -> promise (throws: Error)` | — | — | [scripts/staging-runtime-probe.js:L117](../../../../scripts/staging-runtime-probe.js#L117) |
 
@@ -309,7 +309,7 @@
 | `validateMarkdownLinks` | `function` | Yes | `({ markdownFilesByPath, allRepoPathsSet }: object)` | `sync_value` | `tools/code-registry/drift-detector.mjs:detectRepositoryDrift` | — | [tools/code-registry/drift-detector.mjs:L90](../../../../tools/code-registry/drift-detector.mjs#L90) |
 | `detectRepositoryDrift` | `function` | Yes | `({ commitSha, jsAnalyses, htmlAnalyses, cssAnalyses, routes, featureContract, schemaInfo, documentedConfigKeys, markdownFilesByPath, allRepoPathsSet, suppressions }: object)` | `sync_value` | `tools/code-registry/scanner.mjs:scanRepositorySnapshot` | — | [tools/code-registry/drift-detector.mjs:L138](../../../../tools/code-registry/drift-detector.mjs#L138) |
 | `detectRepositoryDrift>anon@L238C11` | `anonymous_function` | No | `(s: unknown)` | `sync_value` | — | — | [tools/code-registry/drift-detector.mjs:L238](../../../../tools/code-registry/drift-detector.mjs#L238) |
-| `detectRepositoryDrift>dfs` | `function` | No | `(u: unknown)` | `void_or_implicit` | `tools/code-registry/drift-detector.mjs:detectRepositoryDrift` | — | [tools/code-registry/drift-detector.mjs:L484](../../../../tools/code-registry/drift-detector.mjs#L484) |
+| `detectRepositoryDrift>dfs` | `function` | No | `(u: unknown)` | `void_or_implicit` | `tools/code-registry/drift-detector.mjs:detectRepositoryDrift` | — | [tools/code-registry/drift-detector.mjs:L496](../../../../tools/code-registry/drift-detector.mjs#L496) |
 
 ## [tools/code-registry/html-css-analyzer.mjs](../../../../tools/code-registry/html-css-analyzer.mjs) (`module`)
 - **Imports / Dependencies**: `./js-analyzer.mjs`, `./schema-versions.mjs`
@@ -422,7 +422,7 @@
 |---|---|---|---|---|---|---|---|
 | `parseArgs` | `function` | No | `(argv: unknown)` | `sync_value` | `tools/style-guide/cli.mjs:main` | — | [tools/style-guide/cli.mjs:L22](../../../../tools/style-guide/cli.mjs#L22) |
 | `main` | `function` | No | `()` | `void_or_implicit` | `tools/style-guide/cli.mjs:<top_level>` | — | [tools/style-guide/cli.mjs:L43](../../../../tools/style-guide/cli.mjs#L43) |
-| `main>anon@L91C39` | `anonymous_function` | No | `(r: unknown)` | `sync_value` | — | — | [tools/style-guide/cli.mjs:L91](../../../../tools/style-guide/cli.mjs#L91) |
+| `main>anon@L92C39` | `anonymous_function` | No | `(r: unknown)` | `sync_value` | — | — | [tools/style-guide/cli.mjs:L92](../../../../tools/style-guide/cli.mjs#L92) |
 
 ## [tools/style-guide/lib.mjs](../../../../tools/style-guide/lib.mjs) (`module`)
 - **Exports**: `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug`, `formatDecisionValueCell`, `formatExpectedAnswerSummary`, `validateValueAgainstExpectedSpec`, `validateStyleGuideData`, `computeCompletionStats`, `renderStyleGuideMarkdownFiles`, `loadStyleGuideDecisions`, `generateStyleGuideDocs`, `validateStyleGuideWorkspace`

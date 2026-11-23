@@ -50,6 +50,10 @@ server {
 
     client_max_body_size 64k;
 
+    location ~ /\.(?!well-known) {
+        return 404;
+    }
+
     # Block internal supervisor worker, operator staging mailbox & diagnostic endpoints from public internet
     location = /api/pager/worker {
         return 403;
@@ -64,6 +68,14 @@ server {
     }
 
     location ^~ /__debug {
+        return 404;
+    }
+
+    location = /debug-admin.js {
+        return 404;
+    }
+
+    location = /debug-admin.css {
         return 404;
     }
 
@@ -84,6 +96,19 @@ server {
         add_header X-Frame-Options "DENY" always;
         add_header Referrer-Policy "same-origin" always;
         add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    }
+
+    location = /api/onboarding/evidence {
+        client_max_body_size 1m;
+        proxy_pass http://127.0.0.1:4100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
     }
 
     location = /api/me/photos {

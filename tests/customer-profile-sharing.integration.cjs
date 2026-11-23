@@ -207,7 +207,7 @@ async function createTestJpegWithExif(color = { r: 214, g: 108, b: 68 }) {
       { ...process.env, MIGRATION_DATABASE_URL: migratorUrl }
     );
     assert.equal(migRes.code, 0, `Migrations failed: ${migRes.stderr}`);
-    assert(migRes.stdout.includes('"newly_applied":29'), `Expected 29 migrations: ${migRes.stdout}`);
+    assert(migRes.stdout.includes('"newly_applied":30'), `Expected 30 migrations: ${migRes.stdout}`);
 
     // Idempotent second run must apply 0 new migrations
     const migRes2 = await runChild(

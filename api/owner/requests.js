@@ -14,7 +14,7 @@ import { withTransaction, respondIfSessionEligibilityError } from "../../lib/db-
 export const access = "user";
 export const methods = ["GET", "POST"];
 
-export default async function(req, res) {
+export default async function (req, res) {
   applyPrivateNoStoreHeaders(res);
   try {
     const ctx = await loadAccessContext(req, auth, db);
@@ -123,6 +123,12 @@ export default async function(req, res) {
     const scope = await authorizeVendorScope(ctx, req.query?.truck_id, db);
     if (!scope.ok) return res.status(scope.status).json({ error: scope.error });
 
+    const rawStatus = typeof req.query?.status === "string" ? req.query.status.trim().toLowerCase() : "pending";
+    const allowedStatuses = new Set(["pending", "accepted", "declined", "all"]);
+    const statusFilter = allowedStatuses.has(rawStatus) ? rawStatus : "pending";
+    const safeLimit = Math.max(1, Math.min(50, Number.parseInt(String(req.query?.limit || 25), 10) || 25));
+    const safeOffset = Math.max(0, Math.min(1000, Number.parseInt(String(req.query?.offset || 0), 10) || 0));
+
     const selectCols = `
       id, truck_id, truck_name, event_type,
       to_char(event_date, 'YYYY-MM-DD') AS event_date,
@@ -131,14 +137,27 @@ export default async function(req, res) {
       package_id, package_name, package_price, status, created_at
     `;
 
-    const { rows } = scope.global
-      ? await db.query(
-          `SELECT ${selectCols} FROM bookings WHERE status = 'pending' ORDER BY event_date ASC, created_at ASC LIMIT 25`
-        )
-      : await db.query(
-          `SELECT ${selectCols} FROM bookings WHERE status = 'pending' AND truck_id = ANY($1::text[]) ORDER BY event_date ASC, created_at ASC LIMIT 25`,
-          [scope.vendorIds]
-        );
+    const params = [];
+    const conds = [];
+    if (statusFilter !== "all") {
+      params.push(statusFilter);
+      conds.push(`status = $${params.length}`);
+    }
+    if (!scope.global) {
+      params.push(scope.vendorIds);
+      conds.push(`truck_id = ANY($${params.length}::text[])`);
+    }
+    const whereClause = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+    params.push(safeLimit, safeOffset);
+
+    const { rows } = await db.query(
+      `SELECT ${selectCols}
+       FROM bookings
+       ${whereClause}
+       ORDER BY event_date ASC, created_at ASC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
 
     return res.json({
       requests: rows.map(r => ({

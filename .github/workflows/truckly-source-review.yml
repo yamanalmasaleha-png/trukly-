@@ -56,6 +56,7 @@ jobs:
         run: |
           bash -n deploy/install-staging-release.sh
           bash -n deploy/backup/truckly-staging-backup.sh
+          bash -n deploy/backup/backup-staging2.sh
           bash -n deploy/bin/biteshark-staging2-ctl
       - name: VPS-only platform contract
         run: node tests/vps-platform-contract.test.cjs
@@ -201,7 +202,7 @@ jobs:
             echo "runtime_changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          RUNTIME_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- api lib server packages public migrations deploy scripts package-lock.json)"
+          RUNTIME_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- api lib server packages public migrations deploy scripts package.json package-lock.json .github/workflows)"
           APP_TEST_DIFF="$(git diff --name-only "$BASE_REF" HEAD -- tests | grep -v -E '^tests/(code-registry|style-guide)\.test\.cjs$' || true)"
           if [ -n "$RUNTIME_DIFF" ] || [ -n "$APP_TEST_DIFF" ]; then
             echo "Runtime or application test changes detected vs $BASE_REF:"

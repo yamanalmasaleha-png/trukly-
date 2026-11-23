@@ -22,33 +22,53 @@ export default async function(req, res) {
     const outcome = await withTransaction(db, async tx => {
       await tx.query("SELECT set_config('app.user_id', $1, true)", [user.id]);
 
-      if (desiredSaved === true) {
+      if (desiredSaved === false) {
+        await tx.query("DELETE FROM favorites WHERE user_id = $1 AND truck_id = $2", [user.id, id]);
+        return { status: 200, body: { truck_id: id, saved: false } };
+      }
+
+      if (desiredSaved === null) {
+        const found = await tx.query(
+          "SELECT 1 FROM favorites WHERE user_id = $1 AND truck_id = $2 FOR UPDATE",
+          [user.id, id]
+        );
+        if (found.rowCount) {
+          await tx.query("DELETE FROM favorites WHERE user_id = $1 AND truck_id = $2", [user.id, id]);
+          return { status: 200, body: { truck_id: id, saved: false } };
+        }
+      }
+
+      const vendorRes = await tx.query(
+        "SELECT 1 FROM vendors WHERE id = $1 AND is_active = true AND COALESCE(hidden_from_discovery, false) = false LIMIT 1",
+        [id]
+      );
+      if (!vendorRes.rowCount) {
+        return { status: 404, body: { error: "Listing not found.", code: "VENDOR_NOT_FOUND" } };
+      }
+
+      const alreadySaved = await tx.query(
+        "SELECT 1 FROM favorites WHERE user_id = $1 AND truck_id = $2 LIMIT 1",
+        [user.id, id]
+      );
+      if (!alreadySaved.rowCount) {
+        const countRes = await tx.query(
+          "SELECT count(*)::int AS c FROM favorites WHERE user_id = $1",
+          [user.id]
+        );
+        if (Number(countRes.rows[0]?.c || 0) >= 200) {
+          return {
+            status: 400,
+            body: { error: "You can save up to 200 spots in Favorites.", code: "FAVORITES_LIMIT_REACHED" }
+          };
+        }
         await tx.query(
           "INSERT INTO favorites(user_id, truck_id) VALUES($1, $2) ON CONFLICT (user_id, truck_id) DO NOTHING",
           [user.id, id]
         );
-        return { truck_id: id, saved: true };
       }
-      if (desiredSaved === false) {
-        await tx.query("DELETE FROM favorites WHERE user_id = $1 AND truck_id = $2", [user.id, id]);
-        return { truck_id: id, saved: false };
-      }
-
-      const found = await tx.query(
-        "SELECT 1 FROM favorites WHERE user_id = $1 AND truck_id = $2 FOR UPDATE",
-        [user.id, id]
-      );
-      if (found.rowCount) {
-        await tx.query("DELETE FROM favorites WHERE user_id = $1 AND truck_id = $2", [user.id, id]);
-        return { truck_id: id, saved: false };
-      }
-      await tx.query(
-        "INSERT INTO favorites(user_id, truck_id) VALUES($1, $2) ON CONFLICT (user_id, truck_id) DO NOTHING",
-        [user.id, id]
-      );
-      return { truck_id: id, saved: true };
+      return { status: 200, body: { truck_id: id, saved: true } };
     });
-    return res.json(outcome);
+    return res.status(outcome.status).json(outcome.body);
   } catch (err) {
     if (respondIfSessionEligibilityError(err, res)) return;
     return res.status(503).json({ error: "Favorites could not be updated right now." });

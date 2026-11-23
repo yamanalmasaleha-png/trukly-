@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 Generated from the single maintained contract specification [shared-contracts.json](../contracts/shared-contracts.json) (**13** shared contracts). Do not duplicate these signatures, route lists, or field definitions in prose docs — link here or query `npm run registry:locate -- <CONTRACT_ID>`.

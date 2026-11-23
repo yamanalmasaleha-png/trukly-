@@ -62,6 +62,7 @@ const forbiddenMatches = archivedEntries.filter(
     entry.startsWith('.github/') ||
     entry.startsWith('tests/') ||
     entry.startsWith('docs/archive/') ||
+    entry.startsWith('docs/code-audit/') ||
     entry === 'hatchable.toml' ||
     entry === 'truckly-v63.zip' ||
     entry === 'truckly-data.sql.gz' ||
@@ -81,12 +82,15 @@ for (const requiredEntry of [
   'server/app.js',
   'server/admin-routes.js',
   'server/customer-exploration-routes.js',
+  'server/customer-profile-routes.js',
   'lib/admin-governance.js',
+  'lib/admin-test-customer.js',
   'lib/age-policy.js',
   'lib/diagnostics.js',
   'lib/support-tickets.js',
   'lib/feature-controls.js',
   'lib/customer-exploration.js',
+  'lib/customer-profile.js',
   'lib/editorial-stories.js',
   'lib/photo-storage.js',
   'lib/map-config.js',
@@ -128,6 +132,8 @@ for (const requiredEntry of [
   'migrations/026_urgent_pilot_security_hardening.sql',
   'migrations/027_customer_exploration_foundation.sql',
   'migrations/028_exploration_photo_reconciliation.sql',
+  'migrations/029_customer_profiles_collections_and_sharing.sql',
+  'migrations/030_audit_security_and_rls_hardening.sql',
   'scripts/run-migrations.cjs',
   'scripts/bootstrap-top-admin.cjs',
   'scripts/operator-read-my-otp.cjs',

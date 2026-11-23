@@ -321,7 +321,17 @@ const WORKER_SECRET = 'stg_worker_secret_' + crypto.randomBytes(16).toString('he
     await legacyPool.query(`INSERT INTO favorites (user_id, truck_id) VALUES ('usr_leg', 'mitote')`);
     await legacyPool.query(`INSERT INTO truck_settings (truck_id, location, is_open) VALUES ('estrella', 'Austin Legacy', true)`);
     await applyMigrations(legacyPool, listMigrations(11, 999));
-    assert.equal((await legacyPool.query('SELECT count(*)::int AS c FROM favorites WHERE user_id = $1', ['usr_leg'])).rows[0].c, 1);
+    {
+      const legChk = await legacyPool.connect();
+      try {
+        await legChk.query('BEGIN');
+        await legChk.query("SELECT set_config('app.user_id', 'usr_leg', true)");
+        assert.equal((await legChk.query('SELECT count(*)::int AS c FROM favorites WHERE user_id = $1', ['usr_leg'])).rows[0].c, 1);
+        await legChk.query('COMMIT');
+      } finally {
+        legChk.release();
+      }
+    }
 
     // 1c. Existing P0/P1 schema (001..014) -> populate memberships, bookings, verified metadata, community RLS -> upgrade 015 + retry 014 & 015
     await applyMigrations(appPool, listMigrations(1, 14));
@@ -365,7 +375,19 @@ const WORKER_SECRET = 'stg_worker_secret_' + crypto.randomBytes(16).toString('he
     assert.equal(mitotePreserved.photo_rights_verified, true);
     assert.equal(mitotePreserved.photo, 'https://cdn.truckly.test/licensed/mitote.jpg');
     assert.equal((await appPool.query(`SELECT count(*)::int AS c FROM vendor_memberships`)).rows[0].c, 3);
-    assert.equal((await appPool.query(`SELECT count(*)::int AS c FROM favorites`)).rows[0].c, 1);
+    // Favorites RLS hides rows on bare SELECT without `app.user_id` while preserving owner rows
+    assert.equal((await appPool.query(`SELECT count(*)::int AS c FROM favorites`)).rows[0].c, 0);
+    {
+      const favChk = await appPool.connect();
+      try {
+        await favChk.query('BEGIN');
+        await favChk.query("SELECT set_config('app.user_id', $1, true)", [ACTORS.custA.id]);
+        assert.equal((await favChk.query(`SELECT count(*)::int AS c FROM favorites`)).rows[0].c, 1);
+        await favChk.query('COMMIT');
+      } finally {
+        favChk.release();
+      }
+    }
     // Community RLS still hides unpublished posts on bare SELECT
     assert.equal((await appPool.query(`SELECT count(*)::int AS c FROM community_reviews`)).rows[0].c, 0);
 

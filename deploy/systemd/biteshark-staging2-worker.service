@@ -1,0 +1,46 @@
+[Unit]
+Description=BiteShark Isolated Secondary Testing Pager Notification Outbox Worker (biteshark-staging2-worker)
+After=network.target postgresql.service biteshark-staging2-api.service
+Requires=biteshark-staging2-api.service
+
+[Service]
+Type=simple
+User=biteshark-stg2
+Group=biteshark-stg2
+WorkingDirectory=/srv/biteshark-staging2/current
+EnvironmentFile=/etc/biteshark-staging2/staging.env
+ExecStart=/opt/nodejs/node-v22-lts/bin/node --max-old-space-size=96 /srv/biteshark-staging2/current/scripts/run-pager-worker.cjs --continuous --interval-ms 10000 --batch-size 15
+Restart=always
+RestartSec=5
+TimeoutStopSec=35
+
+# Resource bounds protecting co-tenant workloads on 1 vCPU / 961 MiB VPS
+MemoryAccounting=true
+MemoryHigh=96M
+MemoryMax=128M
+CPUAccounting=true
+CPUQuota=25%
+TasksMax=32
+
+# Hardened service sandboxing & cross-environment mount isolation
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadOnlyPaths=/srv/biteshark-staging2
+InaccessiblePaths=/srv/truckly-staging /etc/truckly-staging /var/lib/truckly-staging /var/backups
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=biteshark-staging2-worker
+
+[Install]
+WantedBy=multi-user.target

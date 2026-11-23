@@ -1526,7 +1526,10 @@
         }
         var myProfileBtnEl = document.getElementById('rxMyProfileBtn');
         if (myProfileBtnEl) {
-          myProfileBtnEl.hidden = Boolean(ctx.requires_age_assessment) || isFeatureHidden('customer_profile');
+          myProfileBtnEl.hidden = Boolean(ctx.requires_age_assessment);
+          myProfileBtnEl.textContent = isFeatureHidden('customer_profile')
+            ? '🔒 Privacy & Share Tools'
+            : '👤 My BiteShark';
         }
         if (expPrivacyBtn) {
           expPrivacyBtn.hidden = Boolean(ctx.requires_age_assessment);
@@ -3847,11 +3850,14 @@
       try { renderPager(pagerCurrentRendered); } catch (_e) {}
     }
 
-    // 10. Customer Profile (`customer_profile`) menu & screen visibility
+    // 10. Customer Profile (`customer_profile`) menu & screen visibility (keep accessible as Privacy & Share Tools fallback when hidden)
     var myProfBtn = document.getElementById('rxMyProfileBtn');
     if (myProfBtn) {
       var signedInEligible = Boolean(rxState.ctx && rxState.ctx.authenticated && !rxState.ctx.requires_age_assessment);
-      myProfBtn.hidden = !signedInEligible || isFeatureHidden('customer_profile');
+      myProfBtn.hidden = !signedInEligible;
+      myProfBtn.textContent = isFeatureHidden('customer_profile')
+        ? '🔒 Privacy & Share Tools'
+        : '👤 My BiteShark';
     }
   }
 

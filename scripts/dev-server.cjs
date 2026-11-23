@@ -1,4 +1,7 @@
 // LOCAL DEVELOPMENT PREVIEW & ROLE SIMULATOR ONLY — DO NOT DEPLOY TO PRODUCTION.
+// DEPRECATED FOR SECURITY VERIFICATION: Uses an in-memory SQL mock that does NOT enforce PostgreSQL
+// Row-Level Security (RLS), role separation, or session row locks. Run `node server/index.js` +
+// PostgreSQL integration suites (`npm run test:standalone`, `npm run test:hardening`) for security verification.
 // Usage: node scripts/dev-server.cjs
 // Note: Simulated role headers/cookies exist strictly in this local harness.
 // Production VPS routes in api/**/*.js never read debug headers or cookies.
@@ -302,6 +305,15 @@ const mockDb = {
       return { rows, rowCount: rows.length };
     }
 
+    if (/SELECT 1 FROM vendors WHERE id = \$1/i.test(s)) {
+      const v = store.vendors.get(params[0]);
+      const ok = Boolean(v && v.is_active && !v.hidden_from_discovery);
+      return { rows: ok ? [{ '?column?': 1 }] : [], rowCount: ok ? 1 : 0 };
+    }
+    if (/SELECT count\(\*\)::int AS c FROM favorites WHERE user_id = \$1/i.test(s)) {
+      const c = store.favorites.filter(f => f.user_id === params[0]).length;
+      return { rows: [{ c }], rowCount: 1 };
+    }
     if (/SELECT truck_id, created_at FROM favorites WHERE user_id = \$1/i.test(s)) {
       const rows = store.favorites.filter(f => f.user_id === params[0]);
       return { rows, rowCount: rows.length };

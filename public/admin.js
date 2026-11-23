@@ -570,7 +570,9 @@
       listEl.querySelectorAll('[data-app-id]').forEach(function (btn) {
         btn.onclick = function () {
           state.apps.selectedId = btn.dataset.appId;
-          loadApplications(state.apps.page);
+          listEl.querySelectorAll('[data-app-id]').forEach(function (b) {
+            b.classList.toggle('selected', b.dataset.appId === state.apps.selectedId);
+          });
           renderApplicationDetail();
         };
       });
@@ -622,7 +624,7 @@
               ')</small>' +
               '<div><a class="admin-btn admin-btn-secondary admin-btn-sm" href="/api/onboarding/evidence?id=' +
               encodeURIComponent(ev.id) +
-              '" target="_blank" rel="noopener">Inspect Evidence ↗</a></div>' +
+              '&amp;admin_portal=1" target="_blank" rel="noopener">Inspect Evidence ↗</a></div>' +
               '</div>'
             );
           })
@@ -682,8 +684,8 @@
       (app.decision_reason ? esc(app.decision_reason) + ' (' + fmtDate(app.decided_at) + ')' : 'Pending') +
       '</div>' +
       '</div>' +
-      (app.Ownership_summary || app.public_summary
-        ? '<p><strong>Summary:</strong> ' + esc(app.public_summary) + '</p>'
+      (app.ownership_summary || app.public_summary
+        ? '<p><strong>Summary:</strong> ' + esc(app.public_summary || app.ownership_summary) + '</p>'
         : '') +
       (app.ownership_statement
         ? '<p><strong>Ownership Statement:</strong> ' + esc(app.ownership_statement) + '</p>'
@@ -1484,13 +1486,11 @@
       submitBtn.className = 'admin-btn admin-btn-danger';
     }
 
-    modal.hidden = false;
-    reasonEl.focus();
+    adminOpenModal('invActionModal', { initialFocusSelector: '#invActionReason' });
   }
 
   function closeInvitationActionModal() {
-    var modal = document.getElementById('invActionModal');
-    if (modal) modal.hidden = true;
+    adminCloseModal('invActionModal');
     pendingInviteAction = null;
     if (lastInviteTriggerEl && typeof lastInviteTriggerEl.focus === 'function') {
       lastInviteTriggerEl.focus();
@@ -1586,13 +1586,11 @@
       : '<p class="record-meta">Historical invitation created prior to detailed event timeline logging.</p>';
 
     bodyEl.innerHTML = summaryHtml + listHtml;
-    modal.hidden = false;
-    document.getElementById('invHistoryCloseBtn').focus();
+    adminOpenModal('invHistoryModal', { initialFocusSelector: '#invHistoryCloseBtn' });
   }
 
   function closeInvitationHistoryModal() {
-    var modal = document.getElementById('invHistoryModal');
-    if (modal) modal.hidden = true;
+    adminCloseModal('invHistoryModal');
     if (lastInviteTriggerEl && typeof lastInviteTriggerEl.focus === 'function') {
       lastInviteTriggerEl.focus();
     }
@@ -4327,6 +4325,13 @@
         : 'Signed in as Admin: Mod (read-only view) — you can inspect effective states, implementation statuses, dependencies, and explanations. Modifying feature states requires Admin: Top.';
     }
     updateFeaturesNavBadge();
+    var sgNavBtn = document.getElementById('navStyleGuideBtn');
+    if (sgNavBtn) {
+      var sgCtrl = (state.features.controls || []).find(function (c) {
+        return c.key === 'admin_style_guide_workspace';
+      });
+      sgNavBtn.hidden = Boolean(sgCtrl && sgCtrl.effective_state === 'hidden');
+    }
   }
 
   function clientRequiresInterruptConfirm(control, nextState, nextAudience) {
@@ -4779,14 +4784,13 @@
     errEl.textContent = '';
     submitBtn.disabled = false;
     submitBtn.textContent = 'Confirm & Apply Server Change';
-    modal.hidden = false;
-    if (reasonEl.value.trim().length >= 4) submitBtn.focus();
-    else reasonEl.focus();
+    adminOpenModal('featureConfirmModal', {
+      initialFocusSelector: reasonEl.value.trim().length >= 4 ? '#fcConfirmSubmitBtn' : '#fcConfirmReason'
+    });
   }
 
   function closeFeatureConfirmModal(restoreFocus) {
-    var modal = document.getElementById('featureConfirmModal');
-    if (modal) modal.hidden = true;
+    adminCloseModal('featureConfirmModal');
     var trigger = state.features.lastTriggerEl;
     state.features.pendingConfirm = null;
     state.features.lastTriggerEl = null;

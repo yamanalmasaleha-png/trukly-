@@ -96,7 +96,12 @@ export default async function(req, res) {
         `SELECT v.id, COALESCE(op.display_name, v.canonical_name) AS place_name, v.city AS town
          FROM vendors v
          LEFT JOIN owner_profiles op ON op.truck_id = v.id
-         WHERE v.id = $1 AND v.is_active = true`,
+         WHERE v.id = $1
+           AND v.is_active = true
+           AND (
+             COALESCE(v.hidden_from_discovery, false) = false
+             OR (v.restriction_authority = 'mod' AND v.temp_restriction_expires_at IS NOT NULL AND v.temp_restriction_expires_at <= now())
+           )`,
         [placeId]
       );
       if (!placeRows.length) {

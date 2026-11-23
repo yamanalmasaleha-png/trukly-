@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Coverage Summary
@@ -14,12 +14,12 @@
 |---|---:|
 | JavaScript / CJS / ESM Files Scanned | 148 |
 | Parse Failures | 0 |
-| Functions, Methods & Handlers | 3322 |
-| Classes | 22 |
-| Top-Level Constants | 744 |
+| Functions, Methods & Handlers | 3350 |
+| Classes | 23 |
+| Top-Level Constants | 747 |
 | Browser Globals & Window Registrations | 671 |
-| Confirmed Static Call Edges | 8392 |
-| Inferred Candidate Call Edges | 60 |
+| Confirmed Static Call Edges | 8449 |
+| Inferred Candidate Call Edges | 64 |
 
 > **Navigation & Exact Lookup**: Every module and symbol is listed **without truncation** in the 5 area catalogs below. For connected terminal/assistant lookups (showing callers, callees, contracts, routes, tables, and test evidence), run `npm run registry:locate -- <identifier>`.
 
@@ -27,10 +27,10 @@
 
 | Area Catalog | Modules | Indexed Symbols | Exports |
 |---|---:|---:|---:|
-| [Server & Runtime Adapter (`server/`, `packages/`)](symbols/server-and-runtime.md) | 7 | 153 | 26 |
-| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 546 | 417 |
-| [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 61 | 91 |
-| [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 22 | 1211 | 0 |
+| [Server & Runtime Adapter (`server/`, `packages/`)](symbols/server-and-runtime.md) | 7 | 157 | 26 |
+| [Shared Backend Libraries (`lib/`)](symbols/shared-libraries.md) | 25 | 564 | 421 |
+| [Domain API Handlers (`api/`)](symbols/domain-api-handlers.md) | 30 | 63 | 91 |
+| [Browser Frontend Scripts (`public/`)](symbols/frontend-scripts.md) | 22 | 1214 | 0 |
 | [Operator Scripts & Code Registry Tooling (`scripts/`, `tools/`)](symbols/scripts-and-tooling.md) | 23 | 254 | 81 |
 
 ## Module Directory
@@ -38,20 +38,20 @@
 | Module | Area Catalog | Symbols | Exported / Window Globals |
 |---|---|---:|---|
 | [packages/runtime-adapter/index.js](../../../packages/runtime-adapter/index.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 10 | `configureStandaloneAdapter`, `bindVerifiedRequestUser`, `runWithRequestContext`, `getActiveRequestContext`, `db`, `auth` |
-| [server/admin-routes.js](../../../server/admin-routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 82 | `EVIDENCE_UPLOAD_MAX_JSON_BYTES`, `isGovernanceApiPath`, `handleGovernanceApiRequest` |
-| [server/app.js](../../../server/app.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 37 | `DEFAULT_MAX_JSON_BYTES`, `AUTH_MAX_JSON_BYTES`, `DIAGNOSTICS_REPORT_MAX_JSON_BYTES`, `createStandaloneServer` |
+| [server/admin-routes.js](../../../server/admin-routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 85 | `EVIDENCE_UPLOAD_MAX_JSON_BYTES`, `isGovernanceApiPath`, `handleGovernanceApiRequest` |
+| [server/app.js](../../../server/app.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 38 | `DEFAULT_MAX_JSON_BYTES`, `AUTH_MAX_JSON_BYTES`, `DIAGNOSTICS_REPORT_MAX_JSON_BYTES`, `createStandaloneServer` |
 | [server/customer-exploration-routes.js](../../../server/customer-exploration-routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 6 | `CUSTOMER_EXPLORATION_PATHS`, `handleCustomerExplorationRoute` |
 | [server/customer-profile-routes.js](../../../server/customer-profile-routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 8 | `CUSTOMER_PROFILE_PATHS`, `resolveCallerProfileFeatureFlags`, `recordProfileDiagnostic`, `handleCustomerProfileRoute`, `applyUnlistedSharedSecurityHeaders`, `handlePublicSharedPageRequest`, `handlePublicSharedPhotoRequest` |
 | [server/index.js](../../../server/index.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 8 | — |
 | [server/routes.js](../../../server/routes.js) | [server-and-runtime.md](symbols/server-and-runtime.md) | 2 | `STATIC_API_ROUTES`, `DYNAMIC_TRUCK_BY_ID_ROUTE`, `REGISTERED_DOMAIN_ROUTE_COUNT`, `matchDomainApiRoute` |
-| [lib/admin-governance.js](../../../lib/admin-governance.js) | [shared-libraries.md](symbols/shared-libraries.md) | 15 | `INVITATION_TTL_MS`, `MAX_EVIDENCE_BYTES`, `MAX_EVIDENCE_PER_APPLICATION`, `MAX_MOD_TEMP_RESTRICTION_HOURS`, `INVITATION_ROLE_LABELS`, `sha256Hex`, `generateOpaqueToken`, `normalizeEmailStrict` |
+| [lib/admin-governance.js](../../../lib/admin-governance.js) | [shared-libraries.md](symbols/shared-libraries.md) | 19 | `INVITATION_TTL_MS`, `MAX_EVIDENCE_BYTES`, `MAX_EVIDENCE_PER_APPLICATION`, `MAX_MOD_TEMP_RESTRICTION_HOURS`, `INVITATION_ROLE_LABELS`, `sha256Hex`, `escapeSqlLike`, `maskEmailForModerator` |
 | [lib/admin-test-customer.js](../../../lib/admin-test-customer.js) | [shared-libraries.md](symbols/shared-libraries.md) | 23 | `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_TTL_SECONDS`, `hasCustomerProfileSurface`, `isAdminTestCustomerAllowed`, `buildAdminTestCustomerCookieHeader`, `buildClearedAdminTestCustomerCookieHeader` |
 | [lib/age-policy.js](../../../lib/age-policy.js) | [shared-libraries.md](symbols/shared-libraries.md) | 9 | `PROPOSED_MIN_ACCOUNT_AGE`, `AGE_POLICY_VERSION`, `SHARING_MIN_ADULT_AGE`, `SHARING_ELIGIBILITY_POLICY_VERSION`, `AGE_BOUNDARY_TIMEZONE`, `MIN_PLAUSIBLE_BIRTH_YEAR`, `isGregorianLeapYear`, `daysInGregorianMonth` |
 | [lib/authz.js](../../../lib/authz.js) | [shared-libraries.md](symbols/shared-libraries.md) | 20 | `UUID_RE`, `ROLE_LABELS`, `normalizeAdminLevel`, `isTempRestrictionActive`, `evaluateEffectiveVendorRestrictions`, `applyPrivateNoStoreHeaders`, `VALID_WRITE_PAUSE_SCOPES`, `inspectWritePauseConfig` |
 | [lib/catalog.js](../../../lib/catalog.js) | [shared-libraries.md](symbols/shared-libraries.md) | 1 | `BOOKING_PACKAGES`, `CANONICAL_VENDORS`, `VENDORS_BY_ID`, `getCanonicalVendor` |
 | [lib/client-ip.js](../../../lib/client-ip.js) | [shared-libraries.md](symbols/shared-libraries.md) | 5 | `TRUSTED_CLIENT_IP_SYMBOL`, `normalizeIpAddress`, `isLoopbackIp`, `resolveTrustedClientIp`, `stampTrustedClientIp` |
 | [lib/customer-exploration.js](../../../lib/customer-exploration.js) | [shared-libraries.md](symbols/shared-libraries.md) | 58 | `EXPLORATION_TIMEZONE`, `POINTS_PER_VISIT`, `POINTS_PER_PHOTO`, `MAX_VISIT_NOTE_LENGTH`, `MAX_PHOTO_CAPTION_LENGTH`, `MAX_SAVED_TRAILS_PER_USER`, `WEEKLY_CHALLENGE_TARGET`, `NON_MONETARY_DISCLOSURE` |
-| [lib/customer-profile.js](../../../lib/customer-profile.js) | [shared-libraries.md](symbols/shared-libraries.md) | 92 | `MAX_COLLECTIONS_PER_USER`, `MAX_ENTRIES_PER_COLLECTION`, `MAX_COLLECTION_TITLE_LENGTH`, `MAX_COLLECTION_INTRO_LENGTH`, `MAX_ENTRY_RECOMMENDATION_LENGTH`, `MAX_ACTIVE_SHARES_PER_COLLECTION`, `MAX_DISPLAY_NAME_LENGTH`, `MAX_BIO_LENGTH` |
+| [lib/customer-profile.js](../../../lib/customer-profile.js) | [shared-libraries.md](symbols/shared-libraries.md) | 93 | `MAX_COLLECTIONS_PER_USER`, `MAX_ENTRIES_PER_COLLECTION`, `MAX_COLLECTION_TITLE_LENGTH`, `MAX_COLLECTION_INTRO_LENGTH`, `MAX_ENTRY_RECOMMENDATION_LENGTH`, `MAX_ACTIVE_SHARES_PER_COLLECTION`, `MAX_DISPLAY_NAME_LENGTH`, `MAX_BIO_LENGTH` |
 | [lib/dates.js](../../../lib/dates.js) | [shared-libraries.md](symbols/shared-libraries.md) | 7 | `MAX_BOOKING_DAYS_AHEAD`, `isValidCalendarDate`, `normalizeCalendarDate`, `getPacificToday`, `validateFuturePacificDate`, `isValidTimeValue` |
 | [lib/db-tx.js](../../../lib/db-tx.js) | [shared-libraries.md](symbols/shared-libraries.md) | 7 | `SessionEligibilityError`, `clearTxVerificationState`, `respondIfSessionEligibilityError`, `withTransaction` |
 | [lib/diagnostics.js](../../../lib/diagnostics.js) | [shared-libraries.md](symbols/shared-libraries.md) | 30 | `CLIENT_BUNDLE_VERSION`, `REPOSITORY_COMMIT_BASE_URL`, `ALLOWED_COMPONENTS`, `ALLOWED_SEVERITIES`, `ALLOWED_OUTCOMES`, `ALLOWED_TRIAGE_STATUSES`, `ALLOWED_FEATURE_KEYS`, `TOP_ONLY_FEATURE_KEYS` |
@@ -61,11 +61,11 @@
 | [lib/feature-controls.js](../../../lib/feature-controls.js) | [shared-libraries.md](symbols/shared-libraries.md) | 24 | `VALID_FEATURE_STATES`, `VALID_FEATURE_AUDIENCES`, `PROTECTED_ESSENTIAL_CAPABILITIES`, `FEATURE_CONTROLS_REGISTRY`, `FEATURE_CONTROLS_BY_KEY`, `assertCycleFreeFeatureRegistry`, `ROUTE_FEATURE_ENFORCEMENT_RULES`, `setSimulatedFeatureConfigFailureForTests` |
 | [lib/json-schema-lite.js](../../../lib/json-schema-lite.js) | [shared-libraries.md](symbols/shared-libraries.md) | 6 | `validateAgainstJsonSchema`, `validateJsonWithSchemaFile` |
 | [lib/map-config.js](../../../lib/map-config.js) | [shared-libraries.md](symbols/shared-libraries.md) | 5 | `ALLOWLISTED_MAP_PROVIDERS`, `resolveMapRuntimeConfig` |
-| [lib/pager-notifications.js](../../../lib/pager-notifications.js) | [shared-libraries.md](symbols/shared-libraries.md) | 35 | `MAX_ACTIVE_SUBSCRIPTIONS_PER_PAGER`, `MAX_CATCHUP_DELIVERIES_PER_EVENT`, `READY_FLAP_COOLDOWN_MS`, `WORKER_LEASE_SECONDS`, `DEFAULT_WORKER_CONCURRENCY`, `DEFAULT_PROVIDER_TIMEOUT_MS`, `DEFAULT_WORKER_EXECUTION_BUDGET_MS`, `RETRY_BACKOFF_SECONDS` |
+| [lib/pager-notifications.js](../../../lib/pager-notifications.js) | [shared-libraries.md](symbols/shared-libraries.md) | 36 | `MAX_ACTIVE_SUBSCRIPTIONS_PER_PAGER`, `MAX_CATCHUP_DELIVERIES_PER_EVENT`, `READY_FLAP_COOLDOWN_MS`, `WORKER_LEASE_SECONDS`, `DEFAULT_WORKER_CONCURRENCY`, `DEFAULT_PROVIDER_TIMEOUT_MS`, `DEFAULT_WORKER_EXECUTION_BUDGET_MS`, `RETRY_BACKOFF_SECONDS` |
 | [lib/photo-storage.js](../../../lib/photo-storage.js) | [shared-libraries.md](symbols/shared-libraries.md) | 15 | `MAX_PHOTO_UPLOAD_BYTES`, `MAX_PHOTO_JSON_BODY_BYTES`, `MAX_ACTIVE_PHOTOS_PER_USER`, `MAX_PHOTO_DIMENSION_PX`, `MAX_PHOTO_INPUT_PIXELS`, `DEFAULT_MIN_FREE_DISK_BYTES`, `SUPPORTED_PHOTO_MIMES`, `PhotoStorageError` |
 | [lib/request-context.js](../../../lib/request-context.js) | [shared-libraries.md](symbols/shared-libraries.md) | 2 | `runWithGovernanceContext`, `getActiveGovernanceContext` |
 | [lib/standalone-auth.js](../../../lib/standalone-auth.js) | [shared-libraries.md](symbols/shared-libraries.md) | 75 | `SESSION_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_COOKIE_NAME`, `ADMIN_TEST_CUSTOMER_USER_ID`, `ADMIN_TEST_CUSTOMER_EMAIL`, `AGE_GATE_COOKIE_NAME`, `DEFAULT_AGE_GATE_COOLDOWN_SECONDS`, `AUTH_RATE_LIMIT_RETENTION_MS`, `AUTH_TELEMETRY_RETENTION_MS` |
-| [lib/style-guide-admin.js](../../../lib/style-guide-admin.js) | [shared-libraries.md](symbols/shared-libraries.md) | 30 | `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `inspectPersistenceHealth`, `resolveGitHubPushConfig`, `hasSavedDecisionContent`, `summarizeDecisionValuePreview`, `computeStyleGuideChangeReport`, `loadCurrentWorkspaceSnapshot` |
+| [lib/style-guide-admin.js](../../../lib/style-guide-admin.js) | [shared-libraries.md](symbols/shared-libraries.md) | 42 | `StyleGuideAdminError`, `resolveStyleGuideReleaseRoot`, `resolveStyleGuideStorageDir`, `inspectPersistenceHealth`, `resolveGitHubPushConfig`, `hasSavedDecisionContent`, `summarizeDecisionValuePreview`, `computeStyleGuideChangeReport` |
 | [lib/style-guide-core.js](../../../lib/style-guide-core.js) | [shared-libraries.md](symbols/shared-libraries.md) | 31 | `STYLE_GUIDE_GENERATOR_VERSION`, `STYLE_GUIDE_SCHEMA_REL_PATH`, `STYLE_GUIDE_DECISIONS_REL_PATH`, `STYLE_GUIDE_DIR_REL_PATH`, `normalizePlaceholderCandidate`, `isPlaceholderString`, `containsPlaceholderOrBlankLeaf`, `anchorSlug` |
 | [lib/support-tickets.js](../../../lib/support-tickets.js) | [shared-libraries.md](symbols/shared-libraries.md) | 14 | `VENDOR_SUPPORT_CATEGORIES`, `CATEGORY_LABELS`, `VALID_DB_CATEGORIES`, `CATEGORY_ALIASES`, `REPORTER_URGENCY_LABELS`, `VALID_REPORTER_URGENCIES`, `STAFF_PRIORITY_LABELS`, `VALID_STAFF_PRIORITIES` |
 | [lib/webpush-crypto.js](../../../lib/webpush-crypto.js) | [shared-libraries.md](symbols/shared-libraries.md) | 9 | `toBase64Url`, `fromBase64Url`, `generateVapidKeys`, `validateVapidKeyPair`, `createVapidHeaders`, `verifyVapidJwt`, `validateSubscriberKeys`, `encryptWebPushPayload` |
@@ -78,9 +78,9 @@
 | [api/community/mine.js](../../../api/community/mine.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
 | [api/community/moderate.js](../../../api/community/moderate.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 3 | `access`, `methods`, `default` |
 | [api/community/post.js](../../../api/community/post.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
-| [api/favorites/list.js](../../../api/favorites/list.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 1 | `access`, `methods`, `default` |
+| [api/favorites/list.js](../../../api/favorites/list.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
 | [api/favorites/toggle.js](../../../api/favorites/toggle.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
-| [api/notifications/settings.js](../../../api/notifications/settings.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
+| [api/notifications/settings.js](../../../api/notifications/settings.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 3 | `access`, `methods`, `default` |
 | [api/owner/bookings.js](../../../api/owner/bookings.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 1 | `access`, `methods`, `default` |
 | [api/owner/location.js](../../../api/owner/location.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 3 | `access`, `methods`, `default` |
 | [api/owner/profile.js](../../../api/owner/profile.js) | [domain-api-handlers.md](symbols/domain-api-handlers.md) | 2 | `access`, `methods`, `default` |
@@ -108,8 +108,8 @@
 | [public/community.js](../../../public/community.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 21 | `window.communityDraftKey`, `window.communityDraftSig`, `window.communityDraftKey`, `window.communityDraftSig`, `window.communityDraftKey`, `window.communityDraftSig` |
 | [public/customer-profile.js](../../../public/customer-profile.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 52 | `window.openCustomerProfile`, `window.bitesharkOpenCustomerProfile`, `window.bitesharkResetProfileUiOnAuthChange`, `window.bitesharkRegisterProfileAuthResetListener`, `window.bitesharkRegisterCollectionsRenderer` |
 | [public/diagnostics-client.js](../../../public/diagnostics-client.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 28 | `window.loadedServerReleaseSha`, `window.latestServerReleaseSha`, `window.reportsSentCount`, `window.activeReportInFlight`, `window.activeReportInFlight` |
-| [public/exploration-client.js](../../../public/exploration-client.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 55 | `window.bitesharkExploration`, `window.bitesharkExploration` |
-| [public/greatest-hits-sharing.js](../../../public/greatest-hits-sharing.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 32 | — |
+| [public/exploration-client.js](../../../public/exploration-client.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 56 | `window.bitesharkExploration`, `window.bitesharkExploration` |
+| [public/greatest-hits-sharing.js](../../../public/greatest-hits-sharing.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 34 | — |
 | [public/greatest-hits.js](../../../public/greatest-hits.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 60 | `window.bitesharkGreatestHitsHooks` |
 | [public/guide-passport.js](../../../public/guide-passport.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 33 | `window.preselectedVisitVendorId`, `window.journalState`, `window.bitesharkResetExplorationUiOnAuthChange` |
 | [public/listing-highlights.js](../../../public/listing-highlights.js) | [frontend-scripts.md](symbols/frontend-scripts.md) | 5 | `window.bitesharkListingHighlights`, `window.bitesharkListingHighlights`, `window.openDetail` |

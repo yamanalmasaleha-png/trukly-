@@ -1,24 +1,24 @@
 {
   "coverage_counts": {
     "browser_globals_and_assignments": 671,
-    "classes": 22,
-    "configuration_keys_observed": 72,
-    "confirmed_call_edges": 8392,
+    "classes": 23,
+    "configuration_keys_observed": 66,
+    "confirmed_call_edges": 8449,
     "css_files_scanned": 21,
-    "drift_findings_active": 12,
+    "drift_findings_active": 10,
     "drift_findings_suppressed": 2,
     "feature_controls": 28,
-    "functions_and_methods": 3322,
+    "functions_and_methods": 3350,
     "html_element_ids": 558,
     "html_files_scanned": 12,
     "http_routes": 124,
-    "inferred_call_edges": 60,
+    "inferred_call_edges": 64,
     "js_files_scanned": 148,
     "js_parse_failures": 0,
     "shared_contracts": 13,
-    "significant_constants": 744,
-    "sql_migrations": 29,
-    "sql_rls_policies": 69,
+    "significant_constants": 747,
+    "sql_migrations": 30,
+    "sql_rls_policies": 71,
     "sql_tables": 59,
     "storage_keys_observed": 19
   },
@@ -67,7 +67,7 @@
       "column_count": 9,
       "constraint_count": 6,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
-      "index_count": 0,
+      "index_count": 2,
       "policy_count": 0,
       "rls_enabled": false,
       "rls_forced": false,
@@ -167,7 +167,7 @@
       "column_count": 23,
       "constraint_count": 9,
       "created_in_migration": "009_create_community_reviews.sql",
-      "index_count": 1,
+      "index_count": 3,
       "policy_count": 5,
       "rls_enabled": true,
       "rls_forced": true,
@@ -358,9 +358,9 @@
       "constraint_count": 1,
       "created_in_migration": "003_create_favorites.sql",
       "index_count": 0,
-      "policy_count": 0,
-      "rls_enabled": false,
-      "rls_forced": false,
+      "policy_count": 1,
+      "rls_enabled": true,
+      "rls_forced": true,
       "table_name": "favorites"
     },
     {
@@ -388,9 +388,9 @@
       "constraint_count": 2,
       "created_in_migration": "004_create_notification_settings.sql",
       "index_count": 0,
-      "policy_count": 0,
-      "rls_enabled": false,
-      "rls_forced": false,
+      "policy_count": 1,
+      "rls_enabled": true,
+      "rls_forced": true,
       "table_name": "notification_settings"
     },
     {
@@ -457,7 +457,7 @@
       "column_count": 13,
       "constraint_count": 5,
       "created_in_migration": "008_pickup_pagers.sql",
-      "index_count": 0,
+      "index_count": 1,
       "policy_count": 0,
       "rls_enabled": false,
       "rls_forced": false,
@@ -475,7 +475,7 @@
     },
     {
       "column_count": 6,
-      "constraint_count": 4,
+      "constraint_count": 5,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
       "index_count": 0,
       "policy_count": 0,
@@ -575,9 +575,9 @@
     },
     {
       "column_count": 5,
-      "constraint_count": 4,
+      "constraint_count": 5,
       "created_in_migration": "011_vendor_authz_and_audit.sql",
-      "index_count": 0,
+      "index_count": 1,
       "policy_count": 0,
       "rls_enabled": false,
       "rls_forced": false,
@@ -614,16 +614,14 @@
       "table_name": "worker_runtime_heartbeats"
     }
   ],
-  "deterministic_digest_sha256": "0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592",
+  "deterministic_digest_sha256": "972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d",
   "drift_summary": {
-    "active_count": 12,
+    "active_count": 10,
     "active_finding_ids": [
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L185-_docs/RELEASE_VERIFICATION_REPORT.md",
       "DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId",
-      "DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range",
       "DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers",
-      "DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cuisines",
       "DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/featured",
@@ -896,7 +894,7 @@
     "name": "biteshark-code-registry",
     "version": "2.0.0"
   },
-  "included_files_manifest_sha256": "d0cd830e2c30848a716c78a2f1f3c3f96958d968d2486d176eb5e7dc4c607d25",
+  "included_files_manifest_sha256": "fe9cf3a6a41fc1cb2c39d290976c6beeb1d201f6fc7d169fd44ca69ccabd4346",
   "modules": [
     {
       "exported_symbols": [
@@ -1007,7 +1005,7 @@
       "file": "api/favorites/list.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 1
+      "symbol_count": 2
     },
     {
       "exported_symbols": [
@@ -1029,7 +1027,7 @@
       "file": "api/notifications/settings.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 2
+      "symbol_count": 3
     },
     {
       "exported_symbols": [
@@ -1237,6 +1235,8 @@
         "MAX_MOD_TEMP_RESTRICTION_HOURS",
         "INVITATION_ROLE_LABELS",
         "sha256Hex",
+        "escapeSqlLike",
+        "maskEmailForModerator",
         "generateOpaqueToken",
         "normalizeEmailStrict",
         "normalizeOptionalIdempotencyKey",
@@ -1247,6 +1247,7 @@
         "validateProposedSlug",
         "computeIssueSlaDueAt",
         "recordTestSafeNotificationInTx",
+        "cleanupExpiredGovernanceRecords",
         "consumeGovernanceRateLimit",
         "INVITATION_DELIVERY_LABELS",
         "recordInvitationEventInTx",
@@ -1255,7 +1256,7 @@
       "file": "lib/admin-governance.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 15
+      "symbol_count": 19
     },
     {
       "exported_symbols": [
@@ -1463,7 +1464,7 @@
       "file": "lib/customer-profile.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 92
+      "symbol_count": 93
     },
     {
       "exported_symbols": [
@@ -1663,7 +1664,7 @@
       "file": "lib/pager-notifications.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 35
+      "symbol_count": 36
     },
     {
       "exported_symbols": [
@@ -1760,6 +1761,7 @@
     },
     {
       "exported_symbols": [
+        "StyleGuideAdminError",
         "resolveStyleGuideReleaseRoot",
         "resolveStyleGuideStorageDir",
         "inspectPersistenceHealth",
@@ -1773,7 +1775,7 @@
       "file": "lib/style-guide-admin.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 30
+      "symbol_count": 42
     },
     {
       "exported_symbols": [
@@ -2337,14 +2339,14 @@
         "bitesharkExploration"
       ],
       "source_type": "script",
-      "symbol_count": 55
+      "symbol_count": 56
     },
     {
       "exported_symbols": [],
       "file": "public/greatest-hits-sharing.js",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 32
+      "symbol_count": 34
     },
     {
       "exported_symbols": [],
@@ -2787,7 +2789,7 @@
       "file": "server/admin-routes.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 82
+      "symbol_count": 85
     },
     {
       "exported_symbols": [
@@ -2799,7 +2801,7 @@
       "file": "server/app.js",
       "globals_assigned": [],
       "source_type": "module",
-      "symbol_count": 37
+      "symbol_count": 38
     },
     {
       "exported_symbols": [
@@ -2864,7 +2866,7 @@
       "file": "tests/admin-test-customer.integration.cjs",
       "globals_assigned": [],
       "source_type": "script",
-      "symbol_count": 10
+      "symbol_count": 11
     },
     {
       "exported_symbols": [],
@@ -3738,7 +3740,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "admin_mod_or_top",
-      "candidate_test_mention_count": 0,
+      "candidate_test_mention_count": 1,
       "confirmed_caller_count": 0,
       "contract_ids": [],
       "contract_test_count": 0,
@@ -3750,7 +3752,7 @@
         "POST"
       ],
       "path": "/api/admin/invitations/resend",
-      "static_http_test_count": 0
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4044,7 +4046,7 @@
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
       "authorization_summary": "admin_top_only",
-      "candidate_test_mention_count": 0,
+      "candidate_test_mention_count": 1,
       "confirmed_caller_count": 0,
       "contract_ids": [
         "CTR-AUTHZ-RBAC-VENDOR"
@@ -4058,7 +4060,7 @@
         "POST"
       ],
       "path": "/api/admin/style-guide/reset",
-      "static_http_test_count": 0
+      "static_http_test_count": 1
     },
     {
       "auth_requirement": "authenticated_14_plus",
@@ -4499,7 +4501,7 @@
     {
       "auth_requirement": "authenticated_14_plus",
       "authorization_confidence": "confirmed_static",
-      "authorization_summary": "authenticated_self_owner",
+      "authorization_summary": "authenticated_self_owner_rls",
       "candidate_test_mention_count": 4,
       "confirmed_caller_count": 1,
       "contract_ids": [],
@@ -4842,7 +4844,7 @@
       ],
       "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
-      "feature_gate": null,
+      "feature_gate": "local_guides_passport",
       "handler_file": "server/customer-exploration-routes.js",
       "method_source": "confirmed_method_guard",
       "methods": [
@@ -5557,7 +5559,7 @@
       ],
       "contract_test_count": 2,
       "dispatcher": "server/admin-routes.js",
-      "feature_gate": null,
+      "feature_gate": "unlisted_collection_sharing",
       "handler_file": "server/customer-profile-routes.js",
       "method_source": "confirmed_method_guard",
       "methods": [
@@ -6099,5 +6101,5 @@
     }
   ],
   "snapshot_schema_version": "biteshark.code-registry.v2",
-  "source_analysis_digest_sha256": "0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592"
+  "source_analysis_digest_sha256": "972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d"
 }

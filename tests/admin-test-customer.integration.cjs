@@ -1,9 +1,9 @@
-// Real PostgreSQL Integration Suite for Top-Admin Testing Customer Sandbox
+// Real PostgreSQL Integration Suite for Platform-Admin Testing Customer Sandbox
 // (`tests/admin-test-customer.integration.cjs`)
 //
 // Verifies:
-//   1. Anonymous, Customer, and Admin: Mod callers are denied (`401`/`403`) on `/api/admin/test-customer`.
-//   2. `BITESHARK_ENV=production` disables the sandbox (`403 TEST_CUSTOMER_DISABLED_IN_ENV`).
+//   1. Anonymous and regular Customer callers are denied (`401`/`403`) on `/api/admin/test-customer`, while `Admin: Mod` and `Admin: Top` are allowed.
+//   2. `BITESHARK_ENABLE_ADMIN_TEST_CUSTOMER=false` disables the sandbox (`403 TEST_CUSTOMER_DISABLED_IN_ENV`).
 //   3. `Admin: Top` enters the sandbox (`__Host-bs_admin_test_session`), preserving `Admin: Top`
 //      authority on `/admin` & `/api/admin/*` while `/` & `/profile` & `/api/me/*` resolve to
 //      isolated `usr_sa_top_admin_test_customer` (`test-customer@sandbox.biteshark.invalid`).
@@ -275,10 +275,32 @@ function createCookieJarClient(baseUrl) {
       [modUser.id, topUser.id]
     );
 
-    const hasProfile = fs.existsSync(path.join(ROOT, 'public', 'profile.html'));
+    const hasProfile =
+      fs.existsSync(path.join(ROOT, 'public', 'customer-profile.js')) &&
+      fs.existsSync(path.join(ROOT, 'lib', 'customer-profile.js'));
+    assert.equal(hasProfile, true, 'Expected customer profile surface to be present');
+
+    async function migOwnerQuery(sql, params = []) {
+      const c = await migratorPool.connect();
+      try {
+        await c.query('BEGIN');
+        await c.query("SELECT set_config('app.auth_internal', 'true', true), set_config('app.admin_portal', 'true', true)");
+        if (params[0]) {
+          await c.query("SELECT set_config('app.user_id', $1, true)", [String(params[0])]);
+        }
+        const r = await c.query(sql, params);
+        await c.query('COMMIT');
+        return r;
+      } catch (e) {
+        await c.query('ROLLBACK').catch(() => {});
+        throw e;
+      } finally {
+        c.release();
+      }
+    }
 
     // Give real customer 1 saved spot (and 1 visit when exploration is present) to confirm sandbox reset never touches real customers
-    await migratorPool.query(
+    await migOwnerQuery(
       `INSERT INTO favorites (user_id, truck_id) VALUES ($1, 'mitote') ON CONFLICT DO NOTHING`,
       [custUser.id]
     );
@@ -344,7 +366,7 @@ function createCookieJarClient(baseUrl) {
       assert.equal(profRes.json.progress.counts.total_visits, 2);
 
       // Verify Top Admin's personal account was NOT polluted with the sandbox visits
-      const topOwnVisits = await migratorPool.query(
+      const topOwnVisits = await migOwnerQuery(
         'SELECT count(*)::int AS c FROM customer_visits WHERE user_id = $1',
         [topUser.id]
       );
@@ -361,7 +383,7 @@ function createCookieJarClient(baseUrl) {
       const realCustVisits = await custClient.req('GET', '/api/me/visits');
       assert.equal(realCustVisits.json.visits.length, 1, 'Real customer visits untouched by sandbox reset');
     }
-    const realCustFavs = await migratorPool.query(
+    const realCustFavs = await migOwnerQuery(
       'SELECT count(*)::int AS c FROM favorites WHERE user_id = $1',
       [custUser.id]
     );

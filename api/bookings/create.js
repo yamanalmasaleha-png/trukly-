@@ -70,7 +70,7 @@ export function formatBookingResponse(row, replay = false) {
   return out;
 }
 
-export default async function(req, res) {
+export default async function (req, res) {
   applyPrivateNoStoreHeaders(res);
   if (isWritePaused("bookings")) {
     return res.status(503).json({ error: "New event booking inquiries are temporarily paused for maintenance." });
@@ -166,6 +166,28 @@ export default async function(req, res) {
           }
           return { status: 200, body: formatBookingResponse(prev, true) };
         }
+      }
+
+      // Per-user booking creation rate limit & pending per-vendor cap (checked AFTER idempotent replay!)
+      const { rows: recentRateRows } = await tx.query(
+        `SELECT
+           COUNT(*) FILTER (WHERE created_at >= ($3::timestamptz - interval '24 hours'))::int AS created_24h,
+           COUNT(*) FILTER (WHERE truck_id = $2 AND status = 'pending')::int AS pending_for_truck
+         FROM bookings
+         WHERE requester_user_id = $1`,
+        [user.id, truckId, now.toISOString()]
+      );
+      if (Number(recentRateRows[0]?.created_24h || 0) >= 12) {
+        return {
+          status: 429,
+          body: { error: "You have reached the daily limit of 12 event booking inquiries. Please try again tomorrow." }
+        };
+      }
+      if (Number(recentRateRows[0]?.pending_for_truck || 0) >= 3) {
+        return {
+          status: 429,
+          body: { error: "You already have 3 pending booking inquiries with this food truck. Wait for a response before submitting another." }
+        };
       }
 
       let vendorRows;

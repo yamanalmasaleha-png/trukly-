@@ -85,6 +85,7 @@ export const db = {
       return active.transaction(fn);
     }
     const client = await this.connect();
+    let releaseErr = false;
     try {
       delete client.__bsSessionEligibilityVerified;
       await client.query('BEGIN');
@@ -94,7 +95,9 @@ export const db = {
     } catch (err) {
       try {
         await client.query('ROLLBACK');
-      } catch {}
+      } catch (rbErr) {
+        releaseErr = rbErr || true;
+      }
       throw err;
     } finally {
       try {
@@ -105,7 +108,7 @@ export const db = {
       delete client.__bsSessionEligibilityVerified;
       delete client.__bsTxCleanup;
       if (typeof client.release === 'function') {
-        client.release();
+        client.release(releaseErr);
       }
     }
   },

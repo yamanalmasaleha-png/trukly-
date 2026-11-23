@@ -28,14 +28,14 @@ Defined in [bootstrap-staging-roles.sql.template](../../deploy/postgres/bootstra
 
 ## 3. `FORCE ROW LEVEL SECURITY` vs Non-RLS Tables
 
-### A. 46 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY`
-Every table added from Migration `013` onward (`community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops`, `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events`) enforces `FORCE ROW LEVEL SECURITY`.
+### A. 48 Tables Protected by `ENABLE` + `FORCE ROW LEVEL SECURITY`
+Every user-private, governance, auth, diagnostic, exploration, and sharing table — including `favorites` and `notification_settings` hardened in `030_audit_security_and_rls_hardening.sql` alongside `community_reviews`, `auth_*`, `pager_notification_*`, `vendor_applications`, `vendor_application_evidence`, `account_invitations`, `support_issues*`, `compliance_readiness_*`, `feature_controls*`, `diagnostic_*`, `worker_runtime_heartbeats`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops`, `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, and `customer_share_moderation_events` — enforces `ENABLE` + `FORCE ROW LEVEL SECURITY`.
 
 Transactions **must** set the required transaction-local GUC via `SELECT set_config('app.<key>', $1, true)` inside `withTransaction(db, async tx => ...)`:
 
 | GUC Key (`current_setting(..., true)`) | Meaning & Authorized Setters | Primary Consuming Tables |
 |---|---|---|
-| `app.user_id` | Verified `auth_users.id` of the caller | `community_reviews`, `vendor_applications`, `vendor_application_evidence`, `community_reports`, `support_issues*`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` |
+| `app.user_id` | Verified `auth_users.id` of the caller | `favorites`, `notification_settings`, `community_reviews`, `vendor_applications`, `vendor_application_evidence`, `community_reports`, `support_issues*`, `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` |
 | `app.photo_maintenance` | `'true'` strictly inside `reconcilePhotoStorage()` (`028`; explicitly cleared in `setUserRlsContextInTx`) | `customer_photos` (`SELECT` + `UPDATE` restricted to `deleted_at IS NOT NULL`) |
 | `app.auth_internal` | `'true'` inside `lib/standalone-auth.js` & `lib/db-tx.js` session lock check | `auth_users`, `auth_sessions`, `auth_otp_challenges`, `auth_rate_limits`, `auth_staging_mailbox`, `auth_delivery_telemetry` |
 | `app.admin_internal` | `'true'` after row-locked admin verification (`enableAdminTxGuards` in `server/admin-routes.js`) | `account_invitations*`, `vendor_status_history`, `platform_role_revocations`, `admin_bootstrap_grants`, `compliance_readiness_*`, `support_issues*`, `diagnostic_*` |
@@ -48,8 +48,8 @@ Transactions **must** set the required transaction-local GUC via `SELECT set_con
 | `app.diagnostics_internal` | `'true'` inside `lib/diagnostics.js` | `diagnostic_releases`, `diagnostic_incident_groups`, `diagnostic_event_samples`, `diagnostic_incident_notes`, `worker_runtime_heartbeats` *(note: `024` also lists `app.worker_internal`, which is unused in Node)* |
 | `app.share_lookup` / `app.share_report_intake` / `app.share_moderation` | Scoped Guards in `lib/customer-profile.js` (`029`): public `/s/<token>` read lookup, signed-out report intake, and scoped `Mod`/`Top` review (keeping `app.user_id` bound to the moderator so private visits/photos stay RLS-isolated) | `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events` |
 
-### B. 13 Legacy / Directory Tables Without PostgreSQL RLS (Rely on Handler SQL `WHERE` Clauses!)
-`schema_migrations`, `bookings`, `favorites`, `truck_settings`, `owner_profiles`, `owner_schedule`, `notification_settings`, `pickup_pagers`, `vendors`, `vendor_memberships`, `platform_roles`, `audit_logs`, and `pager_rate_limits` do **not** have RLS enabled. Any query against these tables **must** filter explicitly by verified `user.id` / `vendor_id` in SQL (`WHERE requester_id = $1`, `WHERE user_id = $1`, `WHERE truck_id = $1`).
+### B. 12 Directory / Operational / Governance Tables Without PostgreSQL RLS (Rely on Handler SQL `WHERE` Clauses & Row Locks!)
+`schema_migrations`, `bookings`, `truck_settings`, `owner_profiles`, `owner_schedule`, `pickup_pagers`, `vendors`, `vendor_memberships`, `platform_roles`, `audit_logs`, `admin_notification_outbox`, and `pager_rate_limits` do **not** have RLS enabled (`schema_migrations` is revoked from the runtime app role; `audit_logs` is append-only; `platform_roles` and `vendor_memberships` enforce `CHECK (user_id <> 'usr_sa_top_admin_test_customer')` in `030`). Any query against these tables **must** filter explicitly by verified `user.id` / `vendor_id` in SQL (`WHERE requester_id = $1`, `WHERE truck_id = $1`) and acquire permission row locks via `withTransaction`.
 
 ---
 

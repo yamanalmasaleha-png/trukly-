@@ -14,10 +14,12 @@ import {
   reverifyVendorMembershipInTx,
   recordAuditLog,
   inspectWritePauseConfig,
+  isWritePaused,
+  parsePlatformAdminIds,
   evaluateEffectiveVendorRestrictions,
   normalizeAdminLevel
 } from '../lib/authz.js';
-import { withTransaction } from '../lib/db-tx.js';
+import { withTransaction, SessionEligibilityError } from '../lib/db-tx.js';
 import { isLoopbackIp } from '../lib/client-ip.js';
 import { readEnvCompat } from '../lib/env-compat.js';
 import { extractClientRateKey } from '../lib/pager-notifications.js';
@@ -87,6 +89,7 @@ import {
   INVITATION_ROLE_LABELS,
   INVITATION_DELIVERY_LABELS,
   sha256Hex,
+  escapeSqlLike,
   generateOpaqueToken,
   normalizeEmailStrict,
   normalizeOptionalIdempotencyKey,
@@ -327,7 +330,7 @@ async function loadInvitationEventsMapInTx(tx, invitationIds) {
       byId.set(r.invitation_id, list);
     }
   } catch (err) {
-    await tx.query('ROLLBACK TO SAVEPOINT inv_events_read').catch(() => {});
+    await tx.query('ROLLBACK TO SAVEPOINT inv_events_read').catch(() => { });
     if (err?.code !== '42P01') throw err;
   }
   return byId;
@@ -581,7 +584,7 @@ async function recordAndDispatchSupportNotification({
         ]
       );
     });
-  } catch {}
+  } catch { }
 
   const legacySummary =
     sendOut.deliveryStatus === 'provider_accepted'
@@ -616,6 +619,20 @@ export async function handleGovernanceApiRequest({
     String(req?.headers?.['x-biteshark-viewpoint'] || '')
       .trim()
       .toLowerCase() === 'preview';
+
+  // Central read-only enforcement for `X-BiteShark-Viewpoint: preview` across ALL Governance, Exploration & Profile routes
+  if (
+    isPreviewViewpoint &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) &&
+    normPath !== '/api/diagnostics/report' &&
+    normPath !== '/api/me/collections/preview'
+  ) {
+    return sendJson(403, {
+      ok: false,
+      error: 'Customer preview viewpoint mode is strictly read-only.',
+      code: 'ADMIN_PREVIEW_READ_ONLY'
+    });
+  }
 
   // =========================================================================
   // 0. Untrusted Browser Operational Failure Report (`POST /api/diagnostics/report`)
@@ -706,13 +723,43 @@ export async function handleGovernanceApiRequest({
       durationMs: Number.isFinite(body?.duration_ms) ? body.duration_ms : null,
       retryable: typeof body?.retryable === 'boolean' ? body.retryable : null,
       outcomeState: ALLOWED_OUTCOMES.has(body?.outcome_state) ? body.outcome_state : 'failed',
-      safeContext: sanitizeSafeContext(body?.safe_context)
+      safeContext: sanitizeSafeContext(body?.safe_context, { trustLevel: 'browser_untrusted' })
     });
 
     return sendJson(202, {
       ok: true,
       accepted: Boolean(rec?.recorded),
       correlation_id: rec?.correlation_id || req?.__bsCorrelationId || null
+    });
+  }
+
+  // Delegate Customer Exploration & Customer Profile routes BEFORE `loadAccessContext` so `/api/me/*`
+  // avoids redundant `platform_roles` / `vendor_memberships` DB lookups on every request!
+  if (CUSTOMER_EXPLORATION_PATHS.has(normPath)) {
+    return handleCustomerExplorationRoute({
+      pathname: normPath,
+      method,
+      req,
+      query,
+      body,
+      verifiedUser: req.user || null,
+      dbAdapter,
+      sendJson,
+      rawRes
+    });
+  }
+
+  if (CUSTOMER_PROFILE_PATHS.has(normPath)) {
+    return handleCustomerProfileRoute({
+      pathname: normPath,
+      method,
+      req,
+      query,
+      body,
+      verifiedUser: req.user || null,
+      dbAdapter,
+      sendJson,
+      rawRes
     });
   }
 
@@ -837,7 +884,7 @@ export async function handleGovernanceApiRequest({
             myIssuesCount = issRes.rows[0]?.open_c || 0;
             unreadSupportCount = issRes.rows[0]?.unread_c || 0;
           } catch (cntErr) {
-            await tx.query('ROLLBACK TO SAVEPOINT ctx_support_counts').catch(() => {});
+            await tx.query('ROLLBACK TO SAVEPOINT ctx_support_counts').catch(() => { });
             if (cntErr?.code === '42703') {
               const fallbackIss = await tx.query(
                 "SELECT count(*)::int AS c FROM support_issues WHERE reporter_user_id = $1 AND status IN ('open', 'in_progress', 'waiting')",
@@ -852,6 +899,9 @@ export async function handleGovernanceApiRequest({
         }
       });
     } catch (ctxErr) {
+      if (ctxErr instanceof SessionEligibilityError) {
+        throw ctxErr;
+      }
       if (ctxErr?.code !== '42P01') {
         return sendJson(503, {
           error: 'Account context is temporarily unavailable. Please try again in a moment.',
@@ -916,12 +966,12 @@ export async function handleGovernanceApiRequest({
       },
       admin: ctx.isModAdmin
         ? {
-            is_admin: true,
-            level: ctx.adminLevel,
-            label: ctx.adminLabel,
-            can_act_on_behalf: ctx.isTopAdmin,
-            portal_url: '/admin'
-          }
+          is_admin: true,
+          level: ctx.adminLevel,
+          label: ctx.adminLabel,
+          can_act_on_behalf: ctx.isTopAdmin,
+          portal_url: '/admin'
+        }
         : null,
       memberships: memList,
       vendor_memberships: memList,
@@ -930,19 +980,19 @@ export async function handleGovernanceApiRequest({
       unread_support_count: unreadSupportCount,
       test_customer_sandbox:
         (ctx.user?.is_admin_test_customer || ctx.user?.id === ADMIN_TEST_CUSTOMER_USER_ID) &&
-        isAdminTestCustomerAllowed()
+          isAdminTestCustomerAllowed()
           ? {
-              active: true,
-              email: ADMIN_TEST_CUSTOMER_EMAIL,
-              has_profile_page: hasCustomerProfileSurface(),
-              return_admin_url: '/admin'
-            }
+            active: true,
+            email: ADMIN_TEST_CUSTOMER_EMAIL,
+            has_profile_page: hasCustomerProfileSurface(),
+            return_admin_url: '/admin'
+          }
           : {
-              active: false,
-              has_profile_page: hasCustomerProfileSurface(),
-              available_for_admin: Boolean(ctx.isModAdmin && isAdminTestCustomerAllowed()),
-              available_for_top_admin: Boolean(ctx.isModAdmin && isAdminTestCustomerAllowed())
-            },
+            active: false,
+            has_profile_page: hasCustomerProfileSurface(),
+            available_for_admin: Boolean(ctx.isModAdmin && isAdminTestCustomerAllowed()),
+            available_for_top_admin: Boolean(ctx.isTopAdmin && isAdminTestCustomerAllowed())
+          },
       coarse_area: coarseArea
     });
   }
@@ -966,34 +1016,6 @@ export async function handleGovernanceApiRequest({
       viewpointMode
     });
     return sendJson(200, buildPublicFeatureControlsPayload(evaluated));
-  }
-
-  if (CUSTOMER_EXPLORATION_PATHS.has(normPath)) {
-    return handleCustomerExplorationRoute({
-      pathname: normPath,
-      method,
-      req,
-      query,
-      body,
-      verifiedUser: req.user || null,
-      dbAdapter,
-      sendJson,
-      rawRes
-    });
-  }
-
-  if (CUSTOMER_PROFILE_PATHS.has(normPath)) {
-    return handleCustomerProfileRoute({
-      pathname: normPath,
-      method,
-      req,
-      query,
-      body,
-      verifiedUser: req.user || null,
-      dbAdapter,
-      sendJson,
-      rawRes
-    });
   }
 
   // =========================================================================
@@ -1871,7 +1893,7 @@ export async function handleGovernanceApiRequest({
           await tx.query("SELECT set_config('app.user_id', $1, true)", [ctx.user.id]);
         }
         const { rows } = await tx.query(
-          `SELECT e.id, e.uploaded_by, e.original_filename, e.mime_type, e.byte_size, e.file_bytes, e.deleted_at, a.applicant_user_id
+          `SELECT e.id, e.uploaded_by, e.original_filename, e.mime_type, e.byte_size, e.file_bytes, e.deleted_at, e.retention_expires_at, a.applicant_user_id
            FROM vendor_application_evidence e
            JOIN vendor_applications a ON a.id = e.application_id
            WHERE e.id = $1`,
@@ -1883,6 +1905,12 @@ export async function handleGovernanceApiRequest({
         const ev = rows[0];
         if (!ctx.isModAdmin && ev.applicant_user_id !== ctx.user.id) {
           return { status: 403, error: 'Not authorized to access this evidence file.' };
+        }
+        if (ev.retention_expires_at && new Date(ev.retention_expires_at).getTime() <= Date.now()) {
+          return {
+            status: 410,
+            error: 'This onboarding evidence file has passed its 90-day retention window and is no longer available.'
+          };
         }
         return { status: 200, ev };
       });
@@ -2186,6 +2214,15 @@ export async function handleGovernanceApiRequest({
         let issuesQuerySql;
         let issuesParams;
         if (!isEligible) {
+          issuesParams = [ctx.user.id];
+          let singleClause = '';
+          if (singleId) {
+            issuesParams.push(singleId);
+            singleClause = `AND id = $${issuesParams.length}::uuid`;
+          } else if (singleTicketNo) {
+            issuesParams.push(singleTicketNo);
+            singleClause = `AND ticket_number = $${issuesParams.length}`;
+          }
           issuesQuerySql = `
             SELECT *
             FROM support_issues
@@ -2194,25 +2231,36 @@ export async function handleGovernanceApiRequest({
               AND vendor_id IS NULL
               AND related_booking_id IS NULL
               AND related_review_id IS NULL
+              ${singleClause}
             ORDER BY last_activity_at DESC, updated_at DESC
             LIMIT 40
           `;
-          issuesParams = [ctx.user.id];
         } else {
+          issuesParams = [ctx.user.id, verifiedVendorIds];
+          let singleClause = '';
+          if (singleId) {
+            issuesParams.push(singleId);
+            singleClause = `AND id = $${issuesParams.length}::uuid`;
+          } else if (singleTicketNo) {
+            issuesParams.push(singleTicketNo);
+            singleClause = `AND ticket_number = $${issuesParams.length}`;
+          }
           issuesQuerySql = `
             SELECT *
             FROM support_issues
-            WHERE reporter_user_id = $1
-               OR (
-                 sharing_scope = 'vendor_service'
-                 AND reporter_context = 'vendor'
-                 AND category <> 'account_access'
-                 AND vendor_id = ANY($2::text[])
-               )
+            WHERE (
+              reporter_user_id = $1
+              OR (
+                sharing_scope = 'vendor_service'
+                AND reporter_context = 'vendor'
+                AND category <> 'account_access'
+                AND vendor_id = ANY($2::text[])
+              )
+            )
+            ${singleClause}
             ORDER BY last_activity_at DESC, updated_at DESC
             LIMIT 50
           `;
-          issuesParams = [ctx.user.id, verifiedVendorIds];
         }
 
         const { rows: issues } = await tx.query(issuesQuerySql, issuesParams);
@@ -2309,6 +2357,12 @@ export async function handleGovernanceApiRequest({
       const entryKind = ['problem', 'question', 'suggestion'].includes(rawEntryKind) ? rawEntryKind : 'problem';
       const rawCat = typeof body.category === 'string' ? body.category.trim().toLowerCase() : '';
       const isNarrowSupportCategory = ['account_access', 'privacy_request', 'accessibility_support'].includes(rawCat);
+      if (!isNarrowSupportCategory && isWritePaused('issues')) {
+        return sendJson(503, {
+          error: 'New non-urgent support submissions are temporarily paused for maintenance. Account access and privacy requests remain open.',
+          code: 'WRITES_PAUSED'
+        });
+      }
 
       const serverSha = getRuntimeReleaseSha();
       const safeCtx = sanitizeSupportContextFields(body, serverSha);
@@ -2483,6 +2537,20 @@ export async function handleGovernanceApiRequest({
             (br.rows[0].truck_id && memberVendorSet.has(br.rows[0].truck_id));
           if (!ownsBooking && !ctx.isModAdmin) {
             return { status: 403, body: { error: 'Not authorized to link this booking.' } };
+          }
+        }
+
+        if (reviewId) {
+          await tx.query("SELECT set_config('app.can_moderate', 'true', true)");
+          const rr = await tx.query('SELECT id, status, author_id FROM community_reviews WHERE id = $1', [reviewId]);
+          if (!ctx.isModAdmin) {
+            await tx.query("SELECT set_config('app.can_moderate', '', true)");
+          }
+          if (
+            !rr.rows.length ||
+            (rr.rows[0].status !== 'approved' && rr.rows[0].author_id !== ctx.user.id && !ctx.isModAdmin)
+          ) {
+            return { status: 404, body: { error: 'Related community review not found.' } };
           }
         }
 
@@ -3038,7 +3106,7 @@ export async function handleGovernanceApiRequest({
         workerHeartbeat = hbQ.rows[0] || null;
         await tx.query('RELEASE SAVEPOINT ov_diag_meta');
       } catch {
-        await tx.query('ROLLBACK TO SAVEPOINT ov_diag_meta').catch(() => {});
+        await tx.query('ROLLBACK TO SAVEPOINT ov_diag_meta').catch(() => { });
       }
 
       const notifCfg = inspectNotificationRuntimeConfig();
@@ -3283,7 +3351,7 @@ export async function handleGovernanceApiRequest({
           : rawRec.trim()
         : '';
     const conflictsOnly = query.conflicts_only === '1' || query.conflicts_only === 'true';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${escapeSqlLike(query.q.trim().slice(0, 80))}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -3303,7 +3371,7 @@ export async function handleGovernanceApiRequest({
       if (qText) {
         params.push(qText);
         conds.push(
-          `(a.business_name ILIKE $${params.length} OR a.applicant_email ILIKE $${params.length} OR COALESCE(a.target_vendor_id, a.proposed_slug, '') ILIKE $${params.length} OR a.city ILIKE $${params.length})`
+          `(a.business_name ILIKE $${params.length} ESCAPE '\\' OR a.applicant_email ILIKE $${params.length} ESCAPE '\\' OR COALESCE(a.target_vendor_id, a.proposed_slug, '') ILIKE $${params.length} ESCAPE '\\' OR a.city ILIKE $${params.length} ESCAPE '\\')`
         );
       }
       if (conflictsOnly) {
@@ -3547,8 +3615,8 @@ export async function handleGovernanceApiRequest({
       }
 
       if (action === 'recommend_approve' || action === 'recommend_reject') {
-        if (app.status !== 'submitted') {
-          return { status: 409, body: { error: 'Recommendations can only be recorded on submitted applications.' } };
+        if (!['submitted', 'needs_info'].includes(app.status)) {
+          return { status: 409, body: { error: 'Recommendations can only be recorded on submitted or needs_info applications.' } };
         }
         const recVal = action === 'recommend_approve' ? 'recommend_approve' : 'recommend_reject';
         const { rows: u } = await tx.query(
@@ -3796,7 +3864,7 @@ export async function handleGovernanceApiRequest({
     const townFilter = typeof query.town === 'string' ? query.town.trim() : '';
     const ownerFilter = typeof query.ownership === 'string' ? query.ownership.trim() : '';
     const verifFilter = typeof (query.verification || query.verified) === 'string' ? String(query.verification || query.verified).trim() : '';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${escapeSqlLike(query.q.trim().slice(0, 80))}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -3823,8 +3891,8 @@ export async function handleGovernanceApiRequest({
       else if (statusFilter === 'inactive') conds.push('v.is_active = false');
 
       if (townFilter && townFilter !== 'all') {
-        params.push(townFilter);
-        conds.push(`v.city ILIKE $${params.length}`);
+        params.push(escapeSqlLike(townFilter));
+        conds.push(`v.city ILIKE $${params.length} ESCAPE '\\'`);
       }
       if (ownerFilter && ownerFilter !== 'all') {
         params.push(ownerFilter);
@@ -3837,7 +3905,7 @@ export async function handleGovernanceApiRequest({
       if (qText) {
         params.push(qText);
         conds.push(
-          `(v.id ILIKE $${params.length} OR v.canonical_name ILIKE $${params.length} OR COALESCE(op.display_name, '') ILIKE $${params.length} OR v.city ILIKE $${params.length})`
+          `(v.id ILIKE $${params.length} ESCAPE '\\' OR v.canonical_name ILIKE $${params.length} ESCAPE '\\' OR COALESCE(op.display_name, '') ILIKE $${params.length} ESCAPE '\\' OR v.city ILIKE $${params.length} ESCAPE '\\')`
         );
       }
 
@@ -4089,6 +4157,25 @@ export async function handleGovernanceApiRequest({
 
       const anyRestriction =
         !nextIsActive || nextHidden || nextBookingsRestr || nextAccessSusp || nextPagerRestr || nextNeedsCorr;
+      const requestedOwnershipStatus =
+        typeof body.ownership_status === 'string' &&
+          ['unclaimed', 'claim_pending', 'approved_owner', 'suspended'].includes(body.ownership_status.trim())
+          ? body.ownership_status.trim()
+          : null;
+      const ownerMemRes = await tx.query(
+        "SELECT 1 FROM vendor_memberships WHERE vendor_id = $1 AND role = 'owner' LIMIT 1",
+        [vendorId]
+      );
+      const hasApprovedOwner = ownerMemRes.rowCount > 0;
+      const nextOwnershipStatus = requestedOwnershipStatus
+        ? requestedOwnershipStatus
+        : nextAccessSusp
+          ? 'suspended'
+          : cur.ownership_status === 'suspended'
+            ? hasApprovedOwner
+              ? 'approved_owner'
+              : 'unclaimed'
+            : cur.ownership_status;
 
       const { rows: u } = await tx.query(
         `UPDATE vendors
@@ -4108,6 +4195,7 @@ export async function handleGovernanceApiRequest({
              restriction_authority = CASE WHEN $12 = true THEN 'top' ELSE NULL END,
              restricted_at = CASE WHEN $12 = true THEN now() ELSE NULL END,
              temp_restriction_expires_at = NULL,
+             ownership_status = $15,
              updated_at = now()
          WHERE id = $1
          RETURNING *`,
@@ -4125,7 +4213,8 @@ export async function handleGovernanceApiRequest({
           corrNote,
           anyRestriction,
           reason,
-          ctx.user.id
+          ctx.user.id,
+          nextOwnershipStatus
         ]
       );
 
@@ -4219,7 +4308,7 @@ export async function handleGovernanceApiRequest({
     const { page, pageSize, offset } = parseBoundedPagination(query, 20, 50);
     const roleFilter = typeof query.role === 'string' ? query.role.trim() : '';
     const statusFilter = typeof query.status === 'string' ? query.status.trim() : '';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${escapeSqlLike(query.q.trim().slice(0, 80))}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -4246,7 +4335,14 @@ export async function handleGovernanceApiRequest({
 
       if (qText) {
         params.push(qText);
-        conds.push(`(au.email_normalized ILIKE $${params.length} OR au.id ILIKE $${params.length})`);
+        if (verified.actorRole === 'top') {
+          conds.push(`(au.email_normalized ILIKE $${params.length} ESCAPE '\\' OR au.id ILIKE $${params.length} ESCAPE '\\')`);
+        } else {
+          // Prevent Mod character-by-character ILIKE probing of masked regular customer email addresses!
+          conds.push(
+            `(au.id ILIKE $${params.length} ESCAPE '\\' OR ((pr.role IS NOT NULL OR EXISTS (SELECT 1 FROM vendor_memberships vm WHERE vm.user_id = au.id)) AND au.email_normalized ILIKE $${params.length} ESCAPE '\\'))`
+          );
+        }
       }
 
       const whereSql = conds.join(' AND ');
@@ -4350,6 +4446,15 @@ export async function handleGovernanceApiRequest({
         return {
           status: 403,
           body: { error: 'Administrators cannot modify their own platform role.', code: 'SELF_ROLE_CHANGE_FORBIDDEN' }
+        };
+      }
+      if (targetUserId === ADMIN_TEST_CUSTOMER_USER_ID) {
+        return {
+          status: 403,
+          body: {
+            error: 'The shared synthetic testing customer sandbox account cannot be granted platform roles.',
+            code: 'SYNTHETIC_SANDBOX_ACCOUNT_IMMUTABLE'
+          }
         };
       }
 
@@ -4511,6 +4616,15 @@ export async function handleGovernanceApiRequest({
       if (targetUserId === ctx.user.id) {
         return { status: 403, body: { error: 'Administrators cannot suspend their own account.' } };
       }
+      if (targetUserId === ADMIN_TEST_CUSTOMER_USER_ID) {
+        return {
+          status: 403,
+          body: {
+            error: 'The shared synthetic testing customer sandbox account cannot be modified via account status.',
+            code: 'SYNTHETIC_SANDBOX_ACCOUNT_IMMUTABLE'
+          }
+        };
+      }
 
       const { rows: targetRows } = await tx.query('SELECT id, disabled_at FROM auth_users WHERE id = $1 FOR UPDATE', [
         targetUserId
@@ -4657,7 +4771,12 @@ export async function handleGovernanceApiRequest({
         page_size: pageSize,
         total: totalRes.rows[0]?.total || 0,
         email_delivery: getPublicAuthDeliveryModeSummary(),
-        invitations: rows.map(r => formatInvitationRowForAdmin(r, { events: eventsByInv.get(r.id) || [] }))
+        invitations: rows.map(r =>
+          formatInvitationRowForAdmin(r, {
+            events: eventsByInv.get(r.id) || [],
+            actorRole: verified.actorRole
+          })
+        )
       };
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });
@@ -5300,7 +5419,7 @@ export async function handleGovernanceApiRequest({
     const dateTo = typeof query.date_to === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(query.date_to.trim())
       ? query.date_to.trim()
       : '';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${escapeSqlLike(query.q.trim().slice(0, 80))}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -5332,9 +5451,9 @@ export async function handleGovernanceApiRequest({
         conds.push(`cr.author_id = $${params.length}`);
       }
       if (reasonFilter) {
-        params.push(reasonFilter, `%${reasonFilter.slice(0, 60)}%`);
+        params.push(reasonFilter, `%${escapeSqlLike(reasonFilter.slice(0, 60))}%`);
         conds.push(
-          `(EXISTS (SELECT 1 FROM community_reports rp WHERE rp.post_id = cr.id AND rp.reason_category = $${params.length - 1}) OR cr.moderation_reason ILIKE $${params.length})`
+          `(EXISTS (SELECT 1 FROM community_reports rp WHERE rp.post_id = cr.id AND rp.reason_category = $${params.length - 1}) OR cr.moderation_reason ILIKE $${params.length} ESCAPE '\\')`
         );
       }
       if (dateFrom) {
@@ -5347,7 +5466,7 @@ export async function handleGovernanceApiRequest({
       }
       if (qText) {
         params.push(qText);
-        conds.push(`(cr.title ILIKE $${params.length} OR cr.body ILIKE $${params.length} OR cr.place_name ILIKE $${params.length})`);
+        conds.push(`(cr.title ILIKE $${params.length} ESCAPE '\\' OR cr.body ILIKE $${params.length} ESCAPE '\\' OR cr.place_name ILIKE $${params.length} ESCAPE '\\')`);
       }
 
       const whereSql = conds.join(' AND ');
@@ -5436,11 +5555,21 @@ export async function handleGovernanceApiRequest({
       const post = rows[0];
 
       if (action === 'dismiss_reports') {
-        await tx.query(
+        const dismissedRes = await tx.query(
           `UPDATE community_reports
            SET status = 'dismissed', reviewed_by = $2, reviewed_at = now()
-           WHERE post_id = $1 AND status = 'open'`,
+           WHERE post_id = $1 AND status = 'open'
+           RETURNING id`,
           [postId, ctx.user.id]
+        );
+        if (!dismissedRes.rowCount) {
+          return { status: 409, body: { error: 'No open community reports to dismiss on this submission.', code: 'NO_OPEN_REPORTS' } };
+        }
+        await tx.query(
+          `UPDATE community_reviews
+           SET report_count = 0, updated_at = now()
+           WHERE id = $1`,
+          [postId]
         );
         await tx.query(
           `INSERT INTO community_moderation_history (post_id, actor_id, actor_role, action, from_status, to_status, reason, internal_note)
@@ -5734,23 +5863,23 @@ export async function handleGovernanceApiRequest({
             restricted_scope: restrictedForMod,
             incident: restrictedForMod
               ? {
-                  restricted: true,
-                  title: 'Restricted Top-Admin Diagnostic Incident',
-                  triage_status: l.diag_triage_status || 'investigating'
-                }
+                restricted: true,
+                title: 'Restricted Top-Admin Diagnostic Incident',
+                triage_status: l.diag_triage_status || 'investigating'
+              }
               : {
-                  id: l.diagnostic_group_id,
-                  title: l.diag_title || 'Archived diagnostic incident',
-                  emitting_component: l.diag_component,
-                  feature_key: l.diag_feature_key,
-                  error_code: l.diag_error_code,
-                  severity: l.diag_severity,
-                  triage_status: l.diag_triage_status,
-                  suspected_fix_sha: l.diag_suspected_fix_sha,
-                  observed_server_releases: l.diag_observed_releases || [],
-                  occurrence_count: Number(l.diag_occurrence_count || 1),
-                  last_seen_at: l.diag_last_seen_at
-                },
+                id: l.diagnostic_group_id,
+                title: l.diag_title || 'Archived diagnostic incident',
+                emitting_component: l.diag_component,
+                feature_key: l.diag_feature_key,
+                error_code: l.diag_error_code,
+                severity: l.diag_severity,
+                triage_status: l.diag_triage_status,
+                suspected_fix_sha: l.diag_suspected_fix_sha,
+                observed_server_releases: l.diag_observed_releases || [],
+                occurrence_count: Number(l.diag_occurrence_count || 1),
+                last_seen_at: l.diag_last_seen_at
+              },
             other_linked_tickets: restrictedForMod ? [] : coTicketsByGroup.get(l.diagnostic_group_id) || []
           };
         });
@@ -6055,7 +6184,18 @@ export async function handleGovernanceApiRequest({
         };
       }
 
-      // Inspect current assignee status + target assignee validity
+      // Inspect current assignee status + target assignee validity (honoring both `platform_roles` and `BITESHARK_PLATFORM_ADMIN_IDS`)
+      const envAdminSet = parsePlatformAdminIds();
+      const resolveEffectiveAdminLevelInTx = async (uid, dbRole) => {
+        const fromTable = normalizeAdminLevel(dbRole || null);
+        if (fromTable) return fromTable;
+        if (!uid || !envAdminSet.has(uid)) return null;
+        const revCheck = await tx
+          .query('SELECT 1 FROM platform_role_revocations WHERE user_id = $1 LIMIT 1', [uid])
+          .catch(() => ({ rows: [] }));
+        return revCheck.rows.length === 0 ? 'top' : null;
+      };
+
       let currentAssigneeRole = null;
       let currentAssigneeInactive = false;
       if (cur.assignee_user_id) {
@@ -6067,7 +6207,7 @@ export async function handleGovernanceApiRequest({
           [cur.assignee_user_id]
         );
         const r = curAssRes.rows[0];
-        const lvl = normalizeAdminLevel(r?.role || null);
+        const lvl = r ? await resolveEffectiveAdminLevelInTx(cur.assignee_user_id, r.role) : null;
         if (!r || r.disabled_at || !lvl) {
           currentAssigneeInactive = true;
         } else {
@@ -6088,7 +6228,7 @@ export async function handleGovernanceApiRequest({
           targetAssigneeRecord = {
             id: targRes.rows[0].id,
             is_disabled: targRes.rows[0].is_disabled,
-            admin_level: normalizeAdminLevel(targRes.rows[0].role)
+            admin_level: await resolveEffectiveAdminLevelInTx(targRes.rows[0].id, targRes.rows[0].role)
           };
         }
       }
@@ -6151,6 +6291,7 @@ export async function handleGovernanceApiRequest({
              last_public_staff_activity_at = CASE WHEN $14::boolean THEN now() ELSE last_public_staff_activity_at END,
              last_activity_at = now(),
              resolved_at = CASE
+               WHEN $2 = 'resolved' AND $15::boolean THEN now()
                WHEN $2 = 'resolved' THEN COALESCE(resolved_at, now())
                WHEN $2 IN ('open', 'in_review', 'in_progress', 'waiting') THEN resolved_at
                ELSE resolved_at
@@ -6173,7 +6314,8 @@ export async function handleGovernanceApiRequest({
           effEscReason,
           effResReason,
           nextWaitingForTeam,
-          publicActivityOccurred
+          publicActivityOccurred,
+          statusChanged
         ]
       );
 
@@ -6344,9 +6486,9 @@ export async function handleGovernanceApiRequest({
       },
       ...(notifOut
         ? {
-            notification_delivery: notifOut.notification_delivery,
-            notification: notifOut
-          }
+          notification_delivery: notifOut.notification_delivery,
+          notification: notifOut
+        }
         : {})
     });
   }
@@ -6616,7 +6758,7 @@ export async function handleGovernanceApiRequest({
     const statusFilter = typeof query.status === 'string' && query.status.trim() ? query.status.trim() : '';
     const criticalOnly = query.critical_only === '1' || query.critical_only === 'true';
     const itemKeyFilter = typeof query.item_key === 'string' && query.item_key.trim() ? query.item_key.trim() : '';
-    const qText = typeof query.q === 'string' && query.q.trim() ? `%${query.q.trim().slice(0, 80)}%` : null;
+    const qText = typeof query.q === 'string' && query.q.trim() ? `%${escapeSqlLike(query.q.trim().slice(0, 80))}%` : null;
 
     const out = await withTransaction(dbAdapter, async tx => {
       const verified = await reverifyModeratorInTx(tx, ctx);
@@ -6658,7 +6800,7 @@ export async function handleGovernanceApiRequest({
       if (qText) {
         params.push(qText);
         conds.push(
-          `(i.topic ILIKE $${params.length} OR i.current_practice ILIKE $${params.length} OR COALESCE(i.unresolved_questions, '') ILIKE $${params.length} OR i.owner_label ILIKE $${params.length})`
+          `(i.topic ILIKE $${params.length} ESCAPE '\\' OR i.current_practice ILIKE $${params.length} ESCAPE '\\' OR COALESCE(i.unresolved_questions, '') ILIKE $${params.length} ESCAPE '\\' OR i.owner_label ILIKE $${params.length} ESCAPE '\\')`
         );
       }
 
@@ -6803,9 +6945,9 @@ export async function handleGovernanceApiRequest({
       const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ') + 'Z';
       const appendedNotes = noteText
         ? [cur.operational_notes, `[${stamp} · ${verified.actorRole.toUpperCase()}] ${noteText}`]
-            .filter(Boolean)
-            .join('\n')
-            .slice(-2000)
+          .filter(Boolean)
+          .join('\n')
+          .slice(-2000)
         : cur.operational_notes;
       const effEvidence = nextEvidence !== undefined ? nextEvidence : cur.supporting_evidence;
 
@@ -7226,7 +7368,7 @@ export async function handleGovernanceApiRequest({
   if (normPath === '/api/admin/audit') {
     if (method !== 'GET') return sendJson(405, { error: 'Method not allowed.' }, { Allow: 'GET' });
     const { page, pageSize, offset } = parseBoundedPagination(query, 30, 60);
-    const actionFilter = typeof query.action === 'string' && query.action.trim() ? `${query.action.trim().slice(0, 40)}%` : null;
+    const actionFilter = typeof query.action === 'string' && query.action.trim() ? `${escapeSqlLike(query.action.trim().slice(0, 40))}%` : null;
     const vendorFilter = typeof query.vendor_id === 'string' && query.vendor_id.trim() ? query.vendor_id.trim() : null;
     const actorFilter = typeof query.actor_id === 'string' && query.actor_id.trim() ? query.actor_id.trim() : null;
 
@@ -7244,7 +7386,7 @@ export async function handleGovernanceApiRequest({
       }
       if (actionFilter) {
         params.push(actionFilter);
-        conds.push(`action ILIKE $${params.length}`);
+        conds.push(`action ILIKE $${params.length} ESCAPE '\\'`);
       }
       if (vendorFilter) {
         params.push(vendorFilter);
@@ -7270,7 +7412,18 @@ export async function handleGovernanceApiRequest({
         page,
         page_size: pageSize,
         total: totalRes.rows[0]?.total || 0,
-        entries: rows
+        entries:
+          verified.actorRole === 'top'
+            ? rows
+            : rows.map(r => {
+              if (!r.metadata || typeof r.metadata !== 'object' || Array.isArray(r.metadata)) {
+                return r;
+              }
+              const cleanMeta = { ...r.metadata };
+              delete cleanMeta.diagnostic_group_id;
+              delete cleanMeta.fixing_release_sha;
+              return { ...r, metadata: cleanMeta };
+            })
       };
     });
     if (out.denied) return sendJson(out.denied.status, { error: out.denied.error });

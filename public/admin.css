@@ -1495,6 +1495,32 @@ textarea:focus-visible {
   }
 }
 
+.pill-err {
+  background: #fde8e6;
+  color: #8c1d18;
+}
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.subtab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

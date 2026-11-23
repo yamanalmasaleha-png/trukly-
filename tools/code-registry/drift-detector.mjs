@@ -382,7 +382,19 @@ export function detectRepositoryDrift({
   }
 
   // 6B. Invalid Write-Pause Scopes (`isWritePaused(...)` vs `VALID_WRITE_PAUSE_SCOPES` in `lib/authz.js`)
-  const validPauseScopes = new Set(['bookings', 'pagers', 'community', 'owner', 'notifications', 'all']);
+  const validPauseScopes = new Set([
+    'bookings',
+    'pagers',
+    'community',
+    'owner',
+    'notifications',
+    'favorites',
+    'exploration',
+    'issues',
+    'onboarding',
+    'style_guide',
+    'all'
+  ]);
   for (const ja of jsAnalyses) {
     if (ja.file.startsWith('tests/') || ja.file.startsWith('tools/')) continue;
     for (const wp of ja.write_pause_refs || []) {
@@ -395,7 +407,7 @@ export function detectRepositoryDrift({
           determination: 'parsed_ast',
           source_commit: commitSha,
           affected_objects: [`${ja.file}:L${wp.line}`, 'lib/authz.js#VALID_WRITE_PAUSE_SCOPES'],
-          evidence: `${ja.file}:L${wp.line} calls isWritePaused("${wp.scope}"), which is not in VALID_WRITE_PAUSE_SCOPES (bookings, pagers, community, owner, notifications, all).`,
+          evidence: `${ja.file}:L${wp.line} calls isWritePaused("${wp.scope}"), which is not in VALID_WRITE_PAUSE_SCOPES (${[...validPauseScopes].join(', ')}).`,
           potential_impact: `Setting BITESHARK_PAUSE_WRITES=${wp.scope} triggers inspectWritePauseConfig() failClosedAll=true, halting ALL mutations across every domain.`,
           suggested_verification: `Inspect ${ja.file}:L${wp.line} and lib/authz.js:120-166.`,
           proposed_remediation: `Add "${wp.scope}" to VALID_WRITE_PAUSE_SCOPES in lib/authz.js (or map favorites to an approved scope) in a dedicated runtime fix PR.`,

@@ -5,14 +5,14 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## Schema Provenance & Verification Scope
 - **Static Basis**: `reconstructed_from_repository_migrations` *(reconstructed offline from `migrations/*.sql` and `scripts/run-migrations.cjs`; this static file alone does **not** prove a live database check ran)*
 - **Live PostgreSQL Catalog Verification**: Run `node tools/code-registry/cli.mjs validate --verify-db` (enforced in CI `postgres-backend-hardening`) to cross-check reconstructed tables, columns, normalized types, nullability, default presence, primary/unique/foreign-key constraints, indexes, and `FORCE ROW LEVEL SECURITY` policies against PostgreSQL `pg_catalog`.
-- **Migrations Indexed**: **29**
-- **Tables Indexed**: **59** (**44** with `FORCE ROW LEVEL SECURITY`)
+- **Migrations Indexed**: **30**
+- **Tables Indexed**: **59** (**46** with `FORCE ROW LEVEL SECURITY`)
 - **Views / Functions / Triggers**: **1** views, **9** SQL functions, **7** triggers
 
 ## 1. Ordered SQL Migration Ledger
@@ -48,6 +48,7 @@
 | 27 | [migrations/027_customer_exploration_foundation.sql](../../../migrations/027_customer_exploration_foundation.sql) | `ccc2eaeea5e00cac` | `customer_visits`, `customer_photos`, `customer_saved_trails`, `customer_saved_trail_stops` | `customer_photos`, `customer_saved_trail_stops`, `customer_saved_trails`, `customer_visits` | 4 | No |
 | 28 | [migrations/028_exploration_photo_reconciliation.sql](../../../migrations/028_exploration_photo_reconciliation.sql) | `0393c64b9001f398` | — | — | 2 | No |
 | 29 | [migrations/029_customer_profiles_collections_and_sharing.sql](../../../migrations/029_customer_profiles_collections_and_sharing.sql) | `5047db23f7a39e79` | `customer_profiles`, `customer_sharing_eligibility`, `customer_collections`, `customer_collection_photo_attachments`, `customer_collection_entries`, `customer_collection_shares`, `customer_share_reports`, `customer_share_moderation_events` | `customer_collection_entries`, `customer_collection_photo_attachments`, `customer_collection_shares`, `customer_collections`, `customer_profiles`, `customer_share_moderation_events`, `customer_share_reports`, `customer_sharing_eligibility` | 18 | No |
+| 30 | [migrations/030_audit_security_and_rls_hardening.sql](../../../migrations/030_audit_security_and_rls_hardening.sql) | `d45253ca937e74d9` | — | `favorites`, `notification_settings`, `platform_roles`, `vendor_memberships` | 2 | No |
 
 ## 2. Entity-Relationship Diagram (Generated from Foreign Keys)
 
@@ -968,6 +969,7 @@ erDiagram
 | `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `011_vendor_authz_and_audit.sql` |
 
 - **Constraints (6)**: `audit_logs_pkey` (PRIMARY KEY), `audit_logs_actor_id_check` (CHECK), `audit_logs_actor_role_check` (CHECK), `audit_logs_target_type_check` (CHECK), `audit_logs_target_id_check` (CHECK), `audit_logs_action_check` (CHECK)
+- **Indexes (2)**: `audit_logs_vendor_idx`, `audit_logs_actor_idx`
 
 ### Table `auth_delivery_telemetry`
 - **Created in**: `021_auth_diagnostics_and_email_readiness.sql` | **Altered in**: `023_invitation_delivery_and_lifecycle.sql`, `025_support_feedback_and_diagnostic_links.sql`
@@ -1199,7 +1201,7 @@ erDiagram
 | `idempotency_key` | `TEXT` | — | No | — | — | `024_diagnostics_and_reliability.sql` |
 
 - **Constraints (9)**: `community_reviews_pkey` (PRIMARY KEY), `community_reviews_rating_check` (CHECK), `CHECK` (CHECK), `CHECK` (CHECK), `community_reviews_kind_check` (CHECK), `community_reviews_report_count_check` (CHECK), `community_reviews_status_check` (CHECK), `community_reviews_moderation_consistency_chk` (CHECK), `community_reviews_idempotency_key_chk` (CHECK)
-- **Indexes (1)**: `idx_community_reviews_author_idem` *(UNIQUE)*
+- **Indexes (3)**: `community_reviews_published_idx`, `community_reviews_author_idx`, `idx_community_reviews_author_idem` *(UNIQUE)*
 - **RLS Policies (5)**:
   - `community_select_approved` (`FOR SELECT`, GUCs: none) — `013_harden_community_privacy.sql`
   - `community_select_own` (`FOR SELECT`, GUCs: `app.user_id`) — `013_harden_community_privacy.sql`
@@ -1719,8 +1721,8 @@ erDiagram
   - `diagnostic_releases_rls` (`FOR ALL`, GUCs: `app.admin_portal`, `app.diagnostics_internal`) — `024_diagnostics_and_reliability.sql`
 
 ### Table `favorites`
-- **Created in**: `003_create_favorites.sql`
-- **Row-Level Security**: Enabled = `false`, Forced = `false`
+- **Created in**: `003_create_favorites.sql` | **Altered in**: `030_audit_security_and_rls_hardening.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
 
 | Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
 |---|---|---|---|---|---|---|
@@ -1729,6 +1731,8 @@ erDiagram
 | `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `003_create_favorites.sql` |
 
 - **Constraints (1)**: `PRIMARY KEY` (PRIMARY KEY)
+- **RLS Policies (1)**:
+  - `favorites_owner_all` (`FOR ALL`, GUCs: `app.admin_portal`, `app.auth_internal`, `app.user_id`) — `030_audit_security_and_rls_hardening.sql`
 
 ### Table `feature_control_history`
 - **Created in**: `022_feature_controls.sql`
@@ -1777,8 +1781,8 @@ erDiagram
   - `feature_controls_update_top_only` (`FOR UPDATE`, GUCs: `app.is_platform_admin`) — `022_feature_controls.sql`
 
 ### Table `notification_settings`
-- **Created in**: `004_create_notification_settings.sql`
-- **Row-Level Security**: Enabled = `false`, Forced = `false`
+- **Created in**: `004_create_notification_settings.sql` | **Altered in**: `030_audit_security_and_rls_hardening.sql`
+- **Row-Level Security**: Enabled = `true`, Forced = `true`
 
 | Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
 |---|---|---|---|---|---|---|
@@ -1788,6 +1792,8 @@ erDiagram
 | `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `004_create_notification_settings.sql` |
 
 - **Constraints (2)**: `notification_settings_pkey` (PRIMARY KEY), `notification_settings_radius_miles_check` (CHECK)
+- **RLS Policies (1)**:
+  - `notification_settings_owner_all` (`FOR ALL`, GUCs: `app.admin_portal`, `app.auth_internal`, `app.user_id`) — `030_audit_security_and_rls_hardening.sql`
 
 ### Table `owner_profiles`
 - **Created in**: `005_create_owner_profiles.sql` | **Altered in**: `011_vendor_authz_and_audit.sql`
@@ -1938,6 +1944,7 @@ erDiagram
 | `ready_notify_count` | `INTEGER` | — | Yes | `0` | — | `015_pager_notifications_outbox.sql` |
 
 - **Constraints (5)**: `pickup_pagers_pkey` (PRIMARY KEY), `pickup_pagers_request_key_key` (UNIQUE), `pickup_pagers_vendor_check` (CHECK), `pickup_pagers_ticket_check` (CHECK), `pickup_pagers_status_check` (CHECK)
+- **Indexes (1)**: `pickup_pagers_vendor_active_idx`
 
 ### Table `platform_role_revocations`
 - **Created in**: `018_admin_portal_onboarding_moderation_issues.sql`
@@ -1953,7 +1960,7 @@ erDiagram
 - **Constraints (4)**: `platform_role_revocations_pkey` (PRIMARY KEY), `platform_role_revocations_user_id_check` (CHECK), `platform_role_revocations_revoked_by_check` (CHECK), `platform_role_revocations_reason_check` (CHECK)
 
 ### Table `platform_roles`
-- **Created in**: `011_vendor_authz_and_audit.sql` | **Altered in**: `018_admin_portal_onboarding_moderation_issues.sql`
+- **Created in**: `011_vendor_authz_and_audit.sql` | **Altered in**: `018_admin_portal_onboarding_moderation_issues.sql`, `030_audit_security_and_rls_hardening.sql`
 - **Row-Level Security**: Enabled = `false`, Forced = `false`
 
 | Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
@@ -1965,7 +1972,7 @@ erDiagram
 | `updated_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `018_admin_portal_onboarding_moderation_issues.sql` |
 | `notes` | `TEXT` | — | No | — | — | `018_admin_portal_onboarding_moderation_issues.sql` |
 
-- **Constraints (4)**: `platform_roles_pkey` (PRIMARY KEY), `platform_roles_user_id_check` (CHECK), `platform_roles_granted_by_check` (CHECK), `platform_roles_role_check` (CHECK)
+- **Constraints (5)**: `platform_roles_pkey` (PRIMARY KEY), `platform_roles_user_id_check` (CHECK), `platform_roles_granted_by_check` (CHECK), `platform_roles_role_check` (CHECK), `chk_platform_roles_no_sandbox_test_customer` (CHECK)
 
 ### Table `schema_migrations`
 - **Created in**: `scripts/run-migrations.cjs`
@@ -2233,7 +2240,7 @@ erDiagram
   - `vendor_applications_rls` (`FOR ALL`, GUCs: `app.admin_portal`, `app.user_id`) — `018_admin_portal_onboarding_moderation_issues.sql`
 
 ### Table `vendor_memberships`
-- **Created in**: `011_vendor_authz_and_audit.sql`
+- **Created in**: `011_vendor_authz_and_audit.sql` | **Altered in**: `030_audit_security_and_rls_hardening.sql`
 - **Row-Level Security**: Enabled = `false`, Forced = `false`
 
 | Column | SQL Type | PK | Not Null | Default | Foreign Key | Origin Migration |
@@ -2244,7 +2251,8 @@ erDiagram
 | `granted_by` | `TEXT` | — | Yes | — | — | `011_vendor_authz_and_audit.sql` |
 | `created_at` | `TIMESTAMPTZ` | — | Yes | `now()` | — | `011_vendor_authz_and_audit.sql` |
 
-- **Constraints (4)**: `vendor_memberships_user_id_check` (CHECK), `vendor_memberships_role_check` (CHECK), `vendor_memberships_granted_by_check` (CHECK), `PRIMARY KEY` (PRIMARY KEY)
+- **Constraints (5)**: `vendor_memberships_user_id_check` (CHECK), `vendor_memberships_role_check` (CHECK), `vendor_memberships_granted_by_check` (CHECK), `PRIMARY KEY` (PRIMARY KEY), `chk_vendor_memberships_no_sandbox_test_customer` (CHECK)
+- **Indexes (1)**: `vendor_memberships_user_idx`
 
 ### Table `vendor_status_history`
 - **Created in**: `018_admin_portal_onboarding_moderation_issues.sql`
@@ -2353,8 +2361,8 @@ erDiagram
 - **Function**: `guard_membership_grant()` (`011_vendor_authz_and_audit.sql`)
 - **Function**: `is_last_top_cleanup_authorized()` (`026_urgent_pilot_security_hardening.sql`)
 - **Function**: `next_support_ticket_number()` (`025_support_feedback_and_diagnostic_links.sql`)
-- **Function**: `protect_last_top_admin()` (`026_urgent_pilot_security_hardening.sql`)
-- **Function**: `protect_last_top_admin_on_auth_users()` (`026_urgent_pilot_security_hardening.sql`)
+- **Function**: `protect_last_top_admin()` (`030_audit_security_and_rls_hardening.sql`)
+- **Function**: `protect_last_top_admin_on_auth_users()` (`030_audit_security_and_rls_hardening.sql`)
 - **Trigger**: `trg_enforce_bookings_integrity` (`BEFORE INSERT OR UPDATE ON bookings`, `012_harden_bookings.sql`)
 - **Trigger**: `trg_enforce_community_reviews_guard` (`BEFORE INSERT OR UPDATE ON community_reviews`, `013_harden_community_privacy.sql`)
 - **Trigger**: `trg_enforce_pickup_pager_vendor_id` (`BEFORE INSERT OR UPDATE ON pickup_pagers`, `011_vendor_authz_and_audit.sql`)

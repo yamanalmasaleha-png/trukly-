@@ -143,9 +143,9 @@ function sleepInterruptible(ms) {
         } else if (
           !opts.continuous ||
           (payload.claimed || 0) > 0 ||
-          (payload.sent || 0) > 0 ||
+          (payload.delivered || payload.sent || 0) > 0 ||
           (payload.retried || 0) > 0 ||
-          (payload.failed || 0) > 0 ||
+          (payload.failed_permanent || payload.failed || 0) > 0 ||
           tick === 1 ||
           tick % 30 === 0
         ) {
@@ -201,11 +201,15 @@ function sleepInterruptible(ms) {
     let authMod = null;
     let diagMod = null;
     let expMod = null;
+    let govMod = null;
     try {
       authMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'standalone-auth.js')).href);
     } catch {}
     try {
       expMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'customer-exploration.js')).href);
+    } catch {}
+    try {
+      govMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'admin-governance.js')).href);
     } catch {}
     try {
       diagMod = await import(pathToFileURL(path.resolve(__dirname, '..', 'lib', 'diagnostics.js')).href);
@@ -237,10 +241,14 @@ function sleepInterruptible(ms) {
         if (shouldCleanup && expMod && typeof expMod.reconcilePhotoStorage === 'function') {
           await expMod.reconcilePhotoStorage(dbAdapter).catch(() => {});
         }
+        if (shouldCleanup && govMod && typeof govMod.cleanupExpiredGovernanceRecords === 'function') {
+          await govMod.cleanupExpiredGovernanceRecords(dbAdapter).catch(() => {});
+        }
+        const failedCount = Number(summary.failed_permanent || summary.failed || 0);
         if (diagMod && typeof diagMod.recordWorkerHeartbeat === 'function') {
           await diagMod.recordWorkerHeartbeat(dbAdapter, {
             workerName: 'pager_notifications',
-            status: (summary.failed || 0) > 0 ? 'degraded' : 'ok',
+            status: failedCount > 0 ? 'degraded' : 'ok',
             releaseSha,
             summary: { queue_depth: Number(summary.claimed || 0) }
           });
@@ -248,9 +256,9 @@ function sleepInterruptible(ms) {
         if (
           !opts.continuous ||
           (summary.claimed || 0) > 0 ||
-          (summary.sent || 0) > 0 ||
+          (summary.delivered || summary.sent || 0) > 0 ||
           (summary.retried || 0) > 0 ||
-          (summary.failed || 0) > 0 ||
+          failedCount > 0 ||
           tick === 1 ||
           tick % 30 === 0
         ) {

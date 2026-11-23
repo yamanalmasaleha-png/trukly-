@@ -235,7 +235,8 @@
               '</div>' +
               '<div class="cp-btn-row" style="margin-top:0">' +
               (shareFeat.state === 'enabled' && elig.can_share && col.moderation_status === 'active'
-                ? '<button type="button" class="cp-inline-btn" data-gh-rotate-share="' + ghEsc(s.share_id) + '">Replace / rotate link</button>'
+                ? '<button type="button" class="cp-inline-btn" data-gh-apply-settings-share="' + ghEsc(s.share_id) + '" title="Apply the selected disclosure checkboxes and expiration above to this active link">Apply settings</button>' +
+                  '<button type="button" class="cp-inline-btn" data-gh-rotate-share="' + ghEsc(s.share_id) + '">Replace / rotate link</button>'
                 : '') +
               '<button type="button" class="cp-inline-btn is-danger" data-gh-revoke-share="' + ghEsc(s.share_id) + '">Revoke</button>' +
               '</div>' +
@@ -497,6 +498,30 @@
       };
     }
 
+    root.querySelectorAll('[data-gh-apply-settings-share]').forEach(function (btn) {
+      btn.onclick = async function () {
+        var sid = btn.dataset.ghApplySettingsShare;
+        if (!window.bitesharkProfile || typeof window.bitesharkProfile.updateShareSettings !== 'function') return;
+        btn.disabled = true;
+        try {
+          await window.bitesharkProfile.updateShareSettings({
+            share_id: sid,
+            disclosures: shState.disclosures,
+            expires_in_days: shState.expiresInDays ? Number(shState.expiresInDays) : null,
+            confirm_shared_view_update: true
+          });
+          shState.msg = { text: 'Updated share link disclosure and expiration settings.', isError: false };
+          if (ctx && typeof ctx.reloadEditor === 'function') {
+            await ctx.reloadEditor();
+          }
+        } catch (err) {
+          btn.disabled = false;
+          shState.msg = { text: err.message || 'Could not update share link settings.', isError: true };
+          rerender();
+        }
+      };
+    });
+
     root.querySelectorAll('[data-gh-rotate-share]').forEach(function (btn) {
       btn.onclick = async function () {
         var sid = btn.dataset.ghRotateShare;
@@ -544,12 +569,12 @@
       btn.onclick = async function () {
         shState.openPhotoPickerVendorId = btn.dataset.ghOpenPhotoPicker;
         rerender();
-        if (shState.ownerPhotosCache === null && window.bitesharkExploration) {
+        if (window.bitesharkExploration) {
           try {
             var res = await window.bitesharkExploration.listPhotos({ limit: 12 });
             shState.ownerPhotosCache = res.photos || [];
           } catch (_e) {
-            shState.ownerPhotosCache = [];
+            if (!Array.isArray(shState.ownerPhotosCache)) shState.ownerPhotosCache = [];
           }
           rerender();
         }

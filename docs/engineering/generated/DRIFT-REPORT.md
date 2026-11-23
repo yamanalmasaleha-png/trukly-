@@ -5,17 +5,17 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
-- **Active Findings**: **12** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*
+- **Active Findings**: **10** *(compared against audited baseline debt in [drift-baseline.json](../schemas/drift-baseline.json) during `npm run registry:validate`)*
 - **Scoped Intentional-Pattern Suppressions**: **2** *(configured in [suppressions.json](../../../tools/code-registry/suppressions.json))*
 - **Human-Curated Architectural & Cross-Branch Drift**: See [KNOWN-DRIFT.md](../KNOWN-DRIFT.md)
 
 > [!IMPORTANT]
 > **Governance Separation**: Running `npm run registry:docs` updates this report for visibility without modifying `drift-baseline.json`. Any newly introduced high-confidence blocking finding fails `npm run registry:validate` until fixed in code or explicitly accepted with rationale via `npm run registry:accept-drift -- --finding <ID> --reason "..."`.
 
-## 1. Active Findings (12)
+## 1. Active Findings (10)
 
 ### `DRIFT:BROKEN_DOC_LINK:docs/VPS_RELEASE_VERIFICATION_REPORT.md_L10-_docs/RELEASE_VERIFICATION_REPORT.md`
 - **Category**: `BROKEN_DOC_LINK` | **Severity**: `high` | **Confidence**: `high` (`parsed_markdown`)
@@ -38,38 +38,20 @@
 ### `DRIFT:COMPETING_BROWSER_GLOBAL:preselectedVisitVendorId`
 - **Category**: `LOAD_ORDER_GLOBAL_WRAPPER` | **Severity**: `medium` | **Confidence**: `high` (`parsed_ast`)
 - **Affected Objects**: `public/local-guides.js#preselectedVisitVendorId`, `public/guide-passport.js#preselectedVisitVendorId`
-- **Evidence**: Browser global "preselectedVisitVendorId" is defined or reassigned across multiple scripts loaded in public/index.html: public/local-guides.js:L9 (top_level_browser_let), public/local-guides.js:L357 (browser_global_reassignment), public/guide-passport.js:L295 (browser_global_reassignment).
+- **Evidence**: Browser global "preselectedVisitVendorId" is defined or reassigned across multiple scripts loaded in public/index.html: public/local-guides.js:L9 (top_level_browser_let), public/local-guides.js:L368 (browser_global_reassignment), public/guide-passport.js:L295 (browser_global_reassignment).
 - **Potential Impact**: Execution depends strictly on <script> load order in public/index.html; reordering scripts breaks wrapper chaining on preselectedVisitVendorId.
 - **Suggested Verification**: Check script order in public/index.html and callers of preselectedVisitVendorId.
 - **Proposed Remediation**: Preserve documented load order or migrate post-render hooks to explicit event/callback registration in future refactors.
 - **False-Positive Considerations**: Intentional post-render decorator wrappers (such as openDetail) are load-order-sensitive design patterns rather than accidental bugs.
 
-### `DRIFT:DOC_CODE_MISMATCH:README.md#migrations_range`
-- **Category**: `DOC_CODE_MISMATCH` | **Severity**: `medium` | **Confidence**: `high` (`parsed_docs_vs_migrations`)
-- **Affected Objects**: `README.md`, `migrations/`
-- **Evidence**: README.md states migrations run 001 through 028, whereas migrations/ currently contains 001 through 029.
-- **Potential Impact**: Operators or assistants reading top-level docs underestimate active schema tables.
-- **Suggested Verification**: Compare README.md against migrations/ directory.
-- **Proposed Remediation**: Refer to docs/engineering/MIGRATIONS.md or update range in README.md.
-- **False-Positive Considerations**: None.
-
 ### `DRIFT:DUPLICATE_HELPER_IMPLEMENTATION:html_escape_helpers`
 - **Category**: `DUPLICATE_HELPER_IMPLEMENTATION` | **Severity**: `low` | **Confidence**: `high` (`parsed_ast`)
-- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L725`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L126`
-- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L725, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L126.
+- **Affected Objects**: `public/admin.js:esc@L104`, `public/app.js:esc@L259`, `public/community.js:communityEscape@L5`, `public/diagnostics-client.js:escapeHtmlSafe@L725`, `public/guide-passport.js:guidePassportHtmlEscape@L21`, `public/listing-highlights.js:esc@L30`, `public/local-guides.js:guidesEscape@L14`, `public/pager.js:pagerEscape@L14`, `public/role-experience.js:rxEsc@L156`, `public/smart.js:smartEscape@L14`, `public/street-whispers.js:streetEscape@L66`, `scripts/dev-workbench/debug-admin.js:dbgEsc@L24`, `server/app.js:escapeHtml@L137`
+- **Evidence**: 13 separate HTML-escaping helper functions exist across frontend/backend modules: public/admin.js:esc@L104, public/app.js:esc@L259, public/community.js:communityEscape@L5, public/diagnostics-client.js:escapeHtmlSafe@L725, public/guide-passport.js:guidePassportHtmlEscape@L21, public/listing-highlights.js:esc@L30, public/local-guides.js:guidesEscape@L14, public/pager.js:pagerEscape@L14, public/role-experience.js:rxEsc@L156, public/smart.js:smartEscape@L14, public/street-whispers.js:streetEscape@L66, scripts/dev-workbench/debug-admin.js:dbgEsc@L24, server/app.js:escapeHtml@L137.
 - **Potential Impact**: Inconsistent character escaping (e.g., omitting single-quote &#39; or null coercion) can introduce XSS or display bugs if a weaker variant is copied.
 - **Suggested Verification**: Inspect each escape helper to confirm all 5 characters (&, <, >, ", ') and nullish inputs are handled.
 - **Proposed Remediation**: Retain existing helpers to avoid churn; for new frontend modules, reuse a single canonical 5-entity escape helper.
 - **False-Positive Considerations**: IIFE-encapsulated browser scripts intentionally keep tiny local esc() functions to remain zero-build.
-
-### `DRIFT:INVALID_WRITE_PAUSE_SCOPE:api/favorites/toggle.js#favorites`
-- **Category**: `INVALID_WRITE_PAUSE_SCOPE` | **Severity**: `high` | **Confidence**: `high` (`parsed_ast`)
-- **Affected Objects**: `api/favorites/toggle.js:L10`, `lib/authz.js#VALID_WRITE_PAUSE_SCOPES`
-- **Evidence**: api/favorites/toggle.js:L10 calls isWritePaused("favorites"), which is not in VALID_WRITE_PAUSE_SCOPES (bookings, pagers, community, owner, notifications, all).
-- **Potential Impact**: Setting BITESHARK_PAUSE_WRITES=favorites triggers inspectWritePauseConfig() failClosedAll=true, halting ALL mutations across every domain.
-- **Suggested Verification**: Inspect api/favorites/toggle.js:L10 and lib/authz.js:120-166.
-- **Proposed Remediation**: Add "favorites" to VALID_WRITE_PAUSE_SCOPES in lib/authz.js (or map favorites to an approved scope) in a dedicated runtime fix PR.
-- **False-Positive Considerations**: None.
 
 ### `DRIFT:SUSPECTED_ORPHAN_ROUTE:/api/catalog/cities`
 - **Category**: `SUSPECTED_ORPHAN_ROUTE` | **Severity**: `low` | **Confidence**: `medium` (`parsed_ast_route_callers`)

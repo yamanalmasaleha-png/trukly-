@@ -225,7 +225,18 @@ function renderDiscoverStoriesStrip() {
     host.innerHTML = '';
     return;
   }
-  const stories = window.bitesharkExploration.CANONICAL_STORIES.slice(0, 3);
+  const activeVendorSet =
+    typeof trucks !== 'undefined' && Array.isArray(trucks) && trucks.length > 0
+      ? new Set(trucks.map(t => String(t.id || '')))
+      : null;
+  const stories = window.bitesharkExploration.CANONICAL_STORIES.filter(
+    s => !activeVendorSet || activeVendorSet.has(String(s.vendor_id || ''))
+  ).slice(0, 3);
+  if (!stories.length) {
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
   host.hidden = false;
   host.innerHTML =
     '<div class="street-paper-head"><span data-doodle="paper" aria-hidden="true"></span><div><small>EDITORIAL FIELD NOTES</small><h2 id="streetHeading">Sourced Sonoma stories</h2></div>' +

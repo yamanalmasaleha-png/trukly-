@@ -2498,6 +2498,18 @@
       okEl.innerHTML = '';
     }
 
+    var portalApi = window.bitesharkAdminPortal;
+    var ctxObj = portalApi && typeof portalApi.getAccessContext === 'function' ? portalApi.getAccessContext() : null;
+    var ctxEmail = ctxObj && ctxObj.user && ctxObj.user.email ? String(ctxObj.user.email) : '';
+    var authorNameEl = document.getElementById('sgPushAuthorName');
+    var authorEmailEl = document.getElementById('sgPushAuthorEmail');
+    if (authorEmailEl && !authorEmailEl.value && ctxEmail) {
+      authorEmailEl.value = ctxEmail;
+    }
+    if (authorNameEl && !authorNameEl.value && ctxEmail) {
+      authorNameEl.value = ctxEmail.split('@')[0] || 'BiteShark Top Admin';
+    }
+
     openModal('sgPushRepoModal');
     if (gh.server_token_configured) {
       inspectLiveRemoteDiff(true);
@@ -2597,8 +2609,8 @@
           base_branch: gh.default_branch || 'working/biteshark-vps',
           confirm_overwrite: Boolean(confirmRemoteOverwrite),
           commit_message: msgInput ? msgInput.value.trim() : '',
-          author_name: authorNameInp ? authorNameInp.value.trim() : 'Matt Callaway',
-          author_email: authorEmailInp ? authorEmailInp.value.trim() : 'mattcallawaysemail@gmail.com',
+          author_name: authorNameInp ? authorNameInp.value.trim() : '',
+          author_email: authorEmailInp ? authorEmailInp.value.trim() : '',
           github_token: tokenInp ? tokenInp.value.trim() : ''
         }
       });

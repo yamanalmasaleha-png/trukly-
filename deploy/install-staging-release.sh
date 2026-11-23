@@ -734,7 +734,8 @@ const redacted = String(raw || '')
   .replace(/postgres(?:ql)?:\/\/[^\s"'`]+/gi, 'postgres://[REDACTED_DB_URL]')
   .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED_TOKEN]')
   .replace(/((?:SECRET|TOKEN|PASSWORD|PASSPHRASE|API_KEY|PRIVATE_KEY|COOKIE)[A-Z0-9_]*\s*[:=]\s*)([^\s,"']+)/gi, '$1[REDACTED]')
-  .replace(/(__Host-truckly_session=)[^;\s"']+/gi, '$1[REDACTED]')
+  .replace(/\/s\/[A-Za-z0-9._~-]+/g, '/s/[REDACTED_TOKEN]')
+  .replace(/(__Host-[A-Za-z0-9_-]+=)[^;\s"']+/gi, '$1[REDACTED]')
   .slice(0, 2400);
 console.error(JSON.stringify({
   level: 'warn',

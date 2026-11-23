@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `0c5a573f94b12f309155ebe3b55b4d209581e87bff6c937910fc952c9c64d592`
+> - **Source Analysis Digest**: `972893941bb361039b39c87eca1c660c24adc38bc5397a70775abfd4504f9c9d`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 ## HTML Document: [public/admin.html](../../../public/admin.html)
@@ -324,25 +324,25 @@
 
 | Storage Mechanism | Key / Database | Operations | Code Locations |
 |---|---|---|---|
-| `IndexedDB` | `truckly-dish-notebook-v1` | `open` | `public/exploration-client.js:L702`, `public/exploration-client.js:L767`, `public/exploration-client.js:L814` |
+| `IndexedDB` | `truckly-dish-notebook-v1` | `open` | `public/exploration-client.js:L721`, `public/exploration-client.js:L786`, `public/exploration-client.js:L833` |
 | `cookie` | `:expr=; Path=/; Max-Age=0; Expir` | `write` | `public/role-experience.js:L40` |
 | `cookie` | `<dynamic>` | `write` | `public/role-experience.js:L83` |
 | `cookie` | `truckly_debug_role` | `write` | `scripts/dev-workbench/debug-admin.js:L123` |
 | `localStorage` | `<constant_or_var>` | `getItem, removeItem, setItem` | `public/app.js:L108`, `public/app.js:L128`, `scripts/dev-workbench/debug-admin.js:L13`, `scripts/dev-workbench/debug-admin.js:L21` |
-| `localStorage` | `truckly_bookings` | `removeItem` | `public/app.js:L1738`, `public/app.js:L1806`, `public/auth-client.js:L24` |
+| `localStorage` | `truckly_bookings` | `removeItem` | `public/app.js:L1744`, `public/app.js:L1812`, `public/auth-client.js:L24` |
 | `localStorage` | `truckly_catalog` | `removeItem` | `public/app.js:L423` |
 | `localStorage` | `truckly_catalog_v2` | `safeJSON, setItem` | `public/app.js:L424`, `public/app.js:L980` |
-| `localStorage` | `truckly_favs` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1655`, `public/app.js:L1661`, `public/app.js:L1735`, `public/app.js:L1807` |
-| `localStorage` | `truckly_favs_scope` | `getItem, removeItem, safeStorageSet` | `public/app.js:L1632`, `public/app.js:L1656`, `public/app.js:L1662`, `public/app.js:L1733` |
-| `localStorage` | `truckly_guide_passport_v1` | `getItem, removeItem, setItem` | `public/exploration-client.js:L625`, `public/exploration-client.js:L676`, `public/exploration-client.js:L678` |
-| `localStorage` | `truckly_notify` | `removeItem, safeJSON, safeStorageSet, setItem` | `public/app.js:L1809`, `public/app.js:L2076`, `public/app.js:L2098`, `public/app.js:L2132` |
-| `localStorage` | `truckly_owner_profile` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1811`, `public/app.js:L2918`, `public/app.js:L3698`, `public/auth-client.js:L29` |
-| `localStorage` | `truckly_owner_schedule` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1812`, `public/app.js:L2926`, `public/app.js:L3594`, `public/auth-client.js:L30` |
-| `localStorage` | `truckly_owner_truck_id` | `getItem, removeItem, setItem` | `public/app.js:L1810`, `public/app.js:L2911`, `public/app.js:L3096`, `public/auth-client.js:L28` |
+| `localStorage` | `truckly_favs` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1655`, `public/app.js:L1661`, `public/app.js:L1741`, `public/app.js:L1813` |
+| `localStorage` | `truckly_favs_scope` | `getItem, removeItem, safeStorageSet` | `public/app.js:L1632`, `public/app.js:L1656`, `public/app.js:L1662`, `public/app.js:L1739` |
+| `localStorage` | `truckly_guide_passport_v1` | `getItem, removeItem, setItem` | `public/exploration-client.js:L644`, `public/exploration-client.js:L695`, `public/exploration-client.js:L697` |
+| `localStorage` | `truckly_notify` | `removeItem, safeJSON, safeStorageSet, setItem` | `public/app.js:L1815`, `public/app.js:L2082`, `public/app.js:L2104`, `public/app.js:L2138` |
+| `localStorage` | `truckly_owner_profile` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1817`, `public/app.js:L2924`, `public/app.js:L3704`, `public/auth-client.js:L29` |
+| `localStorage` | `truckly_owner_schedule` | `removeItem, safeJSON, safeStorageSet` | `public/app.js:L1818`, `public/app.js:L2932`, `public/app.js:L3600`, `public/auth-client.js:L30` |
+| `localStorage` | `truckly_owner_truck_id` | `getItem, removeItem, setItem` | `public/app.js:L1816`, `public/app.js:L2917`, `public/app.js:L3102`, `public/auth-client.js:L28` |
 | `localStorage` | `truckly_pager_subs_v1` | `getItem, setItem` | `public/pager.js:L21`, `public/pager.js:L42` |
 | `sessionStorage` | `biteshark_admin_viewpoint_v1` | `getItem, removeItem, setItem` | `public/admin.js:L319`, `public/admin.js:L320`, `public/auth-client.js:L23`, `public/role-experience.js:L1165` |
-| `sessionStorage` | `biteshark_pending_invite_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5119`, `public/role-experience.js:L100`, `public/role-experience.js:L92`, `public/role-experience.js:L96` |
-| `sessionStorage` | `bs_support_draft_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5118`, `public/auth-client.js:L22`, `public/role-experience.js:L106`, `public/role-experience.js:L109` |
+| `sessionStorage` | `biteshark_pending_invite_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5123`, `public/role-experience.js:L100`, `public/role-experience.js:L92`, `public/role-experience.js:L96` |
+| `sessionStorage` | `bs_support_draft_v1` | `getItem, removeItem, setItem` | `public/admin.js:L5122`, `public/auth-client.js:L22`, `public/role-experience.js:L106`, `public/role-experience.js:L109` |
 
 ## CSS Stylesheets, Custom Properties & Responsive Breakpoints (21)
 

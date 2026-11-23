@@ -51,6 +51,7 @@ import {
   handlePublicSharedPageRequest,
   handlePublicSharedPhotoRequest
 } from './customer-profile-routes.js';
+import { buildClearedAdminTestCustomerCookieHeader } from '../lib/admin-test-customer.js';
 import { MAX_PHOTO_JSON_BODY_BYTES } from '../lib/photo-storage.js';
 import * as stagingGateProbe from '../scripts/staging-runtime-probe.js';
 
@@ -120,8 +121,18 @@ const NO_CACHE_STATIC_FILES = new Set([
   '/sw.js',
   '/manifest.json',
   '/auth-client.js',
+  '/admin-style-guide.js',
+  '/admin-style-guide.css',
   '/build.json'
 ]);
+
+function safeDecodeSegment(raw) {
+  try {
+    return decodeURIComponent(String(raw || ''));
+  } catch {
+    return null;
+  }
+}
 
 function escapeHtml(raw) {
   return String(raw || '')
@@ -249,6 +260,7 @@ function applyBaselineSecurityHeaders(res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
 }
 
 function appendSetCookie(res, cookieValue) {
@@ -793,6 +805,8 @@ export function createStandaloneServer({
           if (out.setCookieHeader) {
             appendSetCookie(res, out.setCookieHeader);
           }
+          // Always clear any lingering Admin Test Customer overlay cookie on fresh OTP sign-in
+          appendSetCookie(res, buildClearedAdminTestCustomerCookieHeader());
           return sendJsonResponse(res, out.status, out.body, hdrs);
         }
 
@@ -917,7 +931,8 @@ export function createStandaloneServer({
         // always resolve the underlying administrator session (`bypassTestCustomerOverlay: true`).
         const isAdminPortalScopedReq =
           normGovPath.startsWith('/api/admin/') ||
-          String(req.headers?.['x-biteshark-admin-portal'] || '') === '1';
+          String(req.headers?.['x-biteshark-admin-portal'] || '') === '1' ||
+          (normGovPath === '/api/onboarding/evidence' && parsedUrl.searchParams.get('admin_portal') === '1');
         const sess = isUntrustedDiagReport
           ? { authenticated: false, user: null, sessionId: null, refreshedCookieHeader: null }
           : await resolveSessionFromRequest(dbAdapter, req, {
@@ -1078,7 +1093,9 @@ export function createStandaloneServer({
         let verifiedSessionId = null;
         if (route.access === 'user' || actOnBehalf.present) {
           applyPrivateNoStoreHeaders(res);
-          const sess = await resolveSessionFromRequest(dbAdapter, req);
+          const sess = await resolveSessionFromRequest(dbAdapter, req, {
+            bypassTestCustomerOverlay: String(req.headers?.['x-biteshark-admin-portal'] || '') === '1'
+          });
           if (sess.refreshedCookieHeader) {
             appendSetCookie(res, sess.refreshedCookieHeader);
           }
@@ -1118,7 +1135,7 @@ export function createStandaloneServer({
           if (!verifiedUser && req.headers?.cookie) {
             // Read-only session lookup for `staff_beta` evaluation on gated public routes (`community/list`, `trucks/availability`)
             // without emitting `Set-Cookie` or touching cacheable `/api/trucks` catalog routes.
-            const pubSess = await resolveSessionFromRequest(dbAdapter, req).catch(() => null);
+            const pubSess = await resolveSessionFromRequest(dbAdapter, req, { allowRenewal: false }).catch(() => null);
             if (pubSess?.authenticated && pubSess.user && !pubSess.user.requires_age_assessment) {
               applyPrivateNoStoreHeaders(res);
               gateReq = Object.create(req);
@@ -1327,34 +1344,39 @@ export function createStandaloneServer({
       // 4D. Unlisted Shared Greatest Hits Route (`/s/<opaque-token>` & `/s/<opaque-token>/photo/<attachment>`)
       if (pathname === '/s' || pathname.startsWith('/s/')) {
         const segs = pathname.split('/').filter(Boolean);
-        if (segs.length === 4 && segs[0] === 's' && segs[2] === 'photo') {
-          await handlePublicSharedPhotoRequest({
-            rawToken: decodeURIComponent(segs[1]),
-            attachmentId: decodeURIComponent(segs[3]),
-            method,
-            req,
-            res,
-            dbAdapter
-          });
-          return;
+        let viewerUser = null;
+        if (req.headers?.cookie && (segs.length === 2 || (segs.length === 4 && segs[2] === 'photo'))) {
+          try {
+            const sess = await resolveSessionFromRequest(dbAdapter, req, { allowRenewal: false });
+            if (sess.authenticated && sess.user && !sess.user.requires_age_assessment) {
+              viewerUser = sess.user;
+            }
+          } catch {}
         }
-        if (segs.length === 2 && segs[0] === 's') {
-          let viewerAuthenticated = false;
-          if (req.headers?.cookie) {
-            try {
-              const sess = await resolveSessionFromRequest(dbAdapter, req);
-              viewerAuthenticated = Boolean(
-                sess.authenticated && sess.user && !sess.user.requires_age_assessment
-              );
-            } catch {}
-          }
-          await handlePublicSharedPageRequest({
-            rawToken: decodeURIComponent(segs[1]),
+        if (segs.length === 4 && segs[0] === 's' && segs[2] === 'photo') {
+          const decodedToken = safeDecodeSegment(segs[1]);
+          const decodedAtt = safeDecodeSegment(segs[3]);
+          await handlePublicSharedPhotoRequest({
+            rawToken: decodedToken || '',
+            attachmentId: decodedAtt || '',
             method,
             req,
             res,
             dbAdapter,
-            viewerAuthenticated
+            viewerUser
+          });
+          return;
+        }
+        if (segs.length === 2 && segs[0] === 's') {
+          const decodedToken = safeDecodeSegment(segs[1]);
+          await handlePublicSharedPageRequest({
+            rawToken: decodedToken || '',
+            method,
+            req,
+            res,
+            dbAdapter,
+            viewerAuthenticated: Boolean(viewerUser),
+            viewerUser
           });
           return;
         }
