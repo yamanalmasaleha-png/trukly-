@@ -5,7 +5,7 @@
 > - **Repository**: `https://github.com/yamanalmasaleha-png/trukly-`
 > - **Provenance Mode**: `committed_source_digest` *(branch/detached-HEAD invariant; commit-bound runs use `npm run registry:scan -- --include-timestamp`)*
 > - **Generator**: `biteshark-code-registry@2.0.0` (`biteshark.code-registry.v2`)
-> - **Source Analysis Digest**: `c7326f45a26b8a8d55f356372108471d7be2d6b3ff831e3f1c1b164340723c08`
+> - **Source Analysis Digest**: `fca4a38a65e7b7bc1ad13642937deeb84c84d79d1a1d3fcfeaf6b04824e3c18e`
 > - **Analysis Scope & Limits**: Static AST, HTML, CSS, and SQL analysis without executing application modules. Relationships distinguish confirmed_static, documented_wrapper, inferred_candidate, and dynamic_unresolved; static analysis does not prove runtime behavioral correctness.
 
 - [← Back to Symbol & Module Index](../SYMBOL-INDEX.md)
